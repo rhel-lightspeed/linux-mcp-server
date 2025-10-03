@@ -46,3 +46,6 @@ Thumbs.db
 # uv
 .uv/
 
+# Configuration files (user-specific)
+config.sh
+
