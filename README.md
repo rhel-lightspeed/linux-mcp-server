@@ -16,6 +16,7 @@ A Model Context Protocol (MCP) server for read-only Linux system administration,
 - `get_cpu_info` - CPU details and load averages
 - `get_memory_info` - RAM usage and swap details
 - `get_disk_usage` - Filesystem usage and mount points
+- `get_hardware_info` - Hardware details (CPU architecture, PCI/USB devices, memory hardware)
 
 ### Service Management
 - `list_services` - List all systemd services with status
@@ -36,10 +37,11 @@ A Model Context Protocol (MCP) server for read-only Linux system administration,
 - `get_network_connections` - Active network connections
 - `get_listening_ports` - Ports listening on the system
 
-### Storage & Hardware
+### Storage & Disk Analysis
 - `list_block_devices` - Block devices and partitions
-- `get_hardware_info` - Hardware details
-- `get_biggest_directories` - Find largest directories for disk space analysis
+- `list_directories_by_size` - List directories sorted by size (largest first) with top N limit
+- `list_directories_by_name` - List all directories sorted alphabetically (A-Z or Z-A)
+- `list_directories_by_modified_date` - List all directories sorted by modification date (newest/oldest first)
 
 ## Installation
 

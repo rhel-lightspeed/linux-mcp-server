@@ -54,6 +54,13 @@ Returns filesystem usage and mount points.
 
 **Example use case:** "Which filesystems are running out of space?"
 
+#### `get_hardware_info`
+Returns hardware information including CPU architecture, PCI devices, USB devices, and memory hardware.
+
+**Parameters:** None
+
+**Example use case:** "What hardware is installed in this system?"
+
 ### Service Management
 
 #### `list_services`
@@ -155,7 +162,7 @@ Returns ports that are listening on the system.
 
 **Example use case:** "What services are listening on network ports?"
 
-### Storage & Hardware
+### Storage & Disk Analysis
 
 #### `list_block_devices`
 Lists block devices, partitions, and disk I/O statistics.
@@ -164,31 +171,46 @@ Lists block devices, partitions, and disk I/O statistics.
 
 **Example use case:** "Show me all disk devices and their usage statistics."
 
-#### `get_hardware_info`
-Returns hardware information including CPU architecture, PCI devices, USB devices.
-
-**Parameters:** None
-
-**Example use case:** "What hardware is installed in this system?"
-
-#### `get_biggest_directories`
-Finds the largest directories under a specified path for disk space analysis. This tool helps identify where disk space is being consumed.
+#### `list_directories_by_size`
+Lists immediate subdirectories under a specified path, sorted by size (largest first). Uses efficient Linux `du` command for fast disk space analysis.
 
 **Parameters:**
 - `path` (string, required): Directory path to analyze (e.g., "/home", "/var", "/")
-- `recursive` (boolean, required): If true, searches all subdirectories recursively; if false, only searches immediate subdirectories
 - `top_n` (number, required): Number of largest directories to return (1-1000)
 
-**Security Features:**
-- Path validation and resolution prevents path traversal attacks
-- No shell command execution - uses native Python file operations
-- Input sanitization for all parameters
-- Graceful handling of permission denied errors
+**Key Features:**
+- Lists only immediate children (not nested paths)
+- Sizes include all nested content recursively
+- Fast performance using native `du` command
+- Path validation prevents traversal attacks
 
 **Example use cases:**
-- "Find the top 5 largest directories in /var" → `get_biggest_directories("/var", false, 5)`
-- "What are the 10 biggest directories under /home recursively?" → `get_biggest_directories("/home", true, 10)`
-- "Show me the 3 largest directories taking up space in root partition" → `get_biggest_directories("/", false, 3)`
+- "Find the top 5 largest directories in /var" → `list_directories_by_size("/var", 5)`
+- "What are the 10 biggest directories under /home?" → `list_directories_by_size("/home", 10)`
+- "Show me the 3 largest directories in root partition" → `list_directories_by_size("/", 3)`
+
+#### `list_directories_by_name`
+Lists all immediate subdirectories under a specified path, sorted alphabetically. Uses efficient Linux `find` command.
+
+**Parameters:**
+- `path` (string, required): Directory path to analyze
+- `reverse` (boolean, optional): Sort in reverse order (Z-A). Default: false (A-Z)
+
+**Example use cases:**
+- "List all directories in /home alphabetically" → `list_directories_by_name("/home")`
+- "Show me directories in /var in reverse alphabetical order" → `list_directories_by_name("/var", true)`
+
+#### `list_directories_by_modified_date`
+Lists all immediate subdirectories under a specified path, sorted by modification date. Uses efficient Linux `find` command.
+
+**Parameters:**
+- `path` (string, required): Directory path to analyze
+- `newest_first` (boolean, optional): Show newest first. Default: true
+
+**Example use cases:**
+- "Show me recently modified directories in /home" → `list_directories_by_modified_date("/home")`
+- "List directories in /var sorted by oldest first" → `list_directories_by_modified_date("/var", false)`
+- "What directories in /tmp were changed recently?" → `list_directories_by_modified_date("/tmp", true)`
 
 ## Configuration
 
@@ -267,15 +289,18 @@ Add this configuration to your Claude Desktop config file:
 ### Disk Space Problems
 1. "Show me disk usage for all filesystems" → `get_disk_usage`
 2. "List all block devices" → `list_block_devices`
-3. "Find the top 10 largest directories in /var" → `get_biggest_directories`
-4. "What are the biggest directories under /home recursively?" → `get_biggest_directories`
-5. "Show me system information including uptime" → `get_system_info`
+3. "Find the top 10 largest directories in /var" → `list_directories_by_size`
+4. "What are the biggest directories under /home?" → `list_directories_by_size`
+5. "List recently modified directories in /tmp" → `list_directories_by_modified_date`
+6. "Show me system information including uptime" → `get_system_info`
 
 ### Detailed Disk Space Analysis
 1. "Show me overall disk usage" → `get_disk_usage`
-2. "Which directories under /var are using the most space?" → `get_biggest_directories("/var", false, 10)`
-3. "Find all large directories under /home recursively" → `get_biggest_directories("/home", true, 20)`
-4. "What's taking up space in the root filesystem?" → `get_biggest_directories("/", false, 5)`
+2. "Which directories under /var are using the most space?" → `list_directories_by_size("/var", 10)`
+3. "What are the biggest directories under /home?" → `list_directories_by_size("/home", 20)`
+4. "What's taking up space in the root filesystem?" → `list_directories_by_size("/", 5)`
+5. "Show me all directories in /opt alphabetically" → `list_directories_by_name("/opt")`
+6. "Which directories in /var/log were modified recently?" → `list_directories_by_modified_date("/var/log")`
 
 ## Security Considerations
 
