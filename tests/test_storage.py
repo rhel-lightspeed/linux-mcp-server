@@ -154,6 +154,30 @@ class TestGetBiggestDirectories:
             assert "error" in result.lower() or "invalid" in result.lower()
 
     @pytest.mark.asyncio
+    async def test_get_biggest_directories_accepts_float_and_truncates(self):
+        """Test that top_n accepts floats and truncates them to integers."""
+        with tempfile.TemporaryDirectory() as tmpdir:
+            # Create 5 directories
+            for i in range(5):
+                dir_path = Path(tmpdir) / f"dir{i}"
+                dir_path.mkdir()
+                (dir_path / f"file{i}.txt").write_text("x" * (i * 100))
+            
+            # Test with float that should be truncated to 3
+            result = await storage.get_biggest_directories(tmpdir, recursive=False, top_n=3.9)
+            
+            assert isinstance(result, str)
+            assert "error" not in result.lower()
+            assert "Top 3" in result
+            
+            # Test with exact float (5.0 should work as 5)
+            result = await storage.get_biggest_directories(tmpdir, recursive=False, top_n=5.0)
+            
+            assert isinstance(result, str)
+            assert "error" not in result.lower()
+            assert "5" in result or "Top 5" in result
+
+    @pytest.mark.asyncio
     async def test_get_biggest_directories_handles_empty_directory(self):
         """Test with empty directory."""
         with tempfile.TemporaryDirectory() as tmpdir:

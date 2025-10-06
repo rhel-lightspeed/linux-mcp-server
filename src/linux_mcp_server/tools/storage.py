@@ -170,7 +170,8 @@ async def get_biggest_directories(path: str, recursive: bool, top_n: int) -> str
         path: The directory path to analyze
         recursive: If True, search all subdirectories recursively. 
                    If False, only search immediate subdirectories.
-        top_n: Number of top directories to return (1-1000)
+        top_n: Number of top directories to return (1-1000). Accepts int or float 
+               (floats are truncated to integers)
     
     Returns:
         Formatted string with directory sizes, or error message if validation fails
@@ -186,8 +187,16 @@ async def get_biggest_directories(path: str, recursive: bool, top_n: int) -> str
     from typing import List, Tuple
     
     try:
-        # Validate top_n parameter
-        if not isinstance(top_n, int) or top_n <= 0:
+        # Validate and normalize top_n parameter
+        # Accept both int and float (LLMs often pass floats)
+        if not isinstance(top_n, (int, float)):
+            return "Error: top_n must be a positive number"
+        
+        # Truncate float to integer
+        top_n = int(top_n)
+        
+        # Validate the value
+        if top_n <= 0:
             return "Error: top_n must be a positive integer"
         
         # Cap top_n at reasonable limit to prevent resource exhaustion
