@@ -3,6 +3,8 @@
 import psutil
 from datetime import datetime
 
+from .validation import validate_pid
+
 
 async def list_processes() -> str:
     """List running processes."""
@@ -62,6 +64,11 @@ async def list_processes() -> str:
 async def get_process_info(pid: int) -> str:
     """Get information about a specific process."""
     try:
+        # Validate PID (accepts floats from LLMs)
+        pid, error = validate_pid(pid)
+        if error:
+            return error
+        
         # Check if process exists
         if not psutil.pid_exists(pid):
             return f"Process with PID {pid} does not exist."

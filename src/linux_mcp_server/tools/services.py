@@ -3,6 +3,8 @@
 import subprocess
 import asyncio
 
+from .validation import validate_line_count
+
 
 async def list_services() -> str:
     """List all systemd services."""
@@ -83,6 +85,9 @@ async def get_service_status(service_name: str) -> str:
 async def get_service_logs(service_name: str, lines: int = 50) -> str:
     """Get logs for a specific service."""
     try:
+        # Validate lines parameter (accepts floats from LLMs)
+        lines, _ = validate_line_count(lines, default=50)
+        
         # Ensure service name has .service suffix if not present
         if not service_name.endswith('.service') and '.' not in service_name:
             service_name = f"{service_name}.service"

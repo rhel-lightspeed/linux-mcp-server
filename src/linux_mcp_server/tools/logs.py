@@ -5,11 +5,16 @@ import os
 import subprocess
 from pathlib import Path
 
+from .validation import validate_line_count
+
 
 async def get_journal_logs(unit: str = None, priority: str = None, 
                           since: str = None, lines: int = 100) -> str:
     """Get systemd journal logs."""
     try:
+        # Validate lines parameter (accepts floats from LLMs)
+        lines, _ = validate_line_count(lines, default=100)
+        
         cmd = ["journalctl", "-n", str(lines), "--no-pager"]
         
         if unit:
@@ -60,6 +65,9 @@ async def get_journal_logs(unit: str = None, priority: str = None,
 
 async def get_audit_logs(lines: int = 100) -> str:
     """Get audit logs."""
+    # Validate lines parameter (accepts floats from LLMs)
+    lines, _ = validate_line_count(lines, default=100)
+    
     audit_log_path = "/var/log/audit/audit.log"
     
     try:
@@ -98,6 +106,9 @@ async def get_audit_logs(lines: int = 100) -> str:
 async def read_log_file(log_path: str, lines: int = 100) -> str:
     """Read a specific log file."""
     try:
+        # Validate lines parameter (accepts floats from LLMs)
+        lines, _ = validate_line_count(lines, default=100)
+        
         # Get allowed log paths from environment variable
         allowed_paths_env = os.getenv("LINUX_MCP_ALLOWED_LOG_PATHS", "")
         

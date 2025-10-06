@@ -5,6 +5,8 @@ import subprocess
 import psutil
 from pathlib import Path
 
+from .validation import validate_positive_int
+
 
 async def list_block_devices() -> str:
     """List block devices."""
@@ -187,22 +189,15 @@ async def get_biggest_directories(path: str, recursive: bool, top_n: int) -> str
     from typing import List, Tuple
     
     try:
-        # Validate and normalize top_n parameter
-        # Accept both int and float (LLMs often pass floats)
-        if not isinstance(top_n, (int, float)):
-            return "Error: top_n must be a positive number"
-        
-        # Truncate float to integer
-        top_n = int(top_n)
-        
-        # Validate the value
-        if top_n <= 0:
-            return "Error: top_n must be a positive integer"
-        
-        # Cap top_n at reasonable limit to prevent resource exhaustion
-        MAX_TOP_N = 1000
-        if top_n > MAX_TOP_N:
-            top_n = MAX_TOP_N
+        # Validate and normalize top_n parameter using validation utility
+        top_n, error = validate_positive_int(
+            top_n,
+            param_name="top_n",
+            min_value=1,
+            max_value=1000
+        )
+        if error:
+            return error
         
         # Validate and resolve path using pathlib for security
         try:
