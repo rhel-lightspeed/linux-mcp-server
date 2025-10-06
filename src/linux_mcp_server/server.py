@@ -44,6 +44,8 @@ class LinuxMCPServer:
                           "Get memory usage including RAM and swap details")
         self._register_tool("get_disk_usage", system_info.get_disk_usage,
                           "Get filesystem usage and mount points")
+        self._register_tool("get_hardware_info", system_info.get_hardware_info,
+                          "Get hardware information including CPU architecture, PCI devices, USB devices, and memory hardware")
         
         # Service management tools
         self._register_tool("list_services", services.list_services,
@@ -86,16 +88,21 @@ class LinuxMCPServer:
         self._register_tool("get_listening_ports", network.get_listening_ports,
                           "Get ports that are listening on the system")
         
-        # Storage and hardware tools
+        # Storage tools
         self._register_tool("list_block_devices", storage.list_block_devices,
                           "List block devices and partitions")
-        self._register_tool("get_hardware_info", storage.get_hardware_info,
-                          "Get hardware information including PCI devices")
-        self._register_tool("get_biggest_directories", storage.get_biggest_directories,
-                          "Find the largest directories under a specified path for disk space analysis",
+        self._register_tool("list_directories_by_size", storage.list_directories_by_size,
+                          "List directories sorted by size (largest first). Uses efficient Linux du command.",
                           {"path": {"type": "string", "description": "Directory path to analyze", "required": True},
-                           "recursive": {"type": "boolean", "description": "If true, search all subdirectories recursively; if false, only immediate subdirectories", "required": True},
                            "top_n": {"type": "number", "description": "Number of top largest directories to return (1-1000)", "required": True}})
+        self._register_tool("list_directories_by_name", storage.list_directories_by_name,
+                          "List directories sorted alphabetically by name. Uses efficient Linux find command.",
+                          {"path": {"type": "string", "description": "Directory path to analyze", "required": True},
+                           "reverse": {"type": "boolean", "description": "Sort in reverse order (Z-A)", "required": False}})
+        self._register_tool("list_directories_by_modified_date", storage.list_directories_by_modified_date,
+                          "List directories sorted by modification date. Uses efficient Linux find command.",
+                          {"path": {"type": "string", "description": "Directory path to analyze", "required": True},
+                           "newest_first": {"type": "boolean", "description": "Show newest first (default: true)", "required": False}})
 
     def _register_tool(self, name: str, handler: callable, description: str, parameters: dict = None):
         """Register a tool with its handler."""
@@ -123,6 +130,7 @@ class LinuxMCPServer:
             ("get_cpu_info", "Get CPU information and load averages", {}),
             ("get_memory_info", "Get memory usage including RAM and swap details", {}),
             ("get_disk_usage", "Get filesystem usage and mount points", {}),
+            ("get_hardware_info", "Get hardware information including CPU architecture, PCI devices, USB devices, and memory hardware", {}),
             ("list_services", "List all systemd services with their current status", {}),
             ("get_service_status", "Get detailed status of a specific systemd service",
              {"service_name": {"type": "string", "description": "Name of the service"}}),
@@ -146,11 +154,15 @@ class LinuxMCPServer:
             ("get_network_connections", "Get active network connections", {}),
             ("get_listening_ports", "Get ports listening on the system", {}),
             ("list_block_devices", "List block devices and partitions", {}),
-            ("get_hardware_info", "Get hardware information including PCI devices", {}),
-            ("get_biggest_directories", "Find the largest directories under a specified path for disk space analysis",
+            ("list_directories_by_size", "List directories sorted by size (largest first). Uses efficient Linux du command.",
              {"path": {"type": "string", "description": "Directory path to analyze"},
-              "recursive": {"type": "boolean", "description": "If true, search recursively; if false, only immediate subdirectories"},
               "top_n": {"type": "number", "description": "Number of top largest directories to return (1-1000)"}}),
+            ("list_directories_by_name", "List directories sorted alphabetically by name. Uses efficient Linux find command.",
+             {"path": {"type": "string", "description": "Directory path to analyze"},
+              "reverse": {"type": "boolean", "description": "Sort in reverse order (Z-A)"}}),
+            ("list_directories_by_modified_date", "List directories sorted by modification date. Uses efficient Linux find command.",
+             {"path": {"type": "string", "description": "Directory path to analyze"},
+              "newest_first": {"type": "boolean", "description": "Show newest first (default: true)"}}),
         ]
         
         for name, description, properties in tool_definitions:

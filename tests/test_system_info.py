@@ -74,3 +74,10 @@ class TestSystemInfo:
         assert "filesystem" in result.lower() or "device" in result.lower() or "mounted" in result.lower()
         assert "/" in result  # Should at least show root filesystem
 
+    @pytest.mark.asyncio
+    async def test_get_hardware_info_returns_string(self):
+        """Test that get_hardware_info returns a string."""
+        result = await system_info.get_hardware_info()
+        assert isinstance(result, str)
+        assert len(result) > 0
+

@@ -1,5 +1,6 @@
 """System information tools."""
 
+import asyncio
 import os
 import platform
 import subprocess
@@ -177,6 +178,90 @@ async def get_disk_usage() -> str:
         return "\n".join(info)
     except Exception as e:
         return f"Error gathering disk usage information: {str(e)}"
+
+
+async def get_hardware_info() -> str:
+    """Get hardware information."""
+    try:
+        info = []
+        info.append("=== Hardware Information ===\n")
+        
+        # Try lscpu for CPU info
+        try:
+            proc = await asyncio.create_subprocess_exec(
+                "lscpu",
+                stdout=subprocess.PIPE,
+                stderr=subprocess.PIPE
+            )
+            stdout, stderr = await proc.communicate()
+            
+            if proc.returncode == 0:
+                info.append("=== CPU Architecture (lscpu) ===")
+                info.append(stdout.decode())
+        except FileNotFoundError:
+            info.append("CPU info: lscpu command not available")
+        
+        # Try lspci for PCI devices
+        try:
+            proc = await asyncio.create_subprocess_exec(
+                "lspci",
+                stdout=subprocess.PIPE,
+                stderr=subprocess.PIPE
+            )
+            stdout, stderr = await proc.communicate()
+            
+            if proc.returncode == 0:
+                pci_output = stdout.decode()
+                pci_lines = pci_output.strip().split('\n')
+                
+                info.append("\n=== PCI Devices ===")
+                # Show first 50 devices to avoid overwhelming output
+                for line in pci_lines[:50]:
+                    info.append(line)
+                
+                if len(pci_lines) > 50:
+                    info.append(f"\n... and {len(pci_lines) - 50} more PCI devices")
+        except FileNotFoundError:
+            info.append("\nPCI devices: lspci command not available")
+        
+        # Try lsusb for USB devices
+        try:
+            proc = await asyncio.create_subprocess_exec(
+                "lsusb",
+                stdout=subprocess.PIPE,
+                stderr=subprocess.PIPE
+            )
+            stdout, stderr = await proc.communicate()
+            
+            if proc.returncode == 0:
+                info.append("\n\n=== USB Devices ===")
+                info.append(stdout.decode())
+        except FileNotFoundError:
+            info.append("\nUSB devices: lsusb command not available")
+        
+        # Memory hardware info from dmidecode (requires root)
+        try:
+            proc = await asyncio.create_subprocess_exec(
+                "dmidecode", "-t", "memory",
+                stdout=subprocess.PIPE,
+                stderr=subprocess.PIPE
+            )
+            stdout, stderr = await proc.communicate()
+            
+            if proc.returncode == 0:
+                info.append("\n\n=== Memory Hardware (dmidecode) ===")
+                info.append(stdout.decode())
+            elif "Permission denied" in stderr.decode():
+                info.append("\n\nMemory hardware info: Requires root privileges (dmidecode)")
+        except FileNotFoundError:
+            info.append("\nMemory hardware info: dmidecode command not available")
+        
+        if len(info) == 1:  # Only the header
+            info.append("No hardware information tools available.")
+        
+        return "\n".join(info)
+    except Exception as e:
+        return f"Error getting hardware information: {str(e)}"
 
 
 def _format_bytes(bytes: int) -> str:

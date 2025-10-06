@@ -67,90 +67,6 @@ async def list_block_devices() -> str:
         return f"Error listing block devices: {str(e)}"
 
 
-async def get_hardware_info() -> str:
-    """Get hardware information."""
-    try:
-        info = []
-        info.append("=== Hardware Information ===\n")
-        
-        # Try lscpu for CPU info
-        try:
-            proc = await asyncio.create_subprocess_exec(
-                "lscpu",
-                stdout=subprocess.PIPE,
-                stderr=subprocess.PIPE
-            )
-            stdout, stderr = await proc.communicate()
-            
-            if proc.returncode == 0:
-                info.append("=== CPU Architecture (lscpu) ===")
-                info.append(stdout.decode())
-        except FileNotFoundError:
-            info.append("CPU info: lscpu command not available")
-        
-        # Try lspci for PCI devices
-        try:
-            proc = await asyncio.create_subprocess_exec(
-                "lspci",
-                stdout=subprocess.PIPE,
-                stderr=subprocess.PIPE
-            )
-            stdout, stderr = await proc.communicate()
-            
-            if proc.returncode == 0:
-                pci_output = stdout.decode()
-                pci_lines = pci_output.strip().split('\n')
-                
-                info.append("\n=== PCI Devices ===")
-                # Show first 50 devices to avoid overwhelming output
-                for line in pci_lines[:50]:
-                    info.append(line)
-                
-                if len(pci_lines) > 50:
-                    info.append(f"\n... and {len(pci_lines) - 50} more PCI devices")
-        except FileNotFoundError:
-            info.append("\nPCI devices: lspci command not available")
-        
-        # Try lsusb for USB devices
-        try:
-            proc = await asyncio.create_subprocess_exec(
-                "lsusb",
-                stdout=subprocess.PIPE,
-                stderr=subprocess.PIPE
-            )
-            stdout, stderr = await proc.communicate()
-            
-            if proc.returncode == 0:
-                info.append("\n\n=== USB Devices ===")
-                info.append(stdout.decode())
-        except FileNotFoundError:
-            info.append("\nUSB devices: lsusb command not available")
-        
-        # Memory hardware info from dmidecode (requires root)
-        try:
-            proc = await asyncio.create_subprocess_exec(
-                "dmidecode", "-t", "memory",
-                stdout=subprocess.PIPE,
-                stderr=subprocess.PIPE
-            )
-            stdout, stderr = await proc.communicate()
-            
-            if proc.returncode == 0:
-                info.append("\n\n=== Memory Hardware (dmidecode) ===")
-                info.append(stdout.decode())
-            elif "Permission denied" in stderr.decode():
-                info.append("\n\nMemory hardware info: Requires root privileges (dmidecode)")
-        except FileNotFoundError:
-            info.append("\nMemory hardware info: dmidecode command not available")
-        
-        if len(info) == 1:  # Only the header
-            info.append("No hardware information tools available.")
-        
-        return "\n".join(info)
-    except Exception as e:
-        return f"Error getting hardware information: {str(e)}"
-
-
 def _format_bytes(bytes: int) -> str:
     """Format bytes into human-readable format."""
     for unit in ['B', 'KB', 'MB', 'GB', 'TB']:
@@ -160,18 +76,15 @@ def _format_bytes(bytes: int) -> str:
     return f"{bytes:.1f}PB"
 
 
-async def get_biggest_directories(path: str, recursive: bool, top_n: int) -> str:
+async def list_directories_by_size(path: str, top_n: int) -> str:
     """
-    Get the biggest directories under a specified path.
+    List directories under a specified path sorted by size (largest first).
     
-    This function provides a secure way to analyze disk space usage by finding
-    the largest directories. It includes comprehensive input validation and
-    security checks to prevent command injection and path traversal attacks.
+    This function uses efficient Linux primitives (du command) to calculate directory
+    sizes, making it much faster than Python-based directory traversal.
     
     Args:
         path: The directory path to analyze
-        recursive: If True, search all subdirectories recursively. 
-                   If False, only search immediate subdirectories.
         top_n: Number of top directories to return (1-1000). Accepts int or float 
                (floats are truncated to integers)
     
@@ -180,16 +93,15 @@ async def get_biggest_directories(path: str, recursive: bool, top_n: int) -> str
     
     Security Features:
         - Path validation and resolution using pathlib
-        - No shell command execution
+        - Command parameters passed as list (not shell string)
         - Input sanitization for all parameters
         - Graceful error handling for permission issues
     """
     import os
     from pathlib import Path
-    from typing import List, Tuple
     
     try:
-        # Validate and normalize top_n parameter using validation utility
+        # Validate and normalize top_n parameter
         top_n, error = validate_positive_int(
             top_n,
             param_name="top_n",
@@ -202,7 +114,7 @@ async def get_biggest_directories(path: str, recursive: bool, top_n: int) -> str
         # Validate and resolve path using pathlib for security
         try:
             path_obj = Path(path).resolve(strict=True)
-        except (OSError, RuntimeError) as e:
+        except (OSError, RuntimeError):
             return f"Error: Path does not exist or cannot be resolved: {path}"
         
         # Check if path is a directory
@@ -213,45 +125,41 @@ async def get_biggest_directories(path: str, recursive: bool, top_n: int) -> str
         if not os.access(path_obj, os.R_OK):
             return f"Error: Permission denied to read directory: {path}"
         
-        # Calculate directory sizes
-        dir_sizes: List[Tuple[str, int]] = []
+        # Use du command to get directory sizes efficiently
+        # -b: display sizes in bytes
+        # --max-depth=1: only immediate subdirectories (conflicts with -s, so we don't use it)
+        # Note: du outputs permission errors to stderr but continues processing,
+        # so we suppress/ignore stderr and only use stdout results
+        # du may return non-zero if it encounters permission errors, but still produces valid output
+        proc = await asyncio.create_subprocess_exec(
+            "du", "-b", "--max-depth=1", str(path_obj),
+            stdout=subprocess.PIPE,
+            stderr=subprocess.DEVNULL  # Suppress permission denied errors
+        )
+        stdout, _ = await proc.communicate()
         
-        if recursive:
-            # Recursive mode: scan all subdirectories
-            try:
-                for root, dirs, files in os.walk(path_obj, topdown=True):
-                    root_path = Path(root)
-                    
-                    # Calculate size of each subdirectory we encounter
-                    for dirname in dirs:
-                        dir_path = root_path / dirname
-                        try:
-                            size = _calculate_directory_size(dir_path)
-                            # Store relative path for cleaner output
-                            relative_path = dir_path.relative_to(path_obj)
-                            dir_sizes.append((str(relative_path), size))
-                        except (PermissionError, OSError):
-                            # Skip directories we can't access
-                            continue
-                            
-            except (PermissionError, OSError) as e:
-                return f"Error scanning directory: {str(e)}"
-        else:
-            # Non-recursive mode: only immediate subdirectories
-            try:
-                for entry in path_obj.iterdir():
-                    if entry.is_dir():
-                        try:
-                            size = _calculate_directory_size(entry)
-                            dir_sizes.append((entry.name, size))
-                        except (PermissionError, OSError):
-                            # Skip directories we can't access
-                            continue
-            except (PermissionError, OSError) as e:
-                return f"Error reading directory contents: {str(e)}"
+        # Parse output - du may return non-zero on permission errors but still give valid data
+        lines = stdout.decode().strip().split('\n')
+        dir_sizes = []
         
-        # Check if we found any directories
+        for line in lines:
+            if not line:
+                continue
+            parts = line.split('\t', 1)
+            if len(parts) == 2:
+                try:
+                    size = int(parts[0])
+                    dir_path = Path(parts[1])
+                    # Skip the parent directory itself
+                    if dir_path != path_obj:
+                        dir_sizes.append((dir_path.name, size))
+                except (ValueError, IndexError):
+                    continue
+        
         if not dir_sizes:
+            # Only error if we got no output AND a bad return code
+            if proc.returncode != 0:
+                return f"Error: du command failed and returned no directory data"
             return f"No subdirectories found in: {path}"
         
         # Sort by size (descending) and take top N
@@ -262,10 +170,8 @@ async def get_biggest_directories(path: str, recursive: bool, top_n: int) -> str
         result = []
         result.append(f"=== Top {len(top_dirs)} Largest Directories ===")
         result.append(f"Path: {path_obj}")
-        result.append(f"Mode: {'Recursive' if recursive else 'Non-recursive'}")
         result.append(f"\nTotal subdirectories found: {len(dir_sizes)}\n")
         
-        # Add directory listings with formatted sizes
         for i, (dir_name, size) in enumerate(top_dirs, 1):
             result.append(f"{i}. {dir_name}")
             result.append(f"   Size: {_format_bytes(size)}")
@@ -273,41 +179,153 @@ async def get_biggest_directories(path: str, recursive: bool, top_n: int) -> str
         return "\n".join(result)
         
     except Exception as e:
-        # Catch any unexpected errors and return safe error message
         return f"Error analyzing directories: {str(e)}"
 
 
-def _calculate_directory_size(directory: Path) -> int:
+async def list_directories_by_name(path: str, reverse: bool = False) -> str:
     """
-    Calculate total size of a directory and all its contents.
+    List directories under a specified path sorted by name.
+    
+    This function uses efficient Linux primitives (find and sort) to list directories.
     
     Args:
-        directory: Path object for the directory
+        path: The directory path to analyze
+        reverse: If True, sort in reverse alphabetical order (Z-A)
     
     Returns:
-        Total size in bytes
-    
-    Note:
-        This function does not follow symbolic links to avoid counting files 
-        multiple times. Permission errors are handled gracefully.
+        Formatted string with directory names, or error message if validation fails
     """
-    total_size = 0
+    import os
+    from pathlib import Path
     
     try:
-        for entry in directory.rglob('*'):
-            try:
-                # Check if it's a symlink first (don't follow symlinks)
-                if entry.is_symlink():
-                    continue
-                    
-                if entry.is_file():
-                    total_size += entry.stat().st_size
-            except (PermissionError, OSError):
-                # Skip files we can't access
-                continue
-    except (PermissionError, OSError):
-        # If we can't read the directory at all, return 0
-        pass
+        # Validate and resolve path
+        try:
+            path_obj = Path(path).resolve(strict=True)
+        except (OSError, RuntimeError):
+            return f"Error: Path does not exist or cannot be resolved: {path}"
+        
+        if not path_obj.is_dir():
+            return f"Error: Path is not a directory: {path}"
+        
+        if not os.access(path_obj, os.R_OK):
+            return f"Error: Permission denied to read directory: {path}"
+        
+        # Use find to list only immediate subdirectories
+        # Suppress stderr to avoid permission denied errors cluttering output
+        proc = await asyncio.create_subprocess_exec(
+            "find", str(path_obj), "-mindepth", "1", "-maxdepth", "1", "-type", "d",
+            "-printf", "%f\\n",
+            stdout=subprocess.PIPE,
+            stderr=subprocess.DEVNULL
+        )
+        stdout, _ = await proc.communicate()
+        
+        if proc.returncode != 0:
+            return f"Error running find command: command failed with return code {proc.returncode}"
+        
+        # Parse and sort output
+        directories = [line for line in stdout.decode().strip().split('\n') if line]
+        
+        if not directories:
+            return f"No subdirectories found in: {path}"
+        
+        # Sort alphabetically
+        directories.sort(reverse=reverse)
+        
+        # Format output
+        result = []
+        sort_order = "Reverse Alphabetical" if reverse else "Alphabetical"
+        result.append(f"=== Directories ({sort_order}) ===")
+        result.append(f"Path: {path_obj}")
+        result.append(f"\nTotal subdirectories found: {len(directories)}\n")
+        
+        for i, dir_name in enumerate(directories, 1):
+            result.append(f"{i}. {dir_name}")
+        
+        return "\n".join(result)
+        
+    except Exception as e:
+        return f"Error listing directories: {str(e)}"
+
+
+async def list_directories_by_modified_date(path: str, newest_first: bool = True) -> str:
+    """
+    List directories under a specified path sorted by modification date.
     
-    return total_size
+    This function uses efficient Linux primitives (find) to list directories with timestamps.
+    
+    Args:
+        path: The directory path to analyze
+        newest_first: If True, show newest first; if False, show oldest first
+    
+    Returns:
+        Formatted string with directory names and dates, or error message if validation fails
+    """
+    import os
+    from pathlib import Path
+    from datetime import datetime
+    
+    try:
+        # Validate and resolve path
+        try:
+            path_obj = Path(path).resolve(strict=True)
+        except (OSError, RuntimeError):
+            return f"Error: Path does not exist or cannot be resolved: {path}"
+        
+        if not path_obj.is_dir():
+            return f"Error: Path is not a directory: {path}"
+        
+        if not os.access(path_obj, os.R_OK):
+            return f"Error: Permission denied to read directory: {path}"
+        
+        # Use find with modification time
+        # -printf "%T@\t%f\n" outputs: timestamp filename
+        # Suppress stderr to avoid permission denied errors cluttering output
+        proc = await asyncio.create_subprocess_exec(
+            "find", str(path_obj), "-mindepth", "1", "-maxdepth", "1", "-type", "d",
+            "-printf", "%T@\\t%f\\n",
+            stdout=subprocess.PIPE,
+            stderr=subprocess.DEVNULL
+        )
+        stdout, _ = await proc.communicate()
+        
+        if proc.returncode != 0:
+            return f"Error running find command: command failed with return code {proc.returncode}"
+        
+        # Parse output
+        directories = []
+        for line in stdout.decode().strip().split('\n'):
+            if line:
+                parts = line.split('\t', 1)
+                if len(parts) == 2:
+                    try:
+                        timestamp = float(parts[0])
+                        dir_name = parts[1]
+                        directories.append((timestamp, dir_name))
+                    except ValueError:
+                        continue
+        
+        if not directories:
+            return f"No subdirectories found in: {path}"
+        
+        # Sort by timestamp
+        directories.sort(key=lambda x: x[0], reverse=newest_first)
+        
+        # Format output
+        result = []
+        sort_order = "Newest First" if newest_first else "Oldest First"
+        result.append(f"=== Directories ({sort_order}) ===")
+        result.append(f"Path: {path_obj}")
+        result.append(f"\nTotal subdirectories found: {len(directories)}\n")
+        
+        for i, (timestamp, dir_name) in enumerate(directories, 1):
+            dt = datetime.fromtimestamp(timestamp)
+            result.append(f"{i}. {dir_name}")
+            result.append(f"   Modified: {dt.strftime('%Y-%m-%d %H:%M:%S')}")
+        
+        return "\n".join(result)
+        
+    except Exception as e:
+        return f"Error listing directories: {str(e)}"
 
