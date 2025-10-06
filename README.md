@@ -39,6 +39,7 @@ A Model Context Protocol (MCP) server for read-only Linux system administration,
 ### Storage & Hardware
 - `list_block_devices` - Block devices and partitions
 - `get_hardware_info` - Hardware details
+- `get_biggest_directories` - Find largest directories for disk space analysis
 
 ## Installation
 

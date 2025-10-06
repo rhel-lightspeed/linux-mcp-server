@@ -171,6 +171,25 @@ Returns hardware information including CPU architecture, PCI devices, USB device
 
 **Example use case:** "What hardware is installed in this system?"
 
+#### `get_biggest_directories`
+Finds the largest directories under a specified path for disk space analysis. This tool helps identify where disk space is being consumed.
+
+**Parameters:**
+- `path` (string, required): Directory path to analyze (e.g., "/home", "/var", "/")
+- `recursive` (boolean, required): If true, searches all subdirectories recursively; if false, only searches immediate subdirectories
+- `top_n` (number, required): Number of largest directories to return (1-1000)
+
+**Security Features:**
+- Path validation and resolution prevents path traversal attacks
+- No shell command execution - uses native Python file operations
+- Input sanitization for all parameters
+- Graceful handling of permission denied errors
+
+**Example use cases:**
+- "Find the top 5 largest directories in /var" → `get_biggest_directories("/var", false, 5)`
+- "What are the 10 biggest directories under /home recursively?" → `get_biggest_directories("/home", true, 10)`
+- "Show me the 3 largest directories taking up space in root partition" → `get_biggest_directories("/", false, 3)`
+
 ## Configuration
 
 ### Environment Variables
@@ -248,7 +267,15 @@ Add this configuration to your Claude Desktop config file:
 ### Disk Space Problems
 1. "Show me disk usage for all filesystems" → `get_disk_usage`
 2. "List all block devices" → `list_block_devices`
-3. "Show me system information including uptime" → `get_system_info`
+3. "Find the top 10 largest directories in /var" → `get_biggest_directories`
+4. "What are the biggest directories under /home recursively?" → `get_biggest_directories`
+5. "Show me system information including uptime" → `get_system_info`
+
+### Detailed Disk Space Analysis
+1. "Show me overall disk usage" → `get_disk_usage`
+2. "Which directories under /var are using the most space?" → `get_biggest_directories("/var", false, 10)`
+3. "Find all large directories under /home recursively" → `get_biggest_directories("/home", true, 20)`
+4. "What's taking up space in the root filesystem?" → `get_biggest_directories("/", false, 5)`
 
 ## Security Considerations
 

@@ -91,6 +91,11 @@ class LinuxMCPServer:
                           "List block devices and partitions")
         self._register_tool("get_hardware_info", storage.get_hardware_info,
                           "Get hardware information including PCI devices")
+        self._register_tool("get_biggest_directories", storage.get_biggest_directories,
+                          "Find the largest directories under a specified path for disk space analysis",
+                          {"path": {"type": "string", "description": "Directory path to analyze", "required": True},
+                           "recursive": {"type": "boolean", "description": "If true, search all subdirectories recursively; if false, only immediate subdirectories", "required": True},
+                           "top_n": {"type": "number", "description": "Number of top largest directories to return (1-1000)", "required": True}})
 
     def _register_tool(self, name: str, handler: callable, description: str, parameters: dict = None):
         """Register a tool with its handler."""
@@ -142,6 +147,10 @@ class LinuxMCPServer:
             ("get_listening_ports", "Get ports listening on the system", {}),
             ("list_block_devices", "List block devices and partitions", {}),
             ("get_hardware_info", "Get hardware information including PCI devices", {}),
+            ("get_biggest_directories", "Find the largest directories under a specified path for disk space analysis",
+             {"path": {"type": "string", "description": "Directory path to analyze"},
+              "recursive": {"type": "boolean", "description": "If true, search recursively; if false, only immediate subdirectories"},
+              "top_n": {"type": "number", "description": "Number of top largest directories to return (1-1000)"}}),
         ]
         
         for name, description, properties in tool_definitions:
