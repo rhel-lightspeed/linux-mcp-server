@@ -3,9 +3,11 @@
 import psutil
 from datetime import datetime
 
+from .decorators import log_tool_output
 from .validation import validate_pid
 
 
+@log_tool_output
 async def list_processes() -> str:
     """List running processes."""
     try:
@@ -61,6 +63,7 @@ async def list_processes() -> str:
         return f"Error listing processes: {str(e)}"
 
 
+@log_tool_output
 async def get_process_info(pid: int) -> str:
     """Get information about a specific process."""
     try:

@@ -3,7 +3,10 @@
 import psutil
 import socket
 
+from .decorators import log_tool_output
 
+
+@log_tool_output
 async def get_network_interfaces() -> str:
     """Get network interface information."""
     try:
@@ -57,6 +60,7 @@ async def get_network_interfaces() -> str:
         return f"Error getting network interface information: {str(e)}"
 
 
+@log_tool_output
 async def get_network_connections() -> str:
     """Get active network connections."""
     try:
@@ -97,6 +101,7 @@ async def get_network_connections() -> str:
         return f"Error getting network connections: {str(e)}"
 
 
+@log_tool_output
 async def get_listening_ports() -> str:
     """Get listening ports."""
     try:

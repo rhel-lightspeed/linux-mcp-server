@@ -8,9 +8,11 @@ from datetime import datetime, timedelta
 from typing import Optional
 import psutil
 
+from .decorators import log_tool_output
 from .ssh_executor import execute_command
 
 
+@log_tool_output
 async def get_system_info() -> str:
     """Get basic system information."""
     info = []
@@ -58,6 +60,7 @@ async def get_system_info() -> str:
         return f"Error gathering system information: {str(e)}"
 
 
+@log_tool_output
 async def get_cpu_info() -> str:
     """Get CPU information."""
     info = []
@@ -107,6 +110,7 @@ async def get_cpu_info() -> str:
         return f"Error gathering CPU information: {str(e)}"
 
 
+@log_tool_output
 async def get_memory_info() -> str:
     """Get memory information."""
     info = []
@@ -137,6 +141,7 @@ async def get_memory_info() -> str:
         return f"Error gathering memory information: {str(e)}"
 
 
+@log_tool_output
 async def get_disk_usage() -> str:
     """Get disk usage information."""
     info = []
@@ -183,6 +188,7 @@ async def get_disk_usage() -> str:
         return f"Error gathering disk usage information: {str(e)}"
 
 
+@log_tool_output
 async def get_hardware_info(host: Optional[str] = None, username: Optional[str] = None) -> str:
     """
     Get hardware information.
