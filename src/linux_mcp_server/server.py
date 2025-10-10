@@ -206,9 +206,6 @@ class LinuxMCPServer:
         start_time = time.time()
         
         try:
-            # DEBUG level: Log handler execution start
-            logger.debug(f"Executing tool handler: {name}")
-            
             result = await handler(**arguments)
             
             # Calculate execution time
@@ -234,7 +231,6 @@ async def main():
     """Run the MCP server."""
     from mcp.server.stdio import stdio_server
     
-    logger.debug("Initializing MCP server instance")
     mcp_server = LinuxMCPServer()
     server = mcp_server.server
     
@@ -244,13 +240,11 @@ async def main():
     @server.list_tools()
     async def handle_list_tools():
         """Handle list_tools request."""
-        logger.debug("Handling list_tools request")
         return await mcp_server.list_tools()
     
     @server.call_tool()
     async def handle_call_tool(name: str, arguments: dict[str, Any]):
         """Handle call_tool request."""
-        logger.debug(f"Handling call_tool request: {name}")
         return await mcp_server.call_tool(name, arguments)
     
     # Run the server

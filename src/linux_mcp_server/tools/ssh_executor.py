@@ -8,6 +8,7 @@ either local or remote execution based on the provided parameters.
 import asyncio
 import logging
 import os
+import shlex
 import subprocess
 import time
 from pathlib import Path
@@ -172,8 +173,9 @@ class SSHConnectionManager:
         """
         conn = await self.get_connection(host, username)
         
-        # Build command string
-        cmd_str = " ".join(command)
+        # Build command string with proper shell escaping
+        # Use shlex.quote() to ensure special characters (like \n in printf format) are preserved
+        cmd_str = " ".join(shlex.quote(arg) for arg in command)
         
         # Start timing for command execution
         start_time = time.time()
