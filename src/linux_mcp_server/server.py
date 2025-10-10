@@ -1,20 +1,16 @@
 """Core MCP server for Linux diagnostics."""
 
 import logging
-import os
+import time
 from typing import Any
 
 from mcp.server import Server
 from mcp.types import Tool, TextContent
 
+from .audit import log_tool_call, log_tool_complete
 from .tools import system_info, services, processes, logs, network, storage
 
 
-# Configure logging
-logging.basicConfig(
-    level=os.getenv("LINUX_MCP_LOG_LEVEL", "INFO"),
-    format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
-)
 logger = logging.getLogger(__name__)
 
 
@@ -197,14 +193,40 @@ class LinuxMCPServer:
     async def call_tool(self, name: str, arguments: dict[str, Any]) -> list[TextContent]:
         """Call a tool by name with the given arguments."""
         if name not in self.tool_handlers:
+            logger.error(f"Unknown tool requested: {name}", extra={
+                'event': 'TOOL_NOT_FOUND',
+                'tool': name
+            })
             raise ValueError(f"Unknown tool: {name}")
         
+        # Log tool invocation with audit function
+        log_tool_call(name, arguments)
+        
         handler = self.tool_handlers[name]
+        start_time = time.time()
+        
         try:
+            # DEBUG level: Log handler execution start
+            logger.debug(f"Executing tool handler: {name}")
+            
             result = await handler(**arguments)
+            
+            # Calculate execution time
+            duration = time.time() - start_time
+            
+            # Log successful completion
+            log_tool_complete(name, status="success", duration=duration)
+            
             return [TextContent(type="text", text=result)]
+            
         except Exception as e:
-            logger.error(f"Error executing tool {name}: {e}")
+            # Calculate execution time for failed execution
+            duration = time.time() - start_time
+            
+            # Log failed completion with error details
+            log_tool_complete(name, status="error", duration=duration, error=str(e))
+            
+            # Re-raise the exception
             raise
 
 
@@ -212,27 +234,34 @@ async def main():
     """Run the MCP server."""
     from mcp.server.stdio import stdio_server
     
-    logger.info("Starting Linux MCP Server")
-    
+    logger.debug("Initializing MCP server instance")
     mcp_server = LinuxMCPServer()
     server = mcp_server.server
+    
+    logger.info(f"Initialized {mcp_server.name} v{mcp_server.version} with {len(mcp_server.tool_handlers)} tools")
     
     # Register handlers
     @server.list_tools()
     async def handle_list_tools():
         """Handle list_tools request."""
+        logger.debug("Handling list_tools request")
         return await mcp_server.list_tools()
     
     @server.call_tool()
     async def handle_call_tool(name: str, arguments: dict[str, Any]):
         """Handle call_tool request."""
+        logger.debug(f"Handling call_tool request: {name}")
         return await mcp_server.call_tool(name, arguments)
     
     # Run the server
+    logger.info("Starting stdio server")
     async with stdio_server() as (read_stream, write_stream):
+        logger.info("Server running, ready to accept requests")
         await server.run(
             read_stream,
             write_stream,
             server.create_initialization_options()
         )
+    
+    logger.info("Server shutdown complete")
 
