@@ -2,41 +2,51 @@
 
 import asyncio
 import subprocess
-import psutil
 from pathlib import Path
+from typing import Optional
+import psutil
 
 from .validation import validate_positive_int
+from .ssh_executor import execute_command
 
 
-async def list_block_devices() -> str:
-    """List block devices."""
+async def list_block_devices(host: Optional[str] = None, username: Optional[str] = None) -> str:
+    """
+    List block devices.
+    
+    Args:
+        host: Optional remote host to connect to
+        username: Optional SSH username (required if host is provided)
+        
+    Returns:
+        Formatted string with block device information
+    """
     try:
         # Try using lsblk first (most readable)
-        proc = await asyncio.create_subprocess_exec(
-            "lsblk", "-o", "NAME,SIZE,TYPE,MOUNTPOINT,FSTYPE,MODEL", "--no-pager",
-            stdout=subprocess.PIPE,
-            stderr=subprocess.PIPE
+        returncode, stdout, stderr = await execute_command(
+            ["lsblk", "-o", "NAME,SIZE,TYPE,MOUNTPOINT,FSTYPE,MODEL", "--no-pager"],
+            host=host,
+            username=username
         )
-        stdout, stderr = await proc.communicate()
         
-        if proc.returncode == 0:
-            output = stdout.decode()
+        if returncode == 0:
             result = ["=== Block Devices ===\n"]
-            result.append(output)
+            result.append(stdout)
             
-            # Add disk I/O per-disk stats if available
-            try:
-                disk_io_per_disk = psutil.disk_io_counters(perdisk=True)
-                if disk_io_per_disk:
-                    result.append("\n=== Disk I/O Statistics (per disk) ===")
-                    for disk, stats in sorted(disk_io_per_disk.items()):
-                        result.append(f"\n{disk}:")
-                        result.append(f"  Read: {_format_bytes(stats.read_bytes)}")
-                        result.append(f"  Write: {_format_bytes(stats.write_bytes)}")
-                        result.append(f"  Read Count: {stats.read_count}")
-                        result.append(f"  Write Count: {stats.write_count}")
-            except Exception:
-                pass
+            # Add disk I/O per-disk stats if available (only for local execution)
+            if not host:
+                try:
+                    disk_io_per_disk = psutil.disk_io_counters(perdisk=True)
+                    if disk_io_per_disk:
+                        result.append("\n=== Disk I/O Statistics (per disk) ===")
+                        for disk, stats in sorted(disk_io_per_disk.items()):
+                            result.append(f"\n{disk}:")
+                            result.append(f"  Read: {_format_bytes(stats.read_bytes)}")
+                            result.append(f"  Write: {_format_bytes(stats.write_bytes)}")
+                            result.append(f"  Read Count: {stats.read_count}")
+                            result.append(f"  Write Count: {stats.write_count}")
+                except Exception:
+                    pass
             
             return "\n".join(result)
         else:
@@ -76,7 +86,12 @@ def _format_bytes(bytes: int) -> str:
     return f"{bytes:.1f}PB"
 
 
-async def list_directories_by_size(path: str, top_n: int) -> str:
+async def list_directories_by_size(
+    path: str,
+    top_n: int,
+    host: Optional[str] = None,
+    username: Optional[str] = None
+) -> str:
     """
     List directories under a specified path sorted by size (largest first).
     
@@ -87,6 +102,8 @@ async def list_directories_by_size(path: str, top_n: int) -> str:
         path: The directory path to analyze
         top_n: Number of top directories to return (1-1000). Accepts int or float 
                (floats are truncated to integers)
+        host: Optional remote host to connect to
+        username: Optional SSH username (required if host is provided)
     
     Returns:
         Formatted string with directory sizes, or error message if validation fails
@@ -111,35 +128,33 @@ async def list_directories_by_size(path: str, top_n: int) -> str:
         if error:
             return error
         
-        # Validate and resolve path using pathlib for security
-        try:
-            path_obj = Path(path).resolve(strict=True)
-        except (OSError, RuntimeError):
-            return f"Error: Path does not exist or cannot be resolved: {path}"
-        
-        # Check if path is a directory
-        if not path_obj.is_dir():
-            return f"Error: Path is not a directory: {path}"
-        
-        # Check if we have read permissions
-        if not os.access(path_obj, os.R_OK):
-            return f"Error: Permission denied to read directory: {path}"
+        # For local execution, validate path
+        if not host:
+            try:
+                path_obj = Path(path).resolve(strict=True)
+            except (OSError, RuntimeError):
+                return f"Error: Path does not exist or cannot be resolved: {path}"
+            
+            if not path_obj.is_dir():
+                return f"Error: Path is not a directory: {path}"
+            
+            if not os.access(path_obj, os.R_OK):
+                return f"Error: Permission denied to read directory: {path}"
+            
+            path_str = str(path_obj)
+        else:
+            # For remote execution, use the path as-is
+            path_str = path
         
         # Use du command to get directory sizes efficiently
-        # -b: display sizes in bytes
-        # --max-depth=1: only immediate subdirectories (conflicts with -s, so we don't use it)
-        # Note: du outputs permission errors to stderr but continues processing,
-        # so we suppress/ignore stderr and only use stdout results
-        # du may return non-zero if it encounters permission errors, but still produces valid output
-        proc = await asyncio.create_subprocess_exec(
-            "du", "-b", "--max-depth=1", str(path_obj),
-            stdout=subprocess.PIPE,
-            stderr=subprocess.DEVNULL  # Suppress permission denied errors
+        returncode, stdout, _ = await execute_command(
+            ["du", "-b", "--max-depth=1", path_str],
+            host=host,
+            username=username
         )
-        stdout, _ = await proc.communicate()
         
         # Parse output - du may return non-zero on permission errors but still give valid data
-        lines = stdout.decode().strip().split('\n')
+        lines = stdout.strip().split('\n')
         dir_sizes = []
         
         for line in lines:
@@ -149,16 +164,17 @@ async def list_directories_by_size(path: str, top_n: int) -> str:
             if len(parts) == 2:
                 try:
                     size = int(parts[0])
-                    dir_path = Path(parts[1])
+                    dir_path_str = parts[1]
                     # Skip the parent directory itself
-                    if dir_path != path_obj:
-                        dir_sizes.append((dir_path.name, size))
+                    dir_name = Path(dir_path_str).name
+                    if dir_path_str != path_str:
+                        dir_sizes.append((dir_name, size))
                 except (ValueError, IndexError):
                     continue
         
         if not dir_sizes:
             # Only error if we got no output AND a bad return code
-            if proc.returncode != 0:
+            if returncode != 0:
                 return f"Error: du command failed and returned no directory data"
             return f"No subdirectories found in: {path}"
         
@@ -169,7 +185,7 @@ async def list_directories_by_size(path: str, top_n: int) -> str:
         # Format output
         result = []
         result.append(f"=== Top {len(top_dirs)} Largest Directories ===")
-        result.append(f"Path: {path_obj}")
+        result.append(f"Path: {path_str}")
         result.append(f"\nTotal subdirectories found: {len(dir_sizes)}\n")
         
         for i, (dir_name, size) in enumerate(top_dirs, 1):
@@ -182,7 +198,12 @@ async def list_directories_by_size(path: str, top_n: int) -> str:
         return f"Error analyzing directories: {str(e)}"
 
 
-async def list_directories_by_name(path: str, reverse: bool = False) -> str:
+async def list_directories_by_name(
+    path: str,
+    reverse: bool = False,
+    host: Optional[str] = None,
+    username: Optional[str] = None
+) -> str:
     """
     List directories under a specified path sorted by name.
     
@@ -191,6 +212,8 @@ async def list_directories_by_name(path: str, reverse: bool = False) -> str:
     Args:
         path: The directory path to analyze
         reverse: If True, sort in reverse alphabetical order (Z-A)
+        host: Optional remote host to connect to
+        username: Optional SSH username (required if host is provided)
     
     Returns:
         Formatted string with directory names, or error message if validation fails
@@ -199,33 +222,36 @@ async def list_directories_by_name(path: str, reverse: bool = False) -> str:
     from pathlib import Path
     
     try:
-        # Validate and resolve path
-        try:
-            path_obj = Path(path).resolve(strict=True)
-        except (OSError, RuntimeError):
-            return f"Error: Path does not exist or cannot be resolved: {path}"
-        
-        if not path_obj.is_dir():
-            return f"Error: Path is not a directory: {path}"
-        
-        if not os.access(path_obj, os.R_OK):
-            return f"Error: Permission denied to read directory: {path}"
+        # For local execution, validate path
+        if not host:
+            try:
+                path_obj = Path(path).resolve(strict=True)
+            except (OSError, RuntimeError):
+                return f"Error: Path does not exist or cannot be resolved: {path}"
+            
+            if not path_obj.is_dir():
+                return f"Error: Path is not a directory: {path}"
+            
+            if not os.access(path_obj, os.R_OK):
+                return f"Error: Permission denied to read directory: {path}"
+            
+            path_str = str(path_obj)
+        else:
+            # For remote execution, use the path as-is
+            path_str = path
         
         # Use find to list only immediate subdirectories
-        # Suppress stderr to avoid permission denied errors cluttering output
-        proc = await asyncio.create_subprocess_exec(
-            "find", str(path_obj), "-mindepth", "1", "-maxdepth", "1", "-type", "d",
-            "-printf", "%f\\n",
-            stdout=subprocess.PIPE,
-            stderr=subprocess.DEVNULL
+        returncode, stdout, _ = await execute_command(
+            ["find", path_str, "-mindepth", "1", "-maxdepth", "1", "-type", "d", "-printf", "%f\\n"],
+            host=host,
+            username=username
         )
-        stdout, _ = await proc.communicate()
         
-        if proc.returncode != 0:
-            return f"Error running find command: command failed with return code {proc.returncode}"
+        if returncode != 0:
+            return f"Error running find command: command failed with return code {returncode}"
         
         # Parse and sort output
-        directories = [line for line in stdout.decode().strip().split('\n') if line]
+        directories = [line for line in stdout.strip().split('\n') if line]
         
         if not directories:
             return f"No subdirectories found in: {path}"
@@ -237,7 +263,7 @@ async def list_directories_by_name(path: str, reverse: bool = False) -> str:
         result = []
         sort_order = "Reverse Alphabetical" if reverse else "Alphabetical"
         result.append(f"=== Directories ({sort_order}) ===")
-        result.append(f"Path: {path_obj}")
+        result.append(f"Path: {path_str}")
         result.append(f"\nTotal subdirectories found: {len(directories)}\n")
         
         for i, dir_name in enumerate(directories, 1):
@@ -249,7 +275,12 @@ async def list_directories_by_name(path: str, reverse: bool = False) -> str:
         return f"Error listing directories: {str(e)}"
 
 
-async def list_directories_by_modified_date(path: str, newest_first: bool = True) -> str:
+async def list_directories_by_modified_date(
+    path: str,
+    newest_first: bool = True,
+    host: Optional[str] = None,
+    username: Optional[str] = None
+) -> str:
     """
     List directories under a specified path sorted by modification date.
     
@@ -258,6 +289,8 @@ async def list_directories_by_modified_date(path: str, newest_first: bool = True
     Args:
         path: The directory path to analyze
         newest_first: If True, show newest first; if False, show oldest first
+        host: Optional remote host to connect to
+        username: Optional SSH username (required if host is provided)
     
     Returns:
         Formatted string with directory names and dates, or error message if validation fails
@@ -267,35 +300,37 @@ async def list_directories_by_modified_date(path: str, newest_first: bool = True
     from datetime import datetime
     
     try:
-        # Validate and resolve path
-        try:
-            path_obj = Path(path).resolve(strict=True)
-        except (OSError, RuntimeError):
-            return f"Error: Path does not exist or cannot be resolved: {path}"
-        
-        if not path_obj.is_dir():
-            return f"Error: Path is not a directory: {path}"
-        
-        if not os.access(path_obj, os.R_OK):
-            return f"Error: Permission denied to read directory: {path}"
+        # For local execution, validate path
+        if not host:
+            try:
+                path_obj = Path(path).resolve(strict=True)
+            except (OSError, RuntimeError):
+                return f"Error: Path does not exist or cannot be resolved: {path}"
+            
+            if not path_obj.is_dir():
+                return f"Error: Path is not a directory: {path}"
+            
+            if not os.access(path_obj, os.R_OK):
+                return f"Error: Permission denied to read directory: {path}"
+            
+            path_str = str(path_obj)
+        else:
+            # For remote execution, use the path as-is
+            path_str = path
         
         # Use find with modification time
-        # -printf "%T@\t%f\n" outputs: timestamp filename
-        # Suppress stderr to avoid permission denied errors cluttering output
-        proc = await asyncio.create_subprocess_exec(
-            "find", str(path_obj), "-mindepth", "1", "-maxdepth", "1", "-type", "d",
-            "-printf", "%T@\\t%f\\n",
-            stdout=subprocess.PIPE,
-            stderr=subprocess.DEVNULL
+        returncode, stdout, _ = await execute_command(
+            ["find", path_str, "-mindepth", "1", "-maxdepth", "1", "-type", "d", "-printf", "%T@\\t%f\\n"],
+            host=host,
+            username=username
         )
-        stdout, _ = await proc.communicate()
         
-        if proc.returncode != 0:
-            return f"Error running find command: command failed with return code {proc.returncode}"
+        if returncode != 0:
+            return f"Error running find command: command failed with return code {returncode}"
         
         # Parse output
         directories = []
-        for line in stdout.decode().strip().split('\n'):
+        for line in stdout.strip().split('\n'):
             if line:
                 parts = line.split('\t', 1)
                 if len(parts) == 2:
@@ -316,7 +351,7 @@ async def list_directories_by_modified_date(path: str, newest_first: bool = True
         result = []
         sort_order = "Newest First" if newest_first else "Oldest First"
         result.append(f"=== Directories ({sort_order}) ===")
-        result.append(f"Path: {path_obj}")
+        result.append(f"Path: {path_str}")
         result.append(f"\nTotal subdirectories found: {len(directories)}\n")
         
         for i, (timestamp, dir_name) in enumerate(directories, 1):

@@ -5,7 +5,10 @@ import os
 import platform
 import subprocess
 from datetime import datetime, timedelta
+from typing import Optional
 import psutil
+
+from .ssh_executor import execute_command
 
 
 async def get_system_info() -> str:
@@ -180,39 +183,45 @@ async def get_disk_usage() -> str:
         return f"Error gathering disk usage information: {str(e)}"
 
 
-async def get_hardware_info() -> str:
-    """Get hardware information."""
+async def get_hardware_info(host: Optional[str] = None, username: Optional[str] = None) -> str:
+    """
+    Get hardware information.
+    
+    Args:
+        host: Optional remote host to connect to
+        username: Optional SSH username (required if host is provided)
+        
+    Returns:
+        Formatted string with hardware information
+    """
     try:
         info = []
         info.append("=== Hardware Information ===\n")
         
         # Try lscpu for CPU info
         try:
-            proc = await asyncio.create_subprocess_exec(
-                "lscpu",
-                stdout=subprocess.PIPE,
-                stderr=subprocess.PIPE
+            returncode, stdout, stderr = await execute_command(
+                ["lscpu"],
+                host=host,
+                username=username
             )
-            stdout, stderr = await proc.communicate()
             
-            if proc.returncode == 0:
+            if returncode == 0:
                 info.append("=== CPU Architecture (lscpu) ===")
-                info.append(stdout.decode())
+                info.append(stdout)
         except FileNotFoundError:
             info.append("CPU info: lscpu command not available")
         
         # Try lspci for PCI devices
         try:
-            proc = await asyncio.create_subprocess_exec(
-                "lspci",
-                stdout=subprocess.PIPE,
-                stderr=subprocess.PIPE
+            returncode, stdout, stderr = await execute_command(
+                ["lspci"],
+                host=host,
+                username=username
             )
-            stdout, stderr = await proc.communicate()
             
-            if proc.returncode == 0:
-                pci_output = stdout.decode()
-                pci_lines = pci_output.strip().split('\n')
+            if returncode == 0:
+                pci_lines = stdout.strip().split('\n')
                 
                 info.append("\n=== PCI Devices ===")
                 # Show first 50 devices to avoid overwhelming output
@@ -226,32 +235,30 @@ async def get_hardware_info() -> str:
         
         # Try lsusb for USB devices
         try:
-            proc = await asyncio.create_subprocess_exec(
-                "lsusb",
-                stdout=subprocess.PIPE,
-                stderr=subprocess.PIPE
+            returncode, stdout, stderr = await execute_command(
+                ["lsusb"],
+                host=host,
+                username=username
             )
-            stdout, stderr = await proc.communicate()
             
-            if proc.returncode == 0:
+            if returncode == 0:
                 info.append("\n\n=== USB Devices ===")
-                info.append(stdout.decode())
+                info.append(stdout)
         except FileNotFoundError:
             info.append("\nUSB devices: lsusb command not available")
         
         # Memory hardware info from dmidecode (requires root)
         try:
-            proc = await asyncio.create_subprocess_exec(
-                "dmidecode", "-t", "memory",
-                stdout=subprocess.PIPE,
-                stderr=subprocess.PIPE
+            returncode, stdout, stderr = await execute_command(
+                ["dmidecode", "-t", "memory"],
+                host=host,
+                username=username
             )
-            stdout, stderr = await proc.communicate()
             
-            if proc.returncode == 0:
+            if returncode == 0:
                 info.append("\n\n=== Memory Hardware (dmidecode) ===")
-                info.append(stdout.decode())
-            elif "Permission denied" in stderr.decode():
+                info.append(stdout)
+            elif "Permission denied" in stderr:
                 info.append("\n\nMemory hardware info: Requires root privileges (dmidecode)")
         except FileNotFoundError:
             info.append("\nMemory hardware info: dmidecode command not available")
