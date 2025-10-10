@@ -1,44 +1,47 @@
 """Service management tools."""
 
-import subprocess
-import asyncio
+from typing import Optional
 
 from .validation import validate_line_count
+from .ssh_executor import execute_command
 
 
-async def list_services() -> str:
-    """List all systemd services."""
+async def list_services(host: Optional[str] = None, username: Optional[str] = None) -> str:
+    """
+    List all systemd services.
+    
+    Args:
+        host: Optional remote host to connect to
+        username: Optional SSH username (required if host is provided)
+        
+    Returns:
+        Formatted string with service list
+    """
     try:
         # Run systemctl to list all services
-        proc = await asyncio.create_subprocess_exec(
-            "systemctl", "list-units", "--type=service", "--all", "--no-pager",
-            stdout=subprocess.PIPE,
-            stderr=subprocess.PIPE
+        returncode, stdout, stderr = await execute_command(
+            ["systemctl", "list-units", "--type=service", "--all", "--no-pager"],
+            host=host,
+            username=username
         )
-        stdout, stderr = await proc.communicate()
         
-        if proc.returncode != 0:
-            return f"Error listing services: {stderr.decode()}"
-        
-        output = stdout.decode()
+        if returncode != 0:
+            return f"Error listing services: {stderr}"
         
         # Format the output
-        lines = output.strip().split('\n')
         result = ["=== System Services ===\n"]
-        
-        # Add the output from systemctl
-        result.append(output)
+        result.append(stdout)
         
         # Get summary
-        proc_summary = await asyncio.create_subprocess_exec(
-            "systemctl", "list-units", "--type=service", "--state=running", "--no-pager",
-            stdout=subprocess.PIPE,
-            stderr=subprocess.PIPE
+        returncode_summary, stdout_summary, _ = await execute_command(
+            ["systemctl", "list-units", "--type=service", "--state=running", "--no-pager"],
+            host=host,
+            username=username
         )
-        stdout_summary, _ = await proc_summary.communicate()
-        running_count = len([l for l in stdout_summary.decode().split('\n') if '.service' in l])
         
-        result.append(f"\n\nSummary: {running_count} services currently running")
+        if returncode_summary == 0:
+            running_count = len([l for l in stdout_summary.split('\n') if '.service' in l])
+            result.append(f"\n\nSummary: {running_count} services currently running")
         
         return "\n".join(result)
     except FileNotFoundError:
@@ -47,33 +50,43 @@ async def list_services() -> str:
         return f"Error listing services: {str(e)}"
 
 
-async def get_service_status(service_name: str) -> str:
-    """Get status of a specific service."""
+async def get_service_status(
+    service_name: str,
+    host: Optional[str] = None,
+    username: Optional[str] = None
+) -> str:
+    """
+    Get status of a specific service.
+    
+    Args:
+        service_name: Name of the service
+        host: Optional remote host to connect to
+        username: Optional SSH username (required if host is provided)
+        
+    Returns:
+        Formatted string with service status
+    """
     try:
         # Ensure service name has .service suffix if not present
         if not service_name.endswith('.service') and '.' not in service_name:
             service_name = f"{service_name}.service"
         
         # Run systemctl status
-        proc = await asyncio.create_subprocess_exec(
-            "systemctl", "status", service_name, "--no-pager", "--full",
-            stdout=subprocess.PIPE,
-            stderr=subprocess.PIPE
+        returncode, stdout, stderr = await execute_command(
+            ["systemctl", "status", service_name, "--no-pager", "--full"],
+            host=host,
+            username=username
         )
-        stdout, stderr = await proc.communicate()
         
         # Note: systemctl status returns non-zero for inactive services, but that's expected
-        output = stdout.decode()
-        
-        if not output and stderr:
+        if not stdout and stderr:
             # Service not found
-            error_msg = stderr.decode()
-            if "not found" in error_msg.lower() or "could not be found" in error_msg.lower():
+            if "not found" in stderr.lower() or "could not be found" in stderr.lower():
                 return f"Service '{service_name}' not found on this system."
-            return f"Error getting service status: {error_msg}"
+            return f"Error getting service status: {stderr}"
         
         result = [f"=== Status of {service_name} ===\n"]
-        result.append(output)
+        result.append(stdout)
         
         return "\n".join(result)
     except FileNotFoundError:
@@ -82,8 +95,24 @@ async def get_service_status(service_name: str) -> str:
         return f"Error getting service status: {str(e)}"
 
 
-async def get_service_logs(service_name: str, lines: int = 50) -> str:
-    """Get logs for a specific service."""
+async def get_service_logs(
+    service_name: str,
+    lines: int = 50,
+    host: Optional[str] = None,
+    username: Optional[str] = None
+) -> str:
+    """
+    Get logs for a specific service.
+    
+    Args:
+        service_name: Name of the service
+        lines: Number of log lines to retrieve (default: 50)
+        host: Optional remote host to connect to
+        username: Optional SSH username (required if host is provided)
+        
+    Returns:
+        Formatted string with service logs
+    """
     try:
         # Validate lines parameter (accepts floats from LLMs)
         lines, _ = validate_line_count(lines, default=50)
@@ -93,26 +122,22 @@ async def get_service_logs(service_name: str, lines: int = 50) -> str:
             service_name = f"{service_name}.service"
         
         # Run journalctl for the service
-        proc = await asyncio.create_subprocess_exec(
-            "journalctl", "-u", service_name, "-n", str(lines), "--no-pager",
-            stdout=subprocess.PIPE,
-            stderr=subprocess.PIPE
+        returncode, stdout, stderr = await execute_command(
+            ["journalctl", "-u", service_name, "-n", str(lines), "--no-pager"],
+            host=host,
+            username=username
         )
-        stdout, stderr = await proc.communicate()
         
-        if proc.returncode != 0:
-            error_msg = stderr.decode()
-            if "not found" in error_msg.lower() or "no entries" in error_msg.lower():
+        if returncode != 0:
+            if "not found" in stderr.lower() or "no entries" in stderr.lower():
                 return f"No logs found for service '{service_name}'. The service may not exist or has no log entries."
-            return f"Error getting service logs: {error_msg}"
+            return f"Error getting service logs: {stderr}"
         
-        output = stdout.decode()
-        
-        if not output or output.strip() == "":
+        if not stdout or stdout.strip() == "":
             return f"No log entries found for service '{service_name}'."
         
         result = [f"=== Last {lines} log entries for {service_name} ===\n"]
-        result.append(output)
+        result.append(stdout)
         
         return "\n".join(result)
     except FileNotFoundError:
