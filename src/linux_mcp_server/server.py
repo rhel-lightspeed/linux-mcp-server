@@ -124,6 +124,18 @@ class LinuxMCPServer:
         """List all available tools."""
         tools = []
         
+        # Common SSH parameters for remote execution
+        ssh_params = {
+            "host": {
+                "type": "string",
+                "description": "Remote host to connect to via SSH (optional, executes locally if not provided)"
+            },
+            "username": {
+                "type": "string",
+                "description": "SSH username for remote host (required if host is provided)"
+            }
+        }
+        
         # Define all tools with their schemas
         tool_definitions = [
             ("get_system_info", "Get basic system information including OS version, kernel, hostname, and uptime", {}),
@@ -166,9 +178,12 @@ class LinuxMCPServer:
         ]
         
         for name, description, properties in tool_definitions:
+            # Merge tool-specific properties with SSH parameters
+            all_properties = {**properties, **ssh_params}
+            
             input_schema = {
                 "type": "object",
-                "properties": properties,
+                "properties": all_properties,
             }
             
             tools.append(Tool(
