@@ -5,6 +5,8 @@ A Model Context Protocol (MCP) server for read-only Linux system administration,
 ## Features
 
 - **Read-Only Operations**: All tools are strictly read-only for safe diagnostics
+- **Remote SSH Execution**: Execute commands on remote systems via SSH with key-based authentication
+- **Multi-Host Management**: Connect to different remote hosts in the same session
 - **Comprehensive Diagnostics**: System info, services, processes, logs, network, and storage
 - **Configurable Log Access**: Control which log files can be accessed via environment variables
 - **RHEL/systemd Focused**: Optimized for Red Hat Enterprise Linux systems
@@ -74,6 +76,34 @@ export LINUX_MCP_ALLOWED_LOG_PATHS="/var/log/messages,/var/log/secure,/var/log/a
 
 # Optional: Set log level
 export LINUX_MCP_LOG_LEVEL="INFO"
+
+# Optional: Specify SSH private key path (defaults to ~/.ssh/id_ed25519, ~/.ssh/id_rsa, etc.)
+export LINUX_MCP_SSH_KEY_PATH="/path/to/your/private/key"
+```
+
+### Remote SSH Execution
+
+All tools support optional `host` and `username` parameters for remote execution via SSH:
+
+- **Authentication**: SSH key-based authentication only (no password support)
+- **Key Discovery**: Automatically discovers SSH keys from `~/.ssh/` or use `LINUX_MCP_SSH_KEY_PATH`
+- **Connection Pooling**: Reuses SSH connections for efficiency
+- **Multi-Host**: Each tool call can target a different remote host
+
+**Requirements**:
+- SSH key-based authentication must be configured on remote hosts
+- Remote user must have appropriate permissions for diagnostic commands
+
+**Example Usage**:
+```python
+# Local execution
+await list_services()
+
+# Remote execution
+await list_services(host="server1.example.com", username="admin")
+
+# Different host in same session
+await get_service_status("nginx", host="server2.example.com", username="sysadmin")
 ```
 
 ## Usage
@@ -127,9 +157,12 @@ pytest --cov=src --cov-report=html
 
 - All operations are **read-only**
 - Log file access is controlled via whitelist (`LINUX_MCP_ALLOWED_LOG_PATHS`)
+- **SSH key-based authentication only** - no password support
+- SSH host key verification is disabled for flexibility (use with caution)
 - No arbitrary command execution
 - Input validation on all parameters
 - Requires appropriate system permissions for diagnostics
+- Remote user needs proper sudo/permissions for privileged commands
 
 ## License
 
