@@ -11,6 +11,9 @@ dependencies = [
     "asyncssh>=2.14.0",
 ]
 
+[project.scripts]
+linux-mcp-server = "linux_mcp_server.__main__:cli"
+
 [project.optional-dependencies]
 dev = [
     "pytest>=8.0.0",

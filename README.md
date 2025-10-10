@@ -110,6 +110,19 @@ await get_service_status("nginx", host="server2.example.com", username="sysadmin
 
 ### Running the Server
 
+You can run the server in multiple ways:
+
+**Using uv run (recommended for development):**
+```bash
+uv run linux-mcp-server
+```
+
+**Using uvx (recommended for one-off execution without installation):**
+```bash
+uvx --from /path/to/linux-mcp-server linux-mcp-server
+```
+
+**Traditional Python module execution:**
 ```bash
 python -m linux_mcp_server
 ```
@@ -118,6 +131,7 @@ python -m linux_mcp_server
 
 Add to your Claude Desktop configuration (`~/Library/Application Support/Claude/claude_desktop_config.json` on macOS):
 
+**Option 1: Using uv run (simpler):**
 ```json
 {
   "mcpServers": {
@@ -127,9 +141,26 @@ Add to your Claude Desktop configuration (`~/Library/Application Support/Claude/
         "--directory",
         "/path/to/linux-mcp-server",
         "run",
-        "python",
-        "-m",
-        "linux_mcp_server"
+        "linux-mcp-server"
+      ],
+      "env": {
+        "LINUX_MCP_ALLOWED_LOG_PATHS": "/var/log/messages,/var/log/secure,/var/log/audit/audit.log"
+      }
+    }
+  }
+}
+```
+
+**Option 2: Using uvx (from local directory):**
+```json
+{
+  "mcpServers": {
+    "linux-diagnostics": {
+      "command": "uvx",
+      "args": [
+        "--from",
+        "/path/to/linux-mcp-server",
+        "linux-mcp-server"
       ],
       "env": {
         "LINUX_MCP_ALLOWED_LOG_PATHS": "/var/log/messages,/var/log/secure,/var/log/audit/audit.log"

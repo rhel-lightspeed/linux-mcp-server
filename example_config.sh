@@ -5,7 +5,10 @@
 #   1. Copy this file: cp example_config.sh config.sh
 #   2. Customize the settings below
 #   3. Source it before running: source config.sh
-#   4. Run the server: python -m linux_mcp_server
+#   4. Run the server using one of:
+#      - uv run linux-mcp-server (recommended)
+#      - uvx --from /path/to/linux-mcp-server linux-mcp-server
+#      - python -m linux_mcp_server
 
 # Log files that the MCP server is allowed to read
 # Add or remove paths as needed for your environment
