@@ -9,10 +9,13 @@ import asyncio
 import logging
 import os
 import subprocess
+import time
 from pathlib import Path
 from typing import Optional, Tuple
 
 import asyncssh
+
+from ..audit import log_ssh_connect, log_ssh_command
 
 
 logger = logging.getLogger(__name__)
@@ -29,9 +32,12 @@ def discover_ssh_key() -> Optional[str]:
     Returns:
         Path to SSH private key if found, None otherwise.
     """
+    logger.debug("Discovering SSH key for authentication")
+    
     # Check environment variable first
     env_key = os.getenv("LINUX_MCP_SSH_KEY_PATH")
     if env_key:
+        logger.debug(f"Checking SSH key from environment: {env_key}")
         key_path = Path(env_key)
         if key_path.exists() and key_path.is_file():
             logger.info(f"Using SSH key from environment: {env_key}")
@@ -47,6 +53,8 @@ def discover_ssh_key() -> Optional[str]:
         home / ".ssh" / "id_ecdsa",
         home / ".ssh" / "id_rsa",
     ]
+    
+    logger.debug(f"Checking default SSH key locations: {[str(k) for k in default_keys]}")
     
     for key_path in default_keys:
         if key_path.exists() and key_path.is_file():
@@ -96,15 +104,20 @@ class SSHConnectionManager:
         if key in self._connections:
             conn = self._connections[key]
             if not conn.is_closed():
-                logger.debug(f"Reusing existing connection to {key}")
+                # DEBUG level: Log connection reuse and pool state
+                logger.debug(f"SSH_REUSE: {key} | pool_size={len(self._connections)}")
+                # Use audit log with connection reuse info
+                log_ssh_connect(host, username, status="success", reused=True, key_path=self._ssh_key)
                 return conn
             else:
                 # Connection was closed, remove it
-                logger.debug(f"Removing closed connection to {key}")
+                logger.debug(f"SSH_POOL: remove_closed_connection | connection={key}")
                 del self._connections[key]
         
         # Create new connection
-        logger.info(f"Creating new SSH connection to {key}")
+        # DEBUG level: Log connection attempt before it completes
+        logger.debug(f"SSH_CONNECTING: {key} | key={self._ssh_key or 'none'}")
+        
         try:
             connect_kwargs = {
                 "host": host,
@@ -117,13 +130,24 @@ class SSHConnectionManager:
             
             conn = await asyncssh.connect(**connect_kwargs)
             self._connections[key] = conn
+            
+            # Log successful connection using audit function
+            log_ssh_connect(host, username, status="success", reused=False, key_path=self._ssh_key)
+            
+            # DEBUG level: Log pool state
+            logger.debug(f"SSH_POOL: add_connection | connections={len(self._connections)}")
+            
             return conn
             
         except asyncssh.PermissionDenied as e:
-            logger.error(f"Authentication failed for {key}: {e}")
+            # Use audit log for authentication failure
+            error_msg = str(e)
+            log_ssh_connect(host, username, status="failed", error=f"Permission denied: {error_msg}")
             raise ConnectionError(f"Authentication failed for {username}@{host}") from e
         except asyncssh.Error as e:
-            logger.error(f"Failed to connect to {key}: {e}")
+            # Use audit log for connection failure
+            error_msg = str(e)
+            log_ssh_connect(host, username, status="failed", error=error_msg)
             raise ConnectionError(f"Failed to connect to {username}@{host}: {e}") from e
     
     async def execute_remote(
@@ -150,7 +174,9 @@ class SSHConnectionManager:
         
         # Build command string
         cmd_str = " ".join(command)
-        logger.debug(f"Executing on {username}@{host}: {cmd_str}")
+        
+        # Start timing for command execution
+        start_time = time.time()
         
         try:
             result = await conn.run(cmd_str, check=False)
@@ -159,23 +185,40 @@ class SSHConnectionManager:
             stdout = result.stdout if result.stdout else ""
             stderr = result.stderr if result.stderr else ""
             
-            logger.debug(f"Command completed with exit code {return_code}")
+            # Calculate duration
+            duration = time.time() - start_time
+            
+            # Use audit log for command execution
+            log_ssh_command(cmd_str, host, exit_code=return_code, duration=duration)
+            
             return return_code, stdout, stderr
             
         except asyncssh.Error as e:
-            logger.error(f"Error executing command on {username}@{host}: {e}")
+            duration = time.time() - start_time
+            logger.error(f"Error executing command on {username}@{host}: {e}", extra={
+                'event': 'REMOTE_EXEC_ERROR',
+                'command': cmd_str,
+                'host': host,
+                'duration': f"{duration:.3f}s",
+                'error': str(e)
+            })
             raise ConnectionError(f"Failed to execute command on {username}@{host}: {e}") from e
     
     async def close_all(self):
         """Close all SSH connections."""
-        logger.info(f"Closing {len(self._connections)} SSH connections")
+        connection_count = len(self._connections)
+        logger.info(f"Closing {connection_count} SSH connections")
+        
         for key, conn in list(self._connections.items()):
             try:
+                logger.debug(f"SSH_CLOSE: {key}")
                 conn.close()
                 await conn.wait_closed()
             except Exception as e:
                 logger.warning(f"Error closing connection to {key}: {e}")
+        
         self._connections.clear()
+        logger.debug(f"SSH_POOL: cleared | closed_connections={connection_count}")
 
 
 # Global connection manager instance
@@ -219,16 +262,19 @@ async def execute_command(
         ...     username="admin"
         ... )
     """
+    cmd_str = " ".join(command)
+    
     # Route to remote execution if host is provided
     if host:
         if not username:
+            logger.error(f"Host provided without username for command: {cmd_str}")
             raise ValueError("username is required when host is provided")
         
-        logger.debug(f"Routing to remote execution: {username}@{host}")
+        logger.debug(f"Routing to remote execution: {username}@{host} | command={cmd_str}")
         return await _connection_manager.execute_remote(command, host, username)
     
     # Local execution
-    logger.debug(f"Executing locally: {' '.join(command)}")
+    logger.debug(f"LOCAL_EXEC: {cmd_str}")
     return await _execute_local(command)
 
 
@@ -242,6 +288,9 @@ async def _execute_local(command: list[str]) -> Tuple[int, str, str]:
     Returns:
         Tuple of (return_code, stdout, stderr)
     """
+    cmd_str = " ".join(command)
+    start_time = time.time()
+    
     try:
         proc = await asyncio.create_subprocess_exec(
             *command,
@@ -254,9 +303,20 @@ async def _execute_local(command: list[str]) -> Tuple[int, str, str]:
         stdout = stdout_bytes.decode('utf-8', errors='replace')
         stderr = stderr_bytes.decode('utf-8', errors='replace')
         
+        duration = time.time() - start_time
+        
+        # DEBUG level: Log local command execution with timing
+        logger.debug(f"LOCAL_EXEC completed: {cmd_str} | exit_code={return_code} | duration={duration:.3f}s")
+        
         return return_code, stdout, stderr
         
     except Exception as e:
-        logger.error(f"Error executing local command: {e}")
+        duration = time.time() - start_time
+        logger.error(f"Error executing local command: {cmd_str}", extra={
+            'event': 'LOCAL_EXEC_ERROR',
+            'command': cmd_str,
+            'duration': f"{duration:.3f}s",
+            'error': str(e)
+        })
         return 1, "", str(e)
 
