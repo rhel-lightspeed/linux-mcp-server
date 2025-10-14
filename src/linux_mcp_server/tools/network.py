@@ -6,6 +6,7 @@ from typing import Optional
 
 from .decorators import log_tool_output
 from .ssh_executor import execute_command
+from .utils import format_bytes
 
 
 @log_tool_output
@@ -97,8 +98,8 @@ async def get_network_interfaces(host: Optional[str] = None, username: Optional[
             # Network I/O statistics
             net_io = psutil.net_io_counters()
             info.append("\n\n=== Network I/O Statistics (total) ===")
-            info.append(f"Bytes Sent: {_format_bytes(net_io.bytes_sent)}")
-            info.append(f"Bytes Received: {_format_bytes(net_io.bytes_recv)}")
+            info.append(f"Bytes Sent: {format_bytes(net_io.bytes_sent)}")
+            info.append(f"Bytes Received: {format_bytes(net_io.bytes_recv)}")
             info.append(f"Packets Sent: {net_io.packets_sent}")
             info.append(f"Packets Received: {net_io.packets_recv}")
             info.append(f"Errors In: {net_io.errin}")
@@ -281,13 +282,4 @@ async def get_listening_ports(host: Optional[str] = None, username: Optional[str
         return "Permission denied. This tool requires elevated privileges to view all listening ports."
     except Exception as e:
         return f"Error getting listening ports: {str(e)}"
-
-
-def _format_bytes(bytes: int) -> str:
-    """Format bytes into human-readable format."""
-    for unit in ['B', 'KB', 'MB', 'GB', 'TB']:
-        if bytes < 1024.0:
-            return f"{bytes:.1f}{unit}"
-        bytes /= 1024.0
-    return f"{bytes:.1f}PB"
 

@@ -7,6 +7,7 @@ from typing import Optional
 from .decorators import log_tool_output
 from .validation import validate_pid
 from .ssh_executor import execute_command
+from .utils import format_bytes
 
 
 @log_tool_output
@@ -205,8 +206,8 @@ async def get_process_info(pid: int, host: Optional[str] = None, username: Optio
                 info.append(f"CPU Percent: {cpu_percent}%")
                 
                 mem_info = proc.memory_info()
-                info.append(f"Memory RSS: {_format_bytes(mem_info.rss)}")
-                info.append(f"Memory VMS: {_format_bytes(mem_info.vms)}")
+                info.append(f"Memory RSS: {format_bytes(mem_info.rss)}")
+                info.append(f"Memory VMS: {format_bytes(mem_info.vms)}")
                 info.append(f"Memory Percent: {proc.memory_percent():.2f}%")
             except (psutil.NoSuchProcess, psutil.AccessDenied):
                 info.append("Resource usage: [Access Denied]")
@@ -256,13 +257,4 @@ async def get_process_info(pid: int, host: Optional[str] = None, username: Optio
         return f"Access denied to process with PID {pid}. Try running with elevated privileges."
     except Exception as e:
         return f"Error getting process information: {str(e)}"
-
-
-def _format_bytes(bytes: int) -> str:
-    """Format bytes into human-readable format."""
-    for unit in ['B', 'KB', 'MB', 'GB', 'TB']:
-        if bytes < 1024.0:
-            return f"{bytes:.1f}{unit}"
-        bytes /= 1024.0
-    return f"{bytes:.1f}PB"
 

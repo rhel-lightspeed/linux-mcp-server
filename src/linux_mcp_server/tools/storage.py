@@ -9,6 +9,7 @@ import psutil
 from .decorators import log_tool_output
 from .validation import validate_positive_int
 from .ssh_executor import execute_command
+from .utils import format_bytes
 
 
 @log_tool_output
@@ -43,8 +44,8 @@ async def list_block_devices(host: Optional[str] = None, username: Optional[str]
                         result.append("\n=== Disk I/O Statistics (per disk) ===")
                         for disk, stats in sorted(disk_io_per_disk.items()):
                             result.append(f"\n{disk}:")
-                            result.append(f"  Read: {_format_bytes(stats.read_bytes)}")
-                            result.append(f"  Write: {_format_bytes(stats.write_bytes)}")
+                            result.append(f"  Read: {format_bytes(stats.read_bytes)}")
+                            result.append(f"  Write: {format_bytes(stats.write_bytes)}")
                             result.append(f"  Read Count: {stats.read_count}")
                             result.append(f"  Write Count: {stats.write_count}")
                 except Exception:
@@ -77,15 +78,6 @@ async def list_block_devices(host: Optional[str] = None, username: Optional[str]
         return "\n".join(result)
     except Exception as e:
         return f"Error listing block devices: {str(e)}"
-
-
-def _format_bytes(bytes: int) -> str:
-    """Format bytes into human-readable format."""
-    for unit in ['B', 'KB', 'MB', 'GB', 'TB']:
-        if bytes < 1024.0:
-            return f"{bytes:.1f}{unit}"
-        bytes /= 1024.0
-    return f"{bytes:.1f}PB"
 
 
 @log_tool_output
@@ -193,7 +185,7 @@ async def list_directories_by_size(
         
         for i, (dir_name, size) in enumerate(top_dirs, 1):
             result.append(f"{i}. {dir_name}")
-            result.append(f"   Size: {_format_bytes(size)}")
+            result.append(f"   Size: {format_bytes(size)}")
         
         return "\n".join(result)
         

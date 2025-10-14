@@ -10,6 +10,7 @@ import psutil
 
 from .decorators import log_tool_output
 from .ssh_executor import execute_command
+from .utils import format_bytes
 
 
 @log_tool_output
@@ -299,10 +300,10 @@ async def get_memory_info(host: Optional[str] = None, username: Optional[str] = 
                             percent = (used / total * 100) if total > 0 else 0
                             
                             info.append("=== RAM Information ===")
-                            info.append(f"Total: {_format_bytes(total)}")
-                            info.append(f"Available: {_format_bytes(available)}")
-                            info.append(f"Used: {_format_bytes(used)} ({percent:.1f}%)")
-                            info.append(f"Free: {_format_bytes(free)}")
+                            info.append(f"Total: {format_bytes(total)}")
+                            info.append(f"Available: {format_bytes(available)}")
+                            info.append(f"Used: {format_bytes(used)} ({percent:.1f}%)")
+                            info.append(f"Free: {format_bytes(free)}")
                     
                     elif line.startswith('Swap:'):
                         parts = line.split()
@@ -313,30 +314,30 @@ async def get_memory_info(host: Optional[str] = None, username: Optional[str] = 
                             percent = (used / total * 100) if total > 0 else 0
                             
                             info.append("\n=== Swap Information ===")
-                            info.append(f"Total: {_format_bytes(total)}")
-                            info.append(f"Used: {_format_bytes(used)} ({percent:.1f}%)")
-                            info.append(f"Free: {_format_bytes(free)}")
+                            info.append(f"Total: {format_bytes(total)}")
+                            info.append(f"Used: {format_bytes(used)} ({percent:.1f}%)")
+                            info.append(f"Free: {format_bytes(free)}")
         else:
             # Local execution - use psutil
             # Virtual memory (RAM)
             mem = psutil.virtual_memory()
             info.append("=== RAM Information ===")
-            info.append(f"Total: {_format_bytes(mem.total)}")
-            info.append(f"Available: {_format_bytes(mem.available)}")
-            info.append(f"Used: {_format_bytes(mem.used)} ({mem.percent}%)")
-            info.append(f"Free: {_format_bytes(mem.free)}")
+            info.append(f"Total: {format_bytes(mem.total)}")
+            info.append(f"Available: {format_bytes(mem.available)}")
+            info.append(f"Used: {format_bytes(mem.used)} ({mem.percent}%)")
+            info.append(f"Free: {format_bytes(mem.free)}")
             
             if hasattr(mem, 'buffers'):
-                info.append(f"Buffers: {_format_bytes(mem.buffers)}")
+                info.append(f"Buffers: {format_bytes(mem.buffers)}")
             if hasattr(mem, 'cached'):
-                info.append(f"Cached: {_format_bytes(mem.cached)}")
+                info.append(f"Cached: {format_bytes(mem.cached)}")
             
             # Swap memory
             swap = psutil.swap_memory()
             info.append("\n=== Swap Information ===")
-            info.append(f"Total: {_format_bytes(swap.total)}")
-            info.append(f"Used: {_format_bytes(swap.used)} ({swap.percent}%)")
-            info.append(f"Free: {_format_bytes(swap.free)}")
+            info.append(f"Total: {format_bytes(swap.total)}")
+            info.append(f"Used: {format_bytes(swap.used)} ({swap.percent}%)")
+            info.append(f"Free: {format_bytes(swap.free)}")
         
         return "\n".join(info)
     except Exception as e:
@@ -393,9 +394,9 @@ async def get_disk_usage(host: Optional[str] = None, username: Optional[str] = N
                     usage = psutil.disk_usage(partition.mountpoint)
                     info.append(
                         f"{partition.device:<30} "
-                        f"{_format_bytes(usage.total):<10} "
-                        f"{_format_bytes(usage.used):<10} "
-                        f"{_format_bytes(usage.free):<10} "
+                        f"{format_bytes(usage.total):<10} "
+                        f"{format_bytes(usage.used):<10} "
+                        f"{format_bytes(usage.free):<10} "
                         f"{usage.percent:<6.1f} "
                         f"{partition.mountpoint}"
                     )
@@ -410,8 +411,8 @@ async def get_disk_usage(host: Optional[str] = None, username: Optional[str] = N
                 disk_io = psutil.disk_io_counters()
                 if disk_io:
                     info.append("\n=== Disk I/O Statistics (since boot) ===")
-                    info.append(f"Read: {_format_bytes(disk_io.read_bytes)}")
-                    info.append(f"Write: {_format_bytes(disk_io.write_bytes)}")
+                    info.append(f"Read: {format_bytes(disk_io.read_bytes)}")
+                    info.append(f"Write: {format_bytes(disk_io.write_bytes)}")
                     info.append(f"Read Count: {disk_io.read_count}")
                     info.append(f"Write Count: {disk_io.write_count}")
             except Exception:
@@ -509,13 +510,4 @@ async def get_hardware_info(host: Optional[str] = None, username: Optional[str] 
         return "\n".join(info)
     except Exception as e:
         return f"Error getting hardware information: {str(e)}"
-
-
-def _format_bytes(bytes: int) -> str:
-    """Format bytes into human-readable format."""
-    for unit in ['B', 'KB', 'MB', 'GB', 'TB']:
-        if bytes < 1024.0:
-            return f"{bytes:.1f}{unit}"
-        bytes /= 1024.0
-    return f"{bytes:.1f}PB"
 
