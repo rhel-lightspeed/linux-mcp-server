@@ -12,9 +12,8 @@ import pytest
 from linux_mcp_server.logging_config import (
     setup_logging,
     get_log_directory,
-    cleanup_old_logs,
     JSONFormatter,
-    HumanReadableFormatter,
+    StructuredFormatter,
 )
 
 
@@ -89,12 +88,15 @@ class TestSetupLogging:
                 assert root_logger.level == logging.INFO
 
 
-class TestHumanReadableFormatter:
-    """Test human-readable log formatter."""
+class TestStructuredFormatter:
+    """Test structured log formatter."""
 
     def test_format_basic_message(self):
         """Test formatting a basic log message."""
-        formatter = HumanReadableFormatter()
+        formatter = StructuredFormatter(
+            '%(asctime)s | %(levelname)s | %(name)s | %(message)s',
+            datefmt='%Y-%m-%d %H:%M:%S'
+        )
         record = logging.LogRecord(
             name="test_module",
             level=logging.INFO,
@@ -116,7 +118,10 @@ class TestHumanReadableFormatter:
 
     def test_format_with_extra_fields(self):
         """Test formatting with extra context fields."""
-        formatter = HumanReadableFormatter()
+        formatter = StructuredFormatter(
+            '%(asctime)s | %(levelname)s | %(name)s | %(message)s',
+            datefmt='%Y-%m-%d %H:%M:%S'
+        )
         record = logging.LogRecord(
             name="test_module",
             level=logging.INFO,
@@ -140,7 +145,7 @@ class TestJSONFormatter:
 
     def test_format_basic_message(self):
         """Test formatting a basic log message as JSON."""
-        formatter = JSONFormatter()
+        formatter = JSONFormatter(datefmt='%Y-%m-%dT%H:%M:%S')
         record = logging.LogRecord(
             name="test_module",
             level=logging.INFO,
@@ -161,7 +166,7 @@ class TestJSONFormatter:
 
     def test_format_with_extra_fields(self):
         """Test formatting with extra context fields as JSON."""
-        formatter = JSONFormatter()
+        formatter = JSONFormatter(datefmt='%Y-%m-%dT%H:%M:%S')
         record = logging.LogRecord(
             name="test_module",
             level=logging.INFO,
@@ -186,7 +191,7 @@ class TestJSONFormatter:
         """Test formatting with exception information."""
         import sys
         
-        formatter = JSONFormatter()
+        formatter = JSONFormatter(datefmt='%Y-%m-%dT%H:%M:%S')
         try:
             raise ValueError("Test error")
         except ValueError:
@@ -206,59 +211,4 @@ class TestJSONFormatter:
             
             assert "exception" in data
             assert "ValueError: Test error" in data["exception"]
-
-
-class TestCleanupOldLogs:
-    """Test log cleanup functionality."""
-
-    def test_cleanup_old_logs(self):
-        """Test that old log files are removed."""
-        with tempfile.TemporaryDirectory() as tmpdir:
-            log_dir = Path(tmpdir)
-            
-            # Create some old log files
-            for i in range(15):
-                log_file = log_dir / f"server.log.2025-01-{i+1:02d}"
-                log_file.write_text(f"Log content {i}")
-            
-            # Cleanup with retention of 10 days
-            cleanup_old_logs(log_dir, retention_days=10)
-            
-            # Should have at most 10 rotated log files
-            log_files = list(log_dir.glob("server.log.*"))
-            assert len(log_files) <= 10
-
-    def test_cleanup_respects_retention_days(self):
-        """Test that cleanup respects the retention_days parameter."""
-        with tempfile.TemporaryDirectory() as tmpdir:
-            log_dir = Path(tmpdir)
-            
-            # Create log files
-            for i in range(8):
-                log_file = log_dir / f"server.log.2025-01-{i+1:02d}"
-                log_file.write_text(f"Log content {i}")
-            
-            # Cleanup with retention of 5 days
-            cleanup_old_logs(log_dir, retention_days=5)
-            
-            # Should have at most 5 rotated log files
-            log_files = list(log_dir.glob("server.log.*"))
-            assert len(log_files) <= 5
-
-    def test_cleanup_from_environment_variable(self):
-        """Test that cleanup uses environment variable for retention."""
-        with tempfile.TemporaryDirectory() as tmpdir:
-            log_dir = Path(tmpdir)
-            
-            # Create log files
-            for i in range(10):
-                log_file = log_dir / f"server.log.2025-01-{i+1:02d}"
-                log_file.write_text(f"Log content {i}")
-            
-            with patch.dict(os.environ, {"LINUX_MCP_LOG_RETENTION_DAYS": "3"}):
-                cleanup_old_logs(log_dir)
-                
-                # Should have at most 3 rotated log files
-                log_files = list(log_dir.glob("server.log.*"))
-                assert len(log_files) <= 3
 

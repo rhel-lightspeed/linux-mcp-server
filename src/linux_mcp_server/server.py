@@ -1,11 +1,10 @@
-"""Core MCP server for Linux diagnostics."""
+"""Core MCP server for Linux diagnostics using FastMCP."""
 
 import logging
 import time
-from typing import Any
+from typing import Optional
 
-from mcp.server import Server
-from mcp.types import Tool, TextContent
+from mcp.server.fastmcp import FastMCP
 
 from .audit import log_tool_call, log_tool_complete
 from .tools import system_info, services, processes, logs, network, storage
@@ -14,248 +13,316 @@ from .tools import system_info, services, processes, logs, network, storage
 logger = logging.getLogger(__name__)
 
 
-class LinuxMCPServer:
-    """MCP Server for Linux system diagnostics and troubleshooting."""
-
-    def __init__(self):
-        """Initialize the Linux MCP server."""
-        self.name = "linux-diagnostics"
-        self.version = "0.1.0"
-        self.server = Server(self.name)
-        
-        # Tool handlers mapping
-        self.tool_handlers = {}
-        
-        # Register all tools
-        self._register_tools()
-
-    def _register_tools(self):
-        """Register all available diagnostic tools."""
-        # System information tools
-        self._register_tool("get_system_info", system_info.get_system_info, 
-                          "Get basic system information including OS version, kernel, hostname, and uptime")
-        self._register_tool("get_cpu_info", system_info.get_cpu_info,
-                          "Get CPU information and load averages")
-        self._register_tool("get_memory_info", system_info.get_memory_info,
-                          "Get memory usage including RAM and swap details")
-        self._register_tool("get_disk_usage", system_info.get_disk_usage,
-                          "Get filesystem usage and mount points")
-        self._register_tool("get_hardware_info", system_info.get_hardware_info,
-                          "Get hardware information including CPU architecture, PCI devices, USB devices, and memory hardware")
-        
-        # Service management tools
-        self._register_tool("list_services", services.list_services,
-                          "List all systemd services with their current status")
-        self._register_tool("get_service_status", services.get_service_status,
-                          "Get detailed status of a specific systemd service",
-                          {"service_name": {"type": "string", "description": "Name of the service", "required": True}})
-        self._register_tool("get_service_logs", services.get_service_logs,
-                          "Get recent logs for a specific systemd service",
-                          {"service_name": {"type": "string", "description": "Name of the service", "required": True},
-                           "lines": {"type": "number", "description": "Number of log lines to retrieve (default: 50)", "required": False}})
-        
-        # Process management tools
-        self._register_tool("list_processes", processes.list_processes,
-                          "List running processes with CPU and memory usage")
-        self._register_tool("get_process_info", processes.get_process_info,
-                          "Get detailed information about a specific process",
-                          {"pid": {"type": "number", "description": "Process ID", "required": True}})
-        
-        # Log and audit tools
-        self._register_tool("get_journal_logs", logs.get_journal_logs,
-                          "Query systemd journal logs with optional filters",
-                          {"unit": {"type": "string", "description": "Filter by systemd unit", "required": False},
-                           "priority": {"type": "string", "description": "Filter by priority (emerg, alert, crit, err, warning, notice, info, debug)", "required": False},
-                           "since": {"type": "string", "description": "Show entries since specified time (e.g., '1 hour ago', '2024-01-01')", "required": False},
-                           "lines": {"type": "number", "description": "Number of log lines to retrieve (default: 100)", "required": False}})
-        self._register_tool("get_audit_logs", logs.get_audit_logs,
-                          "Get audit logs if available",
-                          {"lines": {"type": "number", "description": "Number of log lines to retrieve (default: 100)", "required": False}})
-        self._register_tool("read_log_file", logs.read_log_file,
-                          "Read a specific log file (whitelist-controlled via LINUX_MCP_ALLOWED_LOG_PATHS)",
-                          {"log_path": {"type": "string", "description": "Path to the log file", "required": True},
-                           "lines": {"type": "number", "description": "Number of lines to retrieve from the end (default: 100)", "required": False}})
-        
-        # Network tools
-        self._register_tool("get_network_interfaces", network.get_network_interfaces,
-                          "Get network interface information including IP addresses")
-        self._register_tool("get_network_connections", network.get_network_connections,
-                          "Get active network connections")
-        self._register_tool("get_listening_ports", network.get_listening_ports,
-                          "Get ports that are listening on the system")
-        
-        # Storage tools
-        self._register_tool("list_block_devices", storage.list_block_devices,
-                          "List block devices and partitions")
-        self._register_tool("list_directories_by_size", storage.list_directories_by_size,
-                          "List directories sorted by size (largest first). Uses efficient Linux du command.",
-                          {"path": {"type": "string", "description": "Directory path to analyze", "required": True},
-                           "top_n": {"type": "number", "description": "Number of top largest directories to return (1-1000)", "required": True}})
-        self._register_tool("list_directories_by_name", storage.list_directories_by_name,
-                          "List directories sorted alphabetically by name. Uses efficient Linux find command.",
-                          {"path": {"type": "string", "description": "Directory path to analyze", "required": True},
-                           "reverse": {"type": "boolean", "description": "Sort in reverse order (Z-A)", "required": False}})
-        self._register_tool("list_directories_by_modified_date", storage.list_directories_by_modified_date,
-                          "List directories sorted by modification date. Uses efficient Linux find command.",
-                          {"path": {"type": "string", "description": "Directory path to analyze", "required": True},
-                           "newest_first": {"type": "boolean", "description": "Show newest first (default: true)", "required": False}})
-
-    def _register_tool(self, name: str, handler: callable, description: str, parameters: dict = None):
-        """Register a tool with its handler."""
-        self.tool_handlers[name] = handler
-        
-        # Build input schema
-        input_schema = {
-            "type": "object",
-            "properties": parameters or {},
-        }
-        
-        # Extract required parameters
-        if parameters:
-            required = [k for k, v in parameters.items() if v.get("required", False)]
-            if required:
-                input_schema["required"] = required
-
-    async def list_tools(self) -> list[Tool]:
-        """List all available tools."""
-        tools = []
-        
-        # Common SSH parameters for remote execution
-        ssh_params = {
-            "host": {
-                "type": "string",
-                "description": "Remote host to connect to via SSH (optional, executes locally if not provided)"
-            },
-            "username": {
-                "type": "string",
-                "description": "SSH username for remote host (required if host is provided)"
-            }
-        }
-        
-        # Define all tools with their schemas
-        tool_definitions = [
-            ("get_system_info", "Get basic system information including OS version, kernel, hostname, and uptime", {}),
-            ("get_cpu_info", "Get CPU information and load averages", {}),
-            ("get_memory_info", "Get memory usage including RAM and swap details", {}),
-            ("get_disk_usage", "Get filesystem usage and mount points", {}),
-            ("get_hardware_info", "Get hardware information including CPU architecture, PCI devices, USB devices, and memory hardware", {}),
-            ("list_services", "List all systemd services with their current status", {}),
-            ("get_service_status", "Get detailed status of a specific systemd service",
-             {"service_name": {"type": "string", "description": "Name of the service"}}),
-            ("get_service_logs", "Get recent logs for a specific systemd service",
-             {"service_name": {"type": "string", "description": "Name of the service"},
-              "lines": {"type": "number", "description": "Number of log lines (default: 50)"}}),
-            ("list_processes", "List running processes with CPU and memory usage", {}),
-            ("get_process_info", "Get detailed information about a specific process",
-             {"pid": {"type": "number", "description": "Process ID"}}),
-            ("get_journal_logs", "Query systemd journal logs with optional filters",
-             {"unit": {"type": "string", "description": "Filter by systemd unit"},
-              "priority": {"type": "string", "description": "Filter by priority"},
-              "since": {"type": "string", "description": "Show entries since specified time"},
-              "lines": {"type": "number", "description": "Number of log lines (default: 100)"}}),
-            ("get_audit_logs", "Get audit logs if available",
-             {"lines": {"type": "number", "description": "Number of log lines (default: 100)"}}),
-            ("read_log_file", "Read a specific log file (whitelist-controlled)",
-             {"log_path": {"type": "string", "description": "Path to the log file"},
-              "lines": {"type": "number", "description": "Number of lines from end (default: 100)"}}),
-            ("get_network_interfaces", "Get network interface information including IP addresses", {}),
-            ("get_network_connections", "Get active network connections", {}),
-            ("get_listening_ports", "Get ports listening on the system", {}),
-            ("list_block_devices", "List block devices and partitions", {}),
-            ("list_directories_by_size", "List directories sorted by size (largest first). Uses efficient Linux du command.",
-             {"path": {"type": "string", "description": "Directory path to analyze"},
-              "top_n": {"type": "number", "description": "Number of top largest directories to return (1-1000)"}}),
-            ("list_directories_by_name", "List directories sorted alphabetically by name. Uses efficient Linux find command.",
-             {"path": {"type": "string", "description": "Directory path to analyze"},
-              "reverse": {"type": "boolean", "description": "Sort in reverse order (Z-A)"}}),
-            ("list_directories_by_modified_date", "List directories sorted by modification date. Uses efficient Linux find command.",
-             {"path": {"type": "string", "description": "Directory path to analyze"},
-              "newest_first": {"type": "boolean", "description": "Show newest first (default: true)"}}),
-        ]
-        
-        for name, description, properties in tool_definitions:
-            # Merge tool-specific properties with SSH parameters
-            all_properties = {**properties, **ssh_params}
-            
-            input_schema = {
-                "type": "object",
-                "properties": all_properties,
-            }
-            
-            tools.append(Tool(
-                name=name,
-                description=description,
-                inputSchema=input_schema
-            ))
-        
-        return tools
-
-    async def call_tool(self, name: str, arguments: dict[str, Any]) -> list[TextContent]:
-        """Call a tool by name with the given arguments."""
-        if name not in self.tool_handlers:
-            logger.error(f"Unknown tool requested: {name}", extra={
-                'event': 'TOOL_NOT_FOUND',
-                'tool': name
-            })
-            raise ValueError(f"Unknown tool: {name}")
-        
-        # Log tool invocation with audit function
-        log_tool_call(name, arguments)
-        
-        handler = self.tool_handlers[name]
-        start_time = time.time()
-        
-        try:
-            result = await handler(**arguments)
-            
-            # Calculate execution time
-            duration = time.time() - start_time
-            
-            # Log successful completion
-            log_tool_complete(name, status="success", duration=duration)
-            
-            return [TextContent(type="text", text=result)]
-            
-        except Exception as e:
-            # Calculate execution time for failed execution
-            duration = time.time() - start_time
-            
-            # Log failed completion with error details
-            log_tool_complete(name, status="error", duration=duration, error=str(e))
-            
-            # Re-raise the exception
-            raise
+# Initialize FastMCP server
+mcp = FastMCP("linux-diagnostics")
 
 
-async def main():
-    """Run the MCP server."""
-    from mcp.server.stdio import stdio_server
+# System Information Tools
+@mcp.tool()
+async def get_system_info(host: Optional[str] = None, username: Optional[str] = None) -> str:
+    """Get basic system information including OS version, kernel, hostname, and uptime.
     
-    mcp_server = LinuxMCPServer()
-    server = mcp_server.server
+    Args:
+        host: Remote host to connect to via SSH (optional, executes locally if not provided)
+        username: SSH username for remote host (required if host is provided)
+    """
+    return await _execute_tool("get_system_info", system_info.get_system_info, 
+                               host=host, username=username)
+
+
+@mcp.tool()
+async def get_cpu_info(host: Optional[str] = None, username: Optional[str] = None) -> str:
+    """Get CPU information and load averages.
     
-    logger.info(f"Initialized {mcp_server.name} v{mcp_server.version} with {len(mcp_server.tool_handlers)} tools")
+    Args:
+        host: Remote host to connect to via SSH (optional, executes locally if not provided)
+        username: SSH username for remote host (required if host is provided)
+    """
+    return await _execute_tool("get_cpu_info", system_info.get_cpu_info,
+                               host=host, username=username)
+
+
+@mcp.tool()
+async def get_memory_info(host: Optional[str] = None, username: Optional[str] = None) -> str:
+    """Get memory usage including RAM and swap details.
     
-    # Register handlers
-    @server.list_tools()
-    async def handle_list_tools():
-        """Handle list_tools request."""
-        return await mcp_server.list_tools()
+    Args:
+        host: Remote host to connect to via SSH (optional, executes locally if not provided)
+        username: SSH username for remote host (required if host is provided)
+    """
+    return await _execute_tool("get_memory_info", system_info.get_memory_info,
+                               host=host, username=username)
+
+
+@mcp.tool()
+async def get_disk_usage(host: Optional[str] = None, username: Optional[str] = None) -> str:
+    """Get filesystem usage and mount points.
     
-    @server.call_tool()
-    async def handle_call_tool(name: str, arguments: dict[str, Any]):
-        """Handle call_tool request."""
-        return await mcp_server.call_tool(name, arguments)
+    Args:
+        host: Remote host to connect to via SSH (optional, executes locally if not provided)
+        username: SSH username for remote host (required if host is provided)
+    """
+    return await _execute_tool("get_disk_usage", system_info.get_disk_usage,
+                               host=host, username=username)
+
+
+@mcp.tool()
+async def get_hardware_info(host: Optional[str] = None, username: Optional[str] = None) -> str:
+    """Get hardware information including CPU architecture, PCI devices, USB devices, and memory hardware.
     
-    # Run the server
-    logger.info("Starting stdio server")
-    async with stdio_server() as (read_stream, write_stream):
-        logger.info("Server running, ready to accept requests")
-        await server.run(
-            read_stream,
-            write_stream,
-            server.create_initialization_options()
-        )
+    Args:
+        host: Remote host to connect to via SSH (optional, executes locally if not provided)
+        username: SSH username for remote host (required if host is provided)
+    """
+    return await _execute_tool("get_hardware_info", system_info.get_hardware_info,
+                               host=host, username=username)
+
+
+# Service Management Tools
+@mcp.tool()
+async def list_services(host: Optional[str] = None, username: Optional[str] = None) -> str:
+    """List all systemd services with their current status.
     
-    logger.info("Server shutdown complete")
+    Args:
+        host: Remote host to connect to via SSH (optional, executes locally if not provided)
+        username: SSH username for remote host (required if host is provided)
+    """
+    return await _execute_tool("list_services", services.list_services,
+                               host=host, username=username)
+
+
+@mcp.tool()
+async def get_service_status(service_name: str, host: Optional[str] = None, 
+                             username: Optional[str] = None) -> str:
+    """Get detailed status of a specific systemd service.
+    
+    Args:
+        service_name: Name of the service
+        host: Remote host to connect to via SSH (optional, executes locally if not provided)
+        username: SSH username for remote host (required if host is provided)
+    """
+    return await _execute_tool("get_service_status", services.get_service_status,
+                               service_name=service_name, host=host, username=username)
+
+
+@mcp.tool()
+async def get_service_logs(service_name: str, lines: int = 50, 
+                          host: Optional[str] = None, username: Optional[str] = None) -> str:
+    """Get recent logs for a specific systemd service.
+    
+    Args:
+        service_name: Name of the service
+        lines: Number of log lines to retrieve (default: 50)
+        host: Remote host to connect to via SSH (optional, executes locally if not provided)
+        username: SSH username for remote host (required if host is provided)
+    """
+    return await _execute_tool("get_service_logs", services.get_service_logs,
+                               service_name=service_name, lines=lines, 
+                               host=host, username=username)
+
+
+# Process Management Tools
+@mcp.tool()
+async def list_processes(host: Optional[str] = None, username: Optional[str] = None) -> str:
+    """List running processes with CPU and memory usage.
+    
+    Args:
+        host: Remote host to connect to via SSH (optional, executes locally if not provided)
+        username: SSH username for remote host (required if host is provided)
+    """
+    return await _execute_tool("list_processes", processes.list_processes,
+                               host=host, username=username)
+
+
+@mcp.tool()
+async def get_process_info(pid: int, host: Optional[str] = None, 
+                          username: Optional[str] = None) -> str:
+    """Get detailed information about a specific process.
+    
+    Args:
+        pid: Process ID
+        host: Remote host to connect to via SSH (optional, executes locally if not provided)
+        username: SSH username for remote host (required if host is provided)
+    """
+    return await _execute_tool("get_process_info", processes.get_process_info,
+                               pid=pid, host=host, username=username)
+
+
+# Log and Audit Tools
+@mcp.tool()
+async def get_journal_logs(unit: Optional[str] = None, priority: Optional[str] = None,
+                          since: Optional[str] = None, lines: int = 100,
+                          host: Optional[str] = None, username: Optional[str] = None) -> str:
+    """Query systemd journal logs with optional filters.
+    
+    Args:
+        unit: Filter by systemd unit
+        priority: Filter by priority (emerg, alert, crit, err, warning, notice, info, debug)
+        since: Show entries since specified time (e.g., '1 hour ago', '2024-01-01')
+        lines: Number of log lines to retrieve (default: 100)
+        host: Remote host to connect to via SSH (optional, executes locally if not provided)
+        username: SSH username for remote host (required if host is provided)
+    """
+    return await _execute_tool("get_journal_logs", logs.get_journal_logs,
+                               unit=unit, priority=priority, since=since, lines=lines,
+                               host=host, username=username)
+
+
+@mcp.tool()
+async def get_audit_logs(lines: int = 100, host: Optional[str] = None, 
+                        username: Optional[str] = None) -> str:
+    """Get audit logs if available.
+    
+    Args:
+        lines: Number of log lines to retrieve (default: 100)
+        host: Remote host to connect to via SSH (optional, executes locally if not provided)
+        username: SSH username for remote host (required if host is provided)
+    """
+    return await _execute_tool("get_audit_logs", logs.get_audit_logs,
+                               lines=lines, host=host, username=username)
+
+
+@mcp.tool()
+async def read_log_file(log_path: str, lines: int = 100,
+                       host: Optional[str] = None, username: Optional[str] = None) -> str:
+    """Read a specific log file (whitelist-controlled via LINUX_MCP_ALLOWED_LOG_PATHS).
+    
+    Args:
+        log_path: Path to the log file
+        lines: Number of lines to retrieve from the end (default: 100)
+        host: Remote host to connect to via SSH (optional, executes locally if not provided)
+        username: SSH username for remote host (required if host is provided)
+    """
+    return await _execute_tool("read_log_file", logs.read_log_file,
+                               log_path=log_path, lines=lines, host=host, username=username)
+
+
+# Network Tools
+@mcp.tool()
+async def get_network_interfaces(host: Optional[str] = None, username: Optional[str] = None) -> str:
+    """Get network interface information including IP addresses.
+    
+    Args:
+        host: Remote host to connect to via SSH (optional, executes locally if not provided)
+        username: SSH username for remote host (required if host is provided)
+    """
+    return await _execute_tool("get_network_interfaces", network.get_network_interfaces,
+                               host=host, username=username)
+
+
+@mcp.tool()
+async def get_network_connections(host: Optional[str] = None, username: Optional[str] = None) -> str:
+    """Get active network connections.
+    
+    Args:
+        host: Remote host to connect to via SSH (optional, executes locally if not provided)
+        username: SSH username for remote host (required if host is provided)
+    """
+    return await _execute_tool("get_network_connections", network.get_network_connections,
+                               host=host, username=username)
+
+
+@mcp.tool()
+async def get_listening_ports(host: Optional[str] = None, username: Optional[str] = None) -> str:
+    """Get ports that are listening on the system.
+    
+    Args:
+        host: Remote host to connect to via SSH (optional, executes locally if not provided)
+        username: SSH username for remote host (required if host is provided)
+    """
+    return await _execute_tool("get_listening_ports", network.get_listening_ports,
+                               host=host, username=username)
+
+
+# Storage Tools
+@mcp.tool()
+async def list_block_devices(host: Optional[str] = None, username: Optional[str] = None) -> str:
+    """List block devices and partitions.
+    
+    Args:
+        host: Remote host to connect to via SSH (optional, executes locally if not provided)
+        username: SSH username for remote host (required if host is provided)
+    """
+    return await _execute_tool("list_block_devices", storage.list_block_devices,
+                               host=host, username=username)
+
+
+@mcp.tool()
+async def list_directories_by_size(path: str, top_n: int,
+                                  host: Optional[str] = None, username: Optional[str] = None) -> str:
+    """List directories sorted by size (largest first). Uses efficient Linux du command.
+    
+    Args:
+        path: Directory path to analyze
+        top_n: Number of top largest directories to return (1-1000)
+        host: Remote host to connect to via SSH (optional, executes locally if not provided)
+        username: SSH username for remote host (required if host is provided)
+    """
+    return await _execute_tool("list_directories_by_size", storage.list_directories_by_size,
+                               path=path, top_n=top_n, host=host, username=username)
+
+
+@mcp.tool()
+async def list_directories_by_name(path: str, reverse: bool = False,
+                                  host: Optional[str] = None, username: Optional[str] = None) -> str:
+    """List directories sorted alphabetically by name. Uses efficient Linux find command.
+    
+    Args:
+        path: Directory path to analyze
+        reverse: Sort in reverse order (Z-A) (default: False)
+        host: Remote host to connect to via SSH (optional, executes locally if not provided)
+        username: SSH username for remote host (required if host is provided)
+    """
+    return await _execute_tool("list_directories_by_name", storage.list_directories_by_name,
+                               path=path, reverse=reverse, host=host, username=username)
+
+
+@mcp.tool()
+async def list_directories_by_modified_date(path: str, newest_first: bool = True,
+                                           host: Optional[str] = None, username: Optional[str] = None) -> str:
+    """List directories sorted by modification date. Uses efficient Linux find command.
+    
+    Args:
+        path: Directory path to analyze
+        newest_first: Show newest first (default: True)
+        host: Remote host to connect to via SSH (optional, executes locally if not provided)
+        username: SSH username for remote host (required if host is provided)
+    """
+    return await _execute_tool("list_directories_by_modified_date", 
+                               storage.list_directories_by_modified_date,
+                               path=path, newest_first=newest_first, host=host, username=username)
+
+
+async def _execute_tool(tool_name: str, handler, **kwargs):
+    """Execute a tool with logging and error handling.
+    
+    Args:
+        tool_name: Name of the tool being executed
+        handler: The tool function to call
+        **kwargs: Arguments to pass to the tool function
+    """
+    # Log tool invocation
+    log_tool_call(tool_name, kwargs)
+    
+    start_time = time.time()
+    
+    try:
+        result = await handler(**kwargs)
+        duration = time.time() - start_time
+        log_tool_complete(tool_name, status="success", duration=duration)
+        return result
+        
+    except Exception as e:
+        duration = time.time() - start_time
+        log_tool_complete(tool_name, status="error", duration=duration, error=str(e))
+        raise
+
+
+def main():
+    """Run the MCP server using FastMCP."""
+    logger.info(f"Initialized linux-diagnostics v0.1.0")
+    logger.info("Starting FastMCP server")
+    
+    # Run the FastMCP server (it creates its own event loop)
+    mcp.run()
 
