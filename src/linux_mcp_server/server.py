@@ -318,11 +318,11 @@ async def _execute_tool(tool_name: str, handler, **kwargs):
         raise
 
 
-async def main():
+def main():
     """Run the MCP server using FastMCP."""
     logger.info(f"Initialized linux-diagnostics v0.1.0")
     logger.info("Starting FastMCP server")
     
-    # Run the FastMCP server
-    await mcp.run()
+    # Run the FastMCP server (it creates its own event loop)
+    mcp.run()
 

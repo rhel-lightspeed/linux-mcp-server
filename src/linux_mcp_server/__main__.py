@@ -1,6 +1,5 @@
 """Main entry point for the Linux MCP Server."""
 
-import asyncio
 import logging
 import sys
 from .logging_config import setup_logging
@@ -16,7 +15,8 @@ def cli():
     logger.info("Starting Linux MCP Server")
     
     try:
-        asyncio.run(main())
+        # FastMCP.run() creates its own event loop, don't use asyncio.run()
+        main()
     except KeyboardInterrupt:
         logger.info("Linux MCP Server stopped by user")
         sys.exit(0)
