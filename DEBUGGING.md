@@ -1,15 +1,17 @@
-# Debug Logging for Tool Outputs
+# Debug Logging and Diagnostics
 
-This document describes how to enable and use debug logging to see what content the MCP tools are returning to the LLM.
+This document describes how to enable and use logging to debug and monitor the MCP server operations.
 
 ## Overview
 
-All tool functions are decorated with `@log_tool_output`, which automatically logs:
-- The function name
-- All input parameters (excluding None values)
-- The full content being returned to the LLM
+The Linux MCP Server provides comprehensive logging for:
+- Tool invocations with parameters
+- SSH connection events
+- Command execution (local and remote)
+- Tool execution timing
+- Errors and exceptions
 
-This logging is **only active when DEBUG level is enabled** and provides complete visibility into tool outputs without code duplication.
+Logging is centralized in the server layer with tiered verbosity based on log level.
 
 ## Enabling Debug Logging
 
@@ -34,70 +36,98 @@ export LINUX_MCP_LOG_DIR=/path/to/your/logs
 
 ## Example Log Output
 
-### Human-Readable Format
+### Human-Readable Format (INFO level)
 
 ```
-2025-10-10 15:30:45.123 | DEBUG | linux_mcp_server.tools.storage | list_directories_by_size returning content | function=list_directories_by_size | path=/home/user | top_n=10 | content==== Top 10 Largest Directories ===
-Path: /home/user
+2025-10-10 15:30:45.123 | INFO | linux_mcp_server.audit | TOOL_CALL: list_directories_by_size | path=/home/user, top_n=10 | event=TOOL_CALL | tool=list_directories_by_size | execution_mode=local
+2025-10-10 15:30:45.456 | INFO | linux_mcp_server.audit | TOOL_COMPLETE: list_directories_by_size | event=TOOL_COMPLETE | tool=list_directories_by_size | status=success | duration=0.333s
+```
 
-Total subdirectories found: 15
+### Human-Readable Format (DEBUG level - shows command execution)
 
-1. Documents
-   Size: 2.3GB
-2. Videos
-   Size: 1.8GB
-...
+```
+2025-10-10 15:30:45.123 | INFO | linux_mcp_server.audit | TOOL_CALL: list_directories_by_size | path=/home/user, top_n=10 | event=TOOL_CALL | tool=list_directories_by_size | execution_mode=local
+2025-10-10 15:30:45.234 | DEBUG | linux_mcp_server.tools.ssh_executor | LOCAL_EXEC completed: du -b --max-depth=1 /home/user | exit_code=0 | duration=0.200s
+2025-10-10 15:30:45.456 | INFO | linux_mcp_server.audit | TOOL_COMPLETE: list_directories_by_size | event=TOOL_COMPLETE | tool=list_directories_by_size | status=success | duration=0.333s
 ```
 
 ### JSON Format
 
 ```json
 {
-  "timestamp": "2025-10-10T15:30:45.123456Z",
-  "level": "DEBUG",
-  "logger": "linux_mcp_server.tools.storage",
-  "message": "list_directories_by_size returning content",
-  "function": "list_directories_by_size",
-  "path": "/home/user",
-  "top_n": 10,
-  "content": "=== Top 10 Largest Directories ===\nPath: /home/user\n\nTotal subdirectories found: 15\n\n1. Documents\n   Size: 2.3GB\n2. Videos\n   Size: 1.8GB\n..."
+  "timestamp": "2025-10-10T15:30:45",
+  "level": "INFO",
+  "logger": "linux_mcp_server.audit",
+  "message": "TOOL_CALL: list_directories_by_size | path=/home/user, top_n=10",
+  "event": "TOOL_CALL",
+  "tool": "list_directories_by_size",
+  "execution_mode": "local"
 }
 ```
 
 ## Implementation
 
-The debug logging is implemented using a decorator pattern in `src/linux_mcp_server/tools/decorators.py`:
+Logging is centralized in `src/linux_mcp_server/server.py` using the `_execute_tool()` helper:
 
 ```python
-@log_tool_output
-async def list_directories_by_size(
-    path: str,
-    top_n: int,
-    host: Optional[str] = None,
-    username: Optional[str] = None
-) -> str:
-    # Function implementation...
-    return result
+async def _execute_tool(tool_name: str, handler, **kwargs):
+    """Execute a tool with logging and error handling."""
+    log_tool_call(tool_name, kwargs)  # Log invocation
+    
+    start_time = time.time()
+    try:
+        result = await handler(**kwargs)
+        duration = time.time() - start_time
+        log_tool_complete(tool_name, status="success", duration=duration)
+        return result
+    except Exception as e:
+        duration = time.time() - start_time
+        log_tool_complete(tool_name, status="error", duration=duration, error=str(e))
+        raise
 ```
 
-The decorator:
-- Automatically captures all function parameters
-- Logs the full return value (no truncation)
-- Only executes when DEBUG level is enabled (zero overhead otherwise)
-- Works with both sync and async functions
+All tools are registered using FastMCP decorators:
+```python
+@mcp.tool()
+async def list_directories_by_size(path: str, top_n: int, ...) -> str:
+    return await _execute_tool("list_directories_by_size", 
+                               storage.list_directories_by_size,
+                               path=path, top_n=top_n, ...)
+```
+
+The `audit.py` module provides structured logging functions:
+- `log_tool_call()`: Logs tool invocation with parameters
+- `log_tool_complete()`: Logs completion with timing and status
+- `log_ssh_connect()`: Logs SSH connection events
+- `log_ssh_command()`: Logs remote command execution
+
+## Log Levels
+
+### INFO Level
+- Tool invocations with parameters
+- Tool completion with status and timing
+- SSH connection success/failure
+- Remote command execution
+
+### DEBUG Level
+- Detailed command execution timing
+- SSH connection pool state
+- Local command execution details
+- All INFO level events plus detailed diagnostics
 
 ## Benefits
 
-1. **No Code Duplication**: Single decorator applied to all tools
-2. **Full Visibility**: Complete output logging without truncation
-3. **Easy Maintenance**: Changes to logging behavior happen in one place
-4. **Performance**: Zero overhead when DEBUG is not enabled
-5. **Structured Data**: Both human-readable and JSON formats available
+1. **Centralized Logging**: All logging happens in one place (server.py + audit.py)
+2. **Structured Data**: Both human-readable and JSON formats available
+3. **Audit Trail**: Complete record of all operations with timing
+4. **SSH Monitoring**: Track remote connections and command execution
+5. **Performance Insights**: Execution duration for every tool call
 
 ## Use Cases
 
-- **Debugging**: See exactly what data the LLM receives
-- **Auditing**: Track all tool invocations and outputs
+- **Debugging**: Track tool invocations and identify issues
+- **Auditing**: Complete record of all operations
+- **Performance**: Monitor execution times
+- **SSH Troubleshooting**: Debug connection and authentication issues
 - **Development**: Understand tool behavior during testing
-- **Troubleshooting**: Diagnose issues with tool responses
 

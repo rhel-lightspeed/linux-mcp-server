@@ -82,49 +82,92 @@ git commit -m "feat: add new feature
 
 When adding a new diagnostic tool:
 
-1. **Create the tool module:**
+1. **Create the tool function in appropriate module:**
    ```python
    # src/linux_mcp_server/tools/my_tool.py
-   async def my_diagnostic_function() -> str:
+   from typing import Optional
+   from .ssh_executor import execute_command
+   
+   async def my_diagnostic_function(
+       host: Optional[str] = None, 
+       username: Optional[str] = None
+   ) -> str:
        """
        Brief description of what this tool does.
+       
+       Args:
+           host: Optional remote host to connect to via SSH
+           username: Optional SSH username (required if host is provided)
        
        Returns:
            Formatted string with diagnostic information
        """
        try:
-           # Implementation
-           return "formatted output"
+           # Implementation using execute_command for local/remote execution
+           returncode, stdout, stderr = await execute_command(
+               ["your", "command"],
+               host=host,
+               username=username
+           )
+           
+           if returncode != 0:
+               return f"Error: {stderr}"
+           
+           return stdout
        except Exception as e:
            return f"Error: {str(e)}"
    ```
 
-2. **Register the tool in server.py:**
+2. **Register the tool in server.py using FastMCP decorator:**
    ```python
-   self._register_tool(
-       "my_tool_name",
-       my_tool.my_diagnostic_function,
-       "Description for LLM",
-       {"param": {"type": "string", "description": "...", "required": True}}
-   )
+   # Import your tool module at the top
+   from .tools import my_tool
+   
+   # Add decorated function
+   @mcp.tool()
+   async def my_tool_name(
+       param1: str,
+       host: Optional[str] = None, 
+       username: Optional[str] = None
+   ) -> str:
+       """Description for LLM to understand the tool.
+       
+       Args:
+           param1: Description of the parameter
+           host: Remote host to connect to via SSH (optional)
+           username: SSH username for remote host (required if host is provided)
+       """
+       return await _execute_tool(
+           "my_tool_name", 
+           my_tool.my_diagnostic_function,
+           param1=param1,
+           host=host, 
+           username=username
+       )
    ```
 
-3. **Add to list_tools() method:**
-   ```python
-   ("my_tool_name", "Description", {"param": {...}})
-   ```
-
-4. **Write tests:**
+3. **Write tests:**
    ```python
    # tests/test_my_tool.py
+   import pytest
+   from linux_mcp_server.tools import my_tool
+   
    @pytest.mark.asyncio
    async def test_my_tool():
        result = await my_tool.my_diagnostic_function()
        assert isinstance(result, str)
        assert "expected content" in result.lower()
+   
+   # Test server integration
+   @pytest.mark.asyncio
+   async def test_server_has_my_tool():
+       from linux_mcp_server.server import mcp
+       tools = await mcp.list_tools()
+       tool_names = [t.name for t in tools]
+       assert "my_tool_name" in tool_names
    ```
 
-5. **Update documentation:**
+4. **Update documentation:**
    - Add tool description to README.md
    - Add usage examples to USAGE.md
 
@@ -200,10 +243,17 @@ async def test_function_returns_correct_format():
 Test that tools work with the MCP server:
 ```python
 @pytest.mark.asyncio
+async def test_server_has_tool():
+    from linux_mcp_server.server import mcp
+    tools = await mcp.list_tools()
+    tool_names = [t.name for t in tools]
+    assert "tool_name" in tool_names
+
+@pytest.mark.asyncio
 async def test_server_calls_tool():
-    server = LinuxMCPServer()
-    result = await server.call_tool("tool_name", {})
-    assert result[0].type == "text"
+    from linux_mcp_server.server import mcp
+    result = await mcp.call_tool("tool_name", {})
+    assert isinstance(result, str)
 ```
 
 ### Running Tests
