@@ -8,12 +8,10 @@ from datetime import datetime, timedelta
 from typing import Optional
 import psutil
 
-from .decorators import log_tool_output
 from .ssh_executor import execute_command
 from .utils import format_bytes
 
 
-@log_tool_output
 async def get_system_info(host: Optional[str] = None, username: Optional[str] = None) -> str:
     """
     Get basic system information.
@@ -136,7 +134,6 @@ async def get_system_info(host: Optional[str] = None, username: Optional[str] = 
         return f"Error gathering system information: {str(e)}"
 
 
-@log_tool_output
 async def get_cpu_info(host: Optional[str] = None, username: Optional[str] = None) -> str:
     """
     Get CPU information.
@@ -262,7 +259,6 @@ async def get_cpu_info(host: Optional[str] = None, username: Optional[str] = Non
         return f"Error gathering CPU information: {str(e)}"
 
 
-@log_tool_output
 async def get_memory_info(host: Optional[str] = None, username: Optional[str] = None) -> str:
     """
     Get memory information.
@@ -344,7 +340,6 @@ async def get_memory_info(host: Optional[str] = None, username: Optional[str] = 
         return f"Error gathering memory information: {str(e)}"
 
 
-@log_tool_output
 async def get_disk_usage(host: Optional[str] = None, username: Optional[str] = None) -> str:
     """
     Get disk usage information.
@@ -423,7 +418,6 @@ async def get_disk_usage(host: Optional[str] = None, username: Optional[str] = N
         return f"Error gathering disk usage information: {str(e)}"
 
 
-@log_tool_output
 async def get_hardware_info(host: Optional[str] = None, username: Optional[str] = None) -> str:
     """
     Get hardware information.

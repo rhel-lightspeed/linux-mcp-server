@@ -4,13 +4,11 @@ import psutil
 from datetime import datetime
 from typing import Optional
 
-from .decorators import log_tool_output
 from .validation import validate_pid
 from .ssh_executor import execute_command
 from .utils import format_bytes
 
 
-@log_tool_output
 async def list_processes(host: Optional[str] = None, username: Optional[str] = None) -> str:
     """
     List running processes.
@@ -102,7 +100,6 @@ async def list_processes(host: Optional[str] = None, username: Optional[str] = N
         return f"Error listing processes: {str(e)}"
 
 
-@log_tool_output
 async def get_process_info(pid: int, host: Optional[str] = None, username: Optional[str] = None) -> str:
     """
     Get information about a specific process.

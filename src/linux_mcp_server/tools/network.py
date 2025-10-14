@@ -4,12 +4,10 @@ import psutil
 import socket
 from typing import Optional
 
-from .decorators import log_tool_output
 from .ssh_executor import execute_command
 from .utils import format_bytes
 
 
-@log_tool_output
 async def get_network_interfaces(host: Optional[str] = None, username: Optional[str] = None) -> str:
     """
     Get network interface information.
@@ -112,7 +110,6 @@ async def get_network_interfaces(host: Optional[str] = None, username: Optional[
         return f"Error getting network interface information: {str(e)}"
 
 
-@log_tool_output
 async def get_network_connections(host: Optional[str] = None, username: Optional[str] = None) -> str:
     """
     Get active network connections.
@@ -198,7 +195,6 @@ async def get_network_connections(host: Optional[str] = None, username: Optional
         return f"Error getting network connections: {str(e)}"
 
 
-@log_tool_output
 async def get_listening_ports(host: Optional[str] = None, username: Optional[str] = None) -> str:
     """
     Get listening ports.

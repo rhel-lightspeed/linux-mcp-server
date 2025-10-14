@@ -6,13 +6,11 @@ from pathlib import Path
 from typing import Optional
 import psutil
 
-from .decorators import log_tool_output
 from .validation import validate_positive_int
 from .ssh_executor import execute_command
 from .utils import format_bytes
 
 
-@log_tool_output
 async def list_block_devices(host: Optional[str] = None, username: Optional[str] = None) -> str:
     """
     List block devices.
@@ -80,7 +78,6 @@ async def list_block_devices(host: Optional[str] = None, username: Optional[str]
         return f"Error listing block devices: {str(e)}"
 
 
-@log_tool_output
 async def list_directories_by_size(
     path: str,
     top_n: int,
@@ -193,7 +190,6 @@ async def list_directories_by_size(
         return f"Error analyzing directories: {str(e)}"
 
 
-@log_tool_output
 async def list_directories_by_name(
     path: str,
     reverse: bool = False,
@@ -271,7 +267,6 @@ async def list_directories_by_name(
         return f"Error listing directories: {str(e)}"
 
 
-@log_tool_output
 async def list_directories_by_modified_date(
     path: str,
     newest_first: bool = True,

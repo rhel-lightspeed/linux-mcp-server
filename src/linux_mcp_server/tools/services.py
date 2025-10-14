@@ -2,12 +2,10 @@
 
 from typing import Optional
 
-from .decorators import log_tool_output
 from .validation import validate_line_count
 from .ssh_executor import execute_command
 
 
-@log_tool_output
 async def list_services(host: Optional[str] = None, username: Optional[str] = None) -> str:
     """
     List all systemd services.
@@ -52,7 +50,6 @@ async def list_services(host: Optional[str] = None, username: Optional[str] = No
         return f"Error listing services: {str(e)}"
 
 
-@log_tool_output
 async def get_service_status(
     service_name: str,
     host: Optional[str] = None,
@@ -98,7 +95,6 @@ async def get_service_status(
         return f"Error getting service status: {str(e)}"
 
 
-@log_tool_output
 async def get_service_logs(
     service_name: str,
     lines: int = 50,

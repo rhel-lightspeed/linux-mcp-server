@@ -4,12 +4,10 @@ import os
 from pathlib import Path
 from typing import Optional
 
-from .decorators import log_tool_output
 from .validation import validate_line_count
 from .ssh_executor import execute_command
 
 
-@log_tool_output
 async def get_journal_logs(
     unit: str = None,
     priority: str = None,
@@ -76,7 +74,6 @@ async def get_journal_logs(
         return f"Error reading journal logs: {str(e)}"
 
 
-@log_tool_output
 async def get_audit_logs(
     lines: int = 100,
     host: Optional[str] = None,
@@ -128,7 +125,6 @@ async def get_audit_logs(
         return f"Error reading audit logs: {str(e)}"
 
 
-@log_tool_output
 async def read_log_file(
     log_path: str,
     lines: int = 100,
