@@ -571,7 +571,7 @@ dependencies = [
     { name = "psutil" },
 ]
 
-[package.optional-dependencies]
+[package.dev-dependencies]
 dev = [
     { name = "ipdb" },
     { name = "ipython", version = "8.37.0", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version < '3.11'" },
@@ -587,18 +587,21 @@ dev = [
 [package.metadata]
 requires-dist = [
     { name = "asyncssh", specifier = ">=2.14.0" },
-    { name = "ipdb", marker = "extra == 'dev'" },
-    { name = "ipython", marker = "extra == 'dev'" },
     { name = "mcp", specifier = ">=0.9.0" },
     { name = "psutil", specifier = ">=5.9.0" },
-    { name = "pyright", marker = "extra == 'dev'" },
-    { name = "pytest", marker = "extra == 'dev'", specifier = ">=8.0.0" },
-    { name = "pytest-asyncio", marker = "extra == 'dev'", specifier = ">=0.23.0" },
-    { name = "pytest-cov", marker = "extra == 'dev'", specifier = ">=4.1.0" },
-    { name = "pytest-mock", marker = "extra == 'dev'" },
-    { name = "ruff", marker = "extra == 'dev'" },
 ]
-provides-extras = ["dev"]
+
+[package.metadata.requires-dev]
+dev = [
+    { name = "ipdb" },
+    { name = "ipython" },
+    { name = "pyright" },
+    { name = "pytest", specifier = ">=8.0.0" },
+    { name = "pytest-asyncio", specifier = ">=0.23.0" },
+    { name = "pytest-cov", specifier = ">=4.1.0" },
+    { name = "pytest-mock" },
+    { name = "ruff" },
+]
 
 [[package]]
 name = "matplotlib-inline"

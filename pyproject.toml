@@ -18,7 +18,7 @@ dependencies = [
 [project.scripts]
 linux-mcp-server = "linux_mcp_server.__main__:cli"
 
-[project.optional-dependencies]
+[dependency-groups]
 dev = [
     "ipdb",
     "ipython",
