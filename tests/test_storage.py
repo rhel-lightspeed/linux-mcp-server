@@ -28,6 +28,7 @@ class TestListDirectoriesBySize:
         assert isinstance(result, str)
         assert len(result) > 0
 
+    @pytest.mark.skipif(sys.platform != "linux", reason="requires GNU version of du")
     async def test_list_directories_by_size_with_temp_dirs(self, tmp_path):
         """Test with temporary directories."""
         # Create a temporary directory structure
@@ -51,6 +52,7 @@ class TestListDirectoriesBySize:
         assert "dir1" in result or "dir2" in result or "dir3" in result
         assert "Size" in result or "size" in result.lower()
 
+    @pytest.mark.skipif(sys.platform != "linux", reason="requires GNU version of du")
     async def test_list_directories_by_size_recursive_mode(self, tmp_path):
         """Test with nested directories - sizes should include all nested content."""
         # Create nested structure
@@ -66,6 +68,7 @@ class TestListDirectoriesBySize:
         assert isinstance(result, str)
         assert "parent" in result
 
+    @pytest.mark.skipif(sys.platform != "linux", reason="requires GNU version of du")
     async def test_list_directories_by_size_respects_top_n_limit(self, tmp_path):
         """Test that only top_n directories are returned."""
         # Create 10 directories
@@ -127,6 +130,7 @@ class TestListDirectoriesBySize:
         assert isinstance(result, str)
         assert "error" in result.lower() or "invalid" in result.lower()
 
+    @pytest.mark.skipif(sys.platform != "linux", reason="requires GNU version of du")
     async def test_list_directories_by_size_accepts_float_and_truncates(self, tmp_path):
         """Test that top_n accepts floats and truncates them to integers."""
         # Create 5 directories
@@ -149,6 +153,7 @@ class TestListDirectoriesBySize:
         assert "error" not in result.lower()
         assert "5" in result or "Top 5" in result
 
+    @pytest.mark.skipif(sys.platform != "linux", reason="requires GNU version of du")
     async def test_list_directories_by_size_handles_empty_directory(self, tmp_path):
         """Test with empty directory."""
         result = await storage.list_directories_by_size(tmp_path, top_n=5)
@@ -167,6 +172,7 @@ class TestListDirectoriesBySize:
             assert isinstance(result, str)
             # Should handle gracefully, not crash
 
+    @pytest.mark.skipif(sys.platform != "linux", reason="requires GNU version of du")
     async def test_list_directories_by_size_formats_sizes_human_readable(self, tmp_path):
         """Test that sizes are formatted in human-readable format."""
         dir1 = tmp_path / "bigdir"
@@ -194,6 +200,7 @@ class TestListDirectoriesBySize:
         # Should either cap it or return available directories
 
 
+# @pytest.mark.skipif(sys.platform != "linux", reason="requires GNU version of du")
 class TestListDirectoriesByName:
     """Test list_directories_by_name function."""
 
@@ -207,6 +214,7 @@ class TestListDirectoriesByName:
         assert isinstance(result, str)
         assert len(result) > 0
 
+    @pytest.mark.skipif(sys.platform != "linux", reason="requires GNU version of du")
     async def test_list_directories_by_name_sorts_alphabetically(self, tmp_path):
         """Test that directories are sorted alphabetically."""
         # Create directories
@@ -221,6 +229,7 @@ class TestListDirectoriesByName:
         zebra_pos = result.find("zebra")
         assert alpha_pos < zebra_pos
 
+    @pytest.mark.skipif(sys.platform != "linux", reason="requires GNU version of du")
     async def test_list_directories_by_name_reverse_sort(self, tmp_path):
         """Test reverse alphabetical sorting."""
         for name in ["alpha", "beta", "gamma"]:
@@ -234,6 +243,7 @@ class TestListDirectoriesByName:
         alpha_pos = result.find("alpha")
         assert gamma_pos < alpha_pos
 
+    @pytest.mark.skipif(sys.platform != "linux", reason="requires GNU version of du")
     async def test_list_directories_by_name_lists_all(self, tmp_path):
         """Test that all directories are returned."""
         for i in range(10):
@@ -257,6 +267,7 @@ class TestListDirectoriesByModifiedDate:
         assert isinstance(result, str)
         assert len(result) > 0
 
+    @pytest.mark.skipif(sys.platform != "linux", reason="requires GNU version of du")
     async def test_list_directories_by_modified_date_sorts_by_time(self, tmp_path):
         """Test that directories are sorted by modification time."""
         import time
@@ -277,7 +288,7 @@ class TestListDirectoriesByModifiedDate:
         old_pos = result.find("old_dir")
         assert new_pos < old_pos
 
-    @pytest.mark.skipif(sys.platform != "linux", reason="Only passes no Linux")
+    @pytest.mark.skipif(sys.platform != "linux", reason="requires GNU version of du")
     async def test_list_directories_by_modified_date_lists_all(self, tmp_path):
         """Test that all directories are returned."""
         for i in range(10):
@@ -306,6 +317,8 @@ class TestListDirectoriesBySizeIntegration:
 
         assert "list_directories_by_size" in tool_names
 
+
+    @pytest.mark.skipif(sys.platform != "linux", reason="requires GNU version of du")
     async def test_server_can_call_list_directories_by_size(self, tmp_path):
         """Test that the tool can be called through the server."""
         from linux_mcp_server.server import mcp
