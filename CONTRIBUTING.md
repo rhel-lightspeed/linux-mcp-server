@@ -14,7 +14,7 @@ Thank you for your interest in contributing! This document provides guidelines f
    ```bash
    uv venv
    source .venv/bin/activate
-   uv pip install --editable . --group dev
+   uv sync --editable --group dev
    ```
 
 3. **Verify setup:**
@@ -87,18 +87,18 @@ When adding a new diagnostic tool:
    # src/linux_mcp_server/tools/my_tool.py
    from typing import Optional
    from .ssh_executor import execute_command
-   
+
    async def my_diagnostic_function(
-       host: Optional[str] = None, 
+       host: Optional[str] = None,
        username: Optional[str] = None
    ) -> str:
        """
        Brief description of what this tool does.
-       
+
        Args:
            host: Optional remote host to connect to via SSH
            username: Optional SSH username (required if host is provided)
-       
+
        Returns:
            Formatted string with diagnostic information
        """
@@ -109,10 +109,10 @@ When adding a new diagnostic tool:
                host=host,
                username=username
            )
-           
+
            if returncode != 0:
                return f"Error: {stderr}"
-           
+
            return stdout
        except Exception as e:
            return f"Error: {str(e)}"
@@ -122,26 +122,26 @@ When adding a new diagnostic tool:
    ```python
    # Import your tool module at the top
    from .tools import my_tool
-   
+
    # Add decorated function
    @mcp.tool()
    async def my_tool_name(
        param1: str,
-       host: Optional[str] = None, 
+       host: Optional[str] = None,
        username: Optional[str] = None
    ) -> str:
        """Description for LLM to understand the tool.
-       
+
        Args:
            param1: Description of the parameter
            host: Remote host to connect to via SSH (optional)
            username: SSH username for remote host (required if host is provided)
        """
        return await _execute_tool(
-           "my_tool_name", 
+           "my_tool_name",
            my_tool.my_diagnostic_function,
            param1=param1,
-           host=host, 
+           host=host,
            username=username
        )
    ```
@@ -151,13 +151,13 @@ When adding a new diagnostic tool:
    # tests/test_my_tool.py
    import pytest
    from linux_mcp_server.tools import my_tool
-   
+
    @pytest.mark.asyncio
    async def test_my_tool():
        result = await my_tool.my_diagnostic_function()
        assert isinstance(result, str)
        assert "expected content" in result.lower()
-   
+
    # Test server integration
    @pytest.mark.asyncio
    async def test_server_has_my_tool():

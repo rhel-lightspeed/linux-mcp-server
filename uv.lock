@@ -576,8 +576,14 @@ dev = [
     { name = "ipdb" },
     { name = "ipython", version = "8.37.0", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version < '3.11'" },
     { name = "ipython", version = "9.6.0", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version >= '3.11'" },
+    { name = "pyright" },
+    { name = "pytest" },
+    { name = "pytest-asyncio" },
+    { name = "pytest-cov" },
+    { name = "pytest-mock" },
+    { name = "ruff" },
 ]
-sanity = [
+lint = [
     { name = "pyright" },
     { name = "ruff" },
 ]
@@ -599,8 +605,14 @@ requires-dist = [
 dev = [
     { name = "ipdb" },
     { name = "ipython" },
+    { name = "pyright" },
+    { name = "pytest", specifier = ">=8.0.0" },
+    { name = "pytest-asyncio", specifier = ">=0.23.0" },
+    { name = "pytest-cov", specifier = ">=4.1.0" },
+    { name = "pytest-mock" },
+    { name = "ruff" },
 ]
-sanity = [
+lint = [
     { name = "pyright" },
     { name = "ruff" },
 ]
