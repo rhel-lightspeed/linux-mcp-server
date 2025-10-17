@@ -4,15 +4,37 @@ build-backend = "hatchling.build"
 
 [project]
 name = "linux-mcp-server"
-version = "0.1.0"
 description = "MCP server for read-only Linux system administration, diagnostics, and troubleshooting"
-authors = [{ name = "Your Name", email = "your.email@example.com" }]
+authors = [
+    { name = "RHEL Lightspeed" }
+]
 readme = "README.md"
 requires-python = ">=3.10"
 dependencies = [
     "mcp>=0.9.0",
     "psutil>=5.9.0",
     "asyncssh>=2.14.0",
+]
+dynamic = ["version"]
+classifiers = [
+    "Development Status :: 2 - Pre-Alpha",
+    "Environment :: Console",
+    "Intended Audience :: Developers",
+    "Intended Audience :: Information Technology",
+    "Intended Audience :: System Administrators",
+    "License :: OSI Approved :: Apache Software License",
+    "Natural Language :: English",
+    "Operating System :: POSIX :: Linux",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.9",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
+    "Programming Language :: Python :: 3.14",
+    "Programming Language :: Python :: 3 :: Only",
+    "Topic :: System :: Systems Administration",
+    "Topic :: Utilities",
 ]
 
 [project.scripts]
@@ -32,6 +54,9 @@ dev = [
 
 [tool.hatch.build.targets.wheel]
 packages = ["src/linux_mcp_server"]
+
+[tool.hatch.version]
+path = "src/linux_mcp_server/__init__.py"
 
 [tool.pytest.ini_options]
 addopts = [
