@@ -16,10 +16,10 @@ A Model Context Protocol (MCP) server for read-only Linux system administration,
 ```mermaid
 graph TB
     Client["Client Layer<br/>MCP Client (e.g. Claude Desktop)"]
-    
+
     subgraph Server["MCP Server"]
         FastMCP[FastMCP Server]
-        
+
         subgraph Tools["Tool Categories"]
             direction LR
             subgraph Row1[" "]
@@ -33,25 +33,25 @@ graph TB
                 Storage[Storage]
             end
         end
-        
+
         Executor[SSH Executor]
         Logger[Audit Logger]
     end
-    
+
     subgraph Targets["Execution Targets"]
         direction LR
         Local[Local System]
         Remote[Remote Hosts<br/>SSH]
     end
-    
+
     Client -->|MCP Protocol| FastMCP
     FastMCP --> Tools
     Tools --> Executor
     Executor --> Targets
-    
+
     FastMCP -.-> Logger
     Executor -.-> Logger
-    
+
     style Client fill:#4a9eff,stroke:#2563eb,color:#fff
     style FastMCP fill:#f59e0b,stroke:#d97706,color:#fff
     style SystemInfo fill:#64748b,stroke:#475569,color:#fff
@@ -309,8 +309,3 @@ pytest --cov=src --cov-report=html
 - Input validation on all parameters
 - Requires appropriate system permissions for diagnostics
 - Remote user needs proper sudo/permissions for privileged commands
-
-## License
-
-MIT License
-
