@@ -1,12 +1,15 @@
 """Service management tools."""
 
-from typing import Optional
+import typing as t
 
 from .ssh_executor import execute_command
 from .validation import validate_line_count
 
 
-async def list_services(host: Optional[str] = None, username: Optional[str] = None) -> str:
+async def list_services(
+    host: t.Optional[str] = None,
+    username: t.Optional[str] = None,
+) -> str:
     """
     List all systemd services.
 
@@ -52,8 +55,8 @@ async def list_services(host: Optional[str] = None, username: Optional[str] = No
 
 async def get_service_status(
     service_name: str,
-    host: Optional[str] = None,
-    username: Optional[str] = None,
+    host: t.Optional[str] = None,
+    username: t.Optional[str] = None,
 ) -> str:
     """
     Get status of a specific service.
@@ -98,8 +101,8 @@ async def get_service_status(
 async def get_service_logs(
     service_name: str,
     lines: int = 50,
-    host: Optional[str] = None,
-    username: Optional[str] = None,
+    host: t.Optional[str] = None,
+    username: t.Optional[str] = None,
 ) -> str:
     """
     Get logs for a specific service.

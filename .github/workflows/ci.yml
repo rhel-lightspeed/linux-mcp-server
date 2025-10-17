@@ -24,6 +24,10 @@ jobs:
       fail-fast: false
       matrix:
         test:
+          - name: Type
+            step_name: Check types
+            command: pyright
+
           - name: Lint
             step_name: Run lint
             command: ruff check --diff
