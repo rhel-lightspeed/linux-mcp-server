@@ -37,6 +37,10 @@ classifiers = [
     "Topic :: Utilities",
 ]
 
+[project.url]
+"Source code" = "https://github.com/rhel-lightspeed/linux-mcp-server"
+"Bug Tracker" = "https://github.com/rhel-lightspeed/linux-mcp-server/issues"
+
 [project.scripts]
 linux-mcp-server = "linux_mcp_server.__main__:cli"
 
