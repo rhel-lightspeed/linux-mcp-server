@@ -1,0 +1,63 @@
+name: CI
+on:
+  push:
+    branches:
+      - main
+
+  pull_request:
+    branches:
+      - main
+
+
+env:
+  PIP_DISABLE_PIP_VERSION_CHECK: 1
+  COVERAGE_IGOR_VERBOSE: 1
+  FORCE_COLOR: 1    # Get colored pytest output
+
+
+jobs:
+  sanity:
+    name: Sanity - ${{ matrix.test.name }}
+    runs-on: ubuntu-latest
+
+    strategy:
+      fail-fast: false
+      matrix:
+        test:
+          - name: Lint
+            step_name: Run lint
+            command: ruff check --diff
+
+          - name: Format
+            step_name: Run format check
+            command: ruff format --diff
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v5.0.0
+
+      - name: Install Python
+        uses: actions/setup-python@v6.0.0
+        with:
+          python-version-file: pyproject.toml
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v7.1.0
+        with:
+          enable-cache: true
+          prune-cache: false
+
+      - name: Install dependencies
+        run: uv sync --locked --dev
+
+      - name: "Show environment"
+        run: |
+          python -VV
+          python -m site
+          uv --version
+          env | sort
+          ls -ld $(python -c "import site; print(site.getsitepackages()[0])")
+          whoami
+
+      - name: ${{ matrix.test.step_name }}
+        run: uv run --locked ${{ matrix.test.command }}

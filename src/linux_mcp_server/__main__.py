@@ -2,6 +2,7 @@
 
 import logging
 import sys
+
 from .logging_config import setup_logging
 from .server import main
 
@@ -10,10 +11,10 @@ def cli():
     """Console script entry point for the Linux MCP Server."""
     # Initialize logging first, before any other operations
     setup_logging()
-    
+
     logger = logging.getLogger(__name__)
     logger.info("Starting Linux MCP Server")
-    
+
     try:
         # FastMCP.run() creates its own event loop, don't use asyncio.run()
         main()
@@ -27,4 +28,3 @@ def cli():
 
 if __name__ == "__main__":
     cli()
-

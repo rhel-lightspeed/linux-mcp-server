@@ -14,7 +14,7 @@ Thank you for your interest in contributing! This document provides guidelines f
    ```bash
    uv venv
    source .venv/bin/activate
-   uv pip install -e ".[dev]"
+   uv pip install --editable . --group dev
    ```
 
 3. **Verify setup:**

@@ -4,17 +4,14 @@ import json
 import logging
 import os
 import tempfile
+
 from pathlib import Path
 from unittest.mock import patch
 
-import pytest
-
-from linux_mcp_server.logging_config import (
-    setup_logging,
-    get_log_directory,
-    JSONFormatter,
-    StructuredFormatter,
-)
+from linux_mcp_server.logging_config import get_log_directory
+from linux_mcp_server.logging_config import JSONFormatter
+from linux_mcp_server.logging_config import setup_logging
+from linux_mcp_server.logging_config import StructuredFormatter
 
 
 class TestGetLogDirectory:
@@ -51,27 +48,30 @@ class TestSetupLogging:
         with tempfile.TemporaryDirectory() as tmpdir:
             with patch.dict(os.environ, {"LINUX_MCP_LOG_DIR": tmpdir}):
                 setup_logging()
-                
+
                 # Log something
                 logger = logging.getLogger("test")
                 logger.info("Test message")
-                
+
                 # Check both log files exist
                 text_log = Path(tmpdir) / "server.log"
                 json_log = Path(tmpdir) / "server.json"
-                
+
                 assert text_log.exists()
                 assert json_log.exists()
 
     def test_log_level_from_environment(self):
         """Test that log level can be set from environment variable."""
         with tempfile.TemporaryDirectory() as tmpdir:
-            with patch.dict(os.environ, {
-                "LINUX_MCP_LOG_DIR": tmpdir,
-                "LINUX_MCP_LOG_LEVEL": "DEBUG"
-            }):
+            with patch.dict(
+                os.environ,
+                {
+                    "LINUX_MCP_LOG_DIR": tmpdir,
+                    "LINUX_MCP_LOG_LEVEL": "DEBUG",
+                },
+            ):
                 setup_logging()
-                
+
                 # Root logger should be at DEBUG level
                 root_logger = logging.getLogger()
                 assert root_logger.level == logging.DEBUG
@@ -83,7 +83,7 @@ class TestSetupLogging:
                 # Clear any existing LINUX_MCP_LOG_LEVEL
                 os.environ.pop("LINUX_MCP_LOG_LEVEL", None)
                 setup_logging()
-                
+
                 root_logger = logging.getLogger()
                 assert root_logger.level == logging.INFO
 
@@ -94,8 +94,7 @@ class TestStructuredFormatter:
     def test_format_basic_message(self):
         """Test formatting a basic log message."""
         formatter = StructuredFormatter(
-            '%(asctime)s | %(levelname)s | %(name)s | %(message)s',
-            datefmt='%Y-%m-%d %H:%M:%S'
+            "%(asctime)s | %(levelname)s | %(name)s | %(message)s", datefmt="%Y-%m-%d %H:%M:%S"
         )
         record = logging.LogRecord(
             name="test_module",
@@ -106,9 +105,9 @@ class TestStructuredFormatter:
             args=(),
             exc_info=None,
         )
-        
+
         formatted = formatter.format(record)
-        
+
         # Check format: TIMESTAMP | LEVEL | MODULE | MESSAGE
         parts = formatted.split(" | ")
         assert len(parts) == 4
@@ -119,8 +118,7 @@ class TestStructuredFormatter:
     def test_format_with_extra_fields(self):
         """Test formatting with extra context fields."""
         formatter = StructuredFormatter(
-            '%(asctime)s | %(levelname)s | %(name)s | %(message)s',
-            datefmt='%Y-%m-%d %H:%M:%S'
+            "%(asctime)s | %(levelname)s | %(name)s | %(message)s", datefmt="%Y-%m-%d %H:%M:%S"
         )
         record = logging.LogRecord(
             name="test_module",
@@ -133,9 +131,9 @@ class TestStructuredFormatter:
         )
         record.host = "server1.example.com"
         record.username = "admin"
-        
+
         formatted = formatter.format(record)
-        
+
         assert "host=server1.example.com" in formatted
         assert "username=admin" in formatted
 
@@ -145,7 +143,7 @@ class TestJSONFormatter:
 
     def test_format_basic_message(self):
         """Test formatting a basic log message as JSON."""
-        formatter = JSONFormatter(datefmt='%Y-%m-%dT%H:%M:%S')
+        formatter = JSONFormatter(datefmt="%Y-%m-%dT%H:%M:%S")
         record = logging.LogRecord(
             name="test_module",
             level=logging.INFO,
@@ -155,10 +153,10 @@ class TestJSONFormatter:
             args=(),
             exc_info=None,
         )
-        
+
         formatted = formatter.format(record)
         data = json.loads(formatted)
-        
+
         assert data["level"] == "INFO"
         assert data["logger"] == "test_module"
         assert data["message"] == "Test message"
@@ -166,7 +164,7 @@ class TestJSONFormatter:
 
     def test_format_with_extra_fields(self):
         """Test formatting with extra context fields as JSON."""
-        formatter = JSONFormatter(datefmt='%Y-%m-%dT%H:%M:%S')
+        formatter = JSONFormatter(datefmt="%Y-%m-%dT%H:%M:%S")
         record = logging.LogRecord(
             name="test_module",
             level=logging.INFO,
@@ -179,10 +177,10 @@ class TestJSONFormatter:
         record.host = "server1.example.com"
         record.username = "admin"
         record.exit_code = 0
-        
+
         formatted = formatter.format(record)
         data = json.loads(formatted)
-        
+
         assert data["host"] == "server1.example.com"
         assert data["username"] == "admin"
         assert data["exit_code"] == 0
@@ -190,8 +188,8 @@ class TestJSONFormatter:
     def test_format_with_exception(self):
         """Test formatting with exception information."""
         import sys
-        
-        formatter = JSONFormatter(datefmt='%Y-%m-%dT%H:%M:%S')
+
+        formatter = JSONFormatter(datefmt="%Y-%m-%dT%H:%M:%S")
         try:
             raise ValueError("Test error")
         except ValueError:
@@ -205,10 +203,9 @@ class TestJSONFormatter:
                 args=(),
                 exc_info=exc_info,
             )
-            
+
             formatted = formatter.format(record)
             data = json.loads(formatted)
-            
+
             assert "exception" in data
             assert "ValueError: Test error" in data["exception"]
-

@@ -2,8 +2,11 @@
 
 import os
 import tempfile
-import pytest
+
 from pathlib import Path
+
+import pytest
+
 from linux_mcp_server.tools import storage
 
 
@@ -38,18 +41,18 @@ class TestListDirectoriesBySize:
             dir1 = Path(tmpdir) / "dir1"
             dir2 = Path(tmpdir) / "dir2"
             dir3 = Path(tmpdir) / "dir3"
-            
+
             dir1.mkdir()
             dir2.mkdir()
             dir3.mkdir()
-            
+
             # Create files of different sizes
             (dir1 / "file1.txt").write_text("x" * 1000)  # 1KB
             (dir2 / "file2.txt").write_text("x" * 5000)  # 5KB
-            (dir3 / "file3.txt").write_text("x" * 500)   # 0.5KB
-            
+            (dir3 / "file3.txt").write_text("x" * 500)  # 0.5KB
+
             result = await storage.list_directories_by_size(tmpdir, top_n=3)
-            
+
             assert isinstance(result, str)
             assert "dir1" in result or "dir2" in result or "dir3" in result
             assert "Size" in result or "size" in result.lower()
@@ -61,13 +64,13 @@ class TestListDirectoriesBySize:
             # Create nested structure
             nested = Path(tmpdir) / "parent" / "child"
             nested.mkdir(parents=True)
-            
+
             # Add files
             (Path(tmpdir) / "parent" / "file.txt").write_text("x" * 2000)
             (nested / "nested_file.txt").write_text("x" * 1000)
-            
+
             result = await storage.list_directories_by_size(tmpdir, top_n=5)
-            
+
             assert isinstance(result, str)
             assert "parent" in result
 
@@ -80,9 +83,9 @@ class TestListDirectoriesBySize:
                 dir_path = Path(tmpdir) / f"dir{i}"
                 dir_path.mkdir()
                 (dir_path / f"file{i}.txt").write_text("x" * (i * 100))
-            
+
             result = await storage.list_directories_by_size(tmpdir, top_n=3)
-            
+
             assert isinstance(result, str)
             # The result should mention "Top 3" or similar
             assert "3" in result or "top" in result.lower()
@@ -90,11 +93,8 @@ class TestListDirectoriesBySize:
     @pytest.mark.asyncio
     async def test_list_directories_by_size_invalid_path(self):
         """Test with non-existent path returns error message."""
-        result = await storage.list_directories_by_size(
-            "/this/path/absolutely/does/not/exist/anywhere",
-            top_n=5
-        )
-        
+        result = await storage.list_directories_by_size("/this/path/absolutely/does/not/exist/anywhere", top_n=5)
+
         assert isinstance(result, str)
         assert "error" in result.lower() or "not found" in result.lower() or "does not exist" in result.lower()
 
@@ -104,10 +104,10 @@ class TestListDirectoriesBySize:
         with tempfile.NamedTemporaryFile(delete=False) as tmp_file:
             tmp_file.write(b"test content")
             tmp_file_path = tmp_file.name
-        
+
         try:
             result = await storage.list_directories_by_size(tmp_file_path, top_n=5)
-            
+
             assert isinstance(result, str)
             assert "error" in result.lower() or "not a directory" in result.lower()
         finally:
@@ -124,7 +124,7 @@ class TestListDirectoriesBySize:
             "/tmp`whoami`",
             "/tmp$(whoami)",
         ]
-        
+
         for path in malicious_paths:
             result = await storage.list_directories_by_size(path, top_n=5)
             # Should either error safely or resolve to a safe path
@@ -139,7 +139,7 @@ class TestListDirectoriesBySize:
             result = await storage.list_directories_by_size(tmpdir, top_n=-5)
             assert isinstance(result, str)
             assert "error" in result.lower() or "invalid" in result.lower()
-            
+
             # Test with zero
             result = await storage.list_directories_by_size(tmpdir, top_n=0)
             assert isinstance(result, str)
@@ -154,17 +154,17 @@ class TestListDirectoriesBySize:
                 dir_path = Path(tmpdir) / f"dir{i}"
                 dir_path.mkdir()
                 (dir_path / f"file{i}.txt").write_text("x" * (i * 100))
-            
+
             # Test with float that should be truncated to 3
             result = await storage.list_directories_by_size(tmpdir, top_n=3.9)
-            
+
             assert isinstance(result, str)
             assert "error" not in result.lower()
             assert "Top 3" in result
-            
+
             # Test with exact float (5.0 should work as 5)
             result = await storage.list_directories_by_size(tmpdir, top_n=5.0)
-            
+
             assert isinstance(result, str)
             assert "error" not in result.lower()
             assert "5" in result or "Top 5" in result
@@ -174,7 +174,7 @@ class TestListDirectoriesBySize:
         """Test with empty directory."""
         with tempfile.TemporaryDirectory() as tmpdir:
             result = await storage.list_directories_by_size(tmpdir, top_n=5)
-            
+
             assert isinstance(result, str)
             assert "no subdirectories" in result.lower() or "empty" in result.lower() or "0" in result
 
@@ -183,10 +183,10 @@ class TestListDirectoriesBySize:
         """Test handling of permission denied errors gracefully."""
         # This test might be skipped on systems without restricted directories
         restricted_path = "/root"
-        
+
         if os.path.exists(restricted_path) and not os.access(restricted_path, os.R_OK):
             result = await storage.list_directories_by_size(restricted_path, top_n=5)
-            
+
             assert isinstance(result, str)
             # Should handle gracefully, not crash
 
@@ -196,12 +196,12 @@ class TestListDirectoriesBySize:
         with tempfile.TemporaryDirectory() as tmpdir:
             dir1 = Path(tmpdir) / "bigdir"
             dir1.mkdir()
-            
+
             # Create a file > 1MB to test formatting
             (dir1 / "largefile.bin").write_bytes(b"x" * (2 * 1024 * 1024))  # 2MB
-            
+
             result = await storage.list_directories_by_size(tmpdir, top_n=5)
-            
+
             assert isinstance(result, str)
             # Should have size units
             assert any(unit in result for unit in ["KB", "MB", "GB", "B", "bytes"])
@@ -213,10 +213,10 @@ class TestListDirectoriesBySize:
             # Create a few directories
             for i in range(5):
                 (Path(tmpdir) / f"dir{i}").mkdir()
-            
+
             # Request an unreasonably large number
             result = await storage.list_directories_by_size(tmpdir, top_n=10000)
-            
+
             assert isinstance(result, str)
             # Should either cap it or return available directories
 
@@ -231,7 +231,7 @@ class TestListDirectoriesByName:
             # Create some directories
             for name in ["alpha", "beta", "gamma"]:
                 (Path(tmpdir) / name).mkdir()
-            
+
             result = await storage.list_directories_by_name(tmpdir)
             assert isinstance(result, str)
             assert len(result) > 0
@@ -243,9 +243,9 @@ class TestListDirectoriesByName:
             # Create directories
             for name in ["zebra", "alpha", "mike"]:
                 (Path(tmpdir) / name).mkdir()
-            
+
             result = await storage.list_directories_by_name(tmpdir, reverse=False)
-            
+
             assert isinstance(result, str)
             # alpha should appear before zebra in alphabetical order
             alpha_pos = result.find("alpha")
@@ -258,9 +258,9 @@ class TestListDirectoriesByName:
         with tempfile.TemporaryDirectory() as tmpdir:
             for name in ["alpha", "beta", "gamma"]:
                 (Path(tmpdir) / name).mkdir()
-            
+
             result = await storage.list_directories_by_name(tmpdir, reverse=True)
-            
+
             assert isinstance(result, str)
             # gamma should appear before alpha in reverse order
             gamma_pos = result.find("gamma")
@@ -273,7 +273,7 @@ class TestListDirectoriesByName:
         with tempfile.TemporaryDirectory() as tmpdir:
             for i in range(10):
                 (Path(tmpdir) / f"dir{i:02d}").mkdir()
-            
+
             result = await storage.list_directories_by_name(tmpdir)
             assert isinstance(result, str)
             assert "10" in result  # Total subdirectories found: 10
@@ -289,7 +289,7 @@ class TestListDirectoriesByModifiedDate:
             # Create some directories
             for name in ["dir1", "dir2", "dir3"]:
                 (Path(tmpdir) / name).mkdir()
-            
+
             result = await storage.list_directories_by_modified_date(tmpdir)
             assert isinstance(result, str)
             assert len(result) > 0
@@ -298,17 +298,18 @@ class TestListDirectoriesByModifiedDate:
     async def test_list_directories_by_modified_date_sorts_by_time(self):
         """Test that directories are sorted by modification time."""
         import time
+
         with tempfile.TemporaryDirectory() as tmpdir:
             # Create directories with time delays
             dir1 = Path(tmpdir) / "old_dir"
             dir1.mkdir()
             time.sleep(0.1)
-            
+
             dir2 = Path(tmpdir) / "new_dir"
             dir2.mkdir()
-            
+
             result = await storage.list_directories_by_modified_date(tmpdir, newest_first=True)
-            
+
             assert isinstance(result, str)
             # new_dir should appear before old_dir when sorted newest first
             new_pos = result.find("new_dir")
@@ -321,7 +322,7 @@ class TestListDirectoriesByModifiedDate:
         with tempfile.TemporaryDirectory() as tmpdir:
             for i in range(10):
                 (Path(tmpdir) / f"dir{i}").mkdir()
-            
+
             result = await storage.list_directories_by_modified_date(tmpdir)
             assert isinstance(result, str)
             assert "10" in result  # Total subdirectories found: 10
@@ -329,9 +330,7 @@ class TestListDirectoriesByModifiedDate:
     @pytest.mark.asyncio
     async def test_list_directories_by_modified_date_invalid_path(self):
         """Test with non-existent path returns error message."""
-        result = await storage.list_directories_by_modified_date(
-            "/this/path/absolutely/does/not/exist/anywhere"
-        )
+        result = await storage.list_directories_by_modified_date("/this/path/absolutely/does/not/exist/anywhere")
         assert isinstance(result, str)
         assert "error" in result.lower()
 
@@ -343,24 +342,21 @@ class TestListDirectoriesBySizeIntegration:
     async def test_server_lists_list_directories_by_size_tool(self):
         """Test that the server lists the new tool."""
         from linux_mcp_server.server import mcp
-        
+
         tools = await mcp.list_tools()
         tool_names = [tool.name for tool in tools]
-        
+
         assert "list_directories_by_size" in tool_names
 
     @pytest.mark.asyncio
     async def test_server_can_call_list_directories_by_size(self):
         """Test that the tool can be called through the server."""
         from linux_mcp_server.server import mcp
-        
+
         with tempfile.TemporaryDirectory() as tmpdir:
             # FastMCP's call_tool returns a tuple of (result_list, result_dict)
-            result_list, result_dict = await mcp.call_tool("list_directories_by_size", {
-                "path": tmpdir,
-                "top_n": 5
-            })
-            
+            result_list, result_dict = await mcp.call_tool("list_directories_by_size", {"path": tmpdir, "top_n": 5})
+
             assert result_list is not None
             assert len(result_list) > 0
             # The result should be a string in the result_dict or in result_list
@@ -370,14 +366,13 @@ class TestListDirectoriesBySizeIntegration:
     async def test_server_tool_has_proper_schema(self):
         """Test that the tool has proper input schema defined."""
         from linux_mcp_server.server import mcp
-        
+
         tools = await mcp.list_tools()
-        
+
         tool = next((t for t in tools if t.name == "list_directories_by_size"), None)
         assert tool is not None
-        
+
         # Check that it has the required parameters
         props = tool.inputSchema.get("properties", {})
         assert "path" in props
         assert "top_n" in props
-

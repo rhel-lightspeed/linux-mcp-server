@@ -1,7 +1,9 @@
 """Tests for process management tools."""
 
 import os
+
 import pytest
+
 from linux_mcp_server.tools import processes
 
 
@@ -19,7 +21,7 @@ class TestProcesses:
     async def test_list_processes_contains_process_info(self):
         """Test that list_processes contains process information."""
         result = await processes.list_processes()
-        
+
         # Should contain process-related keywords
         assert "pid" in result.lower() or "process" in result.lower()
         # Should contain resource usage info
@@ -53,4 +55,3 @@ class TestProcesses:
         assert len(result) > 0
         # Should handle gracefully
         assert "not found" in result.lower() or "does not exist" in result.lower() or "error" in result.lower()
-
