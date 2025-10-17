@@ -107,6 +107,10 @@ tag-only = [
     "astral-sh/setup-uv",
 ]
 
+[tool.pyright]
+include = ["src"]
+pythonVersion = "3.9"
+
 [tool.ruff]
 line-length = 120
 indent-width = 4
