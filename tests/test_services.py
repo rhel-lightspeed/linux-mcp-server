@@ -1,6 +1,10 @@
 """Tests for service management tools."""
 
+import sys
+
 from unittest.mock import patch
+
+import pytest
 
 from linux_mcp_server.tools import services
 
@@ -14,6 +18,7 @@ class TestServices:
         assert isinstance(result, str)
         assert len(result) > 0
 
+    @pytest.mark.skipif(sys.platform != "linux", reason="Only passes no Linux")
     async def test_list_services_contains_service_info(self):
         """Test that list_services contains service information."""
         result = await services.list_services()
@@ -23,6 +28,7 @@ class TestServices:
         # Should show status information
         assert "active" in result.lower() or "inactive" in result.lower() or "running" in result.lower()
 
+    @pytest.mark.skipif(sys.platform != "linux", reason="Only passes no Linux")
     async def test_get_service_status_with_common_service(self):
         """Test getting status of a common service."""
         # Test with a service that should exist on most systems

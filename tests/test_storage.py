@@ -1,9 +1,12 @@
 """Tests for storage tools."""
 
 import os
+import sys
 import tempfile
 
 from pathlib import Path
+
+import pytest
 
 from linux_mcp_server.tools import storage
 
@@ -248,6 +251,7 @@ class TestListDirectoriesByName:
             alpha_pos = result.find("alpha")
             assert gamma_pos < alpha_pos
 
+    @pytest.mark.skipif(sys.platform != "linux", reason="Only passes no Linux")
     async def test_list_directories_by_name_lists_all(self):
         """Test that all directories are returned."""
         with tempfile.TemporaryDirectory() as tmpdir:
@@ -294,6 +298,7 @@ class TestListDirectoriesByModifiedDate:
             old_pos = result.find("old_dir")
             assert new_pos < old_pos
 
+    @pytest.mark.skipif(sys.platform != "linux", reason="Only passes no Linux")
     async def test_list_directories_by_modified_date_lists_all(self):
         """Test that all directories are returned."""
         with tempfile.TemporaryDirectory() as tmpdir:
