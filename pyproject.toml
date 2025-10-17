@@ -22,11 +22,17 @@ linux-mcp-server = "linux_mcp_server.__main__:cli"
 dev = [
     "ipdb",
     "ipython",
-    "pyright",
+]
+
+test = [
     "pytest-asyncio>=0.23.0",
     "pytest-cov>=4.1.0",
     "pytest-mock",
     "pytest>=8.0.0",
+]
+
+sanity = [
+    "pyright",
     "ruff",
 ]
 
