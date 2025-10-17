@@ -4,17 +4,15 @@ Provides validation functions for handling numeric parameters where LLMs often
 pass floats instead of integers.
 """
 
-from typing import Optional
-from typing import Tuple
-from typing import Union
+import typing as t
 
 
 def validate_positive_int(
-    value: Union[int, float],
+    value: t.Union[int, float],
     param_name: str = "parameter",
     min_value: int = 1,
-    max_value: Optional[int] = None,
-) -> Tuple[Optional[int], Optional[str]]:
+    max_value: t.Optional[int] = None,
+) -> tuple[t.Optional[int], t.Optional[str]]:
     """
     Validate and normalize a numeric value to a positive integer.
 
@@ -39,16 +37,16 @@ def validate_positive_int(
     return int_value, None
 
 
-def validate_pid(pid: Union[int, float]) -> Tuple[Optional[int], Optional[str]]:
+def validate_pid(pid: t.Union[int, float]) -> tuple[t.Optional[int], t.Optional[str]]:
     """Validate a process ID (PID). Accepts floats from LLMs and truncates to int."""
     return validate_positive_int(pid, param_name="PID", min_value=1)
 
 
 def validate_line_count(
-    lines: Union[int, float],
+    lines: t.Union[int, float],
     default: int = 100,
     max_lines: int = 10000,
-) -> Tuple[int, Optional[str]]:
+) -> tuple[int, t.Optional[str]]:
     """
     Validate line count for log reading functions.
 
@@ -56,4 +54,6 @@ def validate_line_count(
     Returns default value if validation fails.
     """
     validated, error = validate_positive_int(lines, "lines", 1, max_lines)
-    return (default, error) if error else (validated, None)
+    if error or validated is None:
+        return (default, error)
+    return (validated, None)

@@ -1,8 +1,7 @@
 """Network diagnostic tools."""
 
 import socket
-
-from typing import Optional
+import typing as t
 
 import psutil
 
@@ -11,8 +10,8 @@ from .utils import format_bytes
 
 
 async def get_network_interfaces(  # noqa: C901
-    host: Optional[str] = None,
-    username: Optional[str] = None,
+    host: t.Optional[str] = None,
+    username: t.Optional[str] = None,
 ) -> str:
     """
     Get network interface information.
@@ -115,7 +114,7 @@ async def get_network_interfaces(  # noqa: C901
         return f"Error getting network interface information: {str(e)}"
 
 
-async def get_network_connections(host: Optional[str] = None, username: Optional[str] = None) -> str:
+async def get_network_connections(host: t.Optional[str] = None, username: t.Optional[str] = None) -> str:
     """
     Get active network connections.
 
@@ -198,7 +197,7 @@ async def get_network_connections(host: Optional[str] = None, username: Optional
         return f"Error getting network connections: {str(e)}"
 
 
-async def get_listening_ports(host: Optional[str] = None, username: Optional[str] = None) -> str:
+async def get_listening_ports(host: t.Optional[str] = None, username: t.Optional[str] = None) -> str:
     """
     Get listening ports.
 
