@@ -1,7 +1,8 @@
 """Process management tools."""
 
+import typing as t
+
 from datetime import datetime
-from typing import Optional
 
 import psutil
 
@@ -10,7 +11,10 @@ from .utils import format_bytes
 from .validation import validate_pid
 
 
-async def list_processes(host: Optional[str] = None, username: Optional[str] = None) -> str:
+async def list_processes(
+    host: t.Optional[str] = None,
+    username: t.Optional[str] = None,
+) -> str:
     """
     List running processes.
 
@@ -99,8 +103,8 @@ async def list_processes(host: Optional[str] = None, username: Optional[str] = N
 
 async def get_process_info(  # noqa: C901
     pid: int,
-    host: Optional[str] = None,
-    username: Optional[str] = None,
+    host: t.Optional[str] = None,
+    username: t.Optional[str] = None,
 ) -> str:
     """
     Get information about a specific process.
@@ -251,7 +255,7 @@ async def get_process_info(  # noqa: C901
                 connections = proc.connections()
                 if connections:
                     info.append(f"\n=== Network Connections ({len(connections)}) ===")
-                    for i, conn in enumerate(connections[:10]):  # Show first 10
+                    for _, conn in enumerate(connections[:10]):  # Show first 10
                         info.append(
                             f"  {conn.type.name}: {conn.laddr} -> {conn.raddr if conn.raddr else 'N/A'} [{conn.status}]",
                         )

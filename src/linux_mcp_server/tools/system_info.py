@@ -2,9 +2,9 @@
 
 import os
 import platform
+import typing as t
 
 from datetime import datetime
-from typing import Optional
 
 import psutil
 
@@ -12,7 +12,10 @@ from .ssh_executor import execute_command
 from .utils import format_bytes
 
 
-async def get_system_info(host: Optional[str] = None, username: Optional[str] = None) -> str:  # noqa: C901
+async def get_system_info(  # noqa: C901
+    host: t.Optional[str] = None,
+    username: t.Optional[str] = None,
+) -> str:
     """
     Get basic system information.
 
@@ -134,7 +137,10 @@ async def get_system_info(host: Optional[str] = None, username: Optional[str] = 
         return f"Error gathering system information: {str(e)}"
 
 
-async def get_cpu_info(host: Optional[str] = None, username: Optional[str] = None) -> str:  # noqa: C901
+async def get_cpu_info(  # noqa: C901
+    host: t.Optional[str] = None,
+    username: t.Optional[str] = None,
+) -> str:
     """
     Get CPU information.
 
@@ -261,7 +267,10 @@ async def get_cpu_info(host: Optional[str] = None, username: Optional[str] = Non
         return f"Error gathering CPU information: {str(e)}"
 
 
-async def get_memory_info(host: Optional[str] = None, username: Optional[str] = None) -> str:
+async def get_memory_info(
+    host: t.Optional[str] = None,
+    username: t.Optional[str] = None,
+) -> str:
     """
     Get memory information.
 
@@ -326,9 +335,9 @@ async def get_memory_info(host: Optional[str] = None, username: Optional[str] = 
             info.append(f"Free: {format_bytes(mem.free)}")
 
             if hasattr(mem, "buffers"):
-                info.append(f"Buffers: {format_bytes(mem.buffers)}")
+                info.append(f"Buffers: {format_bytes(getattr(mem, 'buffers'))}")
             if hasattr(mem, "cached"):
-                info.append(f"Cached: {format_bytes(mem.cached)}")
+                info.append(f"Cached: {format_bytes(getattr(mem, 'cached'))}")
 
             # Swap memory
             swap = psutil.swap_memory()
@@ -342,7 +351,10 @@ async def get_memory_info(host: Optional[str] = None, username: Optional[str] = 
         return f"Error gathering memory information: {str(e)}"
 
 
-async def get_disk_usage(host: Optional[str] = None, username: Optional[str] = None) -> str:
+async def get_disk_usage(
+    host: t.Optional[str] = None,
+    username: t.Optional[str] = None,
+) -> str:
     """
     Get disk usage information.
 
@@ -420,7 +432,7 @@ async def get_disk_usage(host: Optional[str] = None, username: Optional[str] = N
         return f"Error gathering disk usage information: {str(e)}"
 
 
-async def get_hardware_info(host: Optional[str] = None, username: Optional[str] = None) -> str:  # noqa: C901
+async def get_hardware_info(host: t.Optional[str] = None, username: t.Optional[str] = None) -> str:  # noqa: C901
     """
     Get hardware information.
 

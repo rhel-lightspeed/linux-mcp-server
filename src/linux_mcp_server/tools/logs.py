@@ -1,21 +1,21 @@
 """Log and audit tools."""
 
 import os
+import typing as t
 
 from pathlib import Path
-from typing import Optional
 
 from .ssh_executor import execute_command
 from .validation import validate_line_count
 
 
 async def get_journal_logs(
-    unit: str = None,
-    priority: str = None,
-    since: str = None,
+    unit: t.Optional[str] = None,
+    priority: t.Optional[str] = None,
+    since: t.Optional[str] = None,
     lines: int = 100,
-    host: Optional[str] = None,
-    username: Optional[str] = None,
+    host: t.Optional[str] = None,
+    username: t.Optional[str] = None,
 ) -> str:
     """
     Get systemd journal logs.
@@ -77,8 +77,8 @@ async def get_journal_logs(
 
 async def get_audit_logs(
     lines: int = 100,
-    host: Optional[str] = None,
-    username: Optional[str] = None,
+    host: t.Optional[str] = None,
+    username: t.Optional[str] = None,
 ) -> str:
     """
     Get audit logs.
@@ -129,8 +129,8 @@ async def get_audit_logs(
 async def read_log_file(  # noqa: C901
     log_path: str,
     lines: int = 100,
-    host: Optional[str] = None,
-    username: Optional[str] = None,
+    host: t.Optional[str] = None,
+    username: t.Optional[str] = None,
 ) -> str:
     """
     Read a specific log file.
