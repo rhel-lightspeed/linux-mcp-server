@@ -1,11 +1,7 @@
 """Tests for input validation utilities."""
 
 import pytest
-from linux_mcp_server.tools.validation import (
-    validate_positive_int,
-    validate_pid,
-    validate_line_count
-)
+from linux_mcp_server.tools.validation import validate_positive_int, validate_pid, validate_line_count
 
 
 class TestValidatePositiveInt:
@@ -162,4 +158,3 @@ class TestValidateLineCount:
         result, error = validate_line_count(1000, max_lines=1000)
         assert result == 1000
         assert error is None
-
