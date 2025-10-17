@@ -80,7 +80,6 @@ class TestSSHKeyDiscovery:
 class TestExecuteCommand:
     """Test the execute_command function."""
 
-    @pytest.mark.asyncio
     async def test_execute_command_local_success(self):
         """Test local command execution success."""
         returncode, stdout, stderr = await execute_command(["echo", "hello"])
@@ -89,21 +88,18 @@ class TestExecuteCommand:
         assert "hello" in stdout
         assert stderr == ""
 
-    @pytest.mark.asyncio
     async def test_execute_command_local_failure(self):
         """Test local command execution failure."""
         returncode, stdout, stderr = await execute_command(["false"])
 
         assert returncode != 0
 
-    @pytest.mark.asyncio
     async def test_execute_command_local_with_stderr(self):
         """Test local command that produces stderr output."""
         returncode, stdout, stderr = await execute_command(["bash", "-c", "echo error >&2"])
 
         assert "error" in stderr
 
-    @pytest.mark.asyncio
     async def test_execute_command_remote_routes_to_ssh(self):
         """Test that remote execution routes through SSH."""
         mock_manager = AsyncMock()
@@ -120,13 +116,11 @@ class TestExecuteCommand:
             assert stdout == "output"
             mock_manager.execute_remote.assert_called_once()
 
-    @pytest.mark.asyncio
     async def test_execute_command_remote_requires_username(self):
         """Test that remote execution requires username."""
         with pytest.raises(ValueError, match="username.*required"):
             await execute_command(["ls"], host="remote.example.com")
 
-    @pytest.mark.asyncio
     async def test_execute_command_remote_requires_host(self):
         """Test that username without host uses local execution."""
         # Should execute locally, not fail
@@ -137,7 +131,6 @@ class TestExecuteCommand:
 class TestSSHConnectionManager:
     """Test SSH connection manager."""
 
-    @pytest.mark.asyncio
     async def test_connection_manager_singleton(self):
         """Test that connection manager is a singleton."""
         manager1 = SSHConnectionManager()
@@ -145,7 +138,6 @@ class TestSSHConnectionManager:
 
         assert manager1 is manager2
 
-    @pytest.mark.asyncio
     async def test_get_connection_creates_new(self):
         """Test getting a new SSH connection."""
         manager = SSHConnectionManager()
@@ -162,7 +154,6 @@ class TestSSHConnectionManager:
             assert conn is mock_conn
             mock_connect.assert_called_once()
 
-    @pytest.mark.asyncio
     async def test_get_connection_reuses_existing(self):
         """Test that existing connections are reused."""
         manager = SSHConnectionManager()
@@ -181,7 +172,6 @@ class TestSSHConnectionManager:
             assert conn1 is conn2
             assert mock_connect.call_count == 1  # Only connected once
 
-    @pytest.mark.asyncio
     async def test_get_connection_different_hosts(self):
         """Test that different hosts get different connections."""
         manager = SSHConnectionManager()
@@ -201,7 +191,6 @@ class TestSSHConnectionManager:
 
             assert conn1 is not conn2
 
-    @pytest.mark.asyncio
     async def test_execute_remote_success(self):
         """Test successful remote command execution."""
         manager = SSHConnectionManager()
@@ -228,7 +217,6 @@ class TestSSHConnectionManager:
             assert stderr == ""
             mock_conn.run.assert_called_once()
 
-    @pytest.mark.asyncio
     async def test_execute_remote_command_failure(self):
         """Test remote command that returns non-zero exit code."""
         manager = SSHConnectionManager()
@@ -252,7 +240,6 @@ class TestSSHConnectionManager:
             assert returncode == 1
             assert "command not found" in stderr
 
-    @pytest.mark.asyncio
     async def test_execute_remote_connection_failure(self):
         """Test handling of SSH connection failures."""
         manager = SSHConnectionManager()
@@ -265,7 +252,6 @@ class TestSSHConnectionManager:
             with pytest.raises(ConnectionError, match="Failed to connect"):
                 await manager.execute_remote(["ls"], "unreachable", "testuser")
 
-    @pytest.mark.asyncio
     async def test_execute_remote_authentication_failure(self):
         """Test handling of authentication failures."""
         manager = SSHConnectionManager()
@@ -275,7 +261,6 @@ class TestSSHConnectionManager:
             with pytest.raises(ConnectionError, match="Authentication failed"):
                 await manager.execute_remote(["ls"], "testhost", "baduser")
 
-    @pytest.mark.asyncio
     async def test_execute_remote_uses_discovered_key(self):
         """Test that remote execution uses discovered SSH key."""
         manager = SSHConnectionManager()
@@ -302,7 +287,6 @@ class TestSSHConnectionManager:
             call_kwargs = mock_connect.call_args[1]
             assert call_kwargs.get("client_keys") == ["/home/user/.ssh/id_ed25519"]
 
-    @pytest.mark.asyncio
     async def test_close_connections(self):
         """Test closing all connections."""
         manager = SSHConnectionManager()

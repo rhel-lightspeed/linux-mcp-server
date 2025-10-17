@@ -1,7 +1,5 @@
 """Tests for the core MCP server."""
 
-import pytest
-
 from linux_mcp_server.server import mcp
 
 
@@ -18,7 +16,6 @@ class TestLinuxMCPServer:
         assert hasattr(mcp, "list_tools")
         assert callable(mcp.list_tools)
 
-    @pytest.mark.asyncio
     async def test_list_tools_returns_tools(self):
         """Test that list_tools returns a list of tools."""
         tools = await mcp.list_tools()
@@ -27,7 +24,6 @@ class TestLinuxMCPServer:
         assert isinstance(tools, list)
         assert len(tools) > 0
 
-    @pytest.mark.asyncio
     async def test_server_has_basic_tools(self):
         """Test that basic diagnostic tools are registered."""
         tools = await mcp.list_tools()
@@ -40,7 +36,6 @@ class TestLinuxMCPServer:
         assert "get_network_interfaces" in tool_names
         assert "list_block_devices" in tool_names
 
-    @pytest.mark.asyncio
     async def test_all_tools_have_correct_count(self):
         """Test that all 20 tools are registered."""
         tools = await mcp.list_tools()
