@@ -107,4 +107,4 @@ jobs:
           whoami
 
       - name: Run tests
-        run: pytest
+        run: uv run --locked pytest
