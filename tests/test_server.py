@@ -1,6 +1,7 @@
 """Tests for the core MCP server."""
 
 import pytest
+
 from linux_mcp_server.server import mcp
 
 

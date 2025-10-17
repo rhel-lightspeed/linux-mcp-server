@@ -4,17 +4,14 @@ import json
 import logging
 import os
 import tempfile
+
 from pathlib import Path
 from unittest.mock import patch
 
-import pytest
-
-from linux_mcp_server.logging_config import (
-    setup_logging,
-    get_log_directory,
-    JSONFormatter,
-    StructuredFormatter,
-)
+from linux_mcp_server.logging_config import get_log_directory
+from linux_mcp_server.logging_config import JSONFormatter
+from linux_mcp_server.logging_config import setup_logging
+from linux_mcp_server.logging_config import StructuredFormatter
 
 
 class TestGetLogDirectory:

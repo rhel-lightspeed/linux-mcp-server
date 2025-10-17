@@ -2,6 +2,7 @@
 
 import logging
 import sys
+
 from .logging_config import setup_logging
 from .server import main
 

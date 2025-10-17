@@ -2,8 +2,8 @@
 
 from typing import Optional
 
-from .validation import validate_line_count
 from .ssh_executor import execute_command
+from .validation import validate_line_count
 
 
 async def list_services(host: Optional[str] = None, username: Optional[str] = None) -> str:
@@ -40,7 +40,7 @@ async def list_services(host: Optional[str] = None, username: Optional[str] = No
         )
 
         if returncode_summary == 0:
-            running_count = len([l for l in stdout_summary.split("\n") if ".service" in l])
+            running_count = len([line for line in stdout_summary.split("\n") if ".service" in line])
             result.append(f"\n\nSummary: {running_count} services currently running")
 
         return "\n".join(result)

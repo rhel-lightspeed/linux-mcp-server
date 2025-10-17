@@ -1,7 +1,8 @@
 """Tests for input validation utilities."""
 
-import pytest
-from linux_mcp_server.tools.validation import validate_positive_int, validate_pid, validate_line_count
+from linux_mcp_server.tools.validation import validate_line_count
+from linux_mcp_server.tools.validation import validate_pid
+from linux_mcp_server.tools.validation import validate_positive_int
 
 
 class TestValidatePositiveInt:

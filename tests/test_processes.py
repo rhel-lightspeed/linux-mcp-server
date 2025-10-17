@@ -1,7 +1,9 @@
 """Tests for process management tools."""
 
 import os
+
 import pytest
+
 from linux_mcp_server.tools import processes
 
 

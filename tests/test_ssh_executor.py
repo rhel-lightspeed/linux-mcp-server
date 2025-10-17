@@ -1,16 +1,17 @@
 """Tests for SSH executor module."""
 
 import os
-import pytest
-from pathlib import Path
-from unittest.mock import Mock, patch, AsyncMock, MagicMock
-import asyncssh
 
-from linux_mcp_server.tools.ssh_executor import (
-    discover_ssh_key,
-    execute_command,
-    SSHConnectionManager,
-)
+from unittest.mock import AsyncMock
+from unittest.mock import Mock
+from unittest.mock import patch
+
+import asyncssh
+import pytest
+
+from linux_mcp_server.tools.ssh_executor import discover_ssh_key
+from linux_mcp_server.tools.ssh_executor import execute_command
+from linux_mcp_server.tools.ssh_executor import SSHConnectionManager
 
 
 class TestSSHKeyDiscovery:

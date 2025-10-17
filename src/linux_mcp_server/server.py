@@ -2,12 +2,19 @@
 
 import logging
 import time
+
 from typing import Optional
 
 from mcp.server.fastmcp import FastMCP
 
-from .audit import log_tool_call, log_tool_complete
-from .tools import system_info, services, processes, logs, network, storage
+from .audit import log_tool_call
+from .audit import log_tool_complete
+from .tools import logs
+from .tools import network
+from .tools import processes
+from .tools import services
+from .tools import storage
+from .tools import system_info
 
 
 logger = logging.getLogger(__name__)
@@ -434,7 +441,7 @@ async def _execute_tool(tool_name: str, handler, **kwargs):
 
 def main():
     """Run the MCP server using FastMCP."""
-    logger.info(f"Initialized linux-diagnostics v0.1.0")
+    logger.info("Initialized linux-diagnostics v0.1.0")
     logger.info("Starting FastMCP server")
 
     # Run the FastMCP server (it creates its own event loop)

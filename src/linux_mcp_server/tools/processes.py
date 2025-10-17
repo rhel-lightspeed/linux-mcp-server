@@ -1,12 +1,13 @@
 """Process management tools."""
 
-import psutil
 from datetime import datetime
 from typing import Optional
 
-from .validation import validate_pid
+import psutil
+
 from .ssh_executor import execute_command
 from .utils import format_bytes
+from .validation import validate_pid
 
 
 async def list_processes(host: Optional[str] = None, username: Optional[str] = None) -> str:
@@ -34,7 +35,7 @@ async def list_processes(host: Optional[str] = None, username: Optional[str] = N
                 if len(lines) > 101:
                     info.append("\n".join(lines[:101]))
                     info.append(f"\n\nTotal processes: {len(lines) - 1}")
-                    info.append(f"Showing: Top 100 by CPU usage")
+                    info.append("Showing: Top 100 by CPU usage")
                 else:
                     info.append(stdout)
                     info.append(f"\n\nTotal processes: {len(lines) - 1}")
@@ -89,14 +90,18 @@ async def list_processes(host: Optional[str] = None, username: Optional[str] = N
             # Add summary
             total_processes = len(list(psutil.process_iter()))
             info.append(f"\n\nTotal processes: {total_processes}")
-            info.append(f"Showing: Top 100 by CPU usage")
+            info.append("Showing: Top 100 by CPU usage")
 
             return "\n".join(info)
     except Exception as e:
         return f"Error listing processes: {str(e)}"
 
 
-async def get_process_info(pid: int, host: Optional[str] = None, username: Optional[str] = None) -> str:
+async def get_process_info(  # noqa: C901
+    pid: int,
+    host: Optional[str] = None,
+    username: Optional[str] = None,
+) -> str:
     """
     Get information about a specific process.
 
@@ -204,7 +209,7 @@ async def get_process_info(pid: int, host: Optional[str] = None, username: Optio
 
             # Resource usage
             try:
-                info.append(f"\n=== Resource Usage ===")
+                info.append("\n=== Resource Usage ===")
                 cpu_percent = proc.cpu_percent(interval=0.1)
                 info.append(f"CPU Percent: {cpu_percent}%")
 
@@ -218,7 +223,7 @@ async def get_process_info(pid: int, host: Optional[str] = None, username: Optio
             # Timing
             try:
                 create_time = datetime.fromtimestamp(proc.create_time())
-                info.append(f"\n=== Timing ===")
+                info.append("\n=== Timing ===")
                 info.append(f"Created: {create_time.strftime('%Y-%m-%d %H:%M:%S')}")
 
                 cpu_times = proc.cpu_times()

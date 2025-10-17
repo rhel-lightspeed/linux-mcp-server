@@ -1,6 +1,7 @@
 """Tests for system information tools."""
 
 import pytest
+
 from linux_mcp_server.tools import system_info
 
 

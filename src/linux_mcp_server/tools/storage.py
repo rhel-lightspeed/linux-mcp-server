@@ -1,14 +1,13 @@
 """Storage and hardware tools."""
 
-import asyncio
-import subprocess
 from pathlib import Path
 from typing import Optional
+
 import psutil
 
-from .validation import validate_positive_int
 from .ssh_executor import execute_command
 from .utils import format_bytes
+from .validation import validate_positive_int
 
 
 async def list_block_devices(host: Optional[str] = None, username: Optional[str] = None) -> str:
@@ -78,7 +77,7 @@ async def list_block_devices(host: Optional[str] = None, username: Optional[str]
         return f"Error listing block devices: {str(e)}"
 
 
-async def list_directories_by_size(
+async def list_directories_by_size(  # noqa: C901
     path: str,
     top_n: int,
     host: Optional[str] = None,
@@ -107,7 +106,6 @@ async def list_directories_by_size(
         - Graceful error handling for permission issues
     """
     import os
-    from pathlib import Path
 
     try:
         # Validate and normalize top_n parameter
@@ -167,7 +165,7 @@ async def list_directories_by_size(
         if not dir_sizes:
             # Only error if we got no output AND a bad return code
             if returncode != 0:
-                return f"Error: du command failed and returned no directory data"
+                return "Error: du command failed and returned no directory data"
             return f"No subdirectories found in: {path}"
 
         # Sort by size (descending) and take top N
@@ -211,7 +209,6 @@ async def list_directories_by_name(
         Formatted string with directory names, or error message if validation fails
     """
     import os
-    from pathlib import Path
 
     try:
         # For local execution, validate path
@@ -267,7 +264,7 @@ async def list_directories_by_name(
         return f"Error listing directories: {str(e)}"
 
 
-async def list_directories_by_modified_date(
+async def list_directories_by_modified_date(  # noqa: C901
     path: str,
     newest_first: bool = True,
     host: Optional[str] = None,
@@ -288,7 +285,7 @@ async def list_directories_by_modified_date(
         Formatted string with directory names and dates, or error message if validation fails
     """
     import os
-    from pathlib import Path
+
     from datetime import datetime
 
     try:

@@ -11,12 +11,15 @@ import os
 import shlex
 import subprocess
 import time
+
 from pathlib import Path
-from typing import Optional, Tuple
+from typing import Optional
+from typing import Tuple
 
 import asyncssh
 
-from ..audit import log_ssh_connect, log_ssh_command
+from ..audit import log_ssh_command
+from ..audit import log_ssh_connect
 
 
 logger = logging.getLogger(__name__)

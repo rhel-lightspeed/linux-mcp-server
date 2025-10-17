@@ -1,14 +1,16 @@
 """Network diagnostic tools."""
 
-import psutil
 import socket
+
 from typing import Optional
+
+import psutil
 
 from .ssh_executor import execute_command
 from .utils import format_bytes
 
 
-async def get_network_interfaces(
+async def get_network_interfaces(  # noqa: C901
     host: Optional[str] = None,
     username: Optional[str] = None,
 ) -> str:

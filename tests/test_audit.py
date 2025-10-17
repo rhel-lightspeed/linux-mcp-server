@@ -1,22 +1,14 @@
 """Tests for audit logging utilities."""
 
 import logging
-import tempfile
-import time
-from pathlib import Path
-from unittest.mock import patch
 
-import pytest
-
-from linux_mcp_server.audit import (
-    log_tool_call,
-    log_tool_complete,
-    log_ssh_connect,
-    log_ssh_command,
-    log_operation,
-    sanitize_parameters,
-    AuditContext,
-)
+from linux_mcp_server.audit import AuditContext
+from linux_mcp_server.audit import log_operation
+from linux_mcp_server.audit import log_ssh_command
+from linux_mcp_server.audit import log_ssh_connect
+from linux_mcp_server.audit import log_tool_call
+from linux_mcp_server.audit import log_tool_complete
+from linux_mcp_server.audit import sanitize_parameters
 
 
 class TestSanitizeParameters:
@@ -222,7 +214,7 @@ class TestLogSSHConnect:
         assert record.status == "success"
         # At DEBUG level, SHOULD show reused status and key path
         assert hasattr(record, "reused")
-        assert record.reused == True
+        assert record.reused
         assert hasattr(record, "key")
         assert ".ssh/id_rsa" in record.key
 

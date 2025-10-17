@@ -1,18 +1,18 @@
 """System information tools."""
 
-import asyncio
 import os
 import platform
-import subprocess
-from datetime import datetime, timedelta
+
+from datetime import datetime
 from typing import Optional
+
 import psutil
 
 from .ssh_executor import execute_command
 from .utils import format_bytes
 
 
-async def get_system_info(host: Optional[str] = None, username: Optional[str] = None) -> str:
+async def get_system_info(host: Optional[str] = None, username: Optional[str] = None) -> str:  # noqa: C901
     """
     Get basic system information.
 
@@ -134,7 +134,7 @@ async def get_system_info(host: Optional[str] = None, username: Optional[str] = 
         return f"Error gathering system information: {str(e)}"
 
 
-async def get_cpu_info(host: Optional[str] = None, username: Optional[str] = None) -> str:
+async def get_cpu_info(host: Optional[str] = None, username: Optional[str] = None) -> str:  # noqa: C901
     """
     Get CPU information.
 
@@ -233,7 +233,7 @@ async def get_cpu_info(host: Optional[str] = None, username: Optional[str] = Non
 
             # CPU usage per core
             cpu_percent = psutil.cpu_percent(interval=1, percpu=True)
-            info.append(f"\nCPU Usage per Core:")
+            info.append("\nCPU Usage per Core:")
             for i, percent in enumerate(cpu_percent):
                 info.append(f"  Core {i}: {percent}%")
 
@@ -420,7 +420,7 @@ async def get_disk_usage(host: Optional[str] = None, username: Optional[str] = N
         return f"Error gathering disk usage information: {str(e)}"
 
 
-async def get_hardware_info(host: Optional[str] = None, username: Optional[str] = None) -> str:
+async def get_hardware_info(host: Optional[str] = None, username: Optional[str] = None) -> str:  # noqa: C901
     """
     Get hardware information.
 

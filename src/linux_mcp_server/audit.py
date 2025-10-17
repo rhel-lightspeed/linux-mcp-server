@@ -6,8 +6,11 @@ that can be output in both human-readable and JSON formats.
 """
 
 import logging
-from typing import Any, Dict, Optional
+
 from contextlib import contextmanager
+from typing import Any
+from typing import Dict
+from typing import Optional
 
 
 # Sensitive field names that should be redacted in logs
