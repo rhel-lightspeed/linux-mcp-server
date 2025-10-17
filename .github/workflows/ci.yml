@@ -61,3 +61,50 @@ jobs:
 
       - name: ${{ matrix.test.step_name }}
         run: uv run --locked ${{ matrix.test.command }}
+
+  tests:
+    name: Unit - ${{ matrix.python-version }}
+    runs-on: ubuntu-latest
+
+    strategy:
+      fail-fast: true
+      matrix:
+        python-version:
+          - "3.9"
+          - "3.10"
+          - "3.11"
+          - "3.12"
+          - "3.13"
+          - "3.13t"
+          - "3.14"
+          - "3.14t"
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v5.0.0
+
+      - name: Install Python
+        uses: actions/setup-python@v6.0.0
+        with:
+          python-version-file: pyproject.toml
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v7.1.0
+        with:
+          enable-cache: true
+          prune-cache: false
+
+      - name: Install dependencies
+        run: uv sync --locked --group test
+
+      - name: "Show environment"
+        run: |
+          python -VV
+          python -m site
+          uv --version
+          env | sort
+          ls -ld $(python -c "import site; print(site.getsitepackages()[0])")
+          whoami
+
+      - name: Run tests
+        run: pytest
