@@ -44,12 +44,20 @@ linux-mcp-server = "linux_mcp_server.__main__:cli"
 dev = [
     "ipdb",
     "ipython",
+    {include-group = "lint"},
+    {include-group = "test"},
+]
+
+lint = [
     "pyright",
+    "ruff",
+]
+
+test = [
     "pytest-asyncio>=0.23.0",
     "pytest-cov>=4.1.0",
     "pytest-mock",
     "pytest>=8.0.0",
-    "ruff",
 ]
 
 [tool.hatch.build.targets.wheel]
@@ -74,6 +82,8 @@ addopts = [
     "--pdbcls", "IPython.terminal.debugger:TerminalPdb",
 ]
 asyncio_mode = "auto"
+asyncio_default_fixture_loop_scope = "session"
+pythonpath = "src"
 testpaths = ["tests"]
 
 [tool.coverage.run]

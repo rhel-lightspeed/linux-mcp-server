@@ -582,6 +582,16 @@ dev = [
     { name = "pytest-mock" },
     { name = "ruff" },
 ]
+lint = [
+    { name = "pyright" },
+    { name = "ruff" },
+]
+test = [
+    { name = "pytest" },
+    { name = "pytest-asyncio" },
+    { name = "pytest-cov" },
+    { name = "pytest-mock" },
+]
 
 [package.metadata]
 requires-dist = [
@@ -600,6 +610,16 @@ dev = [
     { name = "pytest-cov", specifier = ">=4.1.0" },
     { name = "pytest-mock" },
     { name = "ruff" },
+]
+lint = [
+    { name = "pyright" },
+    { name = "ruff" },
+]
+test = [
+    { name = "pytest", specifier = ">=8.0.0" },
+    { name = "pytest-asyncio", specifier = ">=0.23.0" },
+    { name = "pytest-cov", specifier = ">=4.1.0" },
+    { name = "pytest-mock" },
 ]
 
 [[package]]
