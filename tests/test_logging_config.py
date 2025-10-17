@@ -3,10 +3,6 @@
 import json
 import logging
 import os
-import tempfile
-
-from pathlib import Path
-from unittest.mock import patch
 
 from linux_mcp_server.logging_config import get_log_directory
 from linux_mcp_server.logging_config import JSONFormatter
@@ -23,69 +19,71 @@ class TestGetLogDirectory:
         assert log_dir.is_absolute()
         assert ".local/share/linux-mcp-server/logs" in str(log_dir)
 
-    def test_custom_log_directory(self):
+    def test_custom_log_directory(self, tmp_path, mocker):
         """Test custom log directory from environment variable."""
-        with tempfile.TemporaryDirectory() as tmpdir:
-            with patch.dict(os.environ, {"LINUX_MCP_LOG_DIR": tmpdir}):
-                log_dir = get_log_directory()
-                assert log_dir == Path(tmpdir)
+        mocker.patch.dict(os.environ, {"LINUX_MCP_LOG_DIR": str(tmp_path)})
 
-    def test_log_directory_created(self):
+        log_dir = get_log_directory()
+
+        assert log_dir == tmp_path
+
+    def test_log_directory_created(self, tmp_path, mocker):
         """Test that log directory is created if it doesn't exist."""
-        with tempfile.TemporaryDirectory() as tmpdir:
-            log_path = Path(tmpdir) / "subdir" / "logs"
-            with patch.dict(os.environ, {"LINUX_MCP_LOG_DIR": str(log_path)}):
-                log_dir = get_log_directory()
-                assert log_dir.exists()
-                assert log_dir.is_dir()
+        log_path = tmp_path / "subdir" / "logs"
+        mocker.patch.dict(os.environ, {"LINUX_MCP_LOG_DIR": str(log_path)})
+
+        log_dir = get_log_directory()
+
+        assert log_dir.exists()
+        assert log_dir.is_dir()
 
 
 class TestSetupLogging:
     """Test logging setup."""
 
-    def test_setup_creates_log_files(self):
+    def test_setup_creates_log_files(self, tmp_path, mocker):
         """Test that setup creates both text and JSON log files."""
-        with tempfile.TemporaryDirectory() as tmpdir:
-            with patch.dict(os.environ, {"LINUX_MCP_LOG_DIR": tmpdir}):
-                setup_logging()
+        mocker.patch.dict(os.environ, {"LINUX_MCP_LOG_DIR": str(tmp_path)})
 
-                # Log something
-                logger = logging.getLogger("test")
-                logger.info("Test message")
+        setup_logging()
 
-                # Check both log files exist
-                text_log = Path(tmpdir) / "server.log"
-                json_log = Path(tmpdir) / "server.json"
+        # Log something
+        logger = logging.getLogger("test")
+        logger.info("Test message")
 
-                assert text_log.exists()
-                assert json_log.exists()
+        # Check both log files exist
+        text_log = tmp_path / "server.log"
+        json_log = tmp_path / "server.json"
 
-    def test_log_level_from_environment(self):
+        assert text_log.exists()
+        assert json_log.exists()
+
+    def test_log_level_from_environment(self, tmp_path, mocker):
         """Test that log level can be set from environment variable."""
-        with tempfile.TemporaryDirectory() as tmpdir:
-            with patch.dict(
-                os.environ,
-                {
-                    "LINUX_MCP_LOG_DIR": tmpdir,
-                    "LINUX_MCP_LOG_LEVEL": "DEBUG",
-                },
-            ):
-                setup_logging()
+        mocker.patch.dict(
+            os.environ,
+            {
+                "LINUX_MCP_LOG_DIR": str(tmp_path),
+                "LINUX_MCP_LOG_LEVEL": "DEBUG",
+            },
+        )
 
-                # Root logger should be at DEBUG level
-                root_logger = logging.getLogger()
-                assert root_logger.level == logging.DEBUG
+        setup_logging()
 
-    def test_default_log_level_is_info(self):
+        # Root logger should be at DEBUG level
+        root_logger = logging.getLogger()
+        assert root_logger.level == logging.DEBUG
+
+    def test_default_log_level_is_info(self, tmp_path, mocker):
         """Test that default log level is INFO."""
-        with tempfile.TemporaryDirectory() as tmpdir:
-            with patch.dict(os.environ, {"LINUX_MCP_LOG_DIR": tmpdir}, clear=True):
-                # Clear any existing LINUX_MCP_LOG_LEVEL
-                os.environ.pop("LINUX_MCP_LOG_LEVEL", None)
-                setup_logging()
+        mocker.patch.dict(os.environ, {"LINUX_MCP_LOG_DIR": str(tmp_path)}, clear=True)
 
-                root_logger = logging.getLogger()
-                assert root_logger.level == logging.INFO
+        # Clear any existing LINUX_MCP_LOG_LEVEL
+        os.environ.pop("LINUX_MCP_LOG_LEVEL", None)
+        setup_logging()
+
+        root_logger = logging.getLogger()
+        assert root_logger.level == logging.INFO
 
 
 class TestStructuredFormatter:
