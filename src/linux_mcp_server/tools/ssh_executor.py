@@ -77,7 +77,9 @@ class SSHConnectionManager:
     connections to the same hosts.
     """
 
-    _instance = None
+    _instance: t.Optional["SSHConnectionManager"] = None
+    _connections: dict[str, asyncssh.SSHClientConnection]
+    _ssh_key: t.Optional[str]
 
     def __new__(cls):
         """Implement singleton pattern."""
@@ -186,8 +188,12 @@ class SSHConnectionManager:
             result = await conn.run(cmd_str, check=False)
 
             return_code = result.exit_status if result.exit_status is not None else 0
-            stdout = result.stdout if result.stdout else ""
-            stderr = result.stderr if result.stderr else ""
+
+            # Ensure stdout and stderr are strings (asyncssh can return bytes or str)
+            stdout_raw = result.stdout if result.stdout else ""
+            stderr_raw = result.stderr if result.stderr else ""
+            stdout = stdout_raw if isinstance(stdout_raw, str) else stdout_raw.decode("utf-8", errors="replace")
+            stderr = stderr_raw if isinstance(stderr_raw, str) else stderr_raw.decode("utf-8", errors="replace")
 
             # Calculate duration
             duration = time.time() - start_time
