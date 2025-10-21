@@ -12,18 +12,17 @@ data:
     # Define remote RHEL hosts that can be managed via SSH
     
     hosts:
-      # Example: Add your RHEL instances here
-      # - name: "rhel-instance-01"
-      #   host: "rhel-instance-01.example.com"
-      #   username: "admin"
-      #   description: "RHEL 9 instance for diagnostics"
-      #   ssh_key_path: "/app/ssh-keys/id_ed25519"
-      #   tags:
-      #     - production
-      #     - rhel9
+      - name: "rhel-bastion"
+        host: "bastion.r42dl.sandbox5417.opentlc.com"
+        username: "student"
+        description: "RHEL 9.3 bastion host for testing"
+        ssh_key_path: "/app/ssh-keys/id_rsa"
+        tags:
+          - test
+          - rhel9
     
     ssh_config:
-      default_key_path: "/app/ssh-keys/id_ed25519"
+      default_key_path: "/app/ssh-keys/id_rsa"
       connection_timeout: 30
       keep_alive: true
       keep_alive_interval: 30

@@ -1,4 +1,4 @@
-name: Build and Push Linux MCP Server to GHCR
+name: Build and Push to GHCR
 
 on:
   push:
@@ -19,10 +19,6 @@ permissions:
   contents: read
   packages: write
 
-env:
-  REGISTRY: ghcr.io
-  IMAGE_NAME: ${{ github.repository }}
-
 jobs:
   build-and-push:
     runs-on: ubuntu-latest
@@ -31,77 +27,29 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4
 
-      - name: Set up image tags
-        id: meta
-        run: |
-          # Generate tags: latest, git SHA, and version if available
-          IMAGE_BASE="${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}"
-          TAGS="${IMAGE_BASE}:latest,${IMAGE_BASE}:${{ github.sha }}"
-          
-          # If this is a version tag (v1.2.3), add semantic version tags
-          if [[ "${{ github.ref }}" =~ ^refs/tags/v[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
-            VERSION=${GITHUB_REF#refs/tags/v}
-            TAGS="${TAGS},${IMAGE_BASE}:${VERSION}"
-            TAGS="${TAGS},${IMAGE_BASE}:v${VERSION}"
-          fi
-          
-          echo "tags=${TAGS}" >> $GITHUB_OUTPUT
-          echo "image_base=${IMAGE_BASE}" >> $GITHUB_OUTPUT
-
-      - name: Log in to GitHub Container Registry
+      - name: Log in to GHCR
         uses: docker/login-action@v3
         with:
-          registry: ${{ env.REGISTRY }}
-          username: ${{ github.actor }}
+          registry: ghcr.io
+          username: rrbanda
           password: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Build and push container image
         run: |
-          # Build the image
-          IMAGE_TAGS="${{ steps.meta.outputs.tags }}"
+          IMAGE_NAME=ghcr.io/rrbanda/linux-mcp-server:latest
+          IMAGE_SHA=ghcr.io/rrbanda/linux-mcp-server:${{ github.sha }}
           
-          # Split tags into array
-          IFS=',' read -ra TAG_ARRAY <<< "$IMAGE_TAGS"
+          echo "🔨 Building image: $IMAGE_NAME"
+          podman build -f Dockerfile -t $IMAGE_NAME -t $IMAGE_SHA .
           
-          # Build with first tag
-          echo "🔨 Building image with tag: ${TAG_ARRAY[0]}"
-          podman build \
-            --file Dockerfile \
-            --tag "${TAG_ARRAY[0]}" \
-            --label "org.opencontainers.image.source=https://github.com/${{ github.repository }}" \
-            --label "org.opencontainers.image.revision=${{ github.sha }}" \
-            --label "org.opencontainers.image.created=$(date -u +'%Y-%m-%dT%H:%M:%SZ')" \
-            --label "org.opencontainers.image.title=Linux MCP Server" \
-            --label "org.opencontainers.image.description=MCP server for read-only Linux system administration and diagnostics on RHEL-based systems" \
-            --label "org.opencontainers.image.vendor=RHEL Lightspeed" \
-            .
+          echo "📤 Pushing images to GHCR..."
+          podman push $IMAGE_NAME
+          podman push $IMAGE_SHA
           
-          # Tag with additional tags
-          for tag in "${TAG_ARRAY[@]:1}"; do
-            echo "🏷️  Tagging image: ${tag}"
-            podman tag "${TAG_ARRAY[0]}" "${tag}"
-          done
-          
-          # Push all tags
-          for tag in "${TAG_ARRAY[@]}"; do
-            echo "📤 Pushing image: ${tag}"
-            podman push "${tag}"
-          done
-
-      - name: Output image details
-        run: |
           echo "✅ Successfully built and pushed Linux MCP Server images:"
-          echo "${{ steps.meta.outputs.tags }}" | tr ',' '\n' | while read tag; do
-            echo "  📦 ${tag}"
-          done
-          
+          echo "  📦 $IMAGE_NAME"
+          echo "  📦 $IMAGE_SHA"
           echo ""
-          echo "🚀 To pull the image:"
-          echo "  podman pull ${{ steps.meta.outputs.image_base }}:latest"
-          echo ""
-          echo "🔗 View on GHCR:"
-          echo "  https://github.com/${{ github.repository }}/pkgs/container/$(basename ${{ github.repository }})"
-          echo ""
-          echo "🐳 To run the container:"
-          echo "  podman run -d -p 8000:8000 -v ./hosts.yaml:/app/config/hosts.yaml:ro -v ~/.ssh/id_rsa:/app/ssh-keys/id_rsa:ro ${{ steps.meta.outputs.image_base }}:latest"
+          echo "🔗 View on GHCR: https://github.com/rrbanda/linux-mcp-server/pkgs/container/linux-mcp-server"
+          echo "⚙️  Make image public: https://github.com/rrbanda/linux-mcp-server/pkgs/container/linux-mcp-server/settings"
 
