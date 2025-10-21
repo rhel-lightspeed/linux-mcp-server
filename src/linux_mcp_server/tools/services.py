@@ -75,7 +75,7 @@ async def get_service_status(
             service_name = f"{service_name}.service"
 
         # Run systemctl status
-        returncode, stdout, stderr = await execute_command(
+        _, stdout, stderr = await execute_command(
             ["systemctl", "status", service_name, "--no-pager", "--full"],
             host=host,
             username=username,

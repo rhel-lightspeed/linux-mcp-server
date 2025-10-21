@@ -27,7 +27,7 @@ async def list_block_devices(
     """
     try:
         # Try using lsblk first (most readable)
-        returncode, stdout, stderr = await execute_command(
+        returncode, stdout, _ = await execute_command(
             ["lsblk", "-o", "NAME,SIZE,TYPE,MOUNTPOINT,FSTYPE,MODEL", "--no-pager"],
             host=host,
             username=username,
@@ -83,7 +83,7 @@ async def list_block_devices(
 
 async def list_directories_by_size(  # noqa: C901
     path: str,
-    top_n: int,
+    top_n: t.Union[int, float],
     host: t.Optional[str] = None,
     username: t.Optional[str] = None,
 ) -> str:
