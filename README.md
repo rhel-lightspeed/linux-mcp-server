@@ -549,6 +549,28 @@ ssh -i /app/ssh-keys/id_rsa user@rhel-host.example.com
 
 **Documentation:** See [OPENSHIFT.md](OPENSHIFT.md) for complete deployment guide and advanced configuration.
 
+#### Visual Testing with MCP Inspector
+
+Deploy the [MCP Inspector](https://github.com/modelcontextprotocol/inspector) alongside the Linux MCP Server for visual testing and debugging:
+
+```bash
+# Deploy MCP Inspector
+oc apply -f openshift/inspector-deployment.yaml
+oc apply -f openshift/inspector-service.yaml
+oc apply -f openshift/inspector-route.yaml
+
+# Get Inspector URL
+oc get route mcp-inspector -n rhel-mcp -o jsonpath='{.spec.host}'
+```
+
+**Access the Inspector UI:**
+1. Open the Inspector URL in your browser
+2. Select **"Streamable HTTP"** transport
+3. Enter MCP Server URL: `https://linux-mcp-server-rhel-mcp.apps.prod.rhoai.rh-aiservices-bu.com/mcp`
+4. Click **"Connect"** and start testing!
+
+**Documentation:** See [MCP_INSPECTOR.md](MCP_INSPECTOR.md) for complete setup and usage guide.
+
 ## Development
 
 ### Running Tests

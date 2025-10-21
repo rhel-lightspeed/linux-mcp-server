@@ -1,0 +1,27 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: mcp-inspector
+  namespace: rhel-mcp
+  labels:
+    app: mcp-inspector
+    app.kubernetes.io/name: mcp-inspector
+    app.kubernetes.io/component: ui
+spec:
+  type: ClusterIP
+  selector:
+    app: mcp-inspector
+  ports:
+  - name: http
+    port: 6274
+    targetPort: 6274
+    protocol: TCP
+  - name: websocket
+    port: 6277
+    targetPort: 6277
+    protocol: TCP
+  sessionAffinity: ClientIP
+  sessionAffinityConfig:
+    clientIP:
+      timeoutSeconds: 10800
+

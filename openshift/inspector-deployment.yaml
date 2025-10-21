@@ -1,0 +1,91 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: mcp-inspector
+  namespace: rhel-mcp
+  labels:
+    app: mcp-inspector
+    app.kubernetes.io/name: mcp-inspector
+    app.kubernetes.io/component: ui
+    app.kubernetes.io/part-of: mcp-diagnostics
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: mcp-inspector
+  template:
+    metadata:
+      labels:
+        app: mcp-inspector
+        app.kubernetes.io/name: mcp-inspector
+        app.kubernetes.io/component: ui
+    spec:
+      securityContext:
+        runAsNonRoot: true
+        seccompProfile:
+          type: RuntimeDefault
+      
+      containers:
+      - name: inspector
+        image: ghcr.io/modelcontextprotocol/inspector:latest
+        imagePullPolicy: Always
+        
+        ports:
+        - name: http
+          containerPort: 6274
+          protocol: TCP
+        - name: websocket
+          containerPort: 6277
+          protocol: TCP
+        
+        env:
+        - name: HOST
+          value: "0.0.0.0"
+        - name: PORT
+          value: "6274"
+        - name: PROXY_PORT
+          value: "6277"
+        - name: MCP_PROXY_FULL_ADDRESS
+          value: "https://mcp-inspector-proxy-rhel-mcp.apps.prod.rhoai.rh-aiservices-bu.com"
+        # Disable auth for OpenShift (optional - remove if you want authentication)
+        - name: DANGEROUSLY_OMIT_AUTH
+          value: "true"
+        
+        # Resource limits
+        resources:
+          limits:
+            cpu: "500m"
+            memory: 512Mi
+          requests:
+            cpu: 100m
+            memory: 128Mi
+        
+        # Security context
+        securityContext:
+          allowPrivilegeEscalation: false
+          runAsNonRoot: true
+          capabilities:
+            drop:
+            - ALL
+        
+        # Liveness probe
+        livenessProbe:
+          tcpSocket:
+            port: 6274
+          initialDelaySeconds: 10
+          periodSeconds: 30
+          timeoutSeconds: 5
+          failureThreshold: 3
+        
+        # Readiness probe
+        readinessProbe:
+          tcpSocket:
+            port: 6274
+          initialDelaySeconds: 5
+          periodSeconds: 10
+          timeoutSeconds: 3
+          failureThreshold: 3
+      
+      restartPolicy: Always
+      dnsPolicy: ClusterFirst
+
