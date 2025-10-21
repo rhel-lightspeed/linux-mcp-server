@@ -10,6 +10,8 @@ metadata:
     app.kubernetes.io/part-of: mcp-diagnostics
 spec:
   replicas: 1
+  strategy:
+    type: Recreate  # Use Recreate strategy to avoid Multi-Attach errors with RWO PVC
   selector:
     matchLabels:
       app: linux-mcp-server
@@ -44,13 +46,15 @@ spec:
         
         env:
         - name: LINUX_MCP_TRANSPORT
-          value: "sse"
+          value: "streamable-http"
         - name: LINUX_MCP_HOST
           value: "0.0.0.0"
         - name: LINUX_MCP_PORT
           value: "8000"
         - name: LINUX_MCP_CONFIG_FILE
           value: "/app/config/hosts.yaml"
+        - name: LINUX_MCP_SSH_KEY_PATH
+          value: "/app/ssh-keys/id_rsa"
         - name: LINUX_MCP_LOG_DIR
           value: "/app/logs"
         - name: LINUX_MCP_LOG_LEVEL
@@ -69,7 +73,7 @@ spec:
         securityContext:
           allowPrivilegeEscalation: false
           runAsNonRoot: true
-          runAsUser: 1001
+          # runAsUser is not specified - let OpenShift assign from its UID range
           capabilities:
             drop:
             - ALL
@@ -77,10 +81,8 @@ spec:
         
         # Liveness probe - is the container alive?
         livenessProbe:
-          httpGet:
-            path: /health
+          tcpSocket:
             port: 8000
-            scheme: HTTP
           initialDelaySeconds: 30
           periodSeconds: 30
           timeoutSeconds: 5
@@ -89,10 +91,8 @@ spec:
         
         # Readiness probe - is the container ready to serve traffic?
         readinessProbe:
-          httpGet:
-            path: /health
+          tcpSocket:
             port: 8000
-            scheme: HTTP
           initialDelaySeconds: 10
           periodSeconds: 10
           timeoutSeconds: 5
@@ -101,10 +101,8 @@ spec:
         
         # Startup probe - has the container finished starting?
         startupProbe:
-          httpGet:
-            path: /health
+          tcpSocket:
             port: 8000
-            scheme: HTTP
           initialDelaySeconds: 5
           periodSeconds: 5
           timeoutSeconds: 3
