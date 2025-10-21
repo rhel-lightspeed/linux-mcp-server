@@ -1,7 +1,7 @@
-"""Common utility functions for Linux MCP tools."""
+import typing as t
 
 
-def format_bytes(bytes_value: int) -> str:
+def format_bytes(bytes_value: t.Union[int, float]) -> str:
     """
     Format bytes into human-readable format.
 
@@ -19,8 +19,11 @@ def format_bytes(bytes_value: int) -> str:
         >>> format_bytes(1073741824)
         '1.0GB'
     """
+    value = float(bytes_value)
     for unit in ["B", "KB", "MB", "GB", "TB"]:
-        if bytes_value < 1024.0:
-            return f"{bytes_value:.1f}{unit}"
-        bytes_value /= 1024.0
-    return f"{bytes_value:.1f}PB"
+        if value < 1024.0:
+            return f"{value:.1f}{unit}"
+
+        value /= 1024.0
+
+    return f"{value:.1f}PB"

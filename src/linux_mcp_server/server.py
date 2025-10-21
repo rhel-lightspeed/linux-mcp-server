@@ -2,8 +2,7 @@
 
 import logging
 import time
-
-from typing import Optional
+import typing as t
 
 from mcp.server.fastmcp import FastMCP
 
@@ -26,7 +25,7 @@ mcp = FastMCP("linux-diagnostics")
 
 # System Information Tools
 @mcp.tool()
-async def get_system_info(host: Optional[str] = None, username: Optional[str] = None) -> str:
+async def get_system_info(host: t.Optional[str] = None, username: t.Optional[str] = None) -> str:
     """Get basic system information including OS version, kernel, hostname, and uptime.
 
     Args:
@@ -42,7 +41,7 @@ async def get_system_info(host: Optional[str] = None, username: Optional[str] = 
 
 
 @mcp.tool()
-async def get_cpu_info(host: Optional[str] = None, username: Optional[str] = None) -> str:
+async def get_cpu_info(host: t.Optional[str] = None, username: t.Optional[str] = None) -> str:
     """Get CPU information and load averages.
 
     Args:
@@ -58,7 +57,7 @@ async def get_cpu_info(host: Optional[str] = None, username: Optional[str] = Non
 
 
 @mcp.tool()
-async def get_memory_info(host: Optional[str] = None, username: Optional[str] = None) -> str:
+async def get_memory_info(host: t.Optional[str] = None, username: t.Optional[str] = None) -> str:
     """Get memory usage including RAM and swap details.
 
     Args:
@@ -74,7 +73,7 @@ async def get_memory_info(host: Optional[str] = None, username: Optional[str] = 
 
 
 @mcp.tool()
-async def get_disk_usage(host: Optional[str] = None, username: Optional[str] = None) -> str:
+async def get_disk_usage(host: t.Optional[str] = None, username: t.Optional[str] = None) -> str:
     """Get filesystem usage and mount points.
 
     Args:
@@ -90,7 +89,7 @@ async def get_disk_usage(host: Optional[str] = None, username: Optional[str] = N
 
 
 @mcp.tool()
-async def get_hardware_info(host: Optional[str] = None, username: Optional[str] = None) -> str:
+async def get_hardware_info(host: t.Optional[str] = None, username: t.Optional[str] = None) -> str:
     """Get hardware information including CPU architecture, PCI devices, USB devices, and memory hardware.
 
     Args:
@@ -107,7 +106,7 @@ async def get_hardware_info(host: Optional[str] = None, username: Optional[str] 
 
 # Service Management Tools
 @mcp.tool()
-async def list_services(host: Optional[str] = None, username: Optional[str] = None) -> str:
+async def list_services(host: t.Optional[str] = None, username: t.Optional[str] = None) -> str:
     """List all systemd services with their current status.
 
     Args:
@@ -123,7 +122,7 @@ async def list_services(host: Optional[str] = None, username: Optional[str] = No
 
 
 @mcp.tool()
-async def get_service_status(service_name: str, host: Optional[str] = None, username: Optional[str] = None) -> str:
+async def get_service_status(service_name: str, host: t.Optional[str] = None, username: t.Optional[str] = None) -> str:
     """Get detailed status of a specific systemd service.
 
     Args:
@@ -142,7 +141,7 @@ async def get_service_status(service_name: str, host: Optional[str] = None, user
 
 @mcp.tool()
 async def get_service_logs(
-    service_name: str, lines: int = 50, host: Optional[str] = None, username: Optional[str] = None
+    service_name: str, lines: int = 50, host: t.Optional[str] = None, username: t.Optional[str] = None
 ) -> str:
     """Get recent logs for a specific systemd service.
 
@@ -164,7 +163,7 @@ async def get_service_logs(
 
 # Process Management Tools
 @mcp.tool()
-async def list_processes(host: Optional[str] = None, username: Optional[str] = None) -> str:
+async def list_processes(host: t.Optional[str] = None, username: t.Optional[str] = None) -> str:
     """List running processes with CPU and memory usage.
 
     Args:
@@ -182,8 +181,8 @@ async def list_processes(host: Optional[str] = None, username: Optional[str] = N
 @mcp.tool()
 async def get_process_info(
     pid: int,
-    host: Optional[str] = None,
-    username: Optional[str] = None,
+    host: t.Optional[str] = None,
+    username: t.Optional[str] = None,
 ) -> str:
     """Get detailed information about a specific process.
 
@@ -204,12 +203,12 @@ async def get_process_info(
 # Log and Audit Tools
 @mcp.tool()
 async def get_journal_logs(
-    unit: Optional[str] = None,
-    priority: Optional[str] = None,
-    since: Optional[str] = None,
+    unit: t.Optional[str] = None,
+    priority: t.Optional[str] = None,
+    since: t.Optional[str] = None,
     lines: int = 100,
-    host: Optional[str] = None,
-    username: Optional[str] = None,
+    host: t.Optional[str] = None,
+    username: t.Optional[str] = None,
 ) -> str:
     """Query systemd journal logs with optional filters.
 
@@ -234,7 +233,7 @@ async def get_journal_logs(
 
 
 @mcp.tool()
-async def get_audit_logs(lines: int = 100, host: Optional[str] = None, username: Optional[str] = None) -> str:
+async def get_audit_logs(lines: int = 100, host: t.Optional[str] = None, username: t.Optional[str] = None) -> str:
     """Get audit logs if available.
 
     Args:
@@ -253,7 +252,7 @@ async def get_audit_logs(lines: int = 100, host: Optional[str] = None, username:
 
 @mcp.tool()
 async def read_log_file(
-    log_path: str, lines: int = 100, host: Optional[str] = None, username: Optional[str] = None
+    log_path: str, lines: int = 100, host: t.Optional[str] = None, username: t.Optional[str] = None
 ) -> str:
     """Read a specific log file (whitelist-controlled via LINUX_MCP_ALLOWED_LOG_PATHS).
 
@@ -275,7 +274,7 @@ async def read_log_file(
 
 # Network Tools
 @mcp.tool()
-async def get_network_interfaces(host: Optional[str] = None, username: Optional[str] = None) -> str:
+async def get_network_interfaces(host: t.Optional[str] = None, username: t.Optional[str] = None) -> str:
     """Get network interface information including IP addresses.
 
     Args:
@@ -291,7 +290,7 @@ async def get_network_interfaces(host: Optional[str] = None, username: Optional[
 
 
 @mcp.tool()
-async def get_network_connections(host: Optional[str] = None, username: Optional[str] = None) -> str:
+async def get_network_connections(host: t.Optional[str] = None, username: t.Optional[str] = None) -> str:
     """Get active network connections.
 
     Args:
@@ -307,7 +306,7 @@ async def get_network_connections(host: Optional[str] = None, username: Optional
 
 
 @mcp.tool()
-async def get_listening_ports(host: Optional[str] = None, username: Optional[str] = None) -> str:
+async def get_listening_ports(host: t.Optional[str] = None, username: t.Optional[str] = None) -> str:
     """Get ports that are listening on the system.
 
     Args:
@@ -324,7 +323,7 @@ async def get_listening_ports(host: Optional[str] = None, username: Optional[str
 
 # Storage Tools
 @mcp.tool()
-async def list_block_devices(host: Optional[str] = None, username: Optional[str] = None) -> str:
+async def list_block_devices(host: t.Optional[str] = None, username: t.Optional[str] = None) -> str:
     """List block devices and partitions.
 
     Args:
@@ -343,8 +342,8 @@ async def list_block_devices(host: Optional[str] = None, username: Optional[str]
 async def list_directories_by_size(
     path: str,
     top_n: int,
-    host: Optional[str] = None,
-    username: Optional[str] = None,
+    host: t.Optional[str] = None,
+    username: t.Optional[str] = None,
 ) -> str:
     """List directories sorted by size (largest first). Uses efficient Linux du command.
 
@@ -368,8 +367,8 @@ async def list_directories_by_size(
 async def list_directories_by_name(
     path: str,
     reverse: bool = False,
-    host: Optional[str] = None,
-    username: Optional[str] = None,
+    host: t.Optional[str] = None,
+    username: t.Optional[str] = None,
 ) -> str:
     """List directories sorted alphabetically by name. Uses efficient Linux find command.
 
@@ -393,8 +392,8 @@ async def list_directories_by_name(
 async def list_directories_by_modified_date(
     path: str,
     newest_first: bool = True,
-    host: Optional[str] = None,
-    username: Optional[str] = None,
+    host: t.Optional[str] = None,
+    username: t.Optional[str] = None,
 ) -> str:
     """List directories sorted by modification date. Uses efficient Linux find command.
 

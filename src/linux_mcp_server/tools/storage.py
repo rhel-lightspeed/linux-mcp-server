@@ -1,7 +1,8 @@
 """Storage and hardware tools."""
 
+import typing as t
+
 from pathlib import Path
-from typing import Optional
 
 import psutil
 
@@ -10,7 +11,10 @@ from .utils import format_bytes
 from .validation import validate_positive_int
 
 
-async def list_block_devices(host: Optional[str] = None, username: Optional[str] = None) -> str:
+async def list_block_devices(
+    host: t.Optional[str] = None,
+    username: t.Optional[str] = None,
+) -> str:
     """
     List block devices.
 
@@ -23,7 +27,7 @@ async def list_block_devices(host: Optional[str] = None, username: Optional[str]
     """
     try:
         # Try using lsblk first (most readable)
-        returncode, stdout, stderr = await execute_command(
+        returncode, stdout, _ = await execute_command(
             ["lsblk", "-o", "NAME,SIZE,TYPE,MOUNTPOINT,FSTYPE,MODEL", "--no-pager"],
             host=host,
             username=username,
@@ -79,9 +83,9 @@ async def list_block_devices(host: Optional[str] = None, username: Optional[str]
 
 async def list_directories_by_size(  # noqa: C901
     path: str,
-    top_n: int,
-    host: Optional[str] = None,
-    username: Optional[str] = None,
+    top_n: t.Union[int, float],
+    host: t.Optional[str] = None,
+    username: t.Optional[str] = None,
 ) -> str:
     """
     List directories under a specified path sorted by size (largest first).
@@ -109,7 +113,7 @@ async def list_directories_by_size(  # noqa: C901
 
     try:
         # Validate and normalize top_n parameter
-        top_n, error = validate_positive_int(
+        validated_top_n, error = validate_positive_int(
             top_n,
             param_name="top_n",
             min_value=1,
@@ -117,6 +121,9 @@ async def list_directories_by_size(  # noqa: C901
         )
         if error:
             return error
+
+        if validated_top_n is None:
+            return "Invalid top_n value"
 
         # For local execution, validate path
         if not host:
@@ -170,7 +177,7 @@ async def list_directories_by_size(  # noqa: C901
 
         # Sort by size (descending) and take top N
         dir_sizes.sort(key=lambda x: x[1], reverse=True)
-        top_dirs = dir_sizes[:top_n]
+        top_dirs = dir_sizes[:validated_top_n]
 
         # Format output
         result = []
@@ -191,8 +198,8 @@ async def list_directories_by_size(  # noqa: C901
 async def list_directories_by_name(
     path: str,
     reverse: bool = False,
-    host: Optional[str] = None,
-    username: Optional[str] = None,
+    host: t.Optional[str] = None,
+    username: t.Optional[str] = None,
 ) -> str:
     """
     List directories under a specified path sorted by name.
@@ -267,8 +274,8 @@ async def list_directories_by_name(
 async def list_directories_by_modified_date(  # noqa: C901
     path: str,
     newest_first: bool = True,
-    host: Optional[str] = None,
-    username: Optional[str] = None,
+    host: t.Optional[str] = None,
+    username: t.Optional[str] = None,
 ) -> str:
     """
     List directories under a specified path sorted by modification date.

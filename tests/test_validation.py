@@ -42,7 +42,7 @@ class TestValidatePositiveInt:
 
     def test_string_fails(self):
         """Test that string fails validation."""
-        result, error = validate_positive_int("123")
+        result, error = validate_positive_int("123")  # pyright: ignore[reportArgumentType]
         assert result is None
         assert error is not None
         assert "must be a number" in error.lower()
@@ -64,7 +64,7 @@ class TestValidatePositiveInt:
         """Test that custom parameter name appears in error message."""
         result, error = validate_positive_int(-1, param_name="top_n")
         assert result is None
-        assert "top_n" in error
+        assert "top_n" in error  # pyright: ignore[reportOperatorIssue]
 
     def test_min_value_zero(self):
         """Test with min_value of 0 (allowing zero)."""

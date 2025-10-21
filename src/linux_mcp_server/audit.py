@@ -6,11 +6,9 @@ that can be output in both human-readable and JSON formats.
 """
 
 import logging
+import typing as t
 
 from contextlib import contextmanager
-from typing import Any
-from typing import Dict
-from typing import Optional
 
 
 # Sensitive field names that should be redacted in logs
@@ -29,7 +27,7 @@ SENSITIVE_FIELDS = {
 }
 
 
-def sanitize_parameters(params: Dict[str, Any]) -> Dict[str, Any]:
+def sanitize_parameters(params: dict[str, t.Any]) -> dict[str, t.Any]:
     """
     Sanitize parameters by redacting sensitive fields.
 
@@ -89,7 +87,7 @@ def AuditContext(**extra_fields):
     yield adapter
 
 
-def log_tool_call(tool_name: str, parameters: Dict[str, Any]):
+def log_tool_call(tool_name: str, parameters: dict[str, t.Any]):
     """
     Log a tool invocation.
 
@@ -128,7 +126,12 @@ def log_tool_call(tool_name: str, parameters: Dict[str, Any]):
     logger.info(message, extra=extra)
 
 
-def log_tool_complete(tool_name: str, status: str, duration: float, error: Optional[str] = None):
+def log_tool_complete(
+    tool_name: str,
+    status: str,
+    duration: float,
+    error: t.Optional[str] = None,
+):
     """
     Log tool completion.
 
@@ -163,8 +166,8 @@ def log_ssh_connect(
     username: str,
     status: str,
     reused: bool = False,
-    key_path: Optional[str] = None,
-    error: Optional[str] = None,
+    key_path: t.Optional[str] = None,
+    error: t.Optional[str] = None,
 ):
     """
     Log SSH connection event.
@@ -199,7 +202,7 @@ def log_ssh_connect(
         # At DEBUG level, add more details
         if logger.isEnabledFor(logging.DEBUG):
             if reused is not None:
-                extra["reused"] = reused
+                extra["reused"] = str(reused)
             if key_path:
                 extra["key"] = key_path
 
@@ -224,7 +227,12 @@ def log_ssh_connect(
         logger.warning(message, extra=extra)
 
 
-def log_ssh_command(command: str, host: str, exit_code: int, duration: Optional[float] = None):
+def log_ssh_command(
+    command: str,
+    host: str,
+    exit_code: int,
+    duration: t.Optional[float] = None,
+):
     """
     Log SSH command execution.
 

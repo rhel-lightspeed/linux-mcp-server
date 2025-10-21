@@ -85,7 +85,7 @@ When adding a new diagnostic tool:
 1. **Create the tool function in appropriate module:**
    ```python
    # src/linux_mcp_server/tools/my_tool.py
-   from typing import Optional
+   import typing as t Optional
    from .ssh_executor import execute_command
 
    async def my_diagnostic_function(

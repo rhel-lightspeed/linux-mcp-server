@@ -11,10 +11,9 @@ import os
 import shlex
 import subprocess
 import time
+import typing as t
 
 from pathlib import Path
-from typing import Optional
-from typing import Tuple
 
 import asyncssh
 
@@ -25,7 +24,7 @@ from ..audit import log_ssh_connect
 logger = logging.getLogger(__name__)
 
 
-def discover_ssh_key() -> Optional[str]:
+def discover_ssh_key() -> t.Optional[str]:
     """
     Discover SSH private key for authentication.
 
@@ -78,7 +77,9 @@ class SSHConnectionManager:
     connections to the same hosts.
     """
 
-    _instance = None
+    _instance: t.Optional["SSHConnectionManager"] = None
+    _connections: dict[str, asyncssh.SSHClientConnection]
+    _ssh_key: t.Optional[str]
 
     def __new__(cls):
         """Implement singleton pattern."""
@@ -159,7 +160,7 @@ class SSHConnectionManager:
         command: list[str],
         host: str,
         username: str,
-    ) -> Tuple[int, str, str]:
+    ) -> tuple[int, str, str]:
         """
         Execute a command on a remote host via SSH.
 
@@ -187,8 +188,12 @@ class SSHConnectionManager:
             result = await conn.run(cmd_str, check=False)
 
             return_code = result.exit_status if result.exit_status is not None else 0
-            stdout = result.stdout if result.stdout else ""
-            stderr = result.stderr if result.stderr else ""
+
+            # Ensure stdout and stderr are strings (asyncssh can return bytes or str)
+            stdout_raw = result.stdout if result.stdout else ""
+            stderr_raw = result.stderr if result.stderr else ""
+            stdout = stdout_raw if isinstance(stdout_raw, str) else stdout_raw.decode("utf-8", errors="replace")
+            stderr = stderr_raw if isinstance(stderr_raw, str) else stderr_raw.decode("utf-8", errors="replace")
 
             # Calculate duration
             duration = time.time() - start_time
@@ -235,10 +240,10 @@ _connection_manager = SSHConnectionManager()
 
 async def execute_command(
     command: list[str],
-    host: Optional[str] = None,
-    username: Optional[str] = None,
+    host: t.Optional[str] = None,
+    username: t.Optional[str] = None,
     **kwargs,
-) -> Tuple[int, str, str]:
+) -> tuple[int, str, str]:
     """
     Execute a command locally or remotely.
 
@@ -286,7 +291,7 @@ async def execute_command(
     return await _execute_local(command)
 
 
-async def _execute_local(command: list[str]) -> Tuple[int, str, str]:
+async def _execute_local(command: list[str]) -> tuple[int, str, str]:
     """
     Execute a command locally using subprocess.
 

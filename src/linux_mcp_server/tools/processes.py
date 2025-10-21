@@ -1,7 +1,8 @@
 """Process management tools."""
 
+import typing as t
+
 from datetime import datetime
-from typing import Optional
 
 import psutil
 
@@ -10,7 +11,10 @@ from .utils import format_bytes
 from .validation import validate_pid
 
 
-async def list_processes(host: Optional[str] = None, username: Optional[str] = None) -> str:
+async def list_processes(
+    host: t.Optional[str] = None,
+    username: t.Optional[str] = None,
+) -> str:
     """
     List running processes.
 
@@ -99,8 +103,8 @@ async def list_processes(host: Optional[str] = None, username: Optional[str] = N
 
 async def get_process_info(  # noqa: C901
     pid: int,
-    host: Optional[str] = None,
-    username: Optional[str] = None,
+    host: t.Optional[str] = None,
+    username: t.Optional[str] = None,
 ) -> str:
     """
     Get information about a specific process.
@@ -113,31 +117,34 @@ async def get_process_info(  # noqa: C901
     Returns:
         Formatted string with process information
     """
-    try:
-        # Validate PID (accepts floats from LLMs)
-        pid, error = validate_pid(pid)
-        if error:
-            return error
+    # Validate PID (accepts floats from LLMs)
+    validated_pid, error = validate_pid(pid)
+    if error:
+        return error
 
+    if validated_pid is None:
+        return "Invalid PID"
+
+    try:
         if host:
             # Remote execution - use ps command
             returncode, stdout, _ = await execute_command(
-                ["ps", "-p", str(pid), "-o", "pid,user,stat,pcpu,pmem,vsz,rss,etime,comm,args"],
+                ["ps", "-p", str(validated_pid), "-o", "pid,user,stat,pcpu,pmem,vsz,rss,etime,comm,args"],
                 host=host,
                 username=username,
             )
 
             if returncode != 0:
-                return f"Process with PID {pid} does not exist on remote host."
+                return f"Process with PID {validated_pid} does not exist on remote host."
 
             if stdout:
                 info = []
-                info.append(f"=== Process Information for PID {pid} ===\n")
+                info.append(f"=== Process Information for PID {validated_pid} ===\n")
                 info.append(stdout)
 
                 # Try to get more details with /proc
                 returncode, stdout, _ = await execute_command(
-                    ["cat", f"/proc/{pid}/status"],
+                    ["cat", f"/proc/{validated_pid}/status"],
                     host=host,
                     username=username,
                 )
@@ -162,17 +169,17 @@ async def get_process_info(  # noqa: C901
 
                 return "\n".join(info)
             else:
-                return f"Process with PID {pid} does not exist on remote host."
+                return f"Process with PID {validated_pid} does not exist on remote host."
         else:
             # Local execution - use psutil
             # Check if process exists
-            if not psutil.pid_exists(pid):
-                return f"Process with PID {pid} does not exist."
+            if not psutil.pid_exists(validated_pid):
+                return f"Process with PID {validated_pid} does not exist."
 
-            proc = psutil.Process(pid)
+            proc = psutil.Process(validated_pid)
             info = []
 
-            info.append(f"=== Process Information for PID {pid} ===\n")
+            info.append(f"=== Process Information for PID {validated_pid} ===\n")
 
             # Basic info
             try:
@@ -251,7 +258,7 @@ async def get_process_info(  # noqa: C901
                 connections = proc.connections()
                 if connections:
                     info.append(f"\n=== Network Connections ({len(connections)}) ===")
-                    for i, conn in enumerate(connections[:10]):  # Show first 10
+                    for _, conn in enumerate(connections[:10]):  # Show first 10
                         info.append(
                             f"  {conn.type.name}: {conn.laddr} -> {conn.raddr if conn.raddr else 'N/A'} [{conn.status}]",
                         )
@@ -262,8 +269,8 @@ async def get_process_info(  # noqa: C901
 
             return "\n".join(info)
     except psutil.NoSuchProcess:
-        return f"Process with PID {pid} does not exist."
+        return f"Process with PID {validated_pid} does not exist."
     except psutil.AccessDenied:
-        return f"Access denied to process with PID {pid}. Try running with elevated privileges."
+        return f"Access denied to process with PID {validated_pid}. Try running with elevated privileges."
     except Exception as e:
         return f"Error getting process information: {str(e)}"

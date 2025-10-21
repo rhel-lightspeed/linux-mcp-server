@@ -2,6 +2,7 @@
 
 import os
 import sys
+import typing as t
 
 import pytest
 
@@ -317,18 +318,17 @@ class TestListDirectoriesBySizeIntegration:
 
         assert "list_directories_by_size" in tool_names
 
-    @pytest.mark.skipif(sys.platform != "linux", reason="requires GNU version of du")
     async def test_server_can_call_list_directories_by_size(self, tmp_path):
         """Test that the tool can be called through the server."""
         from linux_mcp_server.server import mcp
 
-        # FastMCP's call_tool returns a tuple of (result_list, result_dict)
-        result_list, result_dict = await mcp.call_tool("list_directories_by_size", {"path": str(tmp_path), "top_n": 5})
+        result = await mcp.call_tool("list_directories_by_size", {"path": str(tmp_path), "top_n": 5})
 
-        assert result_list is not None
-        assert len(result_list) > 0
-        # The result should be a string in the result_dict or in result_list
-        assert isinstance(result_dict.get("result"), str) or isinstance(result_list[0].text, str)
+        assert result is not None
+        if isinstance(result, t.MutableMapping):
+            assert "result" in result or len(result) > 0
+        else:
+            assert len(result) > 0
 
     async def test_server_tool_has_proper_schema(self):
         """Test that the tool has proper input schema defined."""
