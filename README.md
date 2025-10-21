@@ -287,51 +287,267 @@ Add to your Claude Desktop configuration (`~/Library/Application Support/Claude/
 
 ### Using with OpenShift
 
-The Linux MCP Server can be deployed to OpenShift for enterprise environments with HTTP/SSE transport.
+Deploy the Linux MCP Server to OpenShift for enterprise environments with streamable-HTTP transport, enabling remote diagnostics of RHEL instances via a centralized MCP server.
 
-**Quick Start:**
+#### Features
 
-1. **Build and push container image:**
+- ✅ **Streamable-HTTP Transport**: RESTful MCP protocol over HTTPS
+- ✅ **Multi-Host Management**: Configure multiple RHEL instances via YAML
+- ✅ **Secure SSH Key Management**: Kubernetes Secrets for SSH authentication
+- ✅ **Persistent Logging**: PVC-backed log storage with rotation
+- ✅ **Production Security**: Non-root user, read-only filesystem, minimal privileges
+- ✅ **Auto-scaling Ready**: Kubernetes health probes and rolling updates
+- ✅ **Automated CI/CD**: GitHub Actions builds and pushes to GHCR
+
+#### Prerequisites
+
+- OpenShift cluster access (`oc` CLI configured)
+- SSH key for connecting to RHEL instances
+- GitHub account (for automated image builds)
+
+#### Quick Start
+
+**1. Test Locally with Podman**
+
+Before deploying to OpenShift, test the container locally:
+
 ```bash
-podman build -t quay.io/<your-org>/linux-mcp-server:latest .
-podman push quay.io/<your-org>/linux-mcp-server:latest
+# Build the image
+podman build -t linux-mcp-server:test .
+
+# Create a test configuration
+cat > test-hosts.yaml <<EOF
+hosts:
+  - name: "my-rhel-server"
+    host: "rhel.example.com"
+    username: "admin"
+    ssh_key_path: "/app/ssh-keys/id_rsa"
+ssh_config:
+  default_key_path: "/app/ssh-keys/id_rsa"
+allowed_log_paths:
+  - "/var/log/messages"
+  - "/var/log/secure"
+EOF
+
+# Run the container
+podman run -d --name mcp-test \
+  -p 8000:8000 \
+  -e LINUX_MCP_SSH_KEY_PATH=/app/ssh-keys/id_rsa \
+  -v ./test-hosts.yaml:/app/config/hosts.yaml:ro \
+  -v ~/.ssh/id_rsa:/app/ssh-keys/id_rsa:ro \
+  linux-mcp-server:test
+
+# Test the server
+curl -X POST http://localhost:8000/mcp \
+  -H "Content-Type: application/json" \
+  -H "Accept: application/json, text/event-stream" \
+  -d '{"jsonrpc": "2.0", "method": "initialize", "params": {"protocolVersion": "2024-11-05", "capabilities": {}, "clientInfo": {"name": "test", "version": "1.0"}}, "id": 1}'
+
+# Clean up
+podman stop mcp-test && podman rm mcp-test
 ```
 
-2. **Create SSH secret:**
+**2. Push Code and Build Image**
+
+The repository includes GitHub Actions that automatically builds and pushes the image to GitHub Container Registry (GHCR):
+
 ```bash
+# Push to your feature branch
+git push origin feature/openshift-deployment
+
+# GitHub Actions will:
+# - Build the container image
+# - Push to ghcr.io/<your-username>/linux-mcp-server:latest
+# - Tag with commit SHA
+```
+
+**Note:** Make the GHCR package public (one-time):
+1. Go to: `https://github.com/<your-username>/linux-mcp-server/pkgs/container/linux-mcp-server/settings`
+2. Change visibility to **Public**
+
+**3. Deploy to OpenShift**
+
+Use the deployment script or manual steps:
+
+```bash
+# Using the deployment script
+./deploy-to-openshift.sh
+
+# OR manually:
+# Create namespace (if needed)
+oc create namespace rhel-mcp
+
+# Create SSH secret
 oc create secret generic linux-mcp-ssh-keys \
-  --from-file=id_ed25519=~/.ssh/id_ed25519 \
+  --from-file=id_rsa=~/.ssh/id_rsa \
   --namespace=rhel-mcp
+
+# Configure your RHEL hosts in openshift/configmap.yaml
+# Then apply all manifests
+oc apply -f openshift/
+
+# Wait for deployment
+oc rollout status deployment/linux-mcp-server -n rhel-mcp
 ```
 
-3. **Configure RHEL hosts** in ConfigMap (`openshift/configmap.yaml`):
+**4. Configure RHEL Hosts**
+
+Edit `openshift/configmap.yaml` to add your RHEL instances:
+
 ```yaml
 hosts:
-  - name: "prod-rhel-01"
-    host: "rhel-prod-01.example.com"
-    username: "admin"
-    ssh_key_path: "/app/ssh-keys/id_ed25519"
+  - name: "rhel-bastion"
+    host: "bastion.example.com"
+    username: "student"
+    description: "RHEL 9.3 bastion host"
+    ssh_key_path: "/app/ssh-keys/id_rsa"
+    tags:
+      - production
+      - rhel9
 ```
 
-4. **Deploy to OpenShift:**
+Apply the updated configuration:
 ```bash
-oc apply -f openshift/
+oc apply -f openshift/configmap.yaml
+oc rollout restart deployment/linux-mcp-server -n rhel-mcp
 ```
 
-5. **Access the server:**
-```
-https://linux-mcp-server-rhel-mcp.apps.prod.rhoai.rh-aiservices-bu.com
+#### Testing the Deployment
+
+**Get the Route URL:**
+```bash
+ROUTE=$(oc get route linux-mcp-server -n rhel-mcp -o jsonpath='{.spec.host}')
+echo "MCP Server: https://$ROUTE"
 ```
 
-**Features:**
-- ✅ HTTP/SSE transport for MCP communication
-- ✅ YAML-based configuration for multiple RHEL hosts
-- ✅ Secure SSH key management via Kubernetes Secrets
-- ✅ Persistent log storage
-- ✅ Production-ready security context (non-root, read-only filesystem)
-- ✅ Health checks and auto-restart
+**Test 1: Initialize MCP Session**
+```bash
+curl -s -i -X POST "https://$ROUTE/mcp" \
+  -H "Content-Type: application/json" \
+  -H "Accept: application/json, text/event-stream" \
+  -d '{"jsonrpc": "2.0", "method": "initialize", "params": {"protocolVersion": "2024-11-05", "capabilities": {}, "clientInfo": {"name": "test-client", "version": "1.0"}}, "id": 1}'
+```
 
-**Documentation:** See [OPENSHIFT.md](OPENSHIFT.md) for complete deployment guide.
+Expected response includes `mcp-session-id` header and:
+```
+event: message
+data: {"jsonrpc":"2.0","id":1,"result":{"protocolVersion":"2024-11-05"...}}
+```
+
+**Test 2: Call Diagnostic Tools**
+
+Get system information from a RHEL instance:
+```bash
+# Extract session ID from previous response
+SESSION_ID="<your-session-id>"
+
+# Get system info
+curl -s -X POST "https://$ROUTE/mcp" \
+  -H "Content-Type: application/json" \
+  -H "Accept: application/json, text/event-stream" \
+  -H "mcp-session-id: $SESSION_ID" \
+  -d '{"jsonrpc": "2.0", "method": "tools/call", "params": {"name": "get_system_info", "arguments": {"host": "rhel.example.com", "username": "admin"}}, "id": 2}' \
+  | grep "data:" | sed 's/data: //' | jq -r '.result.content[0].text'
+```
+
+Expected output:
+```
+Hostname: rhel-server.internal
+Operating System: Red Hat Enterprise Linux 9.3 (Plow)
+OS Version: 9.3
+Kernel Version: 5.14.0-362.18.1.el9_3.x86_64
+Architecture: x86_64
+Uptime: up 1 hour, 17 minutes
+```
+
+**Test 3: List Services**
+```bash
+curl -s -X POST "https://$ROUTE/mcp" \
+  -H "Content-Type: application/json" \
+  -H "Accept: application/json, text/event-stream" \
+  -H "mcp-session-id: $SESSION_ID" \
+  -d '{"jsonrpc": "2.0", "method": "tools/call", "params": {"name": "list_services", "arguments": {"host": "rhel.example.com", "username": "admin"}}, "id": 3}' \
+  | grep "data:" | sed 's/data: //' | jq -r '.result.content[0].text' | head -20
+```
+
+#### Monitoring and Troubleshooting
+
+**Check Deployment Status:**
+```bash
+oc get pods -n rhel-mcp
+oc get deployment linux-mcp-server -n rhel-mcp
+oc get route linux-mcp-server -n rhel-mcp
+```
+
+**View Logs:**
+```bash
+# Tail logs in real-time
+oc logs -f deployment/linux-mcp-server -n rhel-mcp
+
+# View recent logs
+oc logs deployment/linux-mcp-server -n rhel-mcp --tail=50
+```
+
+**Debug SSH Connection Issues:**
+```bash
+# Exec into the pod
+oc exec -it deployment/linux-mcp-server -n rhel-mcp -- /bin/bash
+
+# Check SSH key
+ls -la /app/ssh-keys/
+
+# Test SSH connection manually
+ssh -i /app/ssh-keys/id_rsa user@rhel-host.example.com
+```
+
+**Common Issues:**
+
+| Issue | Solution |
+|-------|----------|
+| Pod stuck in `CrashLoopBackOff` | Check logs with `oc logs`. Verify SSH key is mounted correctly. |
+| `Multi-Attach error` | Deployment uses `Recreate` strategy. Delete old pods if stuck. |
+| `Authentication failed` | Verify SSH key is added to RHEL host: `ssh-copy-id -i ~/.ssh/id_rsa.pub user@host` |
+| `404 Not Found` on route | Check route exists: `oc get route -n rhel-mcp`. Verify pod is ready. |
+| Health check failures | Deployment uses TCP probes on port 8000. Check pod is listening. |
+
+#### Architecture on OpenShift
+
+```
+┌─────────────────────────────────────────────────────────┐
+│ OpenShift Route (HTTPS)                                 │
+│ https://linux-mcp-server-rhel-mcp.apps...              │
+└────────────────────┬────────────────────────────────────┘
+                     │
+┌────────────────────▼────────────────────────────────────┐
+│ Service (ClusterIP)                                     │
+│ Port: 8000                                              │
+└────────────────────┬────────────────────────────────────┘
+                     │
+┌────────────────────▼────────────────────────────────────┐
+│ Deployment (1 replica, Recreate strategy)              │
+│  ┌──────────────────────────────────────────────────┐  │
+│  │ Pod: linux-mcp-server                            │  │
+│  │ - Image: ghcr.io/.../linux-mcp-server:latest    │  │
+│  │ - Non-root (OpenShift assigned UID)             │  │
+│  │ - Read-only root filesystem                     │  │
+│  │                                                  │  │
+│  │ Volumes:                                         │  │
+│  │ - ConfigMap: hosts.yaml (RHEL instances)        │  │
+│  │ - Secret: SSH private keys                      │  │
+│  │ - PVC: logs (persistent storage)                │  │
+│  │ - EmptyDir: /tmp (writable temp)                │  │
+│  └──────────────────┬───────────────────────────────┘  │
+└─────────────────────┼──────────────────────────────────┘
+                      │
+        ┌─────────────┴─────────────┐
+        │                           │
+┌───────▼────────┐          ┌──────▼───────┐
+│ RHEL Instance 1│          │RHEL Instance 2│
+│ SSH Port 22    │          │SSH Port 22    │
+└────────────────┘          └───────────────┘
+```
+
+**Documentation:** See [OPENSHIFT.md](OPENSHIFT.md) for complete deployment guide and advanced configuration.
 
 ## Development
 
