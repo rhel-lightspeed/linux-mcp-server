@@ -49,40 +49,9 @@ jobs:
           echo "✅ Successfully built and pushed Linux MCP Server images:"
           echo "  📦 $IMAGE_NAME"
           echo "  📦 $IMAGE_SHA"
-
-      - name: Set GHCR Package Visibility to Public
-        env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          PACKAGE_NAME: linux-mcp-server
-          PACKAGE_TYPE: container
-        run: |
-          echo "🔓 Making GHCR package public..."
-          
-          # Get the Package ID using GitHub CLI
-          PACKAGE_ID=$(gh api \
-            --header 'Accept: application/vnd.github.v3+json' \
-            /users/rrbanda/packages/${{ env.PACKAGE_TYPE }}/${{ env.PACKAGE_NAME }} \
-            --jq '.id')
-          
-          if [ -z "$PACKAGE_ID" ]; then
-            echo "⚠️  Could not find package ID for ${{ env.PACKAGE_NAME }}"
-            echo "Package may not exist yet or visibility setting may require manual action on first run"
-            exit 0
-          fi
-          
-          echo "📦 Found Package ID: $PACKAGE_ID"
-          
-          # Use the REST API to set the visibility to public
-          # Must use the package ID in the URL path
-          curl -L \
-            -X PATCH \
-            -H "Accept: application/vnd.github.v3+json" \
-            -H "Authorization: Bearer ${{ env.GH_TOKEN }}" \
-            -H "Content-Type: application/json" \
-            -d '{"visibility": "public"}' \
-            https://api.github.com/users/rrbanda/packages/${{ env.PACKAGE_TYPE }}/${{ env.PACKAGE_NAME }}
-          
           echo ""
-          echo "✅ Successfully set package visibility for ${{ env.PACKAGE_NAME }} to public"
           echo "🔗 View on GHCR: https://github.com/rrbanda/linux-mcp-server/pkgs/container/linux-mcp-server"
+          echo ""
+          echo "📝 Note: If this is the first build, make the package public at:"
+          echo "   https://github.com/rrbanda/linux-mcp-server/pkgs/container/linux-mcp-server/settings"
 
