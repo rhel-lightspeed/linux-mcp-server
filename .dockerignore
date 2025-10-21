@@ -1,0 +1,79 @@
+# Git
+.git
+.gitignore
+.gitattributes
+
+# Python
+__pycache__
+*.py[cod]
+*$py.class
+*.so
+.Python
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+MANIFEST
+
+# Virtual environments
+.venv/
+venv/
+ENV/
+env/
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+.DS_Store
+
+# Testing
+.pytest_cache/
+.coverage
+htmlcov/
+.tox/
+.hypothesis/
+
+# Documentation
+docs/_build/
+*.md
+!README.md
+!LICENSE
+
+# CI/CD
+.github/
+.gitlab-ci.yml
+
+# Development
+.env
+.env.local
+*.log
+logs/
+
+# OpenShift (don't include manifests in image)
+openshift/
+
+# Examples and tests
+tests/
+*.example.yaml
+!hosts.example.yaml
+renovate.json
+example_config.sh
+claude_desktop_config.example.json
+CONTRIBUTING.md
+DEBUGGING.md
+USAGE.md
+

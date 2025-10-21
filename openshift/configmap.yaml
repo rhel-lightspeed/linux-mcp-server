@@ -1,0 +1,44 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: linux-mcp-config
+  namespace: rhel-mcp
+  labels:
+    app: linux-mcp-server
+    component: config
+data:
+  hosts.yaml: |
+    # Linux MCP Server Configuration
+    # Define remote RHEL hosts that can be managed via SSH
+    
+    hosts:
+      # Example: Add your RHEL instances here
+      # - name: "rhel-instance-01"
+      #   host: "rhel-instance-01.example.com"
+      #   username: "admin"
+      #   description: "RHEL 9 instance for diagnostics"
+      #   ssh_key_path: "/app/ssh-keys/id_ed25519"
+      #   tags:
+      #     - production
+      #     - rhel9
+    
+    ssh_config:
+      default_key_path: "/app/ssh-keys/id_ed25519"
+      connection_timeout: 30
+      keep_alive: true
+      keep_alive_interval: 30
+    
+    allowed_log_paths:
+      - "/var/log/messages"
+      - "/var/log/secure"
+      - "/var/log/audit/audit.log"
+      - "/var/log/httpd/access_log"
+      - "/var/log/httpd/error_log"
+      - "/var/log/nginx/access.log"
+      - "/var/log/nginx/error.log"
+    
+    logging:
+      level: "INFO"
+      retention_days: 10
+      directory: "/app/logs"
+

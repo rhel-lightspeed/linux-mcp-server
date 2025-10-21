@@ -19,6 +19,7 @@ wheels/
 *.egg-info/
 .installed.cfg
 *.egg
+MANIFEST
 
 # Virtual environments
 .venv/
@@ -26,26 +27,28 @@ venv/
 ENV/
 env/
 
-# Testing
-.pytest_cache/
-.coverage
-htmlcov/
-.tox/
-
-# IDEs
+# IDE
 .vscode/
 .idea/
 *.swp
 *.swo
 *~
-
-# OS
 .DS_Store
-Thumbs.db
 
-# uv
-.uv/
+# Testing
+.pytest_cache/
+.coverage
+htmlcov/
+.tox/
+.hypothesis/
 
-# Configuration files (user-specific)
-config.sh
+# Logs
+*.log
+logs/
 
+# Local test files
+test-hosts.yaml
+
+# Environment files
+.env
+.env.local

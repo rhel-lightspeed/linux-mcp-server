@@ -1,0 +1,160 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: linux-mcp-server
+  namespace: rhel-mcp
+  labels:
+    app: linux-mcp-server
+    app.kubernetes.io/name: linux-mcp-server
+    app.kubernetes.io/component: server
+    app.kubernetes.io/part-of: mcp-diagnostics
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: linux-mcp-server
+  template:
+    metadata:
+      labels:
+        app: linux-mcp-server
+        app.kubernetes.io/name: linux-mcp-server
+        app.kubernetes.io/component: server
+      annotations:
+        # Force pod restart when config changes
+        checksum/config: "{{ include (print $.Template.BasePath \"/configmap.yaml\") . | sha256sum }}"
+    spec:
+      serviceAccountName: linux-mcp-server
+      
+      # Security context for the pod
+      securityContext:
+        runAsNonRoot: true
+        seccompProfile:
+          type: RuntimeDefault
+      
+      containers:
+      - name: mcp-server
+        # Update this to your container registry
+        image: quay.io/rhel-lightspeed/linux-mcp-server:latest
+        imagePullPolicy: Always
+        
+        ports:
+        - name: http
+          containerPort: 8000
+          protocol: TCP
+        
+        env:
+        - name: LINUX_MCP_TRANSPORT
+          value: "sse"
+        - name: LINUX_MCP_HOST
+          value: "0.0.0.0"
+        - name: LINUX_MCP_PORT
+          value: "8000"
+        - name: LINUX_MCP_CONFIG_FILE
+          value: "/app/config/hosts.yaml"
+        - name: LINUX_MCP_LOG_DIR
+          value: "/app/logs"
+        - name: LINUX_MCP_LOG_LEVEL
+          value: "INFO"
+        
+        # Resource limits and requests
+        resources:
+          limits:
+            cpu: "1"
+            memory: 512Mi
+          requests:
+            cpu: 250m
+            memory: 256Mi
+        
+        # Security context for the container
+        securityContext:
+          allowPrivilegeEscalation: false
+          runAsNonRoot: true
+          runAsUser: 1001
+          capabilities:
+            drop:
+            - ALL
+          readOnlyRootFilesystem: true
+        
+        # Liveness probe - is the container alive?
+        livenessProbe:
+          httpGet:
+            path: /health
+            port: 8000
+            scheme: HTTP
+          initialDelaySeconds: 30
+          periodSeconds: 30
+          timeoutSeconds: 5
+          successThreshold: 1
+          failureThreshold: 3
+        
+        # Readiness probe - is the container ready to serve traffic?
+        readinessProbe:
+          httpGet:
+            path: /health
+            port: 8000
+            scheme: HTTP
+          initialDelaySeconds: 10
+          periodSeconds: 10
+          timeoutSeconds: 5
+          successThreshold: 1
+          failureThreshold: 3
+        
+        # Startup probe - has the container finished starting?
+        startupProbe:
+          httpGet:
+            path: /health
+            port: 8000
+            scheme: HTTP
+          initialDelaySeconds: 5
+          periodSeconds: 5
+          timeoutSeconds: 3
+          successThreshold: 1
+          failureThreshold: 12
+        
+        volumeMounts:
+        # Configuration
+        - name: config
+          mountPath: /app/config
+          readOnly: true
+        
+        # SSH keys
+        - name: ssh-keys
+          mountPath: /app/ssh-keys
+          readOnly: true
+        
+        # Logs (writable)
+        - name: logs
+          mountPath: /app/logs
+        
+        # Temp directory (writable)
+        - name: tmp
+          mountPath: /tmp
+      
+      volumes:
+      # ConfigMap for hosts configuration
+      - name: config
+        configMap:
+          name: linux-mcp-config
+          defaultMode: 0444
+      
+      # Secret for SSH private keys
+      - name: ssh-keys
+        secret:
+          secretName: linux-mcp-ssh-keys
+          defaultMode: 0400
+      
+      # Persistent volume for logs
+      - name: logs
+        persistentVolumeClaim:
+          claimName: linux-mcp-logs
+      
+      # Ephemeral volume for temp files
+      - name: tmp
+        emptyDir: {}
+      
+      # Restart policy
+      restartPolicy: Always
+      
+      # DNS policy
+      dnsPolicy: ClusterFirst
+

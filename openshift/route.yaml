@@ -1,0 +1,22 @@
+apiVersion: route.openshift.io/v1
+kind: Route
+metadata:
+  name: linux-mcp-server
+  namespace: rhel-mcp
+  labels:
+    app: linux-mcp-server
+    app.kubernetes.io/name: linux-mcp-server
+    app.kubernetes.io/component: server
+spec:
+  host: linux-mcp-server-rhel-mcp.apps.prod.rhoai.rh-aiservices-bu.com
+  to:
+    kind: Service
+    name: linux-mcp-server
+    weight: 100
+  port:
+    targetPort: http
+  tls:
+    termination: edge
+    insecureEdgeTerminationPolicy: Redirect
+  wildcardPolicy: None
+

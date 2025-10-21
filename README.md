@@ -285,6 +285,54 @@ Add to your Claude Desktop configuration (`~/Library/Application Support/Claude/
 }
 ```
 
+### Using with OpenShift
+
+The Linux MCP Server can be deployed to OpenShift for enterprise environments with HTTP/SSE transport.
+
+**Quick Start:**
+
+1. **Build and push container image:**
+```bash
+podman build -t quay.io/<your-org>/linux-mcp-server:latest .
+podman push quay.io/<your-org>/linux-mcp-server:latest
+```
+
+2. **Create SSH secret:**
+```bash
+oc create secret generic linux-mcp-ssh-keys \
+  --from-file=id_ed25519=~/.ssh/id_ed25519 \
+  --namespace=rhel-mcp
+```
+
+3. **Configure RHEL hosts** in ConfigMap (`openshift/configmap.yaml`):
+```yaml
+hosts:
+  - name: "prod-rhel-01"
+    host: "rhel-prod-01.example.com"
+    username: "admin"
+    ssh_key_path: "/app/ssh-keys/id_ed25519"
+```
+
+4. **Deploy to OpenShift:**
+```bash
+oc apply -f openshift/
+```
+
+5. **Access the server:**
+```
+https://linux-mcp-server-rhel-mcp.apps.prod.rhoai.rh-aiservices-bu.com
+```
+
+**Features:**
+- ✅ HTTP/SSE transport for MCP communication
+- ✅ YAML-based configuration for multiple RHEL hosts
+- ✅ Secure SSH key management via Kubernetes Secrets
+- ✅ Persistent log storage
+- ✅ Production-ready security context (non-root, read-only filesystem)
+- ✅ Health checks and auto-restart
+
+**Documentation:** See [OPENSHIFT.md](OPENSHIFT.md) for complete deployment guide.
+
 ## Development
 
 ### Running Tests

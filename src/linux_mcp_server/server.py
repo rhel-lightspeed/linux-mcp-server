@@ -1,6 +1,7 @@
 """Core MCP server for Linux diagnostics using FastMCP."""
 
 import logging
+import os
 import time
 
 from typing import Optional
@@ -9,6 +10,7 @@ from mcp.server.fastmcp import FastMCP
 
 from .audit import log_tool_call
 from .audit import log_tool_complete
+from .config import get_config
 from .tools import logs
 from .tools import network
 from .tools import processes
@@ -22,6 +24,13 @@ logger = logging.getLogger(__name__)
 
 # Initialize FastMCP server
 mcp = FastMCP("linux-diagnostics")
+
+
+# Health check endpoint for OpenShift
+@mcp.resource("health://server")
+def get_health() -> str:
+    """Health check endpoint for container orchestration."""
+    return "OK"
 
 
 # System Information Tools
@@ -442,7 +451,28 @@ async def _execute_tool(tool_name: str, handler, **kwargs):
 def main():
     """Run the MCP server using FastMCP."""
     logger.info("Initialized linux-diagnostics v0.1.0")
-    logger.info("Starting FastMCP server")
-
-    # Run the FastMCP server (it creates its own event loop)
-    mcp.run()
+    
+    # Load configuration
+    config = get_config()
+    logger.info(f"Configuration loaded: {len(config.hosts)} hosts configured")
+    
+    # Determine transport mode
+    transport = os.getenv("LINUX_MCP_TRANSPORT", "stdio").lower()
+    
+    if transport == "http" or transport == "streamable-http":
+        # HTTP/streamable-http transport for OpenShift
+        # Get host and port from environment (with fallbacks)
+        host = os.getenv("FASTMCP_HOST", os.getenv("LINUX_MCP_HOST", "0.0.0.0"))
+        port = int(os.getenv("FASTMCP_PORT", os.getenv("LINUX_MCP_PORT", os.getenv("MCP_PORT", "8000"))))
+        
+        logger.info(f"📡 Starting FastMCP server on streamable-http transport: {host}:{port}")
+        
+        # Get the streamable-http ASGI app from FastMCP and run uvicorn directly
+        # This gives us full control over host/port binding (needed for OpenShift)
+        import uvicorn
+        app = mcp.streamable_http_app()
+        uvicorn.run(app, host=host, port=port, log_level="info")
+    else:
+        # Default stdio transport for Claude Desktop
+        logger.info("Starting FastMCP server on stdio transport")
+        mcp.run()
