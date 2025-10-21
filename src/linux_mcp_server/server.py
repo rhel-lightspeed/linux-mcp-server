@@ -470,7 +470,20 @@ def main():
         # Get the streamable-http ASGI app from FastMCP and run uvicorn directly
         # This gives us full control over host/port binding (needed for OpenShift)
         import uvicorn
+        from starlette.middleware.cors import CORSMiddleware
+        
         app = mcp.streamable_http_app()
+        
+        # Add CORS middleware to allow browser-based tools like MCP Inspector
+        app.add_middleware(
+            CORSMiddleware,
+            allow_origins=["*"],  # In production, replace with specific origins
+            allow_credentials=True,
+            allow_methods=["*"],  # Allow all methods (GET, POST, OPTIONS, etc.)
+            allow_headers=["*"],  # Allow all headers
+        )
+        
+        logger.info("✅ CORS middleware enabled for browser-based MCP clients")
         uvicorn.run(app, host=host, port=port, log_level="info")
     else:
         # Default stdio transport for Claude Desktop
