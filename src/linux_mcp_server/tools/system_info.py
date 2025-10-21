@@ -334,10 +334,11 @@ async def get_memory_info(
             info.append(f"Used: {format_bytes(mem.used)} ({mem.percent}%)")
             info.append(f"Free: {format_bytes(mem.free)}")
 
-            if hasattr(mem, "buffers"):
-                info.append(f"Buffers: {format_bytes(getattr(mem, 'buffers'))}")
-            if hasattr(mem, "cached"):
-                info.append(f"Cached: {format_bytes(getattr(mem, 'cached'))}")
+            if buffers := getattr(mem, "buffers", None):
+                info.append(f"Buffers: {format_bytes(buffers)}")
+
+            if cached := getattr(mem, "cached", None):
+                info.append(f"Cached: {format_bytes(cached)}")
 
             # Swap memory
             swap = psutil.swap_memory()
