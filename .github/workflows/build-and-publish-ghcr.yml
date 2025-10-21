@@ -73,13 +73,14 @@ jobs:
           echo "📦 Found Package ID: $PACKAGE_ID"
           
           # Use the REST API to set the visibility to public
+          # Must use the package ID in the URL path
           curl -L \
             -X PATCH \
             -H "Accept: application/vnd.github.v3+json" \
             -H "Authorization: Bearer ${{ env.GH_TOKEN }}" \
             -H "Content-Type: application/json" \
             -d '{"visibility": "public"}' \
-            https://api.github.com/user/packages/${{ env.PACKAGE_TYPE }}/${{ env.PACKAGE_NAME }}
+            https://api.github.com/users/rrbanda/packages/${{ env.PACKAGE_TYPE }}/${{ env.PACKAGE_NAME }}
           
           echo ""
           echo "✅ Successfully set package visibility for ${{ env.PACKAGE_NAME }} to public"
