@@ -41,13 +41,18 @@ spec:
         env:
         - name: HOST
           value: "0.0.0.0"
-        - name: PORT
+        - name: CLIENT_PORT
           value: "6274"
-        - name: PROXY_PORT
+        - name: SERVER_PORT
           value: "6277"
         - name: MCP_PROXY_FULL_ADDRESS
           value: "https://mcp-inspector-proxy-rhel-mcp.apps.prod.rhoai.rh-aiservices-bu.com"
-        # Disable auth for OpenShift (optional - remove if you want authentication)
+        - name: ALLOWED_ORIGINS
+          value: "https://mcp-inspector-rhel-mcp.apps.prod.rhoai.rh-aiservices-bu.com,https://mcp-inspector-proxy-rhel-mcp.apps.prod.rhoai.rh-aiservices-bu.com,http://localhost:6274,http://127.0.0.1:6274"
+        - name: MCP_AUTO_OPEN_ENABLED
+          value: "false"
+        # WARNING: Authentication is disabled for OpenShift routing compatibility
+        # This is a security risk - consider using port-forward instead for production
         - name: DANGEROUSLY_OMIT_AUTH
           value: "true"
         

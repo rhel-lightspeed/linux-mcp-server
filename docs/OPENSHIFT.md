@@ -12,12 +12,85 @@ This guide provides instructions for deploying the Linux MCP Server on OpenShift
 
 ## Architecture
 
+### Connection Flow
+
+```
+┌──────────────┐      HTTPS       ┌─────────────────────────┐
+│ MCP Client   ├─────────────────>│ OpenShift Route (TLS)   │
+│ (Browser/CLI)│   (Streamable    └────────────┬────────────┘
+└──────────────┘    HTTP/SSE)                  │
+                                               │
+                                               v
+                          ┌────────────────────────────────────┐
+                          │ Linux MCP Server Pod (OpenShift)   │
+                          │                                    │
+                          │ ┌──────────────────────────────┐  │
+                          │ │ MCP Server Process           │  │
+                          │ │ (Port 8000)                  │  │
+                          │ └──────────────────────────────┘  │
+                          │                                    │
+                          │ ┌──────────────────────────────┐  │
+                          │ │ Mounted Resources:           │  │
+                          │ │ • ConfigMap -> hosts.yaml    │  │
+                          │ │ • Secret -> SSH private keys │  │
+                          │ │ • PVC -> /app/logs          │  │
+                          │ └──────────────────────────────┘  │
+                          └────────┬───────────────────────────┘
+                                   │
+                                   │ SSH Connection
+                                   │ (Port 22)
+                                   │
+                    ┌──────────────┴─────────────────┐
+                    │                                 │
+                    v                                 v
+         ┌──────────────────┐            ┌──────────────────┐
+         │ RHEL Instance 1  │            │ RHEL Instance 2  │
+         │ prod-web-01      │            │ prod-db-01       │
+         │                  │            │                  │
+         │ SSH Port 22      │            │ SSH Port 22      │
+         └──────────────────┘            └──────────────────┘
+```
+
+### How SSH Connection Works in OpenShift
+
+**1. SSH Keys Storage:**
+- SSH private keys are stored as a Kubernetes **Secret** (`linux-mcp-ssh-keys`)
+- Keys are mounted read-only into the pod at `/app/ssh-keys/`
+- Multiple keys supported for different RHEL instances
+
+**2. RHEL Hosts Configuration:**
+- RHEL instance details stored in **ConfigMap** (`linux-mcp-config`)
+- Mounted at `/app/config/hosts.yaml`
+- Each host entry specifies:
+  - Hostname/IP address
+  - SSH username
+  - Path to SSH key
+  - Tags for organization
+
+**3. Connection Process:**
+```
+MCP Client → OpenShift Route → MCP Server Pod
+                                     ↓
+                        Read hosts.yaml (ConfigMap)
+                                     ↓
+                        Load SSH key (Secret)
+                                     ↓
+                        Establish SSH connection
+                                     ↓
+                        Execute commands on RHEL
+                                     ↓
+                        Return results to client
+```
+
+### Deployment Components
+
 The OpenShift deployment uses:
 - **HTTP/SSE Transport**: Server-Sent Events for streaming MCP communication
-- **ConfigMap**: Stores hosts configuration (RHEL instances)
-- **Secret**: Stores SSH private keys for remote access
-- **PersistentVolume**: For log storage
+- **ConfigMap**: Stores RHEL hosts configuration (hosts.yaml)
+- **Secret**: Stores SSH private keys for authenticating to RHEL instances
+- **PersistentVolume**: For log storage and persistence
 - **Route**: HTTPS external access with TLS termination
+- **ServiceAccount**: Limited permissions for pod security
 
 ## Quick Start
 
@@ -91,19 +164,19 @@ Deploy all resources:
 
 ```bash
 # Apply all manifests
-oc apply -f openshift/serviceaccount.yaml
-oc apply -f openshift/secret.yaml  # Skip if created in step 2
-oc apply -f openshift/configmap.yaml
-oc apply -f openshift/pvc.yaml
-oc apply -f openshift/deployment.yaml
-oc apply -f openshift/service.yaml
-oc apply -f openshift/route.yaml
+oc apply -f deploy/openshift/linux-mcp-server/serviceaccount.yaml
+oc apply -f deploy/openshift/linux-mcp-server/secret.yaml  # Skip if created in step 2
+oc apply -f deploy/openshift/linux-mcp-server/configmap.yaml
+oc apply -f deploy/openshift/linux-mcp-server/pvc.yaml
+oc apply -f deploy/openshift/linux-mcp-server/deployment.yaml
+oc apply -f deploy/openshift/linux-mcp-server/service.yaml
+oc apply -f deploy/openshift/linux-mcp-server/route.yaml
 ```
 
 Or deploy all at once:
 
 ```bash
-oc apply -f openshift/
+oc apply -f deploy/openshift/linux-mcp-server/
 ```
 
 ### 5. Verify Deployment
@@ -389,7 +462,7 @@ To remove all resources:
 
 ```bash
 # Delete all resources
-oc delete -f openshift/
+oc delete -f deploy/openshift/linux-mcp-server/
 
 # Or delete individually
 oc delete deployment linux-mcp-server -n rhel-mcp
@@ -427,7 +500,7 @@ All 22 MCP tools are available via HTTP/SSE transport:
 - Network Diagnostics (3 tools)
 - Storage & Disk Analysis (6 tools)
 
-Refer to [USAGE.md](USAGE.md) for detailed tool documentation.
+Refer to [USAGE.md](../USAGE.md) for detailed tool documentation.
 
 ## Best Practices
 
@@ -460,5 +533,5 @@ Refer to [USAGE.md](USAGE.md) for detailed tool documentation.
 
 For issues or questions:
 - GitHub Issues: https://github.com/rhel-lightspeed/linux-mcp-server/issues
-- Documentation: [README.md](README.md), [USAGE.md](USAGE.md)
+- Documentation: [README.md](../README.md), [USAGE.md](../USAGE.md)
 

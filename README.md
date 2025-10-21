@@ -371,7 +371,7 @@ Use the deployment script or manual steps:
 
 ```bash
 # Using the deployment script
-./deploy-to-openshift.sh
+./deploy/openshift/deploy.sh
 
 # OR manually:
 # Create namespace (if needed)
@@ -547,7 +547,15 @@ ssh -i /app/ssh-keys/id_rsa user@rhel-host.example.com
 └────────────────┘          └───────────────┘
 ```
 
-**Documentation:** See [OPENSHIFT.md](OPENSHIFT.md) for complete deployment guide and advanced configuration.
+**How It Works:**
+1. **Client connects** to OpenShift Route (HTTPS with TLS termination)
+2. **MCP Server Pod** receives requests via Streamable HTTP/SSE transport
+3. **ConfigMap** provides RHEL hosts configuration (hostnames, usernames, SSH key paths)
+4. **Secret** contains SSH private keys mounted read-only at `/app/ssh-keys/`
+5. **MCP Server establishes SSH connections** to RHEL instances using the configured keys
+6. **Commands execute** on RHEL systems and results stream back to the client
+
+**Documentation:** See [docs/OPENSHIFT.md](docs/OPENSHIFT.md) for complete deployment guide, SSH configuration details, and advanced configuration.
 
 #### Visual Testing with MCP Inspector
 
@@ -555,9 +563,7 @@ Deploy the [MCP Inspector](https://github.com/modelcontextprotocol/inspector) al
 
 ```bash
 # Deploy MCP Inspector
-oc apply -f openshift/inspector-deployment.yaml
-oc apply -f openshift/inspector-service.yaml
-oc apply -f openshift/inspector-route.yaml
+oc apply -f deploy/openshift/inspector/
 
 # Get Inspector URL
 oc get route mcp-inspector -n rhel-mcp -o jsonpath='{.spec.host}'
@@ -565,11 +571,14 @@ oc get route mcp-inspector -n rhel-mcp -o jsonpath='{.spec.host}'
 
 **Access the Inspector UI:**
 1. Open the Inspector URL in your browser
-2. Select **"Streamable HTTP"** transport
-3. Enter MCP Server URL: `https://linux-mcp-server-rhel-mcp.apps.prod.rhoai.rh-aiservices-bu.com/mcp`
+2. Click **"Configuration"** and set **MCP_PROXY_FULL_ADDRESS** to the proxy route URL
+3. Configure connection:
+   - Transport: **"Streamable HTTP"**
+   - Connection Type: **"Via Proxy"**
+   - URL: `http://linux-mcp-server:8000/mcp`
 4. Click **"Connect"** and start testing!
 
-**Documentation:** See [MCP_INSPECTOR.md](MCP_INSPECTOR.md) for complete setup and usage guide.
+**Documentation:** See [docs/MCP_INSPECTOR.md](docs/MCP_INSPECTOR.md) for complete setup and usage guide.
 
 ## Development
 

@@ -10,6 +10,22 @@ MCP Inspector is a visual testing tool for MCP servers that provides:
 - 🐛 **Debugging tools** with request history and error details
 - 🔗 **Multiple transports** supporting stdio, SSE, and streamable-HTTP
 
+## Quick Start
+
+### ⚡ Fastest Way to Get Started (OpenShift Route)
+
+1. **Open**: https://mcp-inspector-rhel-mcp.apps.prod.rhoai.rh-aiservices-bu.com
+2. **Click Configuration** (⚙️ button)
+3. **Set MCP_PROXY_FULL_ADDRESS** to: `https://mcp-inspector-proxy-rhel-mcp.apps.prod.rhoai.rh-aiservices-bu.com`
+4. **Save** and close configuration
+5. **Configure Connection**:
+   - Transport: `Streamable HTTP`
+   - Connection Type: `Via Proxy`
+   - URL: `http://linux-mcp-server:8000/mcp`
+6. **Click Connect** ✅
+
+That's it! You should now see 22 available tools.
+
 ## Architecture
 
 ```
@@ -45,20 +61,18 @@ Deploy both Inspector and Linux MCP Server:
 
 ```bash
 # Deploy Linux MCP Server (if not already deployed)
-oc apply -f openshift/serviceaccount.yaml
+oc apply -f deploy/openshift/linux-mcp-server/serviceaccount.yaml
 oc create secret generic linux-mcp-ssh-keys \
   --from-file=id_rsa=~/.ssh/id_rsa \
   --namespace=rhel-mcp
-oc apply -f openshift/configmap.yaml
-oc apply -f openshift/pvc.yaml
-oc apply -f openshift/deployment.yaml
-oc apply -f openshift/service.yaml
-oc apply -f openshift/route.yaml
+oc apply -f deploy/openshift/linux-mcp-server/configmap.yaml
+oc apply -f deploy/openshift/linux-mcp-server/pvc.yaml
+oc apply -f deploy/openshift/linux-mcp-server/deployment.yaml
+oc apply -f deploy/openshift/linux-mcp-server/service.yaml
+oc apply -f deploy/openshift/linux-mcp-server/route.yaml
 
 # Deploy MCP Inspector
-oc apply -f openshift/inspector-deployment.yaml
-oc apply -f openshift/inspector-service.yaml
-oc apply -f openshift/inspector-route.yaml
+oc apply -f deploy/openshift/inspector/
 
 # Wait for deployments
 oc rollout status deployment/linux-mcp-server -n rhel-mcp
@@ -79,29 +93,48 @@ echo "🖥️  MCP Server: https://$MCP_SERVER_URL"
 
 ## Using MCP Inspector
 
-### Method 1: Port-Forward (Recommended)
+### Method 1: OpenShift Route (Recommended for Remote Access)
 
-The Inspector's WebSocket proxy works best with local port-forwarding:
+**Step 1:** Navigate to the Inspector UI:
+```
+https://mcp-inspector-rhel-mcp.apps.prod.rhoai.rh-aiservices-bu.com
+```
+
+**Step 2:** Configure the Proxy Address (IMPORTANT!)
+
+Click **"Configuration"** (⚙️ button in sidebar) and set:
+- **MCP_PROXY_FULL_ADDRESS**: `https://mcp-inspector-proxy-rhel-mcp.apps.prod.rhoai.rh-aiservices-bu.com`
+- Click **"Save"**
+
+**Step 3:** Connect to MCP Server
+
+Configure connection settings:
+- **Transport**: `Streamable HTTP`
+- **Connection Type**: `Via Proxy`
+- **URL**: `http://linux-mcp-server:8000/mcp`
+- Click **"Connect"**
+
+⚠️ **Important**: Use the **internal Kubernetes service name** (`linux-mcp-server`) not the external route. The proxy runs inside the cluster and connects to the MCP server using internal networking.
+
+### Method 2: Port-Forward (For Local Development)
+
+Use port-forwarding when you need direct pod access or for debugging:
 
 ```bash
-# Terminal 1: Forward MCP Server
-oc port-forward -n rhel-mcp deployment/linux-mcp-server 8000:8000
-
-# Terminal 2: Forward Inspector
+# Terminal 1: Forward Inspector (UI + Proxy)
 oc port-forward -n rhel-mcp deployment/mcp-inspector 6274:6274 6277:6277
+
+# Terminal 2: Forward MCP Server (optional, proxy uses internal service)
+oc port-forward -n rhel-mcp deployment/linux-mcp-server 8000:8000
 ```
 
 Then open `http://localhost:6274` in your browser and configure:
-- **Transport**: Streamable HTTP
-- **Connection Type**: Via Proxy
-- **URL**: `http://localhost:8000/mcp`
+- **Transport**: `Streamable HTTP`
+- **Connection Type**: `Via Proxy`
+- **URL**: `http://linux-mcp-server:8000/mcp` (uses internal service)
 - Click **"Connect"**
 
-### Method 2: Direct OpenShift Route (Limited)
-
-Navigate to: `https://mcp-inspector-rhel-mcp.apps.prod.rhoai.rh-aiservices-bu.com`
-
-**Note**: WebSocket proxy connections may have limitations through OpenShift routes. Use port-forward method for full functionality.
+**Note**: The proxy always connects to `linux-mcp-server:8000` using the Kubernetes service DNS, regardless of port-forwarding.
 
 ### Method 3: CLI Mode (Scriptable)
 
@@ -201,12 +234,55 @@ oc rollout restart deployment/linux-mcp-server -n rhel-mcp
 
 ## Troubleshooting
 
+### Inspector UI Loads But Can't Connect to Proxy
+
+**Symptom**: Inspector UI loads but shows "Couldn't connect to MCP Proxy Server" or `:6277/health` timeout errors
+
+**Root Cause**: The Inspector UI is trying to connect to `localhost:6277` instead of the OpenShift proxy route.
+
+**Solution**: Configure the proxy address in the UI
+
+1. **Open Configuration**: Click the **"Configuration"** button (⚙️) in the Inspector sidebar
+
+2. **Set Proxy Address**: Find **"MCP_PROXY_FULL_ADDRESS"** and enter:
+   ```
+   https://mcp-inspector-proxy-rhel-mcp.apps.prod.rhoai.rh-aiservices-bu.com
+   ```
+
+3. **Save**: Click "Save" to apply the configuration
+
+4. **Try connecting again** with:
+   - Transport: `Streamable HTTP`
+   - Connection Type: `Via Proxy`
+   - URL: `http://linux-mcp-server:8000/mcp`
+
+**Additional Checks**:
+
+1. **Missing Proxy Route**: Ensure the proxy route is deployed
+```bash
+oc get route mcp-inspector-proxy -n rhel-mcp
+# If not found, apply it:
+oc apply -f deploy/openshift/inspector/proxy-route.yaml
+```
+
+2. **Verify Environment Variables**: Check the deployment has correct var names
+```bash
+oc get deployment mcp-inspector -n rhel-mcp -o yaml | grep -A 20 "env:"
+# Should see CLIENT_PORT, SERVER_PORT, and MCP_PROXY_FULL_ADDRESS
+```
+
+3. **Check ALLOWED_ORIGINS**: Verify DNS rebinding protection is configured
+```bash
+oc get deployment mcp-inspector -n rhel-mcp -o jsonpath='{.spec.template.spec.containers[0].env[?(@.name=="ALLOWED_ORIGINS")].value}'
+# Should show OpenShift URLs and localhost URLs
+```
+
 ### Inspector Can't Connect to MCP Server
 
-**Check 1: Verify Routes**
+**Check 1: Verify All Routes**
 ```bash
 oc get routes -n rhel-mcp
-# Both mcp-inspector and linux-mcp-server should be listed
+# Should see: mcp-inspector, mcp-inspector-proxy, and linux-mcp-server
 ```
 
 **Check 2: Test MCP Server Directly**
@@ -239,6 +315,17 @@ If you see WebSocket errors:
 oc get svc mcp-inspector -n rhel-mcp -o yaml | grep -A 5 ports
 ```
 
+### Connection Shows "Missing session ID" Error
+
+**Symptom**: Error message shows `Bad Request: Missing session ID`
+
+**Root Cause**: Using "Direct" connection mode, which doesn't work properly with Streamable HTTP through OpenShift routes.
+
+**Solution**: Use "Via Proxy" connection mode:
+1. Change **Connection Type** to: `Via Proxy`
+2. Ensure **MCP_PROXY_FULL_ADDRESS** is configured (see above)
+3. Use internal service URL: `http://linux-mcp-server:8000/mcp`
+
 ### Tool Calls Failing
 
 **Symptom**: Tools connect but calls fail
@@ -252,6 +339,42 @@ Common issues:
 - SSH key not mounted correctly
 - Wrong username for RHEL host
 - Network connectivity to RHEL instance
+
+## Architecture: How the Inspector Works
+
+Understanding the architecture helps troubleshoot connection issues:
+
+```
+┌─────────────────────────────────────────────────────────┐
+│ Your Browser                                            │
+│ https://mcp-inspector-rhel-mcp.apps... OR localhost     │
+└────────────────┬────────────────────────────────────────┘
+                 │ HTTPS/HTTP
+┌────────────────▼────────────────────────────────────────┐
+│ Inspector UI (Port 6274)                                │
+│ - Serves web interface                                  │
+│ - Runs in OpenShift pod                                 │
+└────────────────┬────────────────────────────────────────┘
+                 │ Connects to proxy at 6277
+┌────────────────▼────────────────────────────────────────┐
+│ Inspector Proxy (Port 6277)                             │
+│ - Also runs in same OpenShift pod                       │
+│ - Bridges browser ↔ MCP Server                         │
+└────────────────┬────────────────────────────────────────┘
+                 │ Internal Kubernetes network
+                 │ http://linux-mcp-server:8000/mcp
+┌────────────────▼────────────────────────────────────────┐
+│ Linux MCP Server (Port 8000)                            │
+│ - Streamable HTTP transport                             │
+│ - Connects to RHEL instances via SSH                    │
+└─────────────────────────────────────────────────────────┘
+```
+
+**Key Points**:
+- The **proxy runs inside the OpenShift pod**, not in your browser
+- The proxy uses **internal Kubernetes service DNS** to reach the MCP server
+- Always use `http://linux-mcp-server:8000/mcp` (not external routes) when configuring the connection
+- For OpenShift route access, configure `MCP_PROXY_FULL_ADDRESS` to point to the proxy route
 
 ## Advanced: Using Inspector CLI
 

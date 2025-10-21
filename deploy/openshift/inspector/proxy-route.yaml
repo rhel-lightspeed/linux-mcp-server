@@ -7,7 +7,12 @@ metadata:
     app: mcp-inspector
     component: proxy
   annotations:
+    # Enable WebSocket support
     haproxy.router.openshift.io/timeout: 3600s
+    haproxy.router.openshift.io/balance: source
+    haproxy.router.openshift.io/disable_cookies: 'false'
+    # WebSocket protocol upgrade
+    haproxy.router.openshift.io/rewrite-target: /
 spec:
   to:
     kind: Service

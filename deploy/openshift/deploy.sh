@@ -41,12 +41,12 @@ echo ""
 
 # Apply manifests
 echo "☸️  Applying Kubernetes manifests..."
-oc apply -f openshift/serviceaccount.yaml
-oc apply -f openshift/configmap.yaml
-oc apply -f openshift/pvc.yaml
-oc apply -f openshift/deployment.yaml
-oc apply -f openshift/service.yaml
-oc apply -f openshift/route.yaml
+oc apply -f linux-mcp-server/serviceaccount.yaml
+oc apply -f linux-mcp-server/configmap.yaml
+oc apply -f linux-mcp-server/pvc.yaml
+oc apply -f linux-mcp-server/deployment.yaml
+oc apply -f linux-mcp-server/service.yaml
+oc apply -f linux-mcp-server/route.yaml
 
 echo ""
 echo "⏳ Waiting for deployment to be ready..."
