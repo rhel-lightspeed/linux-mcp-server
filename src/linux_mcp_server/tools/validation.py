@@ -4,15 +4,13 @@ Provides validation functions for handling numeric parameters where LLMs often
 pass floats instead of integers.
 """
 
-import typing as t
-
 
 def validate_positive_int(
-    value: t.Union[int, float],
+    value: int | float,
     param_name: str = "parameter",
     min_value: int = 1,
-    max_value: t.Optional[int] = None,
-) -> tuple[t.Optional[int], t.Optional[str]]:
+    max_value: int | None = None,
+) -> tuple[int | None, str | None]:
     """
     Validate and normalize a numeric value to a positive integer.
 
@@ -37,16 +35,16 @@ def validate_positive_int(
     return int_value, None
 
 
-def validate_pid(pid: t.Union[int, float]) -> tuple[t.Optional[int], t.Optional[str]]:
+def validate_pid(pid: int | float) -> tuple[int | None, str | None]:
     """Validate a process ID (PID). Accepts floats from LLMs and truncates to int."""
     return validate_positive_int(pid, param_name="PID", min_value=1)
 
 
 def validate_line_count(
-    lines: t.Union[int, float],
+    lines: int | float,
     default: int = 100,
     max_lines: int = 10000,
-) -> tuple[int, t.Optional[str]]:
+) -> tuple[int, str | None]:
     """
     Validate line count for log reading functions.
 

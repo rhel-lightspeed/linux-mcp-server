@@ -1,7 +1,6 @@
 """Log and audit tools."""
 
 import os
-import typing as t
 
 from pathlib import Path
 
@@ -10,12 +9,12 @@ from .validation import validate_line_count
 
 
 async def get_journal_logs(
-    unit: t.Optional[str] = None,
-    priority: t.Optional[str] = None,
-    since: t.Optional[str] = None,
+    unit: str | None = None,
+    priority: str | None = None,
+    since: str | None = None,
     lines: int = 100,
-    host: t.Optional[str] = None,
-    username: t.Optional[str] = None,
+    host: str | None = None,
+    username: str | None = None,
 ) -> str:
     """
     Get systemd journal logs.
@@ -77,8 +76,8 @@ async def get_journal_logs(
 
 async def get_audit_logs(
     lines: int = 100,
-    host: t.Optional[str] = None,
-    username: t.Optional[str] = None,
+    host: str | None = None,
+    username: str | None = None,
 ) -> str:
     """
     Get audit logs.
@@ -94,7 +93,7 @@ async def get_audit_logs(
     # Validate lines parameter (accepts floats from LLMs)
     lines, _ = validate_line_count(lines, default=100)
 
-    audit_log_path = "/var/log/audit/audit.log"
+    audit_log_path = "/var/log/audit/audilog"
 
     try:
         # For local execution, check if file exists
@@ -129,8 +128,8 @@ async def get_audit_logs(
 async def read_log_file(  # noqa: C901
     log_path: str,
     lines: int = 100,
-    host: t.Optional[str] = None,
-    username: t.Optional[str] = None,
+    host: str | None = None,
+    username: str | None = None,
 ) -> str:
     """
     Read a specific log file.

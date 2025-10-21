@@ -1,7 +1,5 @@
 """Process management tools."""
 
-import typing as t
-
 from datetime import datetime
 
 import psutil
@@ -12,8 +10,8 @@ from .validation import validate_pid
 
 
 async def list_processes(
-    host: t.Optional[str] = None,
-    username: t.Optional[str] = None,
+    host: str | None = None,
+    username: str | None = None,
 ) -> str:
     """
     List running processes.
@@ -103,8 +101,8 @@ async def list_processes(
 
 async def get_process_info(  # noqa: C901
     pid: int,
-    host: t.Optional[str] = None,
-    username: t.Optional[str] = None,
+    host: str | None = None,
+    username: str | None = None,
 ) -> str:
     """
     Get information about a specific process.

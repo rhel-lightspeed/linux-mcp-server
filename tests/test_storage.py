@@ -336,7 +336,7 @@ class TestListDirectoriesBySizeIntegration:
 
         tools = await mcp.list_tools()
 
-        tool = next((t for t in tools if t.name == "list_directories_by_size"), None)
+        tool = next((tool for tool in tools if tool.name == "list_directories_by_size"), None)
         assert tool is not None
 
         # Check that it has the required parameters

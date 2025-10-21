@@ -1,7 +1,4 @@
-import typing as t
-
-
-def format_bytes(bytes_value: t.Union[int, float]) -> str:
+def format_bytes(bytes_value: int | float) -> str:
     """
     Format bytes into human-readable format.
 

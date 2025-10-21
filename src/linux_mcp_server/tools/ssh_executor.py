@@ -11,9 +11,9 @@ import os
 import shlex
 import subprocess
 import time
-import typing as t
 
 from pathlib import Path
+from typing import Optional
 
 import asyncssh
 
@@ -24,7 +24,7 @@ from ..audit import log_ssh_connect
 logger = logging.getLogger(__name__)
 
 
-def discover_ssh_key() -> t.Optional[str]:
+def discover_ssh_key() -> str | None:
     """
     Discover SSH private key for authentication.
 
@@ -77,9 +77,9 @@ class SSHConnectionManager:
     connections to the same hosts.
     """
 
-    _instance: t.Optional["SSHConnectionManager"] = None
+    _instance: Optional["SSHConnectionManager"] = None
     _connections: dict[str, asyncssh.SSHClientConnection]
-    _ssh_key: t.Optional[str]
+    _ssh_key: str | None
 
     def __new__(cls):
         """Implement singleton pattern."""
@@ -179,7 +179,7 @@ class SSHConnectionManager:
 
         # Build command string with proper shell escaping
         # Use shlex.quote() to ensure special characters (like \n in printf format) are preserved
-        cmd_str = " ".join(shlex.quote(arg) for arg in command)
+        cmd_str = shlex.join(command)
 
         # Start timing for command execution
         start_time = time.time()
@@ -240,8 +240,8 @@ _connection_manager = SSHConnectionManager()
 
 async def execute_command(
     command: list[str],
-    host: t.Optional[str] = None,
-    username: t.Optional[str] = None,
+    host: str | None = None,
+    username: str | None = None,
     **kwargs,
 ) -> tuple[int, str, str]:
     """

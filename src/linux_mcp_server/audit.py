@@ -130,7 +130,7 @@ def log_tool_complete(
     tool_name: str,
     status: str,
     duration: float,
-    error: t.Optional[str] = None,
+    error: str | None = None,
 ):
     """
     Log tool completion.
@@ -166,8 +166,8 @@ def log_ssh_connect(
     username: str,
     status: str,
     reused: bool = False,
-    key_path: t.Optional[str] = None,
-    error: t.Optional[str] = None,
+    key_path: str | None = None,
+    error: str | None = None,
 ):
     """
     Log SSH connection event.
@@ -231,7 +231,7 @@ def log_ssh_command(
     command: str,
     host: str,
     exit_code: int,
-    duration: t.Optional[float] = None,
+    duration: float | None = None,
 ):
     """
     Log SSH command execution.
