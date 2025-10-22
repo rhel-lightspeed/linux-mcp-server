@@ -26,7 +26,6 @@ classifiers = [
     "Natural Language :: English",
     "Operating System :: POSIX :: Linux",
     "Programming Language :: Python :: 3",
-    "Programming Language :: Python :: 3.9",
     "Programming Language :: Python :: 3.10",
     "Programming Language :: Python :: 3.11",
     "Programming Language :: Python :: 3.12",
@@ -91,8 +90,10 @@ pythonpath = "src"
 testpaths = ["tests"]
 
 [tool.coverage.run]
-source = ["src"]
-omit = ["*/tests/*"]
+source = [
+    "src",
+    "tests",
+]
 
 [tool.coverage.report]
 concurrency = ["greenlet", "thread"]
@@ -112,8 +113,11 @@ tag-only = [
 ]
 
 [tool.pyright]
-include = ["src"]
-pythonVersion = "3.9"
+include = [
+    "src",
+    "tests",
+]
+pythonVersion = "3.10"
 
 [tool.ruff]
 line-length = 120

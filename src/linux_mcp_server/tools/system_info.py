@@ -2,7 +2,6 @@
 
 import os
 import platform
-import typing as t
 
 from datetime import datetime
 
@@ -13,8 +12,8 @@ from .utils import format_bytes
 
 
 async def get_system_info(  # noqa: C901
-    host: t.Optional[str] = None,
-    username: t.Optional[str] = None,
+    host: str | None = None,
+    username: str | None = None,
 ) -> str:
     """
     Get basic system information.
@@ -102,7 +101,7 @@ async def get_system_info(  # noqa: C901
             # OS Information
             if os.path.exists("/etc/os-release"):
                 os_info = {}
-                with open("/etc/os-release", "r") as f:
+                with open("/etc/os-release") as f:
                     for line in f:
                         line = line.strip()
                         if "=" in line:
@@ -138,8 +137,8 @@ async def get_system_info(  # noqa: C901
 
 
 async def get_cpu_info(  # noqa: C901
-    host: t.Optional[str] = None,
-    username: t.Optional[str] = None,
+    host: str | None = None,
+    username: str | None = None,
 ) -> str:
     """
     Get CPU information.
@@ -183,7 +182,7 @@ async def get_cpu_info(  # noqa: C901
                 username=username,
             )
             if returncode == 0 and stdout:
-                core_ids = set(line.split(":", 1)[1].strip() for line in stdout.strip().split("\n") if ":" in line)
+                core_ids = {line.split(":", 1)[1].strip() for line in stdout.strip().split("\n") if ":" in line}
                 physical_cores = len(core_ids)
                 info.append(f"CPU Physical Cores: {physical_cores}")
 
@@ -253,7 +252,7 @@ async def get_cpu_info(  # noqa: C901
 
             # Try to get CPU model info from /proc/cpuinfo
             try:
-                with open("/proc/cpuinfo", "r") as f:
+                with open("/proc/cpuinfo") as f:
                     for line in f:
                         if line.startswith("model name"):
                             cpu_model = line.split(":")[1].strip()
@@ -268,8 +267,8 @@ async def get_cpu_info(  # noqa: C901
 
 
 async def get_memory_info(
-    host: t.Optional[str] = None,
-    username: t.Optional[str] = None,
+    host: str | None = None,
+    username: str | None = None,
 ) -> str:
     """
     Get memory information.
@@ -353,8 +352,8 @@ async def get_memory_info(
 
 
 async def get_disk_usage(
-    host: t.Optional[str] = None,
-    username: t.Optional[str] = None,
+    host: str | None = None,
+    username: str | None = None,
 ) -> str:
     """
     Get disk usage information.
@@ -433,7 +432,7 @@ async def get_disk_usage(
         return f"Error gathering disk usage information: {str(e)}"
 
 
-async def get_hardware_info(host: t.Optional[str] = None, username: t.Optional[str] = None) -> str:  # noqa: C901
+async def get_hardware_info(host: str | None = None, username: str | None = None) -> str:  # noqa: C901
     """
     Get hardware information.
 

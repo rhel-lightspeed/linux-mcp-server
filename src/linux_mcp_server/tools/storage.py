@@ -1,7 +1,5 @@
 """Storage and hardware tools."""
 
-import typing as t
-
 from pathlib import Path
 
 import psutil
@@ -12,8 +10,8 @@ from .validation import validate_positive_int
 
 
 async def list_block_devices(
-    host: t.Optional[str] = None,
-    username: t.Optional[str] = None,
+    host: str | None = None,
+    username: str | None = None,
 ) -> str:
     """
     List block devices.
@@ -83,9 +81,9 @@ async def list_block_devices(
 
 async def list_directories_by_size(  # noqa: C901
     path: str,
-    top_n: t.Union[int, float],
-    host: t.Optional[str] = None,
-    username: t.Optional[str] = None,
+    top_n: int | float,
+    host: str | None = None,
+    username: str | None = None,
 ) -> str:
     """
     List directories under a specified path sorted by size (largest first).
@@ -198,8 +196,8 @@ async def list_directories_by_size(  # noqa: C901
 async def list_directories_by_name(
     path: str,
     reverse: bool = False,
-    host: t.Optional[str] = None,
-    username: t.Optional[str] = None,
+    host: str | None = None,
+    username: str | None = None,
 ) -> str:
     """
     List directories under a specified path sorted by name.
@@ -274,8 +272,8 @@ async def list_directories_by_name(
 async def list_directories_by_modified_date(  # noqa: C901
     path: str,
     newest_first: bool = True,
-    host: t.Optional[str] = None,
-    username: t.Optional[str] = None,
+    host: str | None = None,
+    username: str | None = None,
 ) -> str:
     """
     List directories under a specified path sorted by modification date.
