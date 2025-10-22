@@ -1,0 +1,57 @@
+name: Build and Push to GHCR
+
+on:
+  push:
+    branches:
+      - main
+      - feature/openshift-deployment
+    paths:
+      - 'Dockerfile'
+      - '.dockerignore'
+      - 'pyproject.toml'
+      - 'uv.lock'
+      - 'src/**'
+      - 'hosts.example.yaml'
+      - '.github/workflows/build-and-publish-ghcr.yml'
+  workflow_dispatch:  # Allow manual trigger
+
+permissions:
+  contents: read
+  packages: write
+
+jobs:
+  build-and-push:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Log in to GHCR
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: rrbanda
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Build and push container image
+        run: |
+          IMAGE_NAME=ghcr.io/rrbanda/linux-mcp-server:latest
+          IMAGE_SHA=ghcr.io/rrbanda/linux-mcp-server:${{ github.sha }}
+          
+          echo "🔨 Building image: $IMAGE_NAME"
+          podman build -f Dockerfile -t $IMAGE_NAME -t $IMAGE_SHA .
+          
+          echo "📤 Pushing images to GHCR..."
+          podman push $IMAGE_NAME
+          podman push $IMAGE_SHA
+          
+          echo "✅ Successfully built and pushed Linux MCP Server images:"
+          echo "  📦 $IMAGE_NAME"
+          echo "  📦 $IMAGE_SHA"
+          echo ""
+          echo "🔗 View on GHCR: https://github.com/rrbanda/linux-mcp-server/pkgs/container/linux-mcp-server"
+          echo ""
+          echo "📝 Note: If this is the first build, make the package public at:"
+          echo "   https://github.com/rrbanda/linux-mcp-server/pkgs/container/linux-mcp-server/settings"
+

@@ -1,0 +1,26 @@
+apiVersion: route.openshift.io/v1
+kind: Route
+metadata:
+  name: mcp-inspector
+  namespace: rhel-mcp
+  labels:
+    app: mcp-inspector
+    app.kubernetes.io/name: mcp-inspector
+    app.kubernetes.io/component: ui
+  annotations:
+    # Enable sticky sessions for WebSocket connections
+    haproxy.router.openshift.io/balance: source
+    haproxy.router.openshift.io/disable_cookies: 'false'
+spec:
+  # Hostname will be auto-generated: mcp-inspector-rhel-mcp.apps.prod.rhoai.rh-aiservices-bu.com
+  to:
+    kind: Service
+    name: mcp-inspector
+    weight: 100
+  port:
+    targetPort: http
+  tls:
+    termination: edge
+    insecureEdgeTerminationPolicy: Redirect
+  wildcardPolicy: None
+

@@ -1,0 +1,69 @@
+# Example hosts configuration for Linux MCP Server
+# This file defines the RHEL instances that the MCP server can connect to
+
+# List of remote hosts that can be managed via SSH
+hosts:
+  # Example: Production web server
+  - name: "prod-web-01"
+    host: "prod-web-01.example.com"
+    username: "sysadmin"
+    description: "Production web server - RHEL 9"
+    ssh_key_path: "/app/ssh-keys/prod-key"  # Path inside container
+    tags:
+      - production
+      - web
+      - rhel9
+
+  # Example: Development database server
+  - name: "dev-db-01"
+    host: "dev-db-01.example.com"
+    username: "dbadmin"
+    description: "Development database server - RHEL 8"
+    ssh_key_path: "/app/ssh-keys/dev-key"  # Path inside container
+    tags:
+      - development
+      - database
+      - rhel8
+
+  # Example: Testing server
+  - name: "test-app-01"
+    host: "192.168.1.100"
+    username: "testuser"
+    description: "Testing application server"
+    ssh_key_path: "/app/ssh-keys/test-key"
+    tags:
+      - testing
+      - application
+
+# SSH configuration
+ssh_config:
+  # Default SSH key path (used if host doesn't specify one)
+  default_key_path: "/app/ssh-keys/id_ed25519"
+  
+  # Connection timeout in seconds
+  connection_timeout: 30
+  
+  # Enable SSH connection keep-alive
+  keep_alive: true
+  
+  # Keep-alive interval in seconds
+  keep_alive_interval: 30
+
+# Allowed log paths for read_log_file tool
+# These paths will be accessible on remote systems
+allowed_log_paths:
+  - "/var/log/messages"
+  - "/var/log/secure"
+  - "/var/log/audit/audit.log"
+  - "/var/log/httpd/access_log"
+  - "/var/log/httpd/error_log"
+  - "/var/log/nginx/access.log"
+  - "/var/log/nginx/error.log"
+  - "/var/log/postgresql/postgresql.log"
+
+# Logging configuration
+logging:
+  level: "INFO"  # DEBUG, INFO, WARNING, ERROR, CRITICAL
+  retention_days: 10
+  directory: "/app/logs"  # Inside container
+
