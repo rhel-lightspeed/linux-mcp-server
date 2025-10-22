@@ -75,7 +75,7 @@ addopts = [
     "--verbose",
     "--strict-markers",
     "--cov", "src",
-    "--cov-branch",
+    "--cov", "tests",
     "--cov-report", "html",
     "--cov-report", "term-missing:skip-covered",
     "--durations-min", "1",
@@ -90,13 +90,14 @@ pythonpath = "src"
 testpaths = ["tests"]
 
 [tool.coverage.run]
+branch = true
+data_file = "coverage/.data"
 source = [
     "src",
     "tests",
 ]
 
 [tool.coverage.report]
-concurrency = ["greenlet", "thread"]
 exclude_lines = [
     "pragma: no cover",
     "def __repr__",
@@ -105,11 +106,21 @@ exclude_lines = [
     "if __name__ == .__main__.:",
 ]
 
+[tool.coverage.html]
+directory = "coverage/htmlcov"
+
+[tool.coverage.json]
+output = "coverage/coverage.json"
+
+[tool.coverage.xml]
+output = "coverage/coverage.xml"
+
 [tool.gha-update]
 tag-only = [
     "actions/checkout",
     "actions/setup-python",
     "astral-sh/setup-uv",
+    "codecov/codecov-action",
 ]
 
 [tool.pyright]
@@ -122,7 +133,6 @@ pythonVersion = "3.10"
 [tool.ruff]
 line-length = 120
 indent-width = 4
-target-version = "py312"
 
 [tool.ruff.lint]
 # https://docs.astral.sh/ruff/rules/
