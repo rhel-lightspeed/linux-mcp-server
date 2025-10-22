@@ -80,7 +80,10 @@ def AuditContext(**extra_fields):
             # Add extra fields to the record
             if "extra" not in kwargs:
                 kwargs["extra"] = {}
-            kwargs["extra"].update(self.extra)
+
+            if isinstance(self.extra, t.Iterable):
+                kwargs["extra"].update(self.extra)
+
             return msg, kwargs
 
     adapter = ContextAdapter(logger, extra_fields)
