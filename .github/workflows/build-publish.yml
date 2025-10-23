@@ -28,6 +28,7 @@ jobs:
           python -VV
           python -m site
           ls -ld $(python -c "import site; print(site.getsitepackages()[0])")
+          git tag --list --sort=-refname --format='%(refname:short) %(objectname:short)'
           whoami
 
       - name: Install build tools
