@@ -4,10 +4,6 @@ on:
     tags:
       - '*'
 
-  pull_request:
-    branches:
-      - main
-
 permissions:
   contents: read
 
@@ -72,5 +68,5 @@ jobs:
           ls -l dist/
           whoami
 
-      # - name: Publish to PyPI
-      #   uses: pypa/gh-action-pypi-publish@v1.13.0
+      - name: Publish to PyPI
+        uses: pypa/gh-action-pypi-publish@v1.13.0
