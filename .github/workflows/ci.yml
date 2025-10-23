@@ -102,10 +102,10 @@ jobs:
 
       - name: Show environment
         run: |
+          set -x
           python -VV
           python -m site
           uv --version
-          env | sort
           ls -ld $(python -c "import site; print(site.getsitepackages()[0])")
           whoami
 

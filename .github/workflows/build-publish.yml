@@ -26,9 +26,9 @@ jobs:
 
       - name: Show environment
         run: |
+          set -x
           python -VV
           python -m site
-          env | sort
           ls -ld $(python -c "import site; print(site.getsitepackages()[0])")
           whoami
 
@@ -66,9 +66,9 @@ jobs:
 
       - name: Show environment
         run: |
+          set -x
           python -VV
           python -m site
-          env | sort
           ls -ld $(python -c "import site; print(site.getsitepackages()[0])")
           ls -l dist/
           whoami
