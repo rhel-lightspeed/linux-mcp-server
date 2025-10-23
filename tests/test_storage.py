@@ -1,12 +1,22 @@
 """Tests for storage tools."""
 
-import os
 import sys
 import typing as t
 
 import pytest
 
 from linux_mcp_server.tools import storage
+
+
+@pytest.fixture
+def restricted_path(tmp_path):
+    restricted_path = tmp_path / "restricted"
+    restricted_path.mkdir()
+    restricted_path.chmod(0o000)
+
+    yield restricted_path
+
+    restricted_path.chmod(0o755)
 
 
 class TestStorageTools:
@@ -162,16 +172,12 @@ class TestListDirectoriesBySize:
         assert isinstance(result, str)
         assert "no subdirectories" in result.lower() or "empty" in result.lower() or "0" in result
 
-    async def test_list_directories_by_size_handles_permission_denied(self):
+    async def test_list_directories_by_size_handles_permission_denied(self, restricted_path):
         """Test handling of permission denied errors gracefully."""
-        # This test might be skipped on systems without restricted directories
-        restricted_path = "/root"
+        result = await storage.list_directories_by_size(restricted_path, top_n=5)
 
-        if os.path.exists(restricted_path) and not os.access(restricted_path, os.R_OK):
-            result = await storage.list_directories_by_size(restricted_path, top_n=5)
-
-            assert isinstance(result, str)
-            # Should handle gracefully, not crash
+        assert "Error: Permission denied to read directory".casefold() in result.casefold()
+        # Should handle gracefully, not crash
 
     @pytest.mark.skipif(sys.platform != "linux", reason="requires GNU version of du")
     async def test_list_directories_by_size_formats_sizes_human_readable(self, tmp_path):
