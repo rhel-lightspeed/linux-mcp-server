@@ -331,10 +331,10 @@ class TestListDirectoriesBySizeIntegration:
         result = await mcp.call_tool("list_directories_by_size", {"path": str(tmp_path), "top_n": 5})
 
         assert result is not None
-        if isinstance(result, t.MutableMapping):
-            assert "result" in result or len(result) > 0
-        else:
-            assert len(result) > 0
+        assert len(result) > 0
+        assert isinstance(result, t.Sequence)
+        assert isinstance(result[1], dict)
+        assert "result" in result[1]
 
     async def test_server_tool_has_proper_schema(self):
         """Test that the tool has proper input schema defined."""
