@@ -52,6 +52,9 @@ jobs:
       name: pypi
       url: https://pypi.org/p/linux-mcp-server
 
+    permissions:
+      id-token: write
+
     steps:
       - name: Download artifacts
         uses: actions/download-artifact@v5.0.0
