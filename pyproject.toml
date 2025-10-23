@@ -1,5 +1,5 @@
 [build-system]
-requires = ["hatchling"]
+requires = ["hatchling", "hatch-vcs"]
 build-backend = "hatchling.build"
 
 [project]
@@ -67,7 +67,7 @@ test = [
 packages = ["src/linux_mcp_server"]
 
 [tool.hatch.version]
-path = "src/linux_mcp_server/__init__.py"
+source = "vcs"
 
 [tool.pytest.ini_options]
 addopts = [
@@ -118,9 +118,12 @@ output = "coverage/coverage.xml"
 [tool.gha-update]
 tag-only = [
     "actions/checkout",
+    "actions/download-artifact",
     "actions/setup-python",
+    "actions/upload-artifact",
     "astral-sh/setup-uv",
     "codecov/codecov-action",
+    "pypa/gh-action-pypi-publish",
 ]
 
 [tool.pyright]
