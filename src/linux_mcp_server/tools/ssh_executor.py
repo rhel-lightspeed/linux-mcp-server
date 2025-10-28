@@ -22,7 +22,7 @@ from ..audit import log_ssh_command
 from ..audit import log_ssh_connect
 
 
-logger = logging.getLogger(__name__)
+logger = logging.getLogger("linux-mcp-server")
 
 
 def discover_ssh_key() -> str | None:

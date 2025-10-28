@@ -12,7 +12,7 @@ def cli():
     # Initialize logging first, before any other operations
     setup_logging()
 
-    logger = logging.getLogger(__name__)
+    logger = logging.getLogger("linux-mcp-server")
     logger.info("Starting Linux MCP Server")
 
     try:
