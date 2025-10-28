@@ -1,9 +1,14 @@
 """Service management tools."""
 
+from linux_mcp_server.logging_config import log_tool_call
+from linux_mcp_server.server import mcp
+
 from .ssh_executor import execute_command
 from .validation import validate_line_count
 
 
+@log_tool_call
+@mcp.tool()
 async def list_services(
     host: str | None = None,
     username: str | None = None,
@@ -51,6 +56,8 @@ async def list_services(
         return f"Error listing services: {str(e)}"
 
 
+@log_tool_call
+@mcp.tool()
 async def get_service_status(
     service_name: str,
     host: str | None = None,
@@ -96,6 +103,8 @@ async def get_service_status(
         return f"Error getting service status: {str(e)}"
 
 
+@log_tool_call
+@mcp.tool()
 async def get_service_logs(
     service_name: str,
     lines: int = 50,
