@@ -4,12 +4,16 @@ Simplified logging setup with standard Python logging infrastructure.
 Supports structured logging with extra fields for audit and diagnostic purposes.
 """
 
+import inspect
 import json
 import logging
 import logging.handlers
 import os
+import typing as t
 
 from pathlib import Path
+
+from linux_mcp_server.audit import sanitize_parameters
 
 
 def get_log_directory() -> Path:
@@ -173,4 +177,62 @@ def setup_logging():
     )
     root_logger.addHandler(console_handler)
 
-    logging.getLogger(__name__).info(f"Logging initialized: {log_dir}")
+    logging.getLogger("linux-mcp-server").info(f"Logging initialized: {log_dir}")
+
+
+def log_tool_call(func: t.Callable):
+    logger = logging.getLogger("linux-mcp-server")
+    tool_name = func.__name__
+
+    def wrapper(*args, **kwargs):
+        execution_mode = "remote" if kwargs.get("host") else "local"
+        safe_params = sanitize_parameters(kwargs)
+
+        extra = {
+            "event": "TOOL_CALL",
+            "tool": tool_name,
+            "execution_mode": execution_mode,
+        }
+        if "host" in kwargs:
+            extra["host"] = kwargs["host"]
+
+        if "username" in kwargs:
+            extra["username"] = kwargs["username"]
+
+        params_str = ", ".join(f"{k}={v}" for k, v in safe_params.items() if k not in ["host", "username"])
+        message = f"TOOL_CALL: {tool_name}"
+        if params_str:
+            message += f" | {params_str}"
+
+        logger.info(message, extra=extra)
+
+        func(*args, **kwargs)
+
+    async def awrapper(*args, **kwargs):
+        execution_mode = "remote" if kwargs.get("host") else "local"
+        safe_params = sanitize_parameters(kwargs)
+
+        extra = {
+            "event": "TOOL_CALL",
+            "tool": tool_name,
+            "execution_mode": execution_mode,
+        }
+        if "host" in kwargs:
+            extra["host"] = kwargs["host"]
+
+        if "username" in kwargs:
+            extra["username"] = kwargs["username"]
+
+        params_str = ", ".join(f"{k}={v}" for k, v in safe_params.items() if k not in ["host", "username"])
+        message = f"TOOL_CALL: {tool_name}"
+        if params_str:
+            message += f" | {params_str}"
+
+        logger.info(message, extra=extra)
+
+        return await func(*args, **kwargs)
+
+    if inspect.iscoroutinefunction(func):
+        return awrapper
+
+    return wrapper
