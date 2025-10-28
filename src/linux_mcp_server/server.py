@@ -9,13 +9,12 @@ from .audit import log_tool_call
 from .audit import log_tool_complete
 from .tools import logs
 from .tools import network
-from .tools import processes
 from .tools import services
 from .tools import storage
 from .tools import system_info
 
 
-logger = logging.getLogger(__name__)
+logger = logging.getLogger("linux-mcp-server")
 
 
 # Initialize FastMCP server
@@ -160,43 +159,43 @@ async def get_service_logs(
     )
 
 
-# Process Management Tools
-@mcp.tool()
-async def list_processes(host: str | None = None, username: str | None = None) -> str:
-    """List running processes with CPU and memory usage.
-
-    Args:
-        host: Remote host to connect to via SSH (optional, executes locally if not provided)
-        username: SSH username for remote host (required if host is provided)
-    """
-    return await _execute_tool(
-        "list_processes",
-        processes.list_processes,
-        host=host,
-        username=username,
-    )
-
-
-@mcp.tool()
-async def get_process_info(
-    pid: int,
-    host: str | None = None,
-    username: str | None = None,
-) -> str:
-    """Get detailed information about a specific process.
-
-    Args:
-        pid: Process ID
-        host: Remote host to connect to via SSH (optional, executes locally if not provided)
-        username: SSH username for remote host (required if host is provided)
-    """
-    return await _execute_tool(
-        "get_process_info",
-        processes.get_process_info,
-        pid=pid,
-        host=host,
-        username=username,
-    )
+# # Process Management Tools
+# @mcp.tool()
+# async def list_processes(host: str | None = None, username: str | None = None) -> str:
+# """List running processes with CPU and memory usage.
+#
+# Args:
+#     host: Remote host to connect to via SSH (optional, executes locally if not provided)
+#     username: SSH username for remote host (required if host is provided)
+# """
+# return await _execute_tool(
+#     "list_processes",
+#     processes.list_processes,
+#     host=host,
+#     username=username,
+# )
+#
+#
+# @mcp.tool()
+# async def get_process_info(
+# pid: int,
+# host: str | None = None,
+# username: str | None = None,
+# ) -> str:
+# """Get detailed information about a specific process.
+#
+# Args:
+#     pid: Process ID
+#     host: Remote host to connect to via SSH (optional, executes locally if not provided)
+#     username: SSH username for remote host (required if host is provided)
+# """
+# return await _execute_tool(
+#     "get_process_info",
+#     processes.get_process_info,
+#     pid=pid,
+#     host=host,
+#     username=username,
+# )
 
 
 # Log and Audit Tools
