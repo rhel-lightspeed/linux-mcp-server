@@ -6,6 +6,7 @@ either local or remote execution based on the provided parameters.
 """
 
 import asyncio
+import getpass
 import logging
 import os
 import shlex
@@ -280,8 +281,7 @@ async def execute_command(
     # Route to remote execution if host is provided
     if host:
         if not username:
-            logger.error(f"Host provided without username for command: {cmd_str}")
-            raise ValueError("username is required when host is provided")
+            username = getpass.getuser()
 
         logger.debug(f"Routing to remote execution: {username}@{host} | command={cmd_str}")
         return await _connection_manager.execute_remote(command, host, username)
