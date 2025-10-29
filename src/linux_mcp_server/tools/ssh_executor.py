@@ -51,22 +51,24 @@ def discover_ssh_key() -> str | None:
             return None
 
     # Check default locations (prefer modern algorithms)
-    home = Path.home()
-    default_keys = [
-        home / ".ssh" / "id_ed25519",
-        home / ".ssh" / "id_ecdsa",
-        home / ".ssh" / "id_rsa",
-    ]
+    if os.getenv("LINUX_MCP_SEARCH_FOR_SSH_KEY", False):
+        home = Path.home()
+        default_keys = [
+            home / ".ssh" / "id_ed25519",
+            home / ".ssh" / "id_ecdsa",
+            home / ".ssh" / "id_rsa",
+        ]
 
-    logger.debug(f"Checking default SSH key locations: {[str(k) for k in default_keys]}")
+        logger.debug(f"Checking default SSH key locations: {[str(k) for k in default_keys]}")
 
-    for key_path in default_keys:
-        if key_path.exists() and key_path.is_file():
-            logger.info(f"Using SSH key: {key_path}")
-            return str(key_path)
+        for key_path in default_keys:
+            if key_path.exists() and key_path.is_file():
+                logger.info(f"Using SSH key: {key_path}")
+                return str(key_path)
 
-    logger.warning("No SSH private key found in default locations")
-    return None
+        logger.warning("No SSH private key found in default locations")
+
+    logger.debug("Not providing an SSH key")
 
 
 class SSHConnectionManager:
