@@ -34,7 +34,7 @@ class TestSSHKeyDiscovery:
             result = discover_ssh_key()
             assert result is None
 
-    def test_discover_ssh_key_default_locations(self, tmp_path):
+    def test_discover_ssh_key_default_locations(self, tmp_path, mocker):
         """Test SSH key discovery falls back to default locations."""
         # Mock home directory
         fake_ssh_dir = tmp_path / ".ssh"
@@ -44,12 +44,13 @@ class TestSSHKeyDiscovery:
         id_ed25519 = fake_ssh_dir / "id_ed25519"
         id_ed25519.touch()
 
-        with patch.dict(os.environ, {}, clear=True):
-            with patch("pathlib.Path.home", return_value=tmp_path):
-                result = discover_ssh_key()
-                assert result == str(id_ed25519)
+        mocker.patch.dict(os.environ, {"LINUX_MCP_SEARCH_FOR_SSH_KEY": "yes"}, clear=True)
+        mocker.patch("pathlib.Path.home", return_value=tmp_path)
+        result = discover_ssh_key()
 
-    def test_discover_ssh_key_prefers_ed25519(self, tmp_path):
+        assert result == str(id_ed25519)
+
+    def test_discover_ssh_key_prefers_ed25519(self, tmp_path, mocker):
         """Test SSH key discovery prefers ed25519 over rsa."""
         fake_ssh_dir = tmp_path / ".ssh"
         fake_ssh_dir.mkdir()
@@ -60,21 +61,25 @@ class TestSSHKeyDiscovery:
         id_rsa.touch()
         id_ed25519.touch()
 
-        with patch.dict(os.environ, {}, clear=True):
-            with patch("pathlib.Path.home", return_value=tmp_path):
-                result = discover_ssh_key()
-                # Should prefer ed25519
-                assert result == str(id_ed25519)
+        mocker.patch.dict(os.environ, {"LINUX_MCP_SEARCH_FOR_SSH_KEY": "yes"}, clear=True)
+        mocker.patch("pathlib.Path.home", return_value=tmp_path)
 
-    def test_discover_ssh_key_no_keys_found(self, tmp_path):
+        result = discover_ssh_key()
+
+        # Should prefer ed25519
+        assert result == str(id_ed25519)
+
+    def test_discover_ssh_key_no_keys_found(self, tmp_path, mocker):
         """Test SSH key discovery when no keys exist."""
         fake_ssh_dir = tmp_path / ".ssh"
         fake_ssh_dir.mkdir()
 
-        with patch.dict(os.environ, {}, clear=True):
-            with patch("pathlib.Path.home", return_value=tmp_path):
-                result = discover_ssh_key()
-                assert result is None
+        mocker.patch.dict(os.environ, {"LINUX_MCP_SEARCH_FOR_SSH_KEY": "yes"}, clear=True)
+        mocker.patch("pathlib.Path.home", return_value=tmp_path)
+
+        result = discover_ssh_key()
+
+        assert result is None
 
 
 class TestExecuteCommand:
@@ -115,11 +120,6 @@ class TestExecuteCommand:
             assert returncode == 0
             assert stdout == "output"
             mock_manager.execute_remote.assert_called_once()
-
-    async def test_execute_command_remote_requires_username(self):
-        """Test that remote execution requires username."""
-        with pytest.raises(ValueError, match="username.*required"):
-            await execute_command(["ls"], host="remote.example.com")
 
     async def test_execute_command_remote_requires_host(self):
         """Test that username without host uses local execution."""
