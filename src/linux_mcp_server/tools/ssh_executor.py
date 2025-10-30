@@ -6,6 +6,7 @@ either local or remote execution based on the provided parameters.
 """
 
 import asyncio
+import getpass
 import logging
 import os
 import shlex
@@ -50,22 +51,24 @@ def discover_ssh_key() -> str | None:
             return None
 
     # Check default locations (prefer modern algorithms)
-    home = Path.home()
-    default_keys = [
-        home / ".ssh" / "id_ed25519",
-        home / ".ssh" / "id_ecdsa",
-        home / ".ssh" / "id_rsa",
-    ]
+    if os.getenv("LINUX_MCP_SEARCH_FOR_SSH_KEY", False):
+        home = Path.home()
+        default_keys = [
+            home / ".ssh" / "id_ed25519",
+            home / ".ssh" / "id_ecdsa",
+            home / ".ssh" / "id_rsa",
+        ]
 
-    logger.debug(f"Checking default SSH key locations: {[str(k) for k in default_keys]}")
+        logger.debug(f"Checking default SSH key locations: {[str(k) for k in default_keys]}")
 
-    for key_path in default_keys:
-        if key_path.exists() and key_path.is_file():
-            logger.info(f"Using SSH key: {key_path}")
-            return str(key_path)
+        for key_path in default_keys:
+            if key_path.exists() and key_path.is_file():
+                logger.info(f"Using SSH key: {key_path}")
+                return str(key_path)
 
-    logger.warning("No SSH private key found in default locations")
-    return None
+        logger.warning("No SSH private key found in default locations")
+
+    logger.debug("Not providing an SSH key")
 
 
 class SSHConnectionManager:
@@ -280,8 +283,7 @@ async def execute_command(
     # Route to remote execution if host is provided
     if host:
         if not username:
-            logger.error(f"Host provided without username for command: {cmd_str}")
-            raise ValueError("username is required when host is provided")
+            username = getpass.getuser()
 
         logger.debug(f"Routing to remote execution: {username}@{host} | command={cmd_str}")
         return await _connection_manager.execute_remote(command, host, username)

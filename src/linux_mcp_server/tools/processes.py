@@ -1,8 +1,12 @@
 """Process management tools."""
 
+import typing as t
+
 from datetime import datetime
 
 import psutil
+
+from pydantic import Field
 
 from .ssh_executor import execute_command
 from .utils import format_bytes
@@ -10,18 +14,13 @@ from .validation import validate_pid
 
 
 async def list_processes(
-    host: str | None = None,
-    username: str | None = None,
+    host: t.Annotated[str | None, Field(description="Optional remote host to connect to")] = None,
+    username: t.Annotated[
+        str | None, Field(description="Optional SSH username (if not provided, the current user account is used)")
+    ] = None,
 ) -> str:
     """
     List running processes.
-
-    Args:
-        host: Optional remote host to connect to
-        username: Optional SSH username (required if host is provided)
-
-    Returns:
-        Formatted string with process list
     """
     try:
         if host:
@@ -100,20 +99,14 @@ async def list_processes(
 
 
 async def get_process_info(  # noqa: C901
-    pid: int,
-    host: str | None = None,
-    username: str | None = None,
+    pid: t.Annotated[int, Field(description="Process ID")],
+    host: t.Annotated[str | None, Field(description="Optional remote host to connect to")] = None,
+    username: t.Annotated[
+        str | None, Field(description="Optional SSH username (if not provided, the current user account is used)")
+    ] = None,
 ) -> str:
     """
     Get information about a specific process.
-
-    Args:
-        pid: Process ID
-        host: Optional remote host to connect to
-        username: Optional SSH username (required if host is provided)
-
-    Returns:
-        Formatted string with process information
     """
     # Validate PID (accepts floats from LLMs)
     validated_pid, error = validate_pid(pid)
