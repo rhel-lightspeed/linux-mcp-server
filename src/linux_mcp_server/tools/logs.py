@@ -93,7 +93,7 @@ async def get_audit_logs(
     # Validate lines parameter (accepts floats from LLMs)
     lines, _ = validate_line_count(lines, default=100)
 
-    audit_log_path = "/var/log/audit/audilog"
+    audit_log_path = "/var/log/audit/audit.log"
 
     try:
         # For local execution, check if file exists
