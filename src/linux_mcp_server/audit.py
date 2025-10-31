@@ -59,39 +59,6 @@ def sanitize_parameters(params: dict[str, t.Any]) -> dict[str, t.Any]:
     return sanitized
 
 
-@contextmanager
-def AuditContext(**extra_fields):
-    """
-    Context manager for adding extra fields to all log records.
-
-    Usage:
-        with AuditContext(tool="list_services", host="server1.com") as logger:
-            logger.info("Starting operation")
-
-    Args:
-        **extra_fields: Additional fields to add to log records
-
-    Yields:
-        Logger with extra fields
-    """
-    logger = logging.getLogger()
-
-    # Create adapter with extra fields
-    class ContextAdapter(logging.LoggerAdapter):
-        def process(self, msg, kwargs):
-            # Add extra fields to the record
-            if "extra" not in kwargs:
-                kwargs["extra"] = {}
-
-            if isinstance(self.extra, t.Iterable):
-                kwargs["extra"].update(self.extra)
-
-            return msg, kwargs
-
-    adapter = ContextAdapter(logger, extra_fields)
-    yield adapter
-
-
 def log_tool_call(tool_name: str, parameters: dict[str, t.Any]):
     """
     Log a tool invocation.
