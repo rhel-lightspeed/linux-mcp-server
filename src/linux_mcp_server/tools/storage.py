@@ -4,11 +4,13 @@ from pathlib import Path
 
 import psutil
 
+from ..audit import audit_tool
 from .ssh_executor import execute_command
 from .utils import format_bytes
 from .validation import validate_positive_int
 
 
+@audit_tool()
 async def list_block_devices(
     host: str | None = None,
     username: str | None = None,
@@ -79,6 +81,7 @@ async def list_block_devices(
         return f"Error listing block devices: {str(e)}"
 
 
+@audit_tool()
 async def list_directories_by_size(  # noqa: C901
     path: str,
     top_n: int | float,
@@ -193,6 +196,7 @@ async def list_directories_by_size(  # noqa: C901
         return f"Error analyzing directories: {str(e)}"
 
 
+@audit_tool()
 async def list_directories_by_name(
     path: str,
     reverse: bool = False,
@@ -269,6 +273,7 @@ async def list_directories_by_name(
         return f"Error listing directories: {str(e)}"
 
 
+@audit_tool()
 async def list_directories_by_modified_date(  # noqa: C901
     path: str,
     newest_first: bool = True,

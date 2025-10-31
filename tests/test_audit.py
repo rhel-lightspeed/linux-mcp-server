@@ -2,7 +2,6 @@
 
 import logging
 
-from linux_mcp_server.audit import AuditContext
 from linux_mcp_server.audit import log_operation
 from linux_mcp_server.audit import log_ssh_command
 from linux_mcp_server.audit import log_ssh_connect
@@ -60,48 +59,6 @@ class TestSanitizeParameters:
         assert result["config"]["password"] == "***REDACTED***"
         assert result["config"]["host"] == "server.com"
         assert result["username"] == "admin"
-
-
-class TestAuditContext:
-    """Test audit context manager."""
-
-    def test_context_creates_logger(self):
-        """Test that context creates a logger with extra fields."""
-        with AuditContext(tool="test_tool", host="server1.com") as logger:
-            # AuditContext returns a LoggerAdapter, not a Logger
-            assert isinstance(logger, (logging.Logger, logging.LoggerAdapter))
-
-    def test_context_fields_in_log(self):
-        """Test that context fields appear in log records."""
-        # Create a custom handler to capture records
-        test_handler = logging.Handler()
-        test_handler.setLevel(logging.INFO)
-        records = []
-
-        class RecordCapture(logging.Handler):
-            def emit(self, record):
-                records.append(record)
-
-        capture = RecordCapture()
-        capture.setLevel(logging.INFO)
-
-        root_logger = logging.getLogger()
-        root_logger.addHandler(capture)
-        root_logger.setLevel(logging.INFO)
-
-        try:
-            with AuditContext(tool="test_tool", host="server1.com") as logger:
-                logger.info("Test message")
-
-            # Check that log record has the extra fields
-            assert len(records) >= 1
-            record = [r for r in records if "Test message" in r.getMessage()][0]
-            assert hasattr(record, "tool")
-            assert record.tool == "test_tool"
-            assert hasattr(record, "host")
-            assert record.host == "server1.com"
-        finally:
-            root_logger.removeHandler(capture)
 
 
 class TestLogToolCall:
