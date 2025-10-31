@@ -7,10 +7,12 @@ from datetime import datetime
 
 import psutil
 
+from ..audit import audit_tool
 from .ssh_executor import execute_command
 from .utils import format_bytes
 
 
+@audit_tool()
 async def get_system_info(  # noqa: C901
     host: str | None = None,
     username: str | None = None,
@@ -136,6 +138,7 @@ async def get_system_info(  # noqa: C901
         return f"Error gathering system information: {str(e)}"
 
 
+@audit_tool()
 async def get_cpu_info(  # noqa: C901
     host: str | None = None,
     username: str | None = None,
@@ -266,6 +269,7 @@ async def get_cpu_info(  # noqa: C901
         return f"Error gathering CPU information: {str(e)}"
 
 
+@audit_tool()
 async def get_memory_info(
     host: str | None = None,
     username: str | None = None,
@@ -351,6 +355,7 @@ async def get_memory_info(
         return f"Error gathering memory information: {str(e)}"
 
 
+@audit_tool()
 async def get_disk_usage(
     host: str | None = None,
     username: str | None = None,
@@ -432,6 +437,7 @@ async def get_disk_usage(
         return f"Error gathering disk usage information: {str(e)}"
 
 
+@audit_tool()
 async def get_hardware_info(host: str | None = None, username: str | None = None) -> str:  # noqa: C901
     """
     Get hardware information.

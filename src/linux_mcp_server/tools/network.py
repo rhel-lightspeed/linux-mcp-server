@@ -4,10 +4,12 @@ import socket
 
 import psutil
 
+from ..audit import audit_tool
 from .ssh_executor import execute_command
 from .utils import format_bytes
 
 
+@audit_tool()
 async def get_network_interfaces(  # noqa: C901
     host: str | None = None,
     username: str | None = None,
@@ -113,6 +115,7 @@ async def get_network_interfaces(  # noqa: C901
         return f"Error getting network interface information: {str(e)}"
 
 
+@audit_tool()
 async def get_network_connections(host: str | None = None, username: str | None = None) -> str:
     """
     Get active network connections.
@@ -196,6 +199,7 @@ async def get_network_connections(host: str | None = None, username: str | None 
         return f"Error getting network connections: {str(e)}"
 
 
+@audit_tool()
 async def get_listening_ports(host: str | None = None, username: str | None = None) -> str:
     """
     Get listening ports.

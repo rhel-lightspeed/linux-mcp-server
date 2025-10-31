@@ -6,9 +6,11 @@ that can be output in both human-readable and JSON formats.
 """
 
 import logging
+import time
 import typing as t
 
 from contextlib import contextmanager
+from functools import wraps
 
 
 # Sensitive field names that should be redacted in logs
@@ -288,3 +290,46 @@ def log_operation(operation: str, message: str, level: int = logging.INFO, **con
     full_message = f"{operation}: {message}"
 
     logger.log(level, full_message, extra=extra)
+
+
+def audit_tool():
+    """
+    Decorator for tool functions that automatically adds audit logging.
+
+    This decorator wraps async tool handler functions to automatically log
+    tool invocations and completions, including timing and error handling.
+
+    Usage:
+        @audit_tool()
+        async def get_system_info(host: str | None = None, username: str | None = None) -> str:
+            # tool implementation
+            ...
+
+    Returns:
+        Decorated function with audit logging
+    """
+
+    def decorator(func):
+        tool_name = func.__name__
+
+        @wraps(func)
+        async def wrapper(*args, **kwargs):
+            # Log tool invocation
+            log_tool_call(tool_name, kwargs)
+
+            start_time = time.time()
+
+            try:
+                result = await func(*args, **kwargs)
+                duration = time.time() - start_time
+                log_tool_complete(tool_name, status="success", duration=duration)
+                return result
+
+            except Exception as e:
+                duration = time.time() - start_time
+                log_tool_complete(tool_name, status="error", duration=duration, error=str(e))
+                raise
+
+        return wrapper
+
+    return decorator

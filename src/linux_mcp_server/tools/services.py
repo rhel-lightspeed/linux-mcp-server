@@ -1,9 +1,11 @@
 """Service management tools."""
 
+from ..audit import audit_tool
 from .ssh_executor import execute_command
 from .validation import validate_line_count
 
 
+@audit_tool()
 async def list_services(
     host: str | None = None,
     username: str | None = None,
@@ -51,6 +53,7 @@ async def list_services(
         return f"Error listing services: {str(e)}"
 
 
+@audit_tool()
 async def get_service_status(
     service_name: str,
     host: str | None = None,
@@ -96,6 +99,7 @@ async def get_service_status(
         return f"Error getting service status: {str(e)}"
 
 
+@audit_tool()
 async def get_service_logs(
     service_name: str,
     lines: int = 50,

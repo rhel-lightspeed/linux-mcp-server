@@ -1,12 +1,9 @@
 """Core MCP server for Linux diagnostics using FastMCP."""
 
 import logging
-import time
 
 from mcp.server.fastmcp import FastMCP
 
-from .audit import log_tool_call
-from .audit import log_tool_complete
 from .tools import logs
 from .tools import network
 from .tools import processes
@@ -31,12 +28,7 @@ async def get_system_info(host: str | None = None, username: str | None = None) 
         host: Remote host to connect to via SSH (optional, executes locally if not provided)
         username: SSH username for remote host (required if host is provided)
     """
-    return await _execute_tool(
-        "get_system_info",
-        system_info.get_system_info,
-        host=host,
-        username=username,
-    )
+    return await system_info.get_system_info(host=host, username=username)
 
 
 @mcp.tool()
@@ -47,12 +39,7 @@ async def get_cpu_info(host: str | None = None, username: str | None = None) -> 
         host: Remote host to connect to via SSH (optional, executes locally if not provided)
         username: SSH username for remote host (required if host is provided)
     """
-    return await _execute_tool(
-        "get_cpu_info",
-        system_info.get_cpu_info,
-        host=host,
-        username=username,
-    )
+    return await system_info.get_cpu_info(host=host, username=username)
 
 
 @mcp.tool()
@@ -63,12 +50,7 @@ async def get_memory_info(host: str | None = None, username: str | None = None) 
         host: Remote host to connect to via SSH (optional, executes locally if not provided)
         username: SSH username for remote host (required if host is provided)
     """
-    return await _execute_tool(
-        "get_memory_info",
-        system_info.get_memory_info,
-        host=host,
-        username=username,
-    )
+    return await system_info.get_memory_info(host=host, username=username)
 
 
 @mcp.tool()
@@ -79,12 +61,7 @@ async def get_disk_usage(host: str | None = None, username: str | None = None) -
         host: Remote host to connect to via SSH (optional, executes locally if not provided)
         username: SSH username for remote host (required if host is provided)
     """
-    return await _execute_tool(
-        "get_disk_usage",
-        system_info.get_disk_usage,
-        host=host,
-        username=username,
-    )
+    return await system_info.get_disk_usage(host=host, username=username)
 
 
 @mcp.tool()
@@ -95,12 +72,7 @@ async def get_hardware_info(host: str | None = None, username: str | None = None
         host: Remote host to connect to via SSH (optional, executes locally if not provided)
         username: SSH username for remote host (required if host is provided)
     """
-    return await _execute_tool(
-        "get_hardware_info",
-        system_info.get_hardware_info,
-        host=host,
-        username=username,
-    )
+    return await system_info.get_hardware_info(host=host, username=username)
 
 
 # Service Management Tools
@@ -112,12 +84,7 @@ async def list_services(host: str | None = None, username: str | None = None) ->
         host: Remote host to connect to via SSH (optional, executes locally if not provided)
         username: SSH username for remote host (required if host is provided)
     """
-    return await _execute_tool(
-        "list_services",
-        services.list_services,
-        host=host,
-        username=username,
-    )
+    return await services.list_services(host=host, username=username)
 
 
 @mcp.tool()
@@ -129,13 +96,7 @@ async def get_service_status(service_name: str, host: str | None = None, usernam
         host: Remote host to connect to via SSH (optional, executes locally if not provided)
         username: SSH username for remote host (required if host is provided)
     """
-    return await _execute_tool(
-        "get_service_status",
-        services.get_service_status,
-        service_name=service_name,
-        host=host,
-        username=username,
-    )
+    return await services.get_service_status(service_name=service_name, host=host, username=username)
 
 
 @mcp.tool()
@@ -150,14 +111,7 @@ async def get_service_logs(
         host: Remote host to connect to via SSH (optional, executes locally if not provided)
         username: SSH username for remote host (required if host is provided)
     """
-    return await _execute_tool(
-        "get_service_logs",
-        services.get_service_logs,
-        service_name=service_name,
-        lines=lines,
-        host=host,
-        username=username,
-    )
+    return await services.get_service_logs(service_name=service_name, lines=lines, host=host, username=username)
 
 
 # Process Management Tools
@@ -169,12 +123,7 @@ async def list_processes(host: str | None = None, username: str | None = None) -
         host: Remote host to connect to via SSH (optional, executes locally if not provided)
         username: SSH username for remote host (required if host is provided)
     """
-    return await _execute_tool(
-        "list_processes",
-        processes.list_processes,
-        host=host,
-        username=username,
-    )
+    return await processes.list_processes(host=host, username=username)
 
 
 @mcp.tool()
@@ -190,13 +139,7 @@ async def get_process_info(
         host: Remote host to connect to via SSH (optional, executes locally if not provided)
         username: SSH username for remote host (required if host is provided)
     """
-    return await _execute_tool(
-        "get_process_info",
-        processes.get_process_info,
-        pid=pid,
-        host=host,
-        username=username,
-    )
+    return await processes.get_process_info(pid=pid, host=host, username=username)
 
 
 # Log and Audit Tools
@@ -219,15 +162,8 @@ async def get_journal_logs(
         host: Remote host to connect to via SSH (optional, executes locally if not provided)
         username: SSH username for remote host (required if host is provided)
     """
-    return await _execute_tool(
-        "get_journal_logs",
-        logs.get_journal_logs,
-        unit=unit,
-        priority=priority,
-        since=since,
-        lines=lines,
-        host=host,
-        username=username,
+    return await logs.get_journal_logs(
+        unit=unit, priority=priority, since=since, lines=lines, host=host, username=username
     )
 
 
@@ -240,13 +176,7 @@ async def get_audit_logs(lines: int = 100, host: str | None = None, username: st
         host: Remote host to connect to via SSH (optional, executes locally if not provided)
         username: SSH username for remote host (required if host is provided)
     """
-    return await _execute_tool(
-        "get_audit_logs",
-        logs.get_audit_logs,
-        lines=lines,
-        host=host,
-        username=username,
-    )
+    return await logs.get_audit_logs(lines=lines, host=host, username=username)
 
 
 @mcp.tool()
@@ -259,14 +189,7 @@ async def read_log_file(log_path: str, lines: int = 100, host: str | None = None
         host: Remote host to connect to via SSH (optional, executes locally if not provided)
         username: SSH username for remote host (required if host is provided)
     """
-    return await _execute_tool(
-        "read_log_file",
-        logs.read_log_file,
-        log_path=log_path,
-        lines=lines,
-        host=host,
-        username=username,
-    )
+    return await logs.read_log_file(log_path=log_path, lines=lines, host=host, username=username)
 
 
 # Network Tools
@@ -278,12 +201,7 @@ async def get_network_interfaces(host: str | None = None, username: str | None =
         host: Remote host to connect to via SSH (optional, executes locally if not provided)
         username: SSH username for remote host (required if host is provided)
     """
-    return await _execute_tool(
-        "get_network_interfaces",
-        network.get_network_interfaces,
-        host=host,
-        username=username,
-    )
+    return await network.get_network_interfaces(host=host, username=username)
 
 
 @mcp.tool()
@@ -294,12 +212,7 @@ async def get_network_connections(host: str | None = None, username: str | None 
         host: Remote host to connect to via SSH (optional, executes locally if not provided)
         username: SSH username for remote host (required if host is provided)
     """
-    return await _execute_tool(
-        "get_network_connections",
-        network.get_network_connections,
-        host=host,
-        username=username,
-    )
+    return await network.get_network_connections(host=host, username=username)
 
 
 @mcp.tool()
@@ -310,12 +223,7 @@ async def get_listening_ports(host: str | None = None, username: str | None = No
         host: Remote host to connect to via SSH (optional, executes locally if not provided)
         username: SSH username for remote host (required if host is provided)
     """
-    return await _execute_tool(
-        "get_listening_ports",
-        network.get_listening_ports,
-        host=host,
-        username=username,
-    )
+    return await network.get_listening_ports(host=host, username=username)
 
 
 # Storage Tools
@@ -327,12 +235,7 @@ async def list_block_devices(host: str | None = None, username: str | None = Non
         host: Remote host to connect to via SSH (optional, executes locally if not provided)
         username: SSH username for remote host (required if host is provided)
     """
-    return await _execute_tool(
-        "list_block_devices",
-        storage.list_block_devices,
-        host=host,
-        username=username,
-    )
+    return await storage.list_block_devices(host=host, username=username)
 
 
 @mcp.tool()
@@ -350,14 +253,7 @@ async def list_directories_by_size(
         host: Remote host to connect to via SSH (optional, executes locally if not provided)
         username: SSH username for remote host (required if host is provided)
     """
-    return await _execute_tool(
-        "list_directories_by_size",
-        storage.list_directories_by_size,
-        path=path,
-        top_n=top_n,
-        host=host,
-        username=username,
-    )
+    return await storage.list_directories_by_size(path=path, top_n=top_n, host=host, username=username)
 
 
 @mcp.tool()
@@ -375,14 +271,7 @@ async def list_directories_by_name(
         host: Remote host to connect to via SSH (optional, executes locally if not provided)
         username: SSH username for remote host (required if host is provided)
     """
-    return await _execute_tool(
-        "list_directories_by_name",
-        storage.list_directories_by_name,
-        path=path,
-        reverse=reverse,
-        host=host,
-        username=username,
-    )
+    return await storage.list_directories_by_name(path=path, reverse=reverse, host=host, username=username)
 
 
 @mcp.tool()
@@ -400,39 +289,9 @@ async def list_directories_by_modified_date(
         host: Remote host to connect to via SSH (optional, executes locally if not provided)
         username: SSH username for remote host (required if host is provided)
     """
-    return await _execute_tool(
-        "list_directories_by_modified_date",
-        storage.list_directories_by_modified_date,
-        path=path,
-        newest_first=newest_first,
-        host=host,
-        username=username,
+    return await storage.list_directories_by_modified_date(
+        path=path, newest_first=newest_first, host=host, username=username
     )
-
-
-async def _execute_tool(tool_name: str, handler, **kwargs):
-    """Execute a tool with logging and error handling.
-
-    Args:
-        tool_name: Name of the tool being executed
-        handler: The tool function to call
-        **kwargs: Arguments to pass to the tool function
-    """
-    # Log tool invocation
-    log_tool_call(tool_name, kwargs)
-
-    start_time = time.time()
-
-    try:
-        result = await handler(**kwargs)
-        duration = time.time() - start_time
-        log_tool_complete(tool_name, status="success", duration=duration)
-        return result
-
-    except Exception as e:
-        duration = time.time() - start_time
-        log_tool_complete(tool_name, status="error", duration=duration, error=str(e))
-        raise
 
 
 def main():

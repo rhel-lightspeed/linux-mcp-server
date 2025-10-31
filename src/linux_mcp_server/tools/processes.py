@@ -8,11 +8,13 @@ import psutil
 
 from pydantic import Field
 
+from ..audit import audit_tool
 from .ssh_executor import execute_command
 from .utils import format_bytes
 from .validation import validate_pid
 
 
+@audit_tool()
 async def list_processes(
     host: t.Annotated[str | None, Field(description="Optional remote host to connect to")] = None,
     username: t.Annotated[
@@ -98,6 +100,7 @@ async def list_processes(
         return f"Error listing processes: {str(e)}"
 
 
+@audit_tool()
 async def get_process_info(  # noqa: C901
     pid: t.Annotated[int, Field(description="Process ID")],
     host: t.Annotated[str | None, Field(description="Optional remote host to connect to")] = None,
