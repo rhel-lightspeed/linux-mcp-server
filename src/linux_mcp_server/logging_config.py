@@ -4,16 +4,12 @@ Simplified logging setup with standard Python logging infrastructure.
 Supports structured logging with extra fields for audit and diagnostic purposes.
 """
 
-import inspect
 import json
 import logging
 import logging.handlers
 import os
-import typing as t
 
 from pathlib import Path
-
-from linux_mcp_server.audit import sanitize_parameters
 
 
 def get_log_directory() -> Path:
