@@ -1,10 +1,9 @@
 """Service management tools."""
 
-from linux_mcp_server.logging_config import log_tool_call
-from linux_mcp_server.server import mcp
-
-from .ssh_executor import execute_command
+from ..audit import log_tool_call
+from ..server import mcp
 from ..utils.validation import validate_line_count
+from .ssh_executor import execute_command
 
 
 @log_tool_call

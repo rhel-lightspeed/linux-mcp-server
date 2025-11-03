@@ -9,7 +9,7 @@ import psutil
 from mcp.types import ToolAnnotations
 from pydantic import Field
 
-from ..logging_config import log_tool_call
+from ..audit import log_tool_call
 from ..server import mcp
 from ..utils import format_bytes
 from ..utils.validation import validate_pid
