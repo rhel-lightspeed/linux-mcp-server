@@ -10,8 +10,8 @@ from ..utils import format_bytes
 from .ssh_executor import execute_command
 
 
-@log_tool_call
 @mcp.tool()
+@log_tool_call
 async def get_network_interfaces(  # noqa: C901
     host: str | None = None,
     username: str | None = None,
@@ -117,8 +117,8 @@ async def get_network_interfaces(  # noqa: C901
         return f"Error getting network interface information: {str(e)}"
 
 
-@log_tool_call
 @mcp.tool()
+@log_tool_call
 async def get_network_connections(host: str | None = None, username: str | None = None) -> str:
     """
     Get active network connections.
@@ -202,8 +202,8 @@ async def get_network_connections(host: str | None = None, username: str | None 
         return f"Error getting network connections: {str(e)}"
 
 
-@log_tool_call
 @mcp.tool()
+@log_tool_call
 async def get_listening_ports(host: str | None = None, username: str | None = None) -> str:
     """
     Get listening ports.

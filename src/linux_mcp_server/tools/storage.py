@@ -11,8 +11,8 @@ from ..utils.validation import validate_positive_int
 from .ssh_executor import execute_command
 
 
-@log_tool_call
 @mcp.tool()
+@log_tool_call
 async def list_block_devices(
     host: str | None = None,
     username: str | None = None,
@@ -83,8 +83,8 @@ async def list_block_devices(
         return f"Error listing block devices: {str(e)}"
 
 
-@log_tool_call
 @mcp.tool()
+@log_tool_call
 async def list_directories_by_size(  # noqa: C901
     path: str,
     top_n: int | float,
@@ -199,8 +199,8 @@ async def list_directories_by_size(  # noqa: C901
         return f"Error analyzing directories: {str(e)}"
 
 
-@log_tool_call
 @mcp.tool()
+@log_tool_call
 async def list_directories_by_name(
     path: str,
     reverse: bool = False,
@@ -277,8 +277,8 @@ async def list_directories_by_name(
         return f"Error listing directories: {str(e)}"
 
 
-@log_tool_call
 @mcp.tool()
+@log_tool_call
 async def list_directories_by_modified_date(  # noqa: C901
     path: str,
     newest_first: bool = True,

@@ -11,7 +11,7 @@ logger = logging.getLogger("linux-mcp-server")
 # Initialize FastMCP server
 mcp = FastMCP("linux-diagnostics")
 
-from .tools import *
+from linux_mcp_server.tools import *  # noqa: E402, F403
 
 
 def main():
