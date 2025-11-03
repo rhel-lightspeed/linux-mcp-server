@@ -4,7 +4,7 @@ from linux_mcp_server.logging_config import log_tool_call
 from linux_mcp_server.server import mcp
 
 from .ssh_executor import execute_command
-from .validation import validate_line_count
+from ..utils.validation import validate_line_count
 
 
 @log_tool_call

@@ -4,8 +4,9 @@ import os
 
 from pathlib import Path
 
+from ..server import mcp
+from ..utils.validation import validate_line_count
 from .ssh_executor import execute_command
-from .validation import validate_line_count
 
 
 async def get_journal_logs(

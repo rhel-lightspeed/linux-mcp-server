@@ -7,8 +7,9 @@ from datetime import datetime
 
 import psutil
 
+from ..server import mcp
 from .ssh_executor import execute_command
-from .utils import format_bytes
+from ..utils import format_bytes
 
 
 async def get_system_info(  # noqa: C901

@@ -7,15 +7,13 @@ from datetime import datetime
 import psutil
 
 from mcp.types import ToolAnnotations
-
-from linux_mcp_server.logging_config import log_tool_call
-from linux_mcp_server.server import mcp
-
 from pydantic import Field
 
+from ..logging_config import log_tool_call
+from ..server import mcp
+from ..utils import format_bytes
+from ..utils.validation import validate_pid
 from .ssh_executor import execute_command
-from .utils import format_bytes
-from .validation import validate_pid
 
 
 @log_tool_call
