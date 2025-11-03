@@ -5,6 +5,7 @@ the entire MCP server. All functions add structured context to log records
 that can be output in both human-readable and JSON formats.
 """
 
+import functools
 import inspect
 import logging
 import typing as t
@@ -99,6 +100,7 @@ def log_tool_call(func: t.Callable):
     logger = logging.getLogger("linux-mcp-server")
     tool_name = func.__name__
 
+    @functools.wraps(func)
     def wrapper(*args, **kwargs):
         execution_mode = "remote" if kwargs.get("host") else "local"
         safe_params = sanitize_parameters(kwargs)
@@ -123,6 +125,7 @@ def log_tool_call(func: t.Callable):
 
         func(*args, **kwargs)
 
+    @functools.wraps(func)
     async def awrapper(*args, **kwargs):
         execution_mode = "remote" if kwargs.get("host") else "local"
         safe_params = sanitize_parameters(kwargs)
