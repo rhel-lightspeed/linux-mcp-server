@@ -5,6 +5,7 @@ the entire MCP server. All functions add structured context to log records
 that can be output in both human-readable and JSON formats.
 """
 
+import inspect
 import logging
 import typing as t
 
@@ -90,43 +91,66 @@ def AuditContext(**extra_fields):
     yield adapter
 
 
-def log_tool_call(tool_name: str, parameters: dict[str, t.Any]):
+def log_tool_call(func: t.Callable):
+    """Decorator to log tool calls
+
+    Works with sync or async functions.
     """
-    Log a tool invocation.
+    logger = logging.getLogger("linux-mcp-server")
+    tool_name = func.__name__
 
-    Args:
-        tool_name: Name of the tool being called
-        parameters: Tool parameters (will be sanitized)
-    """
-    logger = logging.getLogger(__name__)
+    def wrapper(*args, **kwargs):
+        execution_mode = "remote" if kwargs.get("host") else "local"
+        safe_params = sanitize_parameters(kwargs)
 
-    # Determine if local or remote execution
-    execution_mode = "remote" if parameters.get("host") else "local"
+        extra = {
+            "event": "TOOL_CALL",
+            "tool": tool_name,
+            "execution_mode": execution_mode,
+        }
+        if "host" in kwargs:
+            extra["host"] = kwargs["host"]
 
-    # Sanitize parameters
-    safe_params = sanitize_parameters(parameters)
+        if "username" in kwargs:
+            extra["username"] = kwargs["username"]
 
-    # Build log record with extra fields
-    extra = {
-        "event": "TOOL_CALL",
-        "tool": tool_name,
-        "execution_mode": execution_mode,
-    }
+        params_str = ", ".join(f"{k}={v}" for k, v in safe_params.items() if k not in ["host", "username"])
+        message = f"TOOL_CALL: {tool_name}"
+        if params_str:
+            message += f" | {params_str}"
 
-    # Add host and username if present
-    if "host" in parameters:
-        extra["host"] = parameters["host"]
-    if "username" in parameters:
-        extra["username"] = parameters["username"]
+        logger.info(message, extra=extra)
 
-    # Add sanitized parameters as string
-    params_str = ", ".join(f"{k}={v}" for k, v in safe_params.items() if k not in ["host", "username"])
+        func(*args, **kwargs)
 
-    message = f"TOOL_CALL: {tool_name}"
-    if params_str:
-        message += f" | {params_str}"
+    async def awrapper(*args, **kwargs):
+        execution_mode = "remote" if kwargs.get("host") else "local"
+        safe_params = sanitize_parameters(kwargs)
 
-    logger.info(message, extra=extra)
+        extra = {
+            "event": "TOOL_CALL",
+            "tool": tool_name,
+            "execution_mode": execution_mode,
+        }
+        if "host" in kwargs:
+            extra["host"] = kwargs["host"]
+
+        if "username" in kwargs:
+            extra["username"] = kwargs["username"]
+
+        params_str = ", ".join(f"{k}={v}" for k, v in safe_params.items() if k not in ["host", "username"])
+        message = f"TOOL_CALL: {tool_name}"
+        if params_str:
+            message += f" | {params_str}"
+
+        logger.info(message, extra=extra)
+
+        return await func(*args, **kwargs)
+
+    if inspect.iscoroutinefunction(func):
+        return awrapper
+
+    return wrapper
 
 
 def log_tool_complete(
