@@ -20,8 +20,8 @@ from typing import Optional
 
 import asyncssh
 
-from ..audit import log_ssh_command
-from ..audit import log_ssh_connect
+from linux_mcp_server.audit import log_ssh_command
+from linux_mcp_server.audit import log_ssh_connect
 
 
 logger = logging.getLogger("linux-mcp-server")

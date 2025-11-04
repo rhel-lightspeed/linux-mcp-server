@@ -3,8 +3,8 @@
 import logging
 import sys
 
-from .logging_config import setup_logging
-from .server import main
+from linux_mcp_server.logging_config import setup_logging
+from linux_mcp_server.server import main
 
 
 def cli():
