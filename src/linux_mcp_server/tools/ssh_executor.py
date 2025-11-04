@@ -5,6 +5,8 @@ with connection pooling and SSH key discovery. It seamlessly routes commands to
 either local or remote execution based on the provided parameters.
 """
 
+# FIXME: Move this out of tools and into its own package.
+
 import asyncio
 import getpass
 import logging
