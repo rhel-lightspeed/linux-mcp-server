@@ -13,6 +13,8 @@ import typing as t
 from contextlib import contextmanager
 
 
+Function: t.TypeAlias = t.Callable[..., t.Any]
+
 # Sensitive field names that should be redacted in logs
 SENSITIVE_FIELDS = {
     "password",
@@ -92,7 +94,7 @@ def AuditContext(**extra_fields):
     yield adapter
 
 
-def log_tool_call(func: t.Callable):
+def log_tool_call(func: t.Callable) -> Function:
     """Decorator to log tool calls
 
     Works with sync or async functions.
