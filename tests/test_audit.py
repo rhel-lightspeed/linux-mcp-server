@@ -2,6 +2,8 @@
 
 import logging
 
+import pytest
+
 from linux_mcp_server.audit import AuditContext
 from linux_mcp_server.audit import log_operation
 from linux_mcp_server.audit import log_ssh_command
@@ -9,6 +11,15 @@ from linux_mcp_server.audit import log_ssh_connect
 from linux_mcp_server.audit import log_tool_call
 from linux_mcp_server.audit import log_tool_complete
 from linux_mcp_server.audit import sanitize_parameters
+
+
+@pytest.fixture
+def decorated():
+    @log_tool_call
+    def list_services(*args, **kwargs):
+        return args, kwargs
+
+    return list_services
 
 
 class TestSanitizeParameters:
@@ -107,10 +118,10 @@ class TestAuditContext:
 class TestLogToolCall:
     """Test tool call logging."""
 
-    def test_log_tool_call_local(self, caplog):
+    def test_log_tool_call_local(self, caplog, decorated):
         """Test logging a local tool call."""
         with caplog.at_level(logging.INFO):
-            log_tool_call("list_services", {})
+            decorated()
 
         assert "TOOL_CALL" in caplog.text
         assert "list_services" in caplog.text
@@ -120,11 +131,11 @@ class TestLogToolCall:
         assert hasattr(record, "execution_mode")
         assert record.execution_mode == "local"
 
-    def test_log_tool_call_remote(self, caplog):
+    def test_log_tool_call_remote(self, caplog, decorated):
         """Test logging a remote tool call."""
         params = {"host": "server1.com", "username": "admin"}
         with caplog.at_level(logging.INFO):
-            log_tool_call("list_services", params)
+            decorated(**params)
 
         assert "TOOL_CALL" in caplog.text
         assert "list_services" in caplog.text
@@ -136,11 +147,11 @@ class TestLogToolCall:
         assert hasattr(record, "host")
         assert record.host == "server1.com"
 
-    def test_log_tool_call_sanitizes_parameters(self, caplog):
+    def test_log_tool_call_sanitizes_parameters(self, caplog, decorated):
         """Test that tool call logging sanitizes sensitive parameters."""
         params = {"password": "secret123", "username": "admin"}
         with caplog.at_level(logging.INFO):
-            log_tool_call("some_tool", params)
+            decorated(**params)
 
         assert "TOOL_CALL" in caplog.text
         assert "secret123" not in caplog.text
