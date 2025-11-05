@@ -129,7 +129,6 @@ def _log_event_start(
     safe_params = sanitize_parameters(params)
 
     extra = {
-        "event": Event.TOOL_CALL,
         "tool": tool_name,
         "execution_mode": execution_mode,
     }
@@ -160,7 +159,6 @@ def _log_event_complete(
     duration = timedelta(microseconds=(stop - start) / 1_000)
     status = "error" if error else "success"
     extra = {
-        "event": Event.TOOL_COMPLETE,
         "tool": tool_name,
         "status": status,
         "duration": f"{duration}s",
@@ -250,7 +248,6 @@ def log_ssh_connect(
 
     if status == "success":
         extra = {
-            "event": "SSH_CONNECT",
             "host": host,
             "username": username,
             "status": status,
@@ -271,7 +268,6 @@ def log_ssh_connect(
     else:
         # Connection failed
         extra = {
-            "event": "SSH_CONNECT_FAILED",
             "host": host,
             "username": username,
             "status": "failed",
@@ -309,7 +305,6 @@ def log_ssh_command(
     logger = logging.getLogger(__name__)
 
     extra = {
-        "event": "REMOTE_EXEC",
         "command": command,
         "host": host,
         "exit_code": exit_code,
