@@ -16,12 +16,12 @@ from linux_mcp_server.utils import format_bytes
 from linux_mcp_server.utils.validation import validate_pid
 
 
-@log_tool_call
 @mcp.tool(
     title="List processes",
     description="List running processes",
     annotations=ToolAnnotations(readOnlyHint=True),
 )
+@log_tool_call
 async def list_processes(
     host: t.Annotated[str | None, Field(description="Optional remote host to connect to")] = None,
     username: t.Annotated[
@@ -104,12 +104,12 @@ async def list_processes(
         return f"Error listing processes: {str(e)}"
 
 
-@log_tool_call
 @mcp.tool(
     title="Process details",
     description="Get information about a specific process.",
     annotations=ToolAnnotations(readOnlyHint=True),
 )
+@log_tool_call
 async def get_process_info(  # noqa: C901
     pid: t.Annotated[int, Field(description="Process ID")],
     host: t.Annotated[str | None, Field(description="Optional remote host to connect to")] = None,

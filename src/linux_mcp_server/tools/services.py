@@ -6,8 +6,8 @@ from linux_mcp_server.tools.ssh_executor import execute_command
 from linux_mcp_server.utils.validation import validate_line_count
 
 
-@log_tool_call
 @mcp.tool()
+@log_tool_call
 async def list_services(
     host: str | None = None,
     username: str | None = None,
@@ -55,8 +55,8 @@ async def list_services(
         return f"Error listing services: {str(e)}"
 
 
-@log_tool_call
 @mcp.tool()
+@log_tool_call
 async def get_service_status(
     service_name: str,
     host: str | None = None,
@@ -102,8 +102,8 @@ async def get_service_status(
         return f"Error getting service status: {str(e)}"
 
 
-@log_tool_call
 @mcp.tool()
+@log_tool_call
 async def get_service_logs(
     service_name: str,
     lines: int = 50,
