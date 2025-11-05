@@ -125,7 +125,7 @@ class TestLogToolCall:
         assert "list_services" in caplog.text
         # Check the log record attributes
         assert len(caplog.records) >= 1
-        record = caplog.records[-1]
+        record = caplog.records[0]
         assert hasattr(record, "execution_mode")
         assert record.execution_mode == "local"
 
@@ -139,7 +139,7 @@ class TestLogToolCall:
         assert "list_services" in caplog.text
         # Check the log record attributes
         assert len(caplog.records) >= 1
-        record = caplog.records[-1]
+        record = caplog.records[0]
         assert hasattr(record, "execution_mode")
         assert record.execution_mode == "remote"
         assert hasattr(record, "host")
