@@ -94,6 +94,34 @@ def AuditContext(**extra_fields):
     yield adapter
 
 
+def _log_event(
+    logger: logging.Logger,
+    tool_name: str,
+    execution_mode: str,
+    params: dict[t.Any, t.Any],
+) -> None:
+    execution_mode = "remote" if params.get("host") else "local"
+    safe_params = sanitize_parameters(params)
+
+    extra = {
+        "event": "TOOL_CALL",
+        "tool": tool_name,
+        "execution_mode": execution_mode,
+    }
+    if "host" in params:
+        extra["host"] = params["host"]
+
+    if "username" in params:
+        extra["username"] = params["username"]
+
+    params_str = ", ".join(f"{k}={v}" for k, v in safe_params.items() if k not in ["host", "username"])
+    message = f"TOOL_CALL: {tool_name}"
+    if params_str:
+        message += f" | {params_str}"
+
+    logger.info(message, extra=extra)
+
+
 def log_tool_call(func: t.Callable) -> Function:
     """Decorator to log tool calls
 
@@ -105,50 +133,14 @@ def log_tool_call(func: t.Callable) -> Function:
     @functools.wraps(func)
     def wrapper(*args, **kwargs):
         execution_mode = "remote" if kwargs.get("host") else "local"
-        safe_params = sanitize_parameters(kwargs)
-
-        extra = {
-            "event": "TOOL_CALL",
-            "tool": tool_name,
-            "execution_mode": execution_mode,
-        }
-        if "host" in kwargs:
-            extra["host"] = kwargs["host"]
-
-        if "username" in kwargs:
-            extra["username"] = kwargs["username"]
-
-        params_str = ", ".join(f"{k}={v}" for k, v in safe_params.items() if k not in ["host", "username"])
-        message = f"TOOL_CALL: {tool_name}"
-        if params_str:
-            message += f" | {params_str}"
-
-        logger.info(message, extra=extra)
+        _log_event(logger, tool_name, execution_mode, kwargs)
 
         func(*args, **kwargs)
 
     @functools.wraps(func)
     async def awrapper(*args, **kwargs):
         execution_mode = "remote" if kwargs.get("host") else "local"
-        safe_params = sanitize_parameters(kwargs)
-
-        extra = {
-            "event": "TOOL_CALL",
-            "tool": tool_name,
-            "execution_mode": execution_mode,
-        }
-        if "host" in kwargs:
-            extra["host"] = kwargs["host"]
-
-        if "username" in kwargs:
-            extra["username"] = kwargs["username"]
-
-        params_str = ", ".join(f"{k}={v}" for k, v in safe_params.items() if k not in ["host", "username"])
-        message = f"TOOL_CALL: {tool_name}"
-        if params_str:
-            message += f" | {params_str}"
-
-        logger.info(message, extra=extra)
+        _log_event(logger, tool_name, execution_mode, kwargs)
 
         return await func(*args, **kwargs)
 
