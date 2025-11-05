@@ -2,6 +2,8 @@
 
 import logging
 
+import pytest
+
 from linux_mcp_server.audit import AuditContext
 from linux_mcp_server.audit import log_ssh_command
 from linux_mcp_server.audit import log_ssh_connect
@@ -104,53 +106,59 @@ class TestAuditContext:
 class TestLogToolCall:
     """Test tool call logging."""
 
-    def test_log_tool_call_local(self, caplog, decorated):
-        """Test logging a local tool call."""
-        with caplog.at_level(logging.INFO):
-            decorated()
-
-        assert "TOOL_CALL" in caplog.text
-        assert "list_services" in caplog.text
-        # Check the log record attributes
-        assert len(caplog.records) >= 1
-        record = caplog.records[0]
-        assert hasattr(record, "execution_mode")
-        assert record.execution_mode == "local"
-
-    async def test_log_tool_call_async_local(self, caplog, adecorated):
-        """Test logging a local tool call."""
-        with caplog.at_level(logging.INFO):
-            await adecorated()
-
-        assert "TOOL_CALL" in caplog.text
-        assert "list_services" in caplog.text
-        # Check the log record attributes
-        assert len(caplog.records) >= 1
-        record = caplog.records[0]
-        assert hasattr(record, "execution_mode")
-        assert record.execution_mode == "local"
-
-    def test_log_tool_call_remote(self, caplog, decorated):
-        """Test logging a remote tool call."""
-        params = {"host": "server1.com", "username": "admin"}
+    @pytest.mark.parametrize(
+        ("params", "mode"),
+        (
+            ({}, "local"),
+            ({"host": "server1.com", "username": "admin"}, "remote"),
+        ),
+    )
+    def test_log_tool_call(self, caplog, decorated, params, mode):
+        """Test logging a sync tool call."""
         with caplog.at_level(logging.INFO):
             decorated(**params)
 
+        record = caplog.records[0]
+
         assert "TOOL_CALL" in caplog.text
         assert "list_services" in caplog.text
-        # Check the log record attributes
-        assert len(caplog.records) >= 1
+        assert caplog.records
+        assert getattr(record, "execution_mode") == mode
+
+    @pytest.mark.parametrize(
+        ("params", "mode"),
+        (
+            ({}, "local"),
+            ({"host": "server1.com", "username": "admin"}, "remote"),
+        ),
+    )
+    async def test_log_tool_call_async(self, caplog, adecorated, params, mode):
+        """Test logging an async call."""
+        with caplog.at_level(logging.INFO):
+            await adecorated(**params)
+
         record = caplog.records[0]
-        assert hasattr(record, "execution_mode")
-        assert record.execution_mode == "remote"
-        assert hasattr(record, "host")
-        assert record.host == "server1.com"
+
+        assert "TOOL_CALL" in caplog.text
+        assert "list_services" in caplog.text
+        assert caplog.records
+        assert getattr(record, "execution_mode", None) == mode
 
     def test_log_tool_call_sanitizes_parameters(self, caplog, decorated):
         """Test that tool call logging sanitizes sensitive parameters."""
         params = {"password": "secret123", "username": "admin"}
         with caplog.at_level(logging.INFO):
             decorated(**params)
+
+        assert "TOOL_CALL" in caplog.text
+        assert "secret123" not in caplog.text
+        assert "REDACTED" in caplog.text
+
+    async def test_log_tool_call_async_sanitizes_parameters(self, caplog, adecorated):
+        """Test that tool call logging sanitizes sensitive parameters."""
+        params = {"password": "secret123", "username": "admin"}
+        with caplog.at_level(logging.INFO):
+            await adecorated(**params)
 
         assert "TOOL_CALL" in caplog.text
         assert "secret123" not in caplog.text
