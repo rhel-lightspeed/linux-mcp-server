@@ -8,9 +8,11 @@ that can be output in both human-readable and JSON formats.
 import functools
 import inspect
 import logging
+import time
 import typing as t
 
 from contextlib import contextmanager
+from datetime import timedelta
 
 
 Function: t.TypeAlias = t.Callable[..., t.Any]
@@ -94,12 +96,12 @@ def AuditContext(**extra_fields):
     yield adapter
 
 
-def _log_event(
+def _log_event_start(
     logger: logging.Logger,
     tool_name: str,
     execution_mode: str,
     params: dict[t.Any, t.Any],
-) -> None:
+) -> int:
     execution_mode = "remote" if params.get("host") else "local"
     safe_params = sanitize_parameters(params)
 
@@ -121,6 +123,34 @@ def _log_event(
 
     logger.info(message, extra=extra)
 
+    return time.perf_counter_ns()
+
+
+def _log_event_complete(
+    logger: logging.Logger,
+    tool_name: str,
+    start: int,
+    error: Exception | None = None,
+) -> None:
+    stop = time.perf_counter_ns()
+    duration = timedelta(microseconds=(stop - start) / 1_000)
+    status = "error" if error else "success"
+    extra = {
+        "event": "TOOL_COMPLETE",
+        "tool": tool_name,
+        "status": status,
+        "duration": f"{duration}s",
+    }
+
+    message = f"TOOL_COMPLETE: {tool_name}"
+
+    if error:
+        extra["error"] = str(error)
+        message += f" | error: {error}"
+        logger.error(message, extra=extra)
+    else:
+        logger.info(message, extra=extra)
+
 
 def log_tool_call(func: t.Callable) -> Function:
     """Decorator to log tool calls
@@ -133,16 +163,35 @@ def log_tool_call(func: t.Callable) -> Function:
     @functools.wraps(func)
     def wrapper(*args, **kwargs):
         execution_mode = "remote" if kwargs.get("host") else "local"
-        _log_event(logger, tool_name, execution_mode, kwargs)
+        start = _log_event_start(logger, tool_name, execution_mode, kwargs)
+        error = None
+        result = None
 
-        func(*args, **kwargs)
+        try:
+            result = func(*args, **kwargs)
+        except Exception as exc:
+            # FIXME: This could potentially swallow exceptions. Maybe narrow the exception type.
+            error = exc
+
+        _log_event_complete(logger, tool_name, start, error)
+
+        return result
 
     @functools.wraps(func)
     async def awrapper(*args, **kwargs):
         execution_mode = "remote" if kwargs.get("host") else "local"
-        _log_event(logger, tool_name, execution_mode, kwargs)
+        start = _log_event_start(logger, tool_name, execution_mode, kwargs)
+        error = None
+        result = None
 
-        return await func(*args, **kwargs)
+        try:
+            result = await func(*args, **kwargs)
+        except Exception as exc:
+            error = exc
+
+        _log_event_complete(logger, tool_name, start, error)
+
+        return result
 
     if inspect.iscoroutinefunction(func):
         return awrapper
