@@ -2,22 +2,10 @@
 
 import logging
 
-import pytest
-
 from linux_mcp_server.audit import AuditContext
 from linux_mcp_server.audit import log_ssh_command
 from linux_mcp_server.audit import log_ssh_connect
-from linux_mcp_server.audit import log_tool_call
 from linux_mcp_server.audit import sanitize_parameters
-
-
-@pytest.fixture
-def decorated():
-    @log_tool_call
-    def list_services(*args, **kwargs):
-        return args, kwargs
-
-    return list_services
 
 
 class TestSanitizeParameters:
@@ -129,6 +117,19 @@ class TestLogToolCall:
         assert hasattr(record, "execution_mode")
         assert record.execution_mode == "local"
 
+    async def test_log_tool_call_async_local(self, caplog, adecorated):
+        """Test logging a local tool call."""
+        with caplog.at_level(logging.INFO):
+            await adecorated()
+
+        assert "TOOL_CALL" in caplog.text
+        assert "list_services" in caplog.text
+        # Check the log record attributes
+        assert len(caplog.records) >= 1
+        record = caplog.records[0]
+        assert hasattr(record, "execution_mode")
+        assert record.execution_mode == "local"
+
     def test_log_tool_call_remote(self, caplog, decorated):
         """Test logging a remote tool call."""
         params = {"host": "server1.com", "username": "admin"}
@@ -154,6 +155,18 @@ class TestLogToolCall:
         assert "TOOL_CALL" in caplog.text
         assert "secret123" not in caplog.text
         assert "REDACTED" in caplog.text
+
+    def test_log_tool_call_failure(self, caplog, decorated_fail):
+        with caplog.at_level(logging.INFO):
+            decorated_fail()
+
+        assert "error: Raised intentionally" in caplog.text
+
+    async def test_log_tool_call_async_failure(self, caplog, adecorated_fail):
+        with caplog.at_level(logging.INFO):
+            await adecorated_fail()
+
+        assert "error: Raised intentionally" in caplog.text
 
 
 class TestLogSSHConnect:
