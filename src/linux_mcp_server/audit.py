@@ -119,6 +119,12 @@ def _log_event_start(
     tool_name: str,
     params: dict[t.Any, t.Any],
 ) -> int:
+    """
+    Emit a log event and return a performance counter timestamp.
+
+    The timestamp is in nanoseconds. It is meant to be used to calculate
+    total execution time.
+    """
     execution_mode = ExecutionMode.remote if params.get("host") else ExecutionMode.local
     safe_params = sanitize_parameters(params)
 
