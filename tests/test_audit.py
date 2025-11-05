@@ -5,11 +5,9 @@ import logging
 import pytest
 
 from linux_mcp_server.audit import AuditContext
-from linux_mcp_server.audit import log_operation
 from linux_mcp_server.audit import log_ssh_command
 from linux_mcp_server.audit import log_ssh_connect
 from linux_mcp_server.audit import log_tool_call
-from linux_mcp_server.audit import log_tool_complete
 from linux_mcp_server.audit import sanitize_parameters
 
 
@@ -158,38 +156,6 @@ class TestLogToolCall:
         assert "REDACTED" in caplog.text
 
 
-class TestLogToolComplete:
-    """Test tool completion logging."""
-
-    def test_log_tool_complete_success(self, caplog):
-        """Test logging successful tool completion."""
-        with caplog.at_level(logging.INFO):
-            log_tool_complete("list_services", status="success", duration=0.5)
-
-        assert "TOOL_COMPLETE" in caplog.text
-        assert "list_services" in caplog.text
-        # Check the log record attributes
-        assert len(caplog.records) >= 1
-        record = caplog.records[-1]
-        assert hasattr(record, "status")
-        assert record.status == "success"
-        assert hasattr(record, "duration")
-
-    def test_log_tool_complete_failure(self, caplog):
-        """Test logging failed tool completion."""
-        with caplog.at_level(logging.ERROR):
-            log_tool_complete("list_services", status="error", duration=0.1, error="Connection failed")
-
-        assert "TOOL_COMPLETE" in caplog.text
-        assert "list_services" in caplog.text
-        assert "Connection failed" in caplog.text
-        # Check the log record attributes
-        assert len(caplog.records) >= 1
-        record = caplog.records[-1]
-        assert hasattr(record, "status")
-        assert record.status == "error"
-
-
 class TestLogSSHConnect:
     """Test SSH connection logging."""
 
@@ -270,48 +236,3 @@ class TestLogSSHCommand:
 
         assert "REMOTE_EXEC" in caplog.text
         assert "exit_code=3" in caplog.text
-
-
-class TestLogOperation:
-    """Test general operation logging."""
-
-    def test_log_operation_info(self, caplog):
-        """Test logging an operation at INFO level."""
-        with caplog.at_level(logging.INFO):
-            log_operation("list_processes", "Listing processes", process_count=42)
-
-        assert "list_processes" in caplog.text
-        assert "Listing processes" in caplog.text
-        # Check the log record attributes
-        assert len(caplog.records) >= 1
-        record = caplog.records[-1]
-        assert hasattr(record, "process_count")
-        assert record.process_count == 42
-
-    def test_log_operation_debug(self, caplog):
-        """Test logging an operation at DEBUG level."""
-        with caplog.at_level(logging.DEBUG):
-            log_operation("get_service_status", "Checking service status", service="nginx", level=logging.DEBUG)
-
-        assert "get_service_status" in caplog.text
-        assert "Checking service status" in caplog.text
-        # Check the log record attributes
-        assert len(caplog.records) >= 1
-        record = caplog.records[-1]
-        assert hasattr(record, "service")
-        assert record.service == "nginx"
-
-    def test_log_operation_with_context(self, caplog):
-        """Test logging operation with extra context."""
-        with caplog.at_level(logging.INFO):
-            log_operation("read_log_file", "Reading log file", file_path="/var/log/messages", lines=100)
-
-        assert "read_log_file" in caplog.text
-        assert "Reading log file" in caplog.text
-        # Check the log record attributes
-        assert len(caplog.records) >= 1
-        record = caplog.records[-1]
-        assert hasattr(record, "file_path")
-        assert record.file_path == "/var/log/messages"
-        assert hasattr(record, "lines")
-        assert record.lines == 100

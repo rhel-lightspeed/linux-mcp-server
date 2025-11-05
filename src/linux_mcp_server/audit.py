@@ -150,41 +150,6 @@ def log_tool_call(func: t.Callable) -> Function:
     return wrapper
 
 
-def log_tool_complete(
-    tool_name: str,
-    status: str,
-    duration: float,
-    error: str | None = None,
-):
-    """
-    Log tool completion.
-
-    Args:
-        tool_name: Name of the tool
-        status: Completion status ("success" or "error")
-        duration: Execution time in seconds
-        error: Optional error message
-    """
-    logger = logging.getLogger(__name__)
-
-    extra = {
-        "event": "TOOL_COMPLETE",
-        "tool": tool_name,
-        "status": status,
-        "duration": f"{duration:.3f}s",
-    }
-
-    message = f"TOOL_COMPLETE: {tool_name}"
-
-    if status == "error":
-        if error:
-            extra["error"] = error
-            message += f" | error: {error}"
-        logger.error(message, extra=extra)
-    else:
-        logger.info(message, extra=extra)
-
-
 def log_ssh_connect(
     host: str,
     username: str,
@@ -287,25 +252,3 @@ def log_ssh_command(
         message += f" | duration={duration:.3f}s"
 
     logger.info(message, extra=extra)
-
-
-def log_operation(operation: str, message: str, level: int = logging.INFO, **context):
-    """
-    Log a general operation with context.
-
-    This is a generic logging function for operations that don't fit
-    other specific logging functions.
-
-    Args:
-        operation: Name of the operation
-        message: Log message
-        level: Log level (default: INFO)
-        **context: Additional context fields
-    """
-    logger = logging.getLogger(__name__)
-
-    extra = {"operation": operation, **context}
-
-    full_message = f"{operation}: {message}"
-
-    logger.log(level, full_message, extra=extra)
