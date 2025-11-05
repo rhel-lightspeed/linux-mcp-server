@@ -1,18 +1,29 @@
+# logs
 from linux_mcp_server.tools.logs import get_audit_logs
 from linux_mcp_server.tools.logs import get_journal_logs
 from linux_mcp_server.tools.logs import read_log_file
+
+# network
 from linux_mcp_server.tools.network import get_listening_ports
 from linux_mcp_server.tools.network import get_network_connections
 from linux_mcp_server.tools.network import get_network_interfaces
+
+# processes
 from linux_mcp_server.tools.processes import get_process_info
 from linux_mcp_server.tools.processes import list_processes
+
+# services
 from linux_mcp_server.tools.services import get_service_logs
 from linux_mcp_server.tools.services import get_service_status
 from linux_mcp_server.tools.services import list_services
+
+# storage
 from linux_mcp_server.tools.storage import list_block_devices
 from linux_mcp_server.tools.storage import list_directories_by_modified_date
 from linux_mcp_server.tools.storage import list_directories_by_name
 from linux_mcp_server.tools.storage import list_directories_by_size
+
+# system_info
 from linux_mcp_server.tools.system_info import get_cpu_info
 from linux_mcp_server.tools.system_info import get_disk_usage
 from linux_mcp_server.tools.system_info import get_hardware_info
