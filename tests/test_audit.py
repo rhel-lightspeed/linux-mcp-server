@@ -5,6 +5,8 @@ import logging
 import pytest
 
 from linux_mcp_server.audit import AuditContext
+from linux_mcp_server.audit import Event
+from linux_mcp_server.audit import ExecutionMode
 from linux_mcp_server.audit import log_ssh_command
 from linux_mcp_server.audit import log_ssh_connect
 from linux_mcp_server.audit import sanitize_parameters
@@ -110,7 +112,7 @@ class TestLogToolCall:
         ("params", "mode"),
         (
             ({}, "local"),
-            ({"host": "server1.com", "username": "admin"}, "remote"),
+            ({"host": "server1.com", "username": "admin"}, ExecutionMode.remote),
         ),
     )
     def test_log_tool_call(self, caplog, decorated, params, mode):
@@ -120,7 +122,7 @@ class TestLogToolCall:
 
         record = caplog.records[0]
 
-        assert "TOOL_CALL" in caplog.text
+        assert Event.TOOL_CALL in caplog.text
         assert "list_services" in caplog.text
         assert caplog.records
         assert getattr(record, "execution_mode") == mode
@@ -129,7 +131,7 @@ class TestLogToolCall:
         ("params", "mode"),
         (
             ({}, "local"),
-            ({"host": "server1.com", "username": "admin"}, "remote"),
+            ({"host": "server1.com", "username": "admin"}, ExecutionMode.remote),
         ),
     )
     async def test_log_tool_call_async(self, caplog, adecorated, params, mode):
@@ -139,7 +141,7 @@ class TestLogToolCall:
 
         record = caplog.records[0]
 
-        assert "TOOL_CALL" in caplog.text
+        assert Event.TOOL_CALL in caplog.text
         assert "list_services" in caplog.text
         assert caplog.records
         assert getattr(record, "execution_mode", None) == mode
@@ -150,7 +152,7 @@ class TestLogToolCall:
         with caplog.at_level(logging.INFO):
             decorated(**params)
 
-        assert "TOOL_CALL" in caplog.text
+        assert Event.TOOL_CALL in caplog.text
         assert "secret123" not in caplog.text
         assert "REDACTED" in caplog.text
 
@@ -160,7 +162,7 @@ class TestLogToolCall:
         with caplog.at_level(logging.INFO):
             await adecorated(**params)
 
-        assert "TOOL_CALL" in caplog.text
+        assert Event.TOOL_CALL in caplog.text
         assert "secret123" not in caplog.text
         assert "REDACTED" in caplog.text
 
@@ -185,7 +187,7 @@ class TestLogSSHConnect:
         with caplog.at_level(logging.INFO):
             log_ssh_connect("server1.com", "admin", status="success", reused=False)
 
-        assert "SSH_CONNECT" in caplog.text
+        assert Event.SSH_CONNECT in caplog.text
         assert "admin@server1.com" in caplog.text
         # Check the log record attributes
         assert len(caplog.records) >= 1
@@ -203,7 +205,7 @@ class TestLogSSHConnect:
         with caplog.at_level(logging.DEBUG):
             log_ssh_connect("server1.com", "admin", status="success", reused=True, key_path="/home/user/.ssh/id_rsa")
 
-        assert "SSH_CONNECT" in caplog.text
+        assert Event.SSH_CONNECT in caplog.text
         assert "admin@server1.com" in caplog.text
         # Check the log record attributes
         assert len(caplog.records) >= 1
@@ -221,7 +223,7 @@ class TestLogSSHConnect:
         with caplog.at_level(logging.WARNING):
             log_ssh_connect("server1.com", "admin", status="failed", error="Permission denied")
 
-        assert "SSH_CONNECT" in caplog.text or "SSH_AUTH_FAILED" in caplog.text
+        assert Event.SSH_CONNECT in caplog.text or Event.SSH_AUTH_FAILED in caplog.text
         assert "admin@server1.com" in caplog.text
         assert "Permission denied" in caplog.text
 
@@ -234,7 +236,7 @@ class TestLogSSHCommand:
         with caplog.at_level(logging.INFO):
             log_ssh_command("systemctl status nginx", "server1.com", exit_code=0, duration=0.15)
 
-        assert "REMOTE_EXEC" in caplog.text
+        assert Event.REMOTE_EXEC in caplog.text
         assert "systemctl status nginx" in caplog.text
         assert "server1.com" in caplog.text
         assert "exit_code=0" in caplog.text
@@ -246,7 +248,7 @@ class TestLogSSHCommand:
         with caplog.at_level(logging.DEBUG):
             log_ssh_command("ls -la", "server1.com", exit_code=0, duration=0.05)
 
-        assert "REMOTE_EXEC" in caplog.text
+        assert Event.REMOTE_EXEC in caplog.text
         assert "ls -la" in caplog.text
         assert "duration" in caplog.text.lower()
 
@@ -255,5 +257,5 @@ class TestLogSSHCommand:
         with caplog.at_level(logging.INFO):
             log_ssh_command("systemctl status missing", "server1.com", exit_code=3, duration=0.1)
 
-        assert "REMOTE_EXEC" in caplog.text
+        assert Event.REMOTE_EXEC in caplog.text
         assert "exit_code=3" in caplog.text

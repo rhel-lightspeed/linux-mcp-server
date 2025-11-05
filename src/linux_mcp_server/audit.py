@@ -14,6 +14,8 @@ import typing as t
 from contextlib import contextmanager
 from datetime import timedelta
 
+from linux_mcp_server.utils import StrEnum
+
 
 Function: t.TypeAlias = t.Callable[..., t.Any]
 
@@ -31,6 +33,22 @@ SENSITIVE_FIELDS = {
     "private_key",
     "privatekey",
 }
+
+
+class Event(StrEnum):
+    LOCAL_EXEC_ERROR = "LOCAL_EXEC_ERROR"
+    REMOTE_EXEC = "REMOTE_EXEC"
+    REMOTE_EXEC_ERROR = "REMOTE_EXEC_ERROR"
+    SSH_AUTH_FAILED = "SSH_AUTH_FAILED"
+    SSH_CONNECT = "SSH_CONNECT"
+    SSH_CONNECTING = "SSH_CONNECTING"
+    TOOL_CALL = "TOOL_CALL"
+    TOOL_COMPLETE = "TOOL_CALL"
+
+
+class ExecutionMode(StrEnum):
+    remote = "remote"
+    local = "local"
 
 
 def sanitize_parameters(params: dict[str, t.Any]) -> dict[str, t.Any]:
@@ -101,11 +119,11 @@ def _log_event_start(
     tool_name: str,
     params: dict[t.Any, t.Any],
 ) -> int:
-    execution_mode = "remote" if params.get("host") else "local"
+    execution_mode = ExecutionMode.remote if params.get("host") else ExecutionMode.local
     safe_params = sanitize_parameters(params)
 
     extra = {
-        "event": "TOOL_CALL",
+        "event": Event.TOOL_CALL,
         "tool": tool_name,
         "execution_mode": execution_mode,
     }
@@ -115,8 +133,9 @@ def _log_event_start(
     if "username" in params:
         extra["username"] = params["username"]
 
+    message = f"{Event.TOOL_CALL}: {tool_name}"
+
     params_str = ", ".join(f"{k}={v}" for k, v in safe_params.items() if k not in ["host", "username"])
-    message = f"TOOL_CALL: {tool_name}"
     if params_str:
         message += f" | {params_str}"
 
@@ -135,13 +154,13 @@ def _log_event_complete(
     duration = timedelta(microseconds=(stop - start) / 1_000)
     status = "error" if error else "success"
     extra = {
-        "event": "TOOL_COMPLETE",
+        "event": Event.TOOL_COMPLETE,
         "tool": tool_name,
         "status": status,
         "duration": f"{duration}s",
     }
 
-    message = f"TOOL_COMPLETE: {tool_name}"
+    message = f"{Event.TOOL_COMPLETE}: {tool_name}"
 
     if error:
         extra["error"] = str(error)
@@ -232,7 +251,7 @@ def log_ssh_connect(
         }
 
         # At INFO level, just log basic success
-        message = f"SSH_CONNECT: {user_host}"
+        message = f"{Event.SSH_CONNECT}: {user_host}"
 
         # At DEBUG level, add more details
         if logger.isEnabledFor(logging.DEBUG):
@@ -255,7 +274,7 @@ def log_ssh_connect(
         if error:
             extra["reason"] = error
 
-        message = f"SSH_AUTH_FAILED: {user_host}"
+        message = f"{Event.SSH_AUTH_FAILED}: {user_host}"
         if error:
             message += f" | reason: {error}"
 
@@ -290,7 +309,7 @@ def log_ssh_command(
         "exit_code": exit_code,
     }
 
-    message = f"REMOTE_EXEC: {command} | host={host} | exit_code={exit_code}"
+    message = f"{Event.REMOTE_EXEC}: {command} | host={host} | exit_code={exit_code}"
 
     # At DEBUG level, include duration
     if duration is not None and logger.isEnabledFor(logging.DEBUG):
