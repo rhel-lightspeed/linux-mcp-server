@@ -99,7 +99,6 @@ def AuditContext(**extra_fields):
 def _log_event_start(
     logger: logging.Logger,
     tool_name: str,
-    execution_mode: str,
     params: dict[t.Any, t.Any],
 ) -> int:
     execution_mode = "remote" if params.get("host") else "local"
@@ -162,8 +161,7 @@ def log_tool_call(func: t.Callable) -> Function:
 
     @functools.wraps(func)
     def wrapper(*args, **kwargs):
-        execution_mode = "remote" if kwargs.get("host") else "local"
-        start = _log_event_start(logger, tool_name, execution_mode, kwargs)
+        start = _log_event_start(logger, tool_name, kwargs)
         error = None
         result = None
 
@@ -179,8 +177,7 @@ def log_tool_call(func: t.Callable) -> Function:
 
     @functools.wraps(func)
     async def awrapper(*args, **kwargs):
-        execution_mode = "remote" if kwargs.get("host") else "local"
-        start = _log_event_start(logger, tool_name, execution_mode, kwargs)
+        start = _log_event_start(logger, tool_name, kwargs)
         error = None
         result = None
 
