@@ -111,7 +111,7 @@ class TestLogToolCall:
     @pytest.mark.parametrize(
         ("params", "mode"),
         (
-            ({}, "local"),
+            ({}, ExecutionMode.local),
             ({"host": "server1.com", "username": "admin"}, ExecutionMode.remote),
         ),
     )
@@ -130,7 +130,7 @@ class TestLogToolCall:
     @pytest.mark.parametrize(
         ("params", "mode"),
         (
-            ({}, "local"),
+            ({}, ExecutionMode.local),
             ({"host": "server1.com", "username": "admin"}, ExecutionMode.remote),
         ),
     )
