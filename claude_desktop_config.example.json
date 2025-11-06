@@ -1,13 +1,8 @@
 {
   "mcpServers": {
     "linux-diagnostics": {
-      "command": "uv",
-      "args": [
-        "--directory",
-        "/absolute/path/to/linux-mcp-server",
-        "run",
-        "linux-mcp-server"
-      ],
+      "command": "linux-mcp-server",
+      "args": [],
       "env": {
         "LINUX_MCP_ALLOWED_LOG_PATHS": "/var/log/messages,/var/log/secure,/var/log/audit/audit.log",
         "LINUX_MCP_LOG_LEVEL": "INFO",

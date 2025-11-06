@@ -4,23 +4,32 @@ Thank you for your interest in contributing! This document provides guidelines f
 
 ## Development Setup
 
+For complete development setup instructions, see **[INSTALL.md - For Developers](INSTALL.md#for-developers)**.
+
+### Quick Setup
+
 1. **Clone the repository:**
    ```bash
-   git clone <repository-url>
+   git clone https://github.com/rhel-lightspeed/linux-mcp-server.git
    cd linux-mcp-server
    ```
 
 2. **Set up development environment:**
    ```bash
    uv venv
-   source .venv/bin/activate
-   uv sync --editable --group dev
+   source .venv/bin/activate  # On Linux/macOS
+   # OR
+   .venv\Scripts\activate     # On Windows
+   
+   uv sync --group dev
    ```
 
 3. **Verify setup:**
    ```bash
    pytest
    ```
+
+See [INSTALL.md](INSTALL.md) for alternative setup methods (pip + venv), platform-specific notes, and troubleshooting.
 
 ## Development Workflow
 

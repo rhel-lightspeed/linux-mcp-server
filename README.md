@@ -116,24 +116,38 @@ graph TB
 
 ## Installation
 
-### Prerequisites
-- Python 3.10 or higher
-- [uv](https://github.com/astral-sh/uv) package manager
+### Quick Start
 
-### Setup
-
-1. Clone the repository:
+Install from PyPI:
 ```bash
-git clone <repository-url>
-cd linux-mcp-server
+pip install linux-mcp-server
 ```
 
-2. Create virtual environment and install dependencies:
+Or run without installation using `uvx`:
 ```bash
+uvx linux-mcp-server
+```
+
+### For Developers
+
+Clone and set up for development:
+```bash
+git clone https://github.com/rhel-lightspeed/linux-mcp-server.git
+cd linux-mcp-server
 uv venv
 source .venv/bin/activate
-uv pip install -e ".[dev]"
+uv sync --group dev
 ```
+
+### Complete Installation Guide
+
+For detailed installation instructions including:
+- Platform-specific setup (Linux, macOS, Windows)
+- AI Agent integrations
+- Development environment setup
+- Troubleshooting
+
+See **[INSTALL.md](INSTALL.md)**
 
 ## Configuration
 
@@ -229,79 +243,35 @@ await get_service_status("nginx", host="server2.example.com", username="sysadmin
 
 ### Running the Server
 
-You can run the server in multiple ways:
+After installation, run the server:
 
-**Using uv run (recommended for development):**
 ```bash
-uv run linux-mcp-server
+linux-mcp-server
 ```
 
-**Using uvx (recommended for one-off execution without installation):**
-```bash
-uvx --from /path/to/linux-mcp-server linux-mcp-server
-```
-
-**Traditional Python module execution:**
-```bash
-python -m linux_mcp_server
-```
+For detailed usage instructions, available tools, and example troubleshooting sessions, see **[USAGE.md](USAGE.md)**.
 
 ### Using with Claude Desktop
 
-Add to your Claude Desktop configuration (`~/Library/Application Support/Claude/claude_desktop_config.json` on macOS):
 
-**Option 1: Using uv run (simpler):**
-```json
-{
-  "mcpServers": {
-    "linux-diagnostics": {
-      "command": "uv",
-      "args": [
-        "--directory",
-        "/path/to/linux-mcp-server",
-        "run",
-        "linux-mcp-server"
-      ],
-      "env": {
-        "LINUX_MCP_ALLOWED_LOG_PATHS": "/var/log/messages,/var/log/secure,/var/log/audit/audit.log"
-      }
-    }
-  }
-}
-```
 
-**Option 2: Using uvx (from local directory):**
-```json
-{
-  "mcpServers": {
-    "linux-diagnostics": {
-      "command": "uvx",
-      "args": [
-        "--from",
-        "/path/to/linux-mcp-server",
-        "linux-mcp-server"
-      ],
-      "env": {
-        "LINUX_MCP_ALLOWED_LOG_PATHS": "/var/log/messages,/var/log/secure,/var/log/audit/audit.log"
-      }
-    }
-  }
-}
-```
+For complete Claude Desktop integration instructions including platform-specific config file locations and alternative configurations, see **[INSTALL.md - Claude Desktop Integration](INSTALL.md#claude-desktop-integration)**.
 
 ## Development
 
-### Running Tests
+For developers who want to contribute or modify the code:
 
+**Setup:**
 ```bash
+git clone https://github.com/rhel-lightspeed/linux-mcp-server.git
+cd linux-mcp-server
+uv venv
+source .venv/bin/activate
+uv sync --group dev
 pytest
 ```
 
-### Running Tests with Coverage
-
-```bash
-pytest --cov=src --cov-report=html
-```
+For complete development workflow, coding standards, and contribution guidelines, see **[CONTRIBUTING.md](CONTRIBUTING.md)**.
 
 ## Security Considerations
 
