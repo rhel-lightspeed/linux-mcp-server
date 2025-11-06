@@ -6,7 +6,7 @@ This guide provides detailed instructions on how to use the Linux MCP Server for
 
 ### Prerequisites
 
-Before using the MCP server, you need to either install it or have the neccessary tools to run it on-deman (uvx).
+Before using the MCP server, you need to either install it or have the necessary tools to run it on-demand (uvx).
 See **[INSTALL.md](INSTALL.md)** for complete installation instructions.
 
 **Quick install with pip:**
@@ -226,35 +226,7 @@ Lists all immediate subdirectories under a specified path, sorted by modificatio
 
 ## Configuration
 
-### Environment Variables
-
-#### `LINUX_MCP_ALLOWED_LOG_PATHS`
-**Required for `read_log_file` tool**
-
-Comma-separated list of log file paths that are allowed to be read.
-
-**Example:**
-```bash
-export LINUX_MCP_ALLOWED_LOG_PATHS="/var/log/messages,/var/log/secure,/var/log/httpd/access_log,/var/log/httpd/error_log"
-```
-
-**Security:** This whitelist prevents access to arbitrary files on the system.
-
-#### `LINUX_MCP_LOG_LEVEL`
-**Optional**
-
-Sets the logging level for the MCP server itself (not the system logs).
-
-**Values:** DEBUG, INFO, WARNING, ERROR, CRITICAL
-
-**Example:**
-```bash
-export LINUX_MCP_LOG_LEVEL="DEBUG"
-```
-
-## Integration with Claude Desktop
-
-For detailed Claude Desktop integration instructions, see **[INSTALL.md - Claude Desktop Integration](INSTALL.md#claude-desktop-integration)**.
+For configuration details including environment variables and AI agent integration, see **[INSTALL.md](INSTALL.md)**.
 
 ## Example Troubleshooting Sessions
 
@@ -312,17 +284,7 @@ Run the MCP server with the minimum required privileges. Consider:
 
 ## Troubleshooting
 
-### "systemctl command not found"
-The system doesn't have systemd. This MCP server is designed to interact with and diagnose systemd-based Linux distributions like RHEL 7+, Fedora, etc.
-
-### "Permission denied" errors
-The user running the MCP server doesn't have permission to access certain resources. Consider:
-- Adding the user to the `adm` group for log access
-- Running with sudo for diagnostics requiring root
-- Adjusting file permissions as needed
-
-### No log files accessible with `read_log_file`
-Set the `LINUX_MCP_ALLOWED_LOG_PATHS` environment variable before starting the server.
+For detailed troubleshooting, security considerations, and permission setup, see **[INSTALL.md - Troubleshooting](INSTALL.md#troubleshooting)**.
 
 ## Best Practices
 

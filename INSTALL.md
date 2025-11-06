@@ -195,28 +195,14 @@ See [CONTRIBUTING.md](CONTRIBUTING.md) for detailed information about:
 
 ## Claude Desktop Integration
 
-After installing the Linux MCP Server, configure Claude Desktop to use it.
+### Configuration File Location
 
-### Configuration File Locations
+Edit your Claude Desktop configuration file:
+- **Linux:** `~/.config/Claude/claude_desktop_config.json`
+- **macOS:** `~/Library/Application Support/Claude/claude_desktop_config.json`
+- **Windows:** `%APPDATA%\Claude\claude_desktop_config.json`
 
-**Linux:**
-```
-~/.config/Claude/claude_desktop_config.json
-```
-
-**macOS:**
-```
-~/Library/Application Support/Claude/claude_desktop_config.json
-```
-
-**Windows:**
-```
-%APPDATA%\Claude\claude_desktop_config.json
-```
-
-### Configuration for pip-installed version
-
-If you installed with `pip install linux-mcp-server`:
+### Configuration Example
 
 ```json
 {
@@ -225,59 +211,16 @@ If you installed with `pip install linux-mcp-server`:
       "command": "linux-mcp-server",
       "args": [],
       "env": {
-        "LINUX_MCP_ALLOWED_LOG_PATHS": "/var/log/messages,/var/log/secure,/var/log/audit/audit.log",
-        "LINUX_MCP_LOG_LEVEL": "INFO"
+        "LINUX_MCP_ALLOWED_LOG_PATHS": "/var/log/messages,/var/log/secure,/var/log/audit/audit.log"
       }
     }
   }
 }
 ```
 
-### Configuration for uvx
-
-If you prefer to run with `uvx`:
-
-```json
-{
-  "mcpServers": {
-    "linux-diagnostics": {
-      "command": "uvx",
-      "args": ["linux-mcp-server"],
-      "env": {
-        "LINUX_MCP_ALLOWED_LOG_PATHS": "/var/log/messages,/var/log/secure,/var/log/audit/audit.log",
-        "LINUX_MCP_LOG_LEVEL": "INFO"
-      }
-    }
-  }
-}
-```
-
-### Configuration for development version
-
-If you're developing and want to use your local clone:
-
-```json
-{
-  "mcpServers": {
-    "linux-diagnostics": {
-      "command": "uv",
-      "args": [
-        "--directory",
-        "/absolute/path/to/linux-mcp-server",
-        "run",
-        "linux-mcp-server"
-      ],
-      "env": {
-        "LINUX_MCP_ALLOWED_LOG_PATHS": "/var/log/messages,/var/log/secure,/var/log/audit/audit.log",
-        "LINUX_MCP_LOG_LEVEL": "INFO",
-        "LINUX_MCP_SSH_KEY_PATH": "/home/user/.ssh/id_ed25519"
-      }
-    }
-  }
-}
-```
-
-Replace `/absolute/path/to/linux-mcp-server` with your actual repository path.
+**Alternative commands:**
+- **Using uvx:** Change `"command": "linux-mcp-server"` to `"command": "uvx"` and `"args": ["linux-mcp-server"]`
+- **For development:** Change `"command": "uv"` and `"args": ["--directory", "/path/to/repo", "run", "linux-mcp-server"]`
 
 ### Environment Variables
 
@@ -340,59 +283,21 @@ sudo pacman -S python python-pip
 ### macOS
 
 **Installing Python:**
+- **Homebrew:** `brew install python@3.12`
+- **Official Installer:** https://www.python.org/downloads/macos/
+- **System Python:** macOS includes Python, check version with `python3 --version`
 
-**Option 1: Homebrew (Recommended)**
-```bash
-brew install python@3.12
-```
-
-**Option 2: Official Installer**
-
-Download from https://www.python.org/downloads/macos/
-
-**Option 3: System Python**
-
-macOS comes with Python, but it may be an older version. Check:
-```bash
-python3 --version
-```
-
-**Notes:**
-- Claude Desktop config location: `~/Library/Application Support/Claude/claude_desktop_config.json`
-- Use forward slashes in paths
-- The MCP server works on macOS but is optimized for Linux systems (some tools may have limited functionality)
+**Note:** The MCP server is optimized for Linux systems; some tools may have limited functionality on macOS.
 
 ### Windows
 
 **Installing Python:**
+- **Microsoft Store:** Search for "Python 3.12" and install (recommended)
+- **Official Installer:** https://www.python.org/downloads/windows/ (check "Add Python to PATH")
 
-**Option 1: Microsoft Store (Recommended for most users)**
+Verify: `python --version` in Command Prompt or PowerShell
 
-1. Open Microsoft Store
-2. Search for "Python 3.12" (or latest version)
-3. Click "Get" or "Install"
-4. Python will be added to your PATH automatically
-
-**Option 2: Official Installer**
-
-1. Download from https://www.python.org/downloads/windows/
-2. Run the installer
-3. **Important:** Check "Add Python to PATH" during installation
-4. Complete the installation
-
-**Verifying Installation:**
-
-Open Command Prompt or PowerShell and run:
-```cmd
-python --version
-```
-
-**Notes:**
-- Claude Desktop config location: `%APPDATA%\Claude\claude_desktop_config.json`
-  - Typically: `C:\Users\YourUsername\AppData\Roaming\Claude\claude_desktop_config.json`
-- Use backslashes in Windows paths, and escape them in JSON: `C:\\logs\\app.log`
-- **Important:** This MCP server is designed for Linux systems and relies on Linux-specific tools (systemd, journalctl, etc.). On Windows, it will have **limited functionality** - mainly useful for remote SSH execution to manage Linux servers
-- For managing Windows systems, consider using a Windows-specific MCP server instead
+**Important:** This MCP server requires Linux-specific tools (systemd, journalctl) and has **limited functionality** on Windows. Primarily useful for remote SSH execution to manage Linux servers.
 
 ---
 
@@ -404,7 +309,7 @@ The [MCP Inspector](https://github.com/modelcontextprotocol/inspector) is an off
 
 **Install MCP Inspector:**
 
-NOTE: You will new Nodejs to be installed in your system.
+**Note:** Requires Node.js to be installed on your system.
 
 ```bash
 npm install -g @modelcontextprotocol/inspector
@@ -533,28 +438,12 @@ pytest tests/ -k "system_info" -v
 
 #### Claude Desktop doesn't show the MCP server
 
-**Causes and Solutions:**
-
-1. **Configuration file syntax error**
-   - Validate your JSON: https://jsonlint.com/
-   - Check for missing commas, quotes, or brackets
-
-2. **Wrong configuration file location**
-   - Verify you're editing the correct file (see [Configuration File Locations](#configuration-file-locations))
-
-3. **Command not found in PATH**
-   - Use full path to the executable in the `command` field
-   - Or ensure the command is in your PATH
-
-4. **Server fails to start**
-   - Test the command manually in terminal
-   - Check Claude Desktop logs:
-     - **macOS:** `~/Library/Logs/Claude/`
-     - **Linux:** `~/.config/Claude/logs/`
-     - **Windows:** `%APPDATA%\Claude\logs\`
-
-5. **Restart required**
-   - Completely quit and restart Claude Desktop after configuration changes
+Common causes:
+- **Syntax error:** Validate JSON at https://jsonlint.com/
+- **Wrong file location:** See [Configuration File Location](#configuration-file-location)
+- **Command not in PATH:** Use full path in `command` field or ensure command is in PATH
+- **Server won't start:** Test command manually; check Claude Desktop logs (`~/Library/Logs/Claude/` on macOS, `~/.config/Claude/logs/` on Linux, `%APPDATA%\Claude\logs\` on Windows)
+- **Config not reloaded:** Completely quit and restart Claude Desktop
 
 #### ImportError or ModuleNotFoundError during development
 
@@ -601,22 +490,11 @@ This section explains issues that may be present when using the MCP server to in
 
 ### Getting Additional Help
 
-If you encounter issues not covered here:
-
-1. **Check the logs:**
-   - Server logs: `~/.local/share/linux-mcp-server/logs/`
-   - Claude Desktop logs: See locations above
-
-2. **Enable debug logging:**
-   - Set `"LINUX_MCP_LOG_LEVEL": "DEBUG"` in your configuration
-   - Restart Claude Desktop
-   - Check the server logs for detailed information
-
-3. **Test with MCP Inspector:**
-   - Use the inspector to isolate whether the issue is with the server or Claude Desktop
-
-4. **Open an issue:**
-   - GitHub Issues: https://github.com/rhel-lightspeed/linux-mcp-server/issues
+1. **Check logs:** Server logs in `~/.local/share/linux-mcp-server/logs/`, Claude Desktop logs (see above)
+2. **Enable debug:** Set `"LINUX_MCP_LOG_LEVEL": "DEBUG"` in config, restart your AI Agent (e.g. Claude Desktop)
+3. **Test with MCP Inspector:** Isolate whether issue is with server or client
+4. **Run the MCP server manually:** Make sure the MCP server does not crash upon start and is able to receive messages.
+5. **Open an issue:** https://github.com/rhel-lightspeed/linux-mcp-server/issues
    - Include:
      - Your OS and version
      - Python version
