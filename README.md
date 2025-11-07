@@ -116,89 +116,51 @@ graph TB
 
 ## Installation
 
-### Prerequisites
-- Python 3.10 or higher
-- [uv](https://github.com/astral-sh/uv) package manager
+### Quick Start
 
-### Setup
-
-1. Clone the repository:
+Install from PyPI:
 ```bash
-git clone <repository-url>
-cd linux-mcp-server
+pip install linux-mcp-server
 ```
 
-2. Create virtual environment and install dependencies:
+Or run without installation using `uvx`:
 ```bash
+uvx linux-mcp-server
+```
+
+### For Developers
+
+Clone and set up for development:
+```bash
+git clone https://github.com/rhel-lightspeed/linux-mcp-server.git
+cd linux-mcp-server
 uv venv
 source .venv/bin/activate
-uv pip install -e ".[dev]"
+uv sync --group dev
 ```
+
+### Complete Installation Guide
+
+For detailed installation instructions including:
+- Platform-specific setup (Linux, macOS, Windows)
+- AI Agent integrations
+- Development environment setup
+- Troubleshooting
+
+See **[INSTALL.md](INSTALL.md)**
 
 ## Configuration
 
-Configure the server using environment variables:
+Key environment variables:
+- `LINUX_MCP_ALLOWED_LOG_PATHS` - Comma-separated list of log files that can be accessed
+- `LINUX_MCP_LOG_LEVEL` - Logging level (DEBUG, INFO, WARNING, ERROR, CRITICAL)
+- `LINUX_MCP_SSH_KEY_PATH` - Path to SSH private key for remote execution
 
-```bash
-# Comma-separated list of allowed log file paths
-export LINUX_MCP_ALLOWED_LOG_PATHS="/var/log/messages,/var/log/secure,/var/log/audit/audit.log"
-
-# Optional: Set log level (DEBUG, INFO, WARNING, ERROR, CRITICAL)
-export LINUX_MCP_LOG_LEVEL="INFO"
-
-# Optional: Custom log directory (default: ~/.local/share/linux-mcp-server/logs/)
-export LINUX_MCP_LOG_DIR="/var/log/linux-mcp-server"
-
-# Optional: Log retention in days (default: 10)
-export LINUX_MCP_LOG_RETENTION_DAYS="30"
-
-# Optional: Specify SSH private key path (defaults to ~/.ssh/id_ed25519, ~/.ssh/id_rsa, etc.)
-export LINUX_MCP_SSH_KEY_PATH="/path/to/your/private/key"
-```
+For complete configuration details, see **[INSTALL.md - Environment Variables](INSTALL.md#environment-variables)**.
 
 ### Audit Logging
 
-The server includes comprehensive audit logging for all operations:
-
-**Features:**
-- **Dual Format**: Logs written in both human-readable text and JSON formats
-- **Daily Rotation**: Automatic log rotation at midnight
-- **Configurable Retention**: Keep logs for a specified number of days (default: 10)
-- **Tiered Verbosity**: INFO for operations, DEBUG for detailed diagnostics
-- **Sanitization**: Automatic redaction of sensitive data (passwords, tokens, API keys)
-
-**Log Files:**
-- Human-readable: `~/.local/share/linux-mcp-server/logs/server.log`
-- JSON format: `~/.local/share/linux-mcp-server/logs/server.json`
-- Rotated files: `server.log.YYYY-MM-DD` and `server.json.YYYY-MM-DD`
-
-**What Gets Logged:**
-- Server startup and shutdown
-- All tool invocations with parameters (sanitized)
-- Tool execution time and completion status
-- SSH connections (success/failure)
-- Remote command execution
-- Error conditions with full context
-
-**Log Levels:**
-- `DEBUG`: Detailed flow, connection reuse, function entry/exit, timing details
-- `INFO`: Tool calls, command executions, connection events, operation results
-- `WARNING`: Authentication failures, retryable errors, missing optional data
-- `ERROR`: Failed operations, exceptions, connection failures
-- `CRITICAL`: Server startup/shutdown failures, unrecoverable errors
-
-**Example Log Entries:**
-
-```
-# Human-readable format (server.log)
-2025-10-10 14:23:45.123 | INFO | server | TOOL_CALL: list_services | host=server1.example.com | username=admin | execution_mode=remote
-2025-10-10 14:23:45.234 | INFO | ssh_executor | SSH_CONNECT: admin@server1.example.com | status=success
-2025-10-10 14:23:45.345 | INFO | ssh_executor | REMOTE_EXEC: systemctl list-units --type=service | host=server1.example.com | exit_code=0
-2025-10-10 14:23:45.456 | INFO | server | TOOL_COMPLETE: list_services | status=success | duration=0.333s
-
-# JSON format (server.json)
-{"timestamp": "2025-10-10T14:23:45.123Z", "level": "INFO", "logger": "server", "message": "TOOL_CALL: list_services", "event": "TOOL_CALL", "tool": "list_services", "host": "server1.example.com", "username": "admin", "execution_mode": "remote"}
-```
+All server operations are logged in both human-readable and JSON formats with automatic daily rotation and configurable retention. Logs are stored in `~/.local/share/linux-mcp-server/logs/`.
 
 ### Remote SSH Execution
 
@@ -213,95 +175,37 @@ All tools support optional `host` and `username` parameters for remote execution
 - SSH key-based authentication must be configured on remote hosts
 - Remote user must have appropriate permissions for diagnostic commands
 
-**Example Usage**:
-```python
-# Local execution
-await list_services()
-
-# Remote execution
-await list_services(host="server1.example.com", username="admin")
-
-# Different host in same session
-await get_service_status("nginx", host="server2.example.com", username="sysadmin")
-```
-
 ## Usage
 
 ### Running the Server
 
-You can run the server in multiple ways:
+After installation, run the server:
 
-**Using uv run (recommended for development):**
 ```bash
-uv run linux-mcp-server
+linux-mcp-server
 ```
 
-**Using uvx (recommended for one-off execution without installation):**
-```bash
-uvx --from /path/to/linux-mcp-server linux-mcp-server
-```
-
-**Traditional Python module execution:**
-```bash
-python -m linux_mcp_server
-```
+For detailed usage instructions, available tools, and example troubleshooting sessions, see **[USAGE.md](USAGE.md)**.
 
 ### Using with Claude Desktop
 
-Add to your Claude Desktop configuration (`~/Library/Application Support/Claude/claude_desktop_config.json` on macOS):
-
-**Option 1: Using uv run (simpler):**
-```json
-{
-  "mcpServers": {
-    "linux-diagnostics": {
-      "command": "uv",
-      "args": [
-        "--directory",
-        "/path/to/linux-mcp-server",
-        "run",
-        "linux-mcp-server"
-      ],
-      "env": {
-        "LINUX_MCP_ALLOWED_LOG_PATHS": "/var/log/messages,/var/log/secure,/var/log/audit/audit.log"
-      }
-    }
-  }
-}
-```
-
-**Option 2: Using uvx (from local directory):**
-```json
-{
-  "mcpServers": {
-    "linux-diagnostics": {
-      "command": "uvx",
-      "args": [
-        "--from",
-        "/path/to/linux-mcp-server",
-        "linux-mcp-server"
-      ],
-      "env": {
-        "LINUX_MCP_ALLOWED_LOG_PATHS": "/var/log/messages,/var/log/secure,/var/log/audit/audit.log"
-      }
-    }
-  }
-}
-```
+For complete Claude Desktop integration instructions including platform-specific config file locations and alternative configurations, see **[INSTALL.md - Claude Desktop Integration](INSTALL.md#claude-desktop-integration)**.
 
 ## Development
 
-### Running Tests
+For developers who want to contribute or modify the code:
 
+**Setup:**
 ```bash
+git clone https://github.com/rhel-lightspeed/linux-mcp-server.git
+cd linux-mcp-server
+uv venv
+source .venv/bin/activate
+uv sync --group dev
 pytest
 ```
 
-### Running Tests with Coverage
-
-```bash
-pytest --cov=src --cov-report=html
-```
+For complete development workflow, coding standards, and contribution guidelines, see **[CONTRIBUTING.md](CONTRIBUTING.md)**.
 
 ## Security Considerations
 

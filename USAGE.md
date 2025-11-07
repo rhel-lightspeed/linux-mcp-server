@@ -4,23 +4,35 @@ This guide provides detailed instructions on how to use the Linux MCP Server for
 
 ## Quick Start
 
-1. **Install and activate the environment:**
-   ```bash
-   cd linux-mcp-server
-   uv venv
-   source .venv/bin/activate
-   uv pip install -e .
-   ```
+### Prerequisites
 
-2. **Configure environment variables:**
+Before using the MCP server, you need to either install it or have the necessary tools to run it on-demand (uvx).
+See **[INSTALL.md](INSTALL.md)** for complete installation instructions.
+
+**Quick install with pip:**
+```bash
+pip install linux-mcp-server
+```
+
+### Running the Server
+
+1. **Configure environment variables (optional but recommended):**
    ```bash
    export LINUX_MCP_ALLOWED_LOG_PATHS="/var/log/messages,/var/log/secure,/var/log/audit/audit.log"
+   export LINUX_MCP_LOG_LEVEL="INFO"
    ```
 
-3. **Run the server:**
+2. **Run the server:**
    ```bash
-   python -m linux_mcp_server
+   linux-mcp-server
    ```
+
+### Using with AI Agents
+
+For the best experience, integrate the MCP server with an AI Agent of your preference.
+
+#### For Claude Desktop
+See the [Claude Desktop Integration](INSTALL.md#claude-desktop-integration) section in INSTALL.md for configuration instructions.
 
 ## Available Tools
 
@@ -214,59 +226,7 @@ Lists all immediate subdirectories under a specified path, sorted by modificatio
 
 ## Configuration
 
-### Environment Variables
-
-#### `LINUX_MCP_ALLOWED_LOG_PATHS`
-**Required for `read_log_file` tool**
-
-Comma-separated list of log file paths that are allowed to be read.
-
-**Example:**
-```bash
-export LINUX_MCP_ALLOWED_LOG_PATHS="/var/log/messages,/var/log/secure,/var/log/httpd/access_log,/var/log/httpd/error_log"
-```
-
-**Security:** This whitelist prevents access to arbitrary files on the system.
-
-#### `LINUX_MCP_LOG_LEVEL`
-**Optional**
-
-Sets the logging level for the MCP server itself (not the system logs).
-
-**Values:** DEBUG, INFO, WARNING, ERROR, CRITICAL
-
-**Example:**
-```bash
-export LINUX_MCP_LOG_LEVEL="DEBUG"
-```
-
-## Integration with Claude Desktop
-
-Add this configuration to your Claude Desktop config file:
-
-**macOS:** `~/Library/Application Support/Claude/claude_desktop_config.json`
-**Linux:** `~/.config/Claude/claude_desktop_config.json`
-
-```json
-{
-  "mcpServers": {
-    "linux-diagnostics": {
-      "command": "uv",
-      "args": [
-        "--directory",
-        "/home/yourusername/linux-mcp-server",
-        "run",
-        "python",
-        "-m",
-        "linux_mcp_server"
-      ],
-      "env": {
-        "LINUX_MCP_ALLOWED_LOG_PATHS": "/var/log/messages,/var/log/secure,/var/log/audit/audit.log"
-      }
-    }
-  }
-}
-```
+For configuration details including environment variables and AI agent integration, see **[INSTALL.md](INSTALL.md)**.
 
 ## Example Troubleshooting Sessions
 
@@ -324,17 +284,7 @@ Run the MCP server with the minimum required privileges. Consider:
 
 ## Troubleshooting
 
-### "systemctl command not found"
-The system doesn't have systemd. This MCP server is designed for systemd-based Linux distributions like RHEL 7+, Fedora, Ubuntu 16.04+, etc.
-
-### "Permission denied" errors
-The user running the MCP server doesn't have permission to access certain resources. Consider:
-- Adding the user to the `adm` group for log access
-- Running with sudo for diagnostics requiring root
-- Adjusting file permissions as needed
-
-### No log files accessible with `read_log_file`
-Set the `LINUX_MCP_ALLOWED_LOG_PATHS` environment variable before starting the server.
+For detailed troubleshooting, security considerations, and permission setup, see **[INSTALL.md - Troubleshooting](INSTALL.md#troubleshooting)**.
 
 ## Best Practices
 

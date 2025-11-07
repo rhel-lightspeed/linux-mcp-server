@@ -6,9 +6,12 @@
 #   2. Customize the settings below
 #   3. Source it before running: source config.sh
 #   4. Run the server using one of:
-#      - uv run linux-mcp-server (recommended)
-#      - uvx --from /path/to/linux-mcp-server linux-mcp-server
-#      - python -m linux_mcp_server
+#      - linux-mcp-server (if installed with pip)
+#      - uvx linux-mcp-server (to run without installation)
+#      - uv run linux-mcp-server (for development)
+#      - python -m linux_mcp_server (alternative)
+#
+# For installation instructions, see INSTALL.md
 
 # ========================================
 # Audit Logging Configuration
