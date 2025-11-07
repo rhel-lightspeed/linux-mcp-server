@@ -155,6 +155,9 @@ def _log_event_complete(
     start: int,
     error: Exception | None = None,
 ) -> None:
+    """
+    Log the completion of a tool call and calculate the total execution time.
+    """
     stop = time.perf_counter_ns()
     duration = timedelta(microseconds=(stop - start) / 1_000)
     status = "error" if error else "success"
