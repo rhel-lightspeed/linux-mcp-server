@@ -112,8 +112,8 @@ class TestLogToolCall:
     @pytest.mark.parametrize(
         ("params", "mode"),
         (
-            ({}, ExecutionMode.local),
-            ({"host": "server1.com", "username": "admin"}, ExecutionMode.remote),
+            ({}, ExecutionMode.LOCAL),
+            ({"host": "server1.com", "username": "admin"}, ExecutionMode.REMOTE),
         ),
     )
     def test_log_tool_call(self, caplog, decorated, params, mode):
@@ -131,8 +131,8 @@ class TestLogToolCall:
     @pytest.mark.parametrize(
         ("params", "mode"),
         (
-            ({}, ExecutionMode.local),
-            ({"host": "server1.com", "username": "admin"}, ExecutionMode.remote),
+            ({}, ExecutionMode.LOCAL),
+            ({"host": "server1.com", "username": "admin"}, ExecutionMode.REMOTE),
         ),
     )
     async def test_log_tool_call_async(self, caplog, adecorated, params, mode):

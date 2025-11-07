@@ -47,8 +47,8 @@ class Event(StrEnum):
 
 
 class ExecutionMode(StrEnum):
-    remote = "remote"
-    local = "local"
+    REMOTE = "REMOTE"
+    LOCAL = "LOCAL"
 
 
 def sanitize_parameters(params: dict[str, t.Any]) -> dict[str, t.Any]:
@@ -125,7 +125,7 @@ def _log_event_start(
     The timestamp is in nanoseconds. It is meant to be used to calculate
     total execution time.
     """
-    execution_mode = ExecutionMode.remote if params.get("host") else ExecutionMode.local
+    execution_mode = ExecutionMode.REMOTE if params.get("host") else ExecutionMode.LOCAL
     safe_params = sanitize_parameters(params)
 
     extra = {
