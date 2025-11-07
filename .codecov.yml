@@ -1,6 +1,6 @@
 codecov:
   notify:
-    after_n_builds: 7
+    after_n_builds: 6
     wait_for_ci: false
 
   require_ci_to_pass: false
