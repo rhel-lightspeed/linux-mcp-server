@@ -10,6 +10,7 @@ from linux_mcp_server.audit import ExecutionMode
 from linux_mcp_server.audit import log_ssh_command
 from linux_mcp_server.audit import log_ssh_connect
 from linux_mcp_server.audit import sanitize_parameters
+from linux_mcp_server.audit import SENSITIVE_FIELDS
 
 
 class TestSanitizeParameters:
@@ -146,9 +147,10 @@ class TestLogToolCall:
         assert caplog.records
         assert getattr(record, "execution_mode", None) == mode
 
-    def test_log_tool_call_sanitizes_parameters(self, caplog, decorated):
+    @pytest.mark.parametrize("secret", SENSITIVE_FIELDS)
+    def test_log_tool_call_sanitizes_parameters(self, caplog, decorated, secret):
         """Test that tool call logging sanitizes sensitive parameters."""
-        params = {"password": "secret123", "username": "admin"}
+        params = {"password": secret, "username": "admin"}
         with caplog.at_level(logging.INFO):
             decorated(**params)
 
@@ -156,9 +158,10 @@ class TestLogToolCall:
         assert "secret123" not in caplog.text
         assert "REDACTED" in caplog.text
 
-    async def test_log_tool_call_async_sanitizes_parameters(self, caplog, adecorated):
+    @pytest.mark.parametrize("secret", SENSITIVE_FIELDS)
+    async def test_log_tool_call_async_sanitizes_parameters(self, caplog, adecorated, secret):
         """Test that tool call logging sanitizes sensitive parameters."""
-        params = {"password": "secret123", "username": "admin"}
+        params = {"password": secret, "username": "admin"}
         with caplog.at_level(logging.INFO):
             await adecorated(**params)
 
