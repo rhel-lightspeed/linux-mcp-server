@@ -152,14 +152,14 @@ def _log_event_start(
 def _log_event_complete(
     logger: logging.Logger,
     tool_name: str,
-    start: int,
+    start_time: int,
     error: Exception | None = None,
 ) -> None:
     """
     Log the completion of a tool call and calculate the total execution time.
     """
-    stop = time.perf_counter_ns()
-    duration = timedelta(microseconds=(stop - start) / 1_000)
+    stop_time = time.perf_counter_ns()
+    duration = timedelta(microseconds=(stop_time - start_time) / 1_000)
     status = "error" if error else "success"
     extra = {
         "tool": tool_name,
@@ -187,7 +187,7 @@ def log_tool_call(func: t.Callable) -> Function:
 
     @functools.wraps(func)
     def wrapper(*args, **kwargs):
-        start = _log_event_start(logger, tool_name, kwargs)
+        start_time = _log_event_start(logger, tool_name, kwargs)
         error = None
         result = None
 
@@ -197,13 +197,13 @@ def log_tool_call(func: t.Callable) -> Function:
             # FIXME: This could potentially swallow exceptions. Maybe narrow the exception type.
             error = exc
 
-        _log_event_complete(logger, tool_name, start, error)
+        _log_event_complete(logger, tool_name, start_time, error)
 
         return result
 
     @functools.wraps(func)
     async def awrapper(*args, **kwargs):
-        start = _log_event_start(logger, tool_name, kwargs)
+        start_time = _log_event_start(logger, tool_name, kwargs)
         error = None
         result = None
 
@@ -212,7 +212,7 @@ def log_tool_call(func: t.Callable) -> Function:
         except Exception as exc:
             error = exc
 
-        _log_event_complete(logger, tool_name, start, error)
+        _log_event_complete(logger, tool_name, start_time, error)
 
         return result
 
