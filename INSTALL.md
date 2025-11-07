@@ -277,8 +277,7 @@ sudo pacman -S python python-pip
 ```
 
 **Notes:**
-- Use `python3` and `pip3` commands instead of `python` and `pip` on most Linux distributions
-- The MCP server requires systemd, so it's designed for modern Linux distributions
+- You may have to use `python3` and `pip3` commands instead of `python` and `pip` on most Linux distributions
 
 ### macOS
 
@@ -470,22 +469,25 @@ This section explains issues that may be present when using the MCP server to in
 
 **Cause:** System doesn't use systemd (very old distributions or non-standard systems).
 
-**Solution:** This MCP server requires systemd to be available on the target system.
+**Solution:** This MCP server requires systemd to be available on the target system for cetain tools to function properly.
+- The main use case is to troubleshoot modern RHEL-alike Linux systems (e.g. RHEL 9.x, 10.x, Fedora 40 and above, etc.)
 - Consider upgrading to a modern Linux distribution (RHEL 7+, Fedora, etc.).
 
 #### macOS: Limited functionality warnings
 
 **Cause:** Some Linux-specific commands don't exist or behave differently on macOS.
 
-**Note:** This is expected. The MCP server is optimized for Linux systems. Some tools may work on macOS, but some may have reduced functionality or don't work at all.
+**Note:** This is expected. The MCP server is designed to diagnose Linux systems (see above).
+- Some tools may work on macOS, but some may have reduced functionality or not work at all.
 
-#### Windows: Most tools not working
+#### Windows: Most or all tools not working
 
 **Cause:** The MCP server relies on Linux-specific tools (systemd, journalctl, etc.) that don't exist on Windows.
 
-**Solution:** This is expected behavior. On Windows, use the MCP server primarily for:
-- Remote SSH execution to manage Linux servers
-- Testing and development
+**Solution:** This is expected behavior. The MCP server is not designed to diagnose Windows systems.
+- On Windows, use the MCP server primarily for:
+  - Remote SSH execution to manage Linux servers
+  - Testing and development
 - For local Windows management, use a Windows-specific MCP server
 
 ### Getting Additional Help
