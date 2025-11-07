@@ -28,24 +28,16 @@ This method installs the MCP server permanently on your system.
 **Step 1: Install the package from PyPI**
 
 ```bash
-pip install linux-mcp-server
+pip install --user linux-mcp-server
 ```
 
-**Step 2: Verify the installation**
+**Step 2: Test the server**
 
 ```bash
-linux-mcp-server --version
+~/.local/bin/linux-mcp-server
 ```
 
-You should see the version number displayed.
-
-**Step 3: Test the server**
-
-```bash
-linux-mcp-server
-```
-
-The server should start and display initialization messages. Press `Ctrl+C` to stop it.
+The server should start and display initialization messages. Press `Ctrl+C`, then `Return` to stop it.
 
 ### Method 2: Run with uvx (No Installation)
 
@@ -68,131 +60,6 @@ After installation, configure the server for use with Claude Desktop. See [Claud
 
 ---
 
-## For Developers
-
-If you want to contribute to the project or modify the code, follow these instructions.
-
-### Prerequisites
-
-- **Python 3.10 or higher**
-- **Git**
-- **uv** (recommended) - https://github.com/astral-sh/uv#installation
-  - OR **pip** and **venv** (alternative)
-
-### Method 1: Setup with uv (Recommended)
-
-**Step 1: Clone the repository**
-
-```bash
-git clone https://github.com/rhel-lightspeed/linux-mcp-server.git
-cd linux-mcp-server
-```
-
-**Step 2: Create virtual environment and install dependencies**
-
-```bash
-uv venv
-source .venv/bin/activate  # On Linux/macOS
-# OR
-.venv\Scripts\activate     # On Windows
-```
-
-**Step 3: Install the package in editable mode with dev dependencies**
-
-```bash
-uv sync --group dev
-```
-
-**Step 4: Verify the installation**
-
-```bash
-python -m linux_mcp_server --version
-```
-
-**Step 5: Run the tests**
-
-```bash
-pytest
-```
-
-All tests should pass.
-
-### Method 2: Setup with pip and venv (Alternative)
-
-**Step 1: Clone the repository**
-
-```bash
-git clone https://github.com/rhel-lightspeed/linux-mcp-server.git
-cd linux-mcp-server
-```
-
-**Step 2: Create and activate virtual environment**
-
-```bash
-python -m venv .venv
-source .venv/bin/activate  # On Linux/macOS
-# OR
-.venv\Scripts\activate     # On Windows
-```
-
-**Step 3: Install the package in editable mode with dev dependencies**
-
-```bash
-pip install -e ".[dev]"
-```
-
-Note: On some shells (like zsh), you may need to escape the brackets:
-```bash
-pip install -e .\[dev\]
-```
-
-**Step 4: Verify the installation**
-
-```bash
-python -m linux_mcp_server --version
-```
-
-**Step 5: Run the tests**
-
-```bash
-pytest
-```
-
-All tests should pass.
-
-### Running the Server in Development
-
-There are multiple ways to run the server during development:
-
-**Option 1: Using uv run (recommended for development)**
-
-```bash
-uv run linux-mcp-server
-```
-
-**Option 2: Using the installed entry point**
-
-```bash
-linux-mcp-server
-```
-
-**Option 3: As a Python module**
-
-```bash
-python -m linux_mcp_server
-```
-
-### Development Workflow
-
-See [CONTRIBUTING.md](CONTRIBUTING.md) for detailed information about:
-- Test-Driven Development (TDD) workflow
-- Code standards and style guidelines
-- Adding new tools
-- Commit message format
-- Pull request process
-
----
-
 ## Claude Desktop Integration
 
 ### Configuration File Location
@@ -204,11 +71,15 @@ Edit your Claude Desktop configuration file:
 
 ### Configuration Example
 
+The value for `command` will vary depending on how `linux-mcp-server` was installed.
+
+For installion with `pip`:
+
 ```json
 {
   "mcpServers": {
     "linux-diagnostics": {
-      "command": "linux-mcp-server",
+      "command": "[path to venv]/bin/linux-mcp-server",
       "args": [],
       "env": {
         "LINUX_MCP_ALLOWED_LOG_PATHS": "/var/log/messages,/var/log/secure,/var/log/audit/audit.log"
@@ -218,9 +89,21 @@ Edit your Claude Desktop configuration file:
 }
 ```
 
-**Alternative commands:**
-- **Using uvx:** Change `"command": "linux-mcp-server"` to `"command": "uvx"` and `"args": ["linux-mcp-server"]`
-- **For development:** Change `"command": "uv"` and `"args": ["--directory", "/path/to/repo", "run", "linux-mcp-server"]`
+For installion with `uv`:
+
+```json
+{
+  "mcpServers": {
+    "linux-diagnostics": {
+      "command": "uvx",
+      "args": ["linux-mcp-server"],
+      "env": {
+        "LINUX_MCP_ALLOWED_LOG_PATHS": "/var/log/messages,/var/log/secure,/var/log/audit/audit.log"
+      }
+    }
+  }
+}
+```
 
 ### Environment Variables
 
@@ -282,16 +165,13 @@ sudo pacman -S python python-pip
 ### macOS
 
 **Installing Python:**
-- **Homebrew:** `brew install python@3.12`
 - **Official Installer:** https://www.python.org/downloads/macos/
-- **System Python:** macOS includes Python, check version with `python3 --version`
 
-**Note:** The MCP server is optimized for Linux systems; some tools may have limited functionality on macOS.
+**Note:** The MCP server is optimized for Linux systems. Some tools may have limited functionality on macOS and will not work on Windows.
 
 ### Windows
 
 **Installing Python:**
-- **Microsoft Store:** Search for "Python 3.12" and install (recommended)
 - **Official Installer:** https://www.python.org/downloads/windows/ (check "Add Python to PATH")
 
 Verify: `python --version` in Command Prompt or PowerShell
@@ -370,7 +250,7 @@ async def main():
     print("=== System Info ===")
     result = await system_info.get_system_info()
     print(result)
-    
+
     # Test service listing
     print("\n=== Services ===")
     result = await services.list_services()

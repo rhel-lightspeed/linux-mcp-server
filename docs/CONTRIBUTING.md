@@ -2,34 +2,82 @@
 
 Thank you for your interest in contributing! This document provides guidelines for contributing to the Linux MCP Server project.
 
-## Development Setup
+### Prerequisites
 
-For complete development setup instructions, see **[INSTALL.md - For Developers](INSTALL.md#for-developers)**.
+- **Python 3.10 or higher**
+- **git**
+- **pip**
+- **uv** - https://github.com/astral-sh/uv#installation
 
-### Quick Setup
+### Method 1: Setup with pip and a virtual environment
 
-1. **Clone the repository:**
-   ```bash
-   git clone https://github.com/rhel-lightspeed/linux-mcp-server.git
-   cd linux-mcp-server
-   ```
+**Step 1: Clone the repository**
 
-2. **Set up development environment:**
-   ```bash
-   uv venv
-   source .venv/bin/activate  # On Linux/macOS
-   # OR
-   .venv\Scripts\activate     # On Windows
-   
-   uv sync --group dev
-   ```
+```bash
+git clone https://github.com/rhel-lightspeed/linux-mcp-server.git
+cd linux-mcp-server
+```
 
-3. **Verify setup:**
-   ```bash
-   pytest
-   ```
+**Step 2: Create and activate virtual environment**
 
-See [INSTALL.md](INSTALL.md) for alternative setup methods (pip + venv), platform-specific notes, and troubleshooting.
+```bash
+python -m venv .venv
+source .venv/bin/activate  # On Linux/macOS
+# OR
+.venv\Scripts\activate     # On Windows
+```
+
+**Step 3: Install the package in editable mode with dev dependencies**
+
+```bash
+pip install -e . --group dev
+```
+
+**Step 4: Verify the installation**
+
+```bash
+python -m linux_mcp_server
+```
+
+**Step 5: Run the tests**
+
+```bash
+pytest
+```
+
+All tests should pass.
+
+### Method 2: Setup with uv
+
+**Step 1: Clone the repository**
+
+```bash
+git clone https://github.com/rhel-lightspeed/linux-mcp-server.git
+cd linux-mcp-server
+```
+
+**Step 2: Create virtual environment and install dev dependencies**
+
+Note that by default `uv` creates an editable install as well as installs all packages in the `dev` dependency group.
+
+```bash
+uv sync
+```
+
+**Step 3: Verify the installation**
+
+```bash
+uv run linux_mcp_server
+```
+
+**Step 5: Run the tests**
+
+```bash
+uv run pytest
+```
+
+All tests should pass.
+
 
 ## Development Workflow
 
@@ -41,7 +89,6 @@ We follow Test-Driven Development (TDD) principles:
 import pytest
 from linux_mcp_server.tools import new_module
 
-@pytest.mark.asyncio
 async def test_new_feature():
     result = await new_module.new_function()
     assert "expected" in result
@@ -75,7 +122,7 @@ git commit -m "feat: add new feature
 - Follow PEP 8 for Python code
 - Use type hints for function parameters and return values
 - Use async/await for I/O operations
-- Maximum line length: 100 characters
+- Maximum line length: 120 characters
 
 ### Documentation
 - Add docstrings to all public functions
@@ -84,7 +131,7 @@ git commit -m "feat: add new feature
 
 ### Testing
 - Write tests for all new features
-- Maintain test coverage above 80%
+- Maintain project test coverage above 70%, patch test coverage must be 100%.
 - Use descriptive test names that explain what is being tested
 
 ## Adding New Tools
@@ -93,82 +140,44 @@ When adding a new diagnostic tool:
 
 1. **Create the tool function in appropriate module:**
    ```python
-   # src/linux_mcp_server/tools/my_tool.py
-   import typing as t Optional
-   from .ssh_executor import execute_command
+    # src/linux_mcp_server/tools/my_tool.py
+    import typing as t
 
-   async def my_diagnostic_function(
-       host: Optional[str] = None,
-       username: Optional[str] = None
-   ) -> str:
-       """
-       Brief description of what this tool does.
+    @mcp.tool()
+    @log_tool_call
+    async def my_tool_name(
+        param1: str,
+        host: Optional[str] = None,
+        username: Optional[str] = None
+    ) -> str:
+        """Description for LLM to understand the tool.
 
-       Args:
-           host: Optional remote host to connect to via SSH
-           username: Optional SSH username (required if host is provided)
+        Args:
+            param1: Description of the parameter
+            host: Remote host to connect to via SSH (optional)
+            username: SSH username for remote host (required if host is provided)
+        """
+        return await _execute_tool(
+            "my_tool_name",
+            my_tool.my_diagnostic_function,
+            param1=param1,
+            host=host,
+            username=username
+        )
+    ```
 
-       Returns:
-           Formatted string with diagnostic information
-       """
-       try:
-           # Implementation using execute_command for local/remote execution
-           returncode, stdout, stderr = await execute_command(
-               ["your", "command"],
-               host=host,
-               username=username
-           )
-
-           if returncode != 0:
-               return f"Error: {stderr}"
-
-           return stdout
-       except Exception as e:
-           return f"Error: {str(e)}"
-   ```
-
-2. **Register the tool in server.py using FastMCP decorator:**
-   ```python
-   # Import your tool module at the top
-   from .tools import my_tool
-
-   # Add decorated function
-   @mcp.tool()
-   async def my_tool_name(
-       param1: str,
-       host: Optional[str] = None,
-       username: Optional[str] = None
-   ) -> str:
-       """Description for LLM to understand the tool.
-
-       Args:
-           param1: Description of the parameter
-           host: Remote host to connect to via SSH (optional)
-           username: SSH username for remote host (required if host is provided)
-       """
-       return await _execute_tool(
-           "my_tool_name",
-           my_tool.my_diagnostic_function,
-           param1=param1,
-           host=host,
-           username=username
-       )
-   ```
-
-3. **Write tests:**
+2. **Write tests:**
    ```python
    # tests/test_my_tool.py
    import pytest
    from linux_mcp_server.tools import my_tool
 
-   @pytest.mark.asyncio
    async def test_my_tool():
        result = await my_tool.my_diagnostic_function()
        assert isinstance(result, str)
        assert "expected content" in result.lower()
 
    # Test server integration
-   @pytest.mark.asyncio
    async def test_server_has_my_tool():
        from linux_mcp_server.server import mcp
        tools = await mcp.list_tools()
@@ -176,7 +185,7 @@ When adding a new diagnostic tool:
        assert "my_tool_name" in tool_names
    ```
 
-4. **Update documentation:**
+3. **Update documentation:**
    - Add tool description to README.md
    - Add usage examples to USAGE.md
 
@@ -241,7 +250,6 @@ during enumeration. Now catches exception and continues.
 ### Unit Tests
 Test individual functions in isolation:
 ```python
-@pytest.mark.asyncio
 async def test_function_returns_correct_format():
     result = await module.function()
     assert isinstance(result, str)
@@ -251,14 +259,12 @@ async def test_function_returns_correct_format():
 ### Integration Tests
 Test that tools work with the MCP server:
 ```python
-@pytest.mark.asyncio
 async def test_server_has_tool():
     from linux_mcp_server.server import mcp
     tools = await mcp.list_tools()
     tool_names = [t.name for t in tools]
     assert "tool_name" in tool_names
 
-@pytest.mark.asyncio
 async def test_server_calls_tool():
     from linux_mcp_server.server import mcp
     result = await mcp.call_tool("tool_name", {})
@@ -266,6 +272,8 @@ async def test_server_calls_tool():
 ```
 
 ### Running Tests
+Coverage is enabled by default. Coverage reports can be found in `coverage/html/index.html`.
+
 ```bash
 # Run all tests
 pytest
@@ -273,11 +281,11 @@ pytest
 # Run specific test file
 pytest tests/test_services.py
 
-# Run with coverage
-pytest --cov=src --cov-report=html
-
 # Run with verbose output
 pytest -v
+
+# Run tests without coverage
+pytest --no-cov
 ```
 
 ## Documentation
