@@ -6,22 +6,28 @@ from datetime import datetime
 
 import psutil
 
+from mcp.types import ToolAnnotations
 from pydantic import Field
 
-from .ssh_executor import execute_command
-from .utils import format_bytes
-from .validation import validate_pid
+from linux_mcp_server.audit import log_tool_call
+from linux_mcp_server.server import mcp
+from linux_mcp_server.tools.ssh_executor import execute_command
+from linux_mcp_server.utils import format_bytes
+from linux_mcp_server.utils.validation import validate_pid
 
 
+@mcp.tool(
+    title="List processes",
+    description="List running processes",
+    annotations=ToolAnnotations(readOnlyHint=True),
+)
+@log_tool_call
 async def list_processes(
     host: t.Annotated[str | None, Field(description="Optional remote host to connect to")] = None,
     username: t.Annotated[
         str | None, Field(description="Optional SSH username (if not provided, the current user account is used)")
     ] = None,
 ) -> str:
-    """
-    List running processes.
-    """
     try:
         if host:
             # Remote execution - use ps command
@@ -98,6 +104,12 @@ async def list_processes(
         return f"Error listing processes: {str(e)}"
 
 
+@mcp.tool(
+    title="Process details",
+    description="Get information about a specific process.",
+    annotations=ToolAnnotations(readOnlyHint=True),
+)
+@log_tool_call
 async def get_process_info(  # noqa: C901
     pid: t.Annotated[int, Field(description="Process ID")],
     host: t.Annotated[str | None, Field(description="Optional remote host to connect to")] = None,
@@ -105,9 +117,6 @@ async def get_process_info(  # noqa: C901
         str | None, Field(description="Optional SSH username (if not provided, the current user account is used)")
     ] = None,
 ) -> str:
-    """
-    Get information about a specific process.
-    """
     # Validate PID (accepts floats from LLMs)
     validated_pid, error = validate_pid(pid)
     if error:

@@ -4,10 +4,14 @@ import os
 
 from pathlib import Path
 
-from .ssh_executor import execute_command
-from .validation import validate_line_count
+from linux_mcp_server.audit import log_tool_call
+from linux_mcp_server.server import mcp
+from linux_mcp_server.tools.ssh_executor import execute_command
+from linux_mcp_server.utils.validation import validate_line_count
 
 
+@mcp.tool()
+@log_tool_call
 async def get_journal_logs(
     unit: str | None = None,
     priority: str | None = None,
@@ -74,6 +78,8 @@ async def get_journal_logs(
         return f"Error reading journal logs: {str(e)}"
 
 
+@mcp.tool()
+@log_tool_call
 async def get_audit_logs(
     lines: int = 100,
     host: str | None = None,
@@ -125,6 +131,8 @@ async def get_audit_logs(
         return f"Error reading audit logs: {str(e)}"
 
 
+@mcp.tool()
+@log_tool_call
 async def read_log_file(  # noqa: C901
     log_path: str,
     lines: int = 100,

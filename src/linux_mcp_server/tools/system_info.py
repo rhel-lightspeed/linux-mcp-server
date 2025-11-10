@@ -7,10 +7,14 @@ from datetime import datetime
 
 import psutil
 
-from .ssh_executor import execute_command
-from .utils import format_bytes
+from linux_mcp_server.audit import log_tool_call
+from linux_mcp_server.server import mcp
+from linux_mcp_server.tools.ssh_executor import execute_command
+from linux_mcp_server.utils import format_bytes
 
 
+@mcp.tool()
+@log_tool_call
 async def get_system_info(  # noqa: C901
     host: str | None = None,
     username: str | None = None,
@@ -136,6 +140,8 @@ async def get_system_info(  # noqa: C901
         return f"Error gathering system information: {str(e)}"
 
 
+@mcp.tool()
+@log_tool_call
 async def get_cpu_info(  # noqa: C901
     host: str | None = None,
     username: str | None = None,
@@ -266,6 +272,8 @@ async def get_cpu_info(  # noqa: C901
         return f"Error gathering CPU information: {str(e)}"
 
 
+@mcp.tool()
+@log_tool_call
 async def get_memory_info(
     host: str | None = None,
     username: str | None = None,
@@ -351,6 +359,8 @@ async def get_memory_info(
         return f"Error gathering memory information: {str(e)}"
 
 
+@mcp.tool()
+@log_tool_call
 async def get_disk_usage(
     host: str | None = None,
     username: str | None = None,
@@ -432,6 +442,8 @@ async def get_disk_usage(
         return f"Error gathering disk usage information: {str(e)}"
 
 
+@mcp.tool()
+@log_tool_call
 async def get_hardware_info(host: str | None = None, username: str | None = None) -> str:  # noqa: C901
     """
     Get hardware information.

@@ -4,11 +4,15 @@ from pathlib import Path
 
 import psutil
 
-from .ssh_executor import execute_command
-from .utils import format_bytes
-from .validation import validate_positive_int
+from linux_mcp_server.audit import log_tool_call
+from linux_mcp_server.server import mcp
+from linux_mcp_server.tools.ssh_executor import execute_command
+from linux_mcp_server.utils import format_bytes
+from linux_mcp_server.utils.validation import validate_positive_int
 
 
+@mcp.tool()
+@log_tool_call
 async def list_block_devices(
     host: str | None = None,
     username: str | None = None,
@@ -79,6 +83,8 @@ async def list_block_devices(
         return f"Error listing block devices: {str(e)}"
 
 
+@mcp.tool()
+@log_tool_call
 async def list_directories_by_size(  # noqa: C901
     path: str,
     top_n: int | float,
@@ -193,6 +199,8 @@ async def list_directories_by_size(  # noqa: C901
         return f"Error analyzing directories: {str(e)}"
 
 
+@mcp.tool()
+@log_tool_call
 async def list_directories_by_name(
     path: str,
     reverse: bool = False,
@@ -269,6 +277,8 @@ async def list_directories_by_name(
         return f"Error listing directories: {str(e)}"
 
 
+@mcp.tool()
+@log_tool_call
 async def list_directories_by_modified_date(  # noqa: C901
     path: str,
     newest_first: bool = True,

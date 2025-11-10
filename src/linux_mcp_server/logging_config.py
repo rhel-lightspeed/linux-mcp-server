@@ -173,4 +173,4 @@ def setup_logging():
     )
     root_logger.addHandler(console_handler)
 
-    logging.getLogger(__name__).info(f"Logging initialized: {log_dir}")
+    root_logger.info(f"Logging initialized: {log_dir}")

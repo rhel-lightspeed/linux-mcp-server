@@ -5,6 +5,8 @@ with connection pooling and SSH key discovery. It seamlessly routes commands to
 either local or remote execution based on the provided parameters.
 """
 
+# FIXME: Move this out of tools and into its own package.
+
 import asyncio
 import getpass
 import logging
@@ -18,11 +20,12 @@ from typing import Optional
 
 import asyncssh
 
-from ..audit import log_ssh_command
-from ..audit import log_ssh_connect
+from linux_mcp_server.audit import Event
+from linux_mcp_server.audit import log_ssh_command
+from linux_mcp_server.audit import log_ssh_connect
 
 
-logger = logging.getLogger(__name__)
+logger = logging.getLogger("linux-mcp-server")
 
 
 def discover_ssh_key() -> str | None:
@@ -124,7 +127,7 @@ class SSHConnectionManager:
 
         # Create new connection
         # DEBUG level: Log connection attempt before it completes
-        logger.debug(f"SSH_CONNECTING: {key} | key={self._ssh_key or 'none'}")
+        logger.debug(f"{Event.SSH_CONNECTING}: {key} | key={self._ssh_key or 'none'}")
 
         try:
             connect_kwargs = {
@@ -211,7 +214,7 @@ class SSHConnectionManager:
             logger.error(
                 f"Error executing command on {username}@{host}: {e}",
                 extra={
-                    "event": "REMOTE_EXEC_ERROR",
+                    "event": Event.REMOTE_EXEC_ERROR,
                     "command": cmd_str,
                     "host": host,
                     "duration": f"{duration:.3f}s",
@@ -326,7 +329,7 @@ async def _execute_local(command: list[str]) -> tuple[int, str, str]:
         logger.error(
             f"Error executing local command: {cmd_str}",
             extra={
-                "event": "LOCAL_EXEC_ERROR",
+                "event": Event.LOCAL_EXEC_ERROR,
                 "command": cmd_str,
                 "duration": f"{duration:.3f}s",
                 "error": str(e),

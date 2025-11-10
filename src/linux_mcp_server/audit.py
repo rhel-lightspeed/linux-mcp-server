@@ -5,11 +5,19 @@ the entire MCP server. All functions add structured context to log records
 that can be output in both human-readable and JSON formats.
 """
 
+import functools
+import inspect
 import logging
+import time
 import typing as t
 
 from contextlib import contextmanager
+from datetime import timedelta
 
+from linux_mcp_server.utils import StrEnum
+
+
+Function: t.TypeAlias = t.Callable[..., t.Any]
 
 # Sensitive field names that should be redacted in logs
 SENSITIVE_FIELDS = {
@@ -25,6 +33,22 @@ SENSITIVE_FIELDS = {
     "private_key",
     "privatekey",
 }
+
+
+class Event(StrEnum):
+    LOCAL_EXEC_ERROR = "LOCAL_EXEC_ERROR"
+    REMOTE_EXEC = "REMOTE_EXEC"
+    REMOTE_EXEC_ERROR = "REMOTE_EXEC_ERROR"
+    SSH_AUTH_FAILED = "SSH_AUTH_FAILED"
+    SSH_CONNECT = "SSH_CONNECT"
+    SSH_CONNECTING = "SSH_CONNECTING"
+    TOOL_CALL = "TOOL_CALL"
+    TOOL_COMPLETE = "TOOL_CALL"
+
+
+class ExecutionMode(StrEnum):
+    REMOTE = "REMOTE"
+    LOCAL = "LOCAL"
 
 
 def sanitize_parameters(params: dict[str, t.Any]) -> dict[str, t.Any]:
@@ -90,78 +114,112 @@ def AuditContext(**extra_fields):
     yield adapter
 
 
-def log_tool_call(tool_name: str, parameters: dict[str, t.Any]):
+def _log_event_start(
+    logger: logging.Logger,
+    tool_name: str,
+    params: dict[t.Any, t.Any],
+) -> int:
     """
-    Log a tool invocation.
+    Emit a log event and return a performance counter timestamp.
 
-    Args:
-        tool_name: Name of the tool being called
-        parameters: Tool parameters (will be sanitized)
+    The timestamp is in nanoseconds. It is meant to be used to calculate
+    total execution time.
     """
-    logger = logging.getLogger(__name__)
+    execution_mode = ExecutionMode.REMOTE if params.get("host") else ExecutionMode.LOCAL
+    safe_params = sanitize_parameters(params)
 
-    # Determine if local or remote execution
-    execution_mode = "remote" if parameters.get("host") else "local"
-
-    # Sanitize parameters
-    safe_params = sanitize_parameters(parameters)
-
-    # Build log record with extra fields
     extra = {
-        "event": "TOOL_CALL",
         "tool": tool_name,
         "execution_mode": execution_mode,
     }
+    if "host" in params:
+        extra["host"] = params["host"]
 
-    # Add host and username if present
-    if "host" in parameters:
-        extra["host"] = parameters["host"]
-    if "username" in parameters:
-        extra["username"] = parameters["username"]
+    if "username" in params:
+        extra["username"] = params["username"]
 
-    # Add sanitized parameters as string
+    message = f"{Event.TOOL_CALL}: {tool_name}"
+
     params_str = ", ".join(f"{k}={v}" for k, v in safe_params.items() if k not in ["host", "username"])
-
-    message = f"TOOL_CALL: {tool_name}"
     if params_str:
         message += f" | {params_str}"
 
     logger.info(message, extra=extra)
 
+    return time.perf_counter_ns()
 
-def log_tool_complete(
+
+def _log_event_complete(
+    logger: logging.Logger,
     tool_name: str,
-    status: str,
-    duration: float,
-    error: str | None = None,
-):
+    start_time: int,
+    error: Exception | None = None,
+) -> None:
     """
-    Log tool completion.
-
-    Args:
-        tool_name: Name of the tool
-        status: Completion status ("success" or "error")
-        duration: Execution time in seconds
-        error: Optional error message
+    Log the completion of a tool call and calculate the total execution time.
     """
-    logger = logging.getLogger(__name__)
-
+    stop_time = time.perf_counter_ns()
+    duration = timedelta(microseconds=(stop_time - start_time) / 1_000)
+    status = "error" if error else "success"
     extra = {
-        "event": "TOOL_COMPLETE",
         "tool": tool_name,
         "status": status,
-        "duration": f"{duration:.3f}s",
+        "duration": f"{duration}s",
     }
 
-    message = f"TOOL_COMPLETE: {tool_name}"
+    message = f"{Event.TOOL_COMPLETE}: {tool_name}"
 
-    if status == "error":
-        if error:
-            extra["error"] = error
-            message += f" | error: {error}"
+    if error:
+        extra["error"] = str(error)
+        message += f" | error: {error}"
         logger.error(message, extra=extra)
     else:
         logger.info(message, extra=extra)
+
+
+def log_tool_call(func: t.Callable) -> Function:
+    """Decorator to log tool calls
+
+    Works with sync or async functions.
+    """
+    logger = logging.getLogger("linux-mcp-server")
+    tool_name = func.__name__
+
+    @functools.wraps(func)
+    def wrapper(*args, **kwargs):
+        start_time = _log_event_start(logger, tool_name, kwargs)
+        error = None
+        result = None
+
+        try:
+            result = func(*args, **kwargs)
+        except Exception as exc:
+            # FIXME: This could potentially swallow exceptions. Maybe narrow the exception type.
+            error = exc
+
+        _log_event_complete(logger, tool_name, start_time, error)
+
+        return result
+
+    @functools.wraps(func)
+    async def awrapper(*args, **kwargs):
+        start_time = _log_event_start(logger, tool_name, kwargs)
+        error = None
+        result = None
+
+        try:
+            result = await func(*args, **kwargs)
+        except Exception as exc:
+            error = exc
+
+        _log_event_complete(logger, tool_name, start_time, error)
+
+        return result
+
+    if inspect.iscoroutinefunction(func):
+        return awrapper
+
+    return wrapper
 
 
 def log_ssh_connect(
@@ -193,14 +251,13 @@ def log_ssh_connect(
 
     if status == "success":
         extra = {
-            "event": "SSH_CONNECT",
             "host": host,
             "username": username,
             "status": status,
         }
 
         # At INFO level, just log basic success
-        message = f"SSH_CONNECT: {user_host}"
+        message = f"{Event.SSH_CONNECT}: {user_host}"
 
         # At DEBUG level, add more details
         if logger.isEnabledFor(logging.DEBUG):
@@ -214,7 +271,6 @@ def log_ssh_connect(
     else:
         # Connection failed
         extra = {
-            "event": "SSH_CONNECT_FAILED",
             "host": host,
             "username": username,
             "status": "failed",
@@ -223,7 +279,7 @@ def log_ssh_connect(
         if error:
             extra["reason"] = error
 
-        message = f"SSH_AUTH_FAILED: {user_host}"
+        message = f"{Event.SSH_AUTH_FAILED}: {user_host}"
         if error:
             message += f" | reason: {error}"
 
@@ -252,13 +308,12 @@ def log_ssh_command(
     logger = logging.getLogger(__name__)
 
     extra = {
-        "event": "REMOTE_EXEC",
         "command": command,
         "host": host,
         "exit_code": exit_code,
     }
 
-    message = f"REMOTE_EXEC: {command} | host={host} | exit_code={exit_code}"
+    message = f"{Event.REMOTE_EXEC}: {command} | host={host} | exit_code={exit_code}"
 
     # At DEBUG level, include duration
     if duration is not None and logger.isEnabledFor(logging.DEBUG):
@@ -266,25 +321,3 @@ def log_ssh_command(
         message += f" | duration={duration:.3f}s"
 
     logger.info(message, extra=extra)
-
-
-def log_operation(operation: str, message: str, level: int = logging.INFO, **context):
-    """
-    Log a general operation with context.
-
-    This is a generic logging function for operations that don't fit
-    other specific logging functions.
-
-    Args:
-        operation: Name of the operation
-        message: Log message
-        level: Log level (default: INFO)
-        **context: Additional context fields
-    """
-    logger = logging.getLogger(__name__)
-
-    extra = {"operation": operation, **context}
-
-    full_message = f"{operation}: {message}"
-
-    logger.log(level, full_message, extra=extra)

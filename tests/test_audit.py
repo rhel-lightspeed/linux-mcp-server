@@ -2,13 +2,15 @@
 
 import logging
 
+import pytest
+
 from linux_mcp_server.audit import AuditContext
-from linux_mcp_server.audit import log_operation
+from linux_mcp_server.audit import Event
+from linux_mcp_server.audit import ExecutionMode
 from linux_mcp_server.audit import log_ssh_command
 from linux_mcp_server.audit import log_ssh_connect
-from linux_mcp_server.audit import log_tool_call
-from linux_mcp_server.audit import log_tool_complete
 from linux_mcp_server.audit import sanitize_parameters
+from linux_mcp_server.audit import SENSITIVE_FIELDS
 
 
 class TestSanitizeParameters:
@@ -107,76 +109,77 @@ class TestAuditContext:
 class TestLogToolCall:
     """Test tool call logging."""
 
-    def test_log_tool_call_local(self, caplog):
-        """Test logging a local tool call."""
+    @pytest.mark.parametrize(
+        ("params", "mode"),
+        (
+            ({}, ExecutionMode.LOCAL),
+            ({"host": "server1.com", "username": "admin"}, ExecutionMode.REMOTE),
+        ),
+    )
+    def test_log_tool_call(self, caplog, decorated, params, mode):
+        """Test logging a sync tool call."""
         with caplog.at_level(logging.INFO):
-            log_tool_call("list_services", {})
+            decorated(**params)
 
-        assert "TOOL_CALL" in caplog.text
+        record = caplog.records[0]
+
+        assert Event.TOOL_CALL in caplog.text
         assert "list_services" in caplog.text
-        # Check the log record attributes
-        assert len(caplog.records) >= 1
-        record = caplog.records[-1]
-        assert hasattr(record, "execution_mode")
-        assert record.execution_mode == "local"
+        assert caplog.records
+        assert getattr(record, "execution_mode") == mode
 
-    def test_log_tool_call_remote(self, caplog):
-        """Test logging a remote tool call."""
-        params = {"host": "server1.com", "username": "admin"}
+    @pytest.mark.parametrize(
+        ("params", "mode"),
+        (
+            ({}, ExecutionMode.LOCAL),
+            ({"host": "server1.com", "username": "admin"}, ExecutionMode.REMOTE),
+        ),
+    )
+    async def test_log_tool_call_async(self, caplog, adecorated, params, mode):
+        """Test logging an async call."""
         with caplog.at_level(logging.INFO):
-            log_tool_call("list_services", params)
+            await adecorated(**params)
 
-        assert "TOOL_CALL" in caplog.text
+        record = caplog.records[0]
+
+        assert Event.TOOL_CALL in caplog.text
         assert "list_services" in caplog.text
-        # Check the log record attributes
-        assert len(caplog.records) >= 1
-        record = caplog.records[-1]
-        assert hasattr(record, "execution_mode")
-        assert record.execution_mode == "remote"
-        assert hasattr(record, "host")
-        assert record.host == "server1.com"
+        assert caplog.records
+        assert getattr(record, "execution_mode", None) == mode
 
-    def test_log_tool_call_sanitizes_parameters(self, caplog):
+    @pytest.mark.parametrize("secret", SENSITIVE_FIELDS)
+    def test_log_tool_call_sanitizes_parameters(self, caplog, decorated, secret):
         """Test that tool call logging sanitizes sensitive parameters."""
-        params = {"password": "secret123", "username": "admin"}
+        params = {"password": secret, "username": "admin"}
         with caplog.at_level(logging.INFO):
-            log_tool_call("some_tool", params)
+            decorated(**params)
 
-        assert "TOOL_CALL" in caplog.text
+        assert Event.TOOL_CALL in caplog.text
         assert "secret123" not in caplog.text
         assert "REDACTED" in caplog.text
 
-
-class TestLogToolComplete:
-    """Test tool completion logging."""
-
-    def test_log_tool_complete_success(self, caplog):
-        """Test logging successful tool completion."""
+    @pytest.mark.parametrize("secret", SENSITIVE_FIELDS)
+    async def test_log_tool_call_async_sanitizes_parameters(self, caplog, adecorated, secret):
+        """Test that tool call logging sanitizes sensitive parameters."""
+        params = {"password": secret, "username": "admin"}
         with caplog.at_level(logging.INFO):
-            log_tool_complete("list_services", status="success", duration=0.5)
+            await adecorated(**params)
 
-        assert "TOOL_COMPLETE" in caplog.text
-        assert "list_services" in caplog.text
-        # Check the log record attributes
-        assert len(caplog.records) >= 1
-        record = caplog.records[-1]
-        assert hasattr(record, "status")
-        assert record.status == "success"
-        assert hasattr(record, "duration")
+        assert Event.TOOL_CALL in caplog.text
+        assert "secret123" not in caplog.text
+        assert "REDACTED" in caplog.text
 
-    def test_log_tool_complete_failure(self, caplog):
-        """Test logging failed tool completion."""
-        with caplog.at_level(logging.ERROR):
-            log_tool_complete("list_services", status="error", duration=0.1, error="Connection failed")
+    def test_log_tool_call_failure(self, caplog, decorated_fail):
+        with caplog.at_level(logging.INFO):
+            decorated_fail()
 
-        assert "TOOL_COMPLETE" in caplog.text
-        assert "list_services" in caplog.text
-        assert "Connection failed" in caplog.text
-        # Check the log record attributes
-        assert len(caplog.records) >= 1
-        record = caplog.records[-1]
-        assert hasattr(record, "status")
-        assert record.status == "error"
+        assert "error: Raised intentionally" in caplog.text
+
+    async def test_log_tool_call_async_failure(self, caplog, adecorated_fail):
+        with caplog.at_level(logging.INFO):
+            await adecorated_fail()
+
+        assert "error: Raised intentionally" in caplog.text
 
 
 class TestLogSSHConnect:
@@ -187,7 +190,7 @@ class TestLogSSHConnect:
         with caplog.at_level(logging.INFO):
             log_ssh_connect("server1.com", "admin", status="success", reused=False)
 
-        assert "SSH_CONNECT" in caplog.text
+        assert Event.SSH_CONNECT in caplog.text
         assert "admin@server1.com" in caplog.text
         # Check the log record attributes
         assert len(caplog.records) >= 1
@@ -205,7 +208,7 @@ class TestLogSSHConnect:
         with caplog.at_level(logging.DEBUG):
             log_ssh_connect("server1.com", "admin", status="success", reused=True, key_path="/home/user/.ssh/id_rsa")
 
-        assert "SSH_CONNECT" in caplog.text
+        assert Event.SSH_CONNECT in caplog.text
         assert "admin@server1.com" in caplog.text
         # Check the log record attributes
         assert len(caplog.records) >= 1
@@ -223,7 +226,7 @@ class TestLogSSHConnect:
         with caplog.at_level(logging.WARNING):
             log_ssh_connect("server1.com", "admin", status="failed", error="Permission denied")
 
-        assert "SSH_CONNECT" in caplog.text or "SSH_AUTH_FAILED" in caplog.text
+        assert Event.SSH_CONNECT in caplog.text or Event.SSH_AUTH_FAILED in caplog.text
         assert "admin@server1.com" in caplog.text
         assert "Permission denied" in caplog.text
 
@@ -236,7 +239,7 @@ class TestLogSSHCommand:
         with caplog.at_level(logging.INFO):
             log_ssh_command("systemctl status nginx", "server1.com", exit_code=0, duration=0.15)
 
-        assert "REMOTE_EXEC" in caplog.text
+        assert Event.REMOTE_EXEC in caplog.text
         assert "systemctl status nginx" in caplog.text
         assert "server1.com" in caplog.text
         assert "exit_code=0" in caplog.text
@@ -248,7 +251,7 @@ class TestLogSSHCommand:
         with caplog.at_level(logging.DEBUG):
             log_ssh_command("ls -la", "server1.com", exit_code=0, duration=0.05)
 
-        assert "REMOTE_EXEC" in caplog.text
+        assert Event.REMOTE_EXEC in caplog.text
         assert "ls -la" in caplog.text
         assert "duration" in caplog.text.lower()
 
@@ -257,50 +260,5 @@ class TestLogSSHCommand:
         with caplog.at_level(logging.INFO):
             log_ssh_command("systemctl status missing", "server1.com", exit_code=3, duration=0.1)
 
-        assert "REMOTE_EXEC" in caplog.text
+        assert Event.REMOTE_EXEC in caplog.text
         assert "exit_code=3" in caplog.text
-
-
-class TestLogOperation:
-    """Test general operation logging."""
-
-    def test_log_operation_info(self, caplog):
-        """Test logging an operation at INFO level."""
-        with caplog.at_level(logging.INFO):
-            log_operation("list_processes", "Listing processes", process_count=42)
-
-        assert "list_processes" in caplog.text
-        assert "Listing processes" in caplog.text
-        # Check the log record attributes
-        assert len(caplog.records) >= 1
-        record = caplog.records[-1]
-        assert hasattr(record, "process_count")
-        assert record.process_count == 42
-
-    def test_log_operation_debug(self, caplog):
-        """Test logging an operation at DEBUG level."""
-        with caplog.at_level(logging.DEBUG):
-            log_operation("get_service_status", "Checking service status", service="nginx", level=logging.DEBUG)
-
-        assert "get_service_status" in caplog.text
-        assert "Checking service status" in caplog.text
-        # Check the log record attributes
-        assert len(caplog.records) >= 1
-        record = caplog.records[-1]
-        assert hasattr(record, "service")
-        assert record.service == "nginx"
-
-    def test_log_operation_with_context(self, caplog):
-        """Test logging operation with extra context."""
-        with caplog.at_level(logging.INFO):
-            log_operation("read_log_file", "Reading log file", file_path="/var/log/messages", lines=100)
-
-        assert "read_log_file" in caplog.text
-        assert "Reading log file" in caplog.text
-        # Check the log record attributes
-        assert len(caplog.records) >= 1
-        record = caplog.records[-1]
-        assert hasattr(record, "file_path")
-        assert record.file_path == "/var/log/messages"
-        assert hasattr(record, "lines")
-        assert record.lines == 100

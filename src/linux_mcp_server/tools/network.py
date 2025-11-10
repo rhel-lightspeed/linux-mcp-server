@@ -4,10 +4,14 @@ import socket
 
 import psutil
 
-from .ssh_executor import execute_command
-from .utils import format_bytes
+from linux_mcp_server.audit import log_tool_call
+from linux_mcp_server.server import mcp
+from linux_mcp_server.tools.ssh_executor import execute_command
+from linux_mcp_server.utils import format_bytes
 
 
+@mcp.tool()
+@log_tool_call
 async def get_network_interfaces(  # noqa: C901
     host: str | None = None,
     username: str | None = None,
@@ -113,6 +117,8 @@ async def get_network_interfaces(  # noqa: C901
         return f"Error getting network interface information: {str(e)}"
 
 
+@mcp.tool()
+@log_tool_call
 async def get_network_connections(host: str | None = None, username: str | None = None) -> str:
     """
     Get active network connections.
@@ -196,6 +202,8 @@ async def get_network_connections(host: str | None = None, username: str | None 
         return f"Error getting network connections: {str(e)}"
 
 
+@mcp.tool()
+@log_tool_call
 async def get_listening_ports(host: str | None = None, username: str | None = None) -> str:
     """
     Get listening ports.

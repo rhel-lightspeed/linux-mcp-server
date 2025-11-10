@@ -3,8 +3,8 @@
 import logging
 import sys
 
-from .logging_config import setup_logging
-from .server import main
+from linux_mcp_server.logging_config import setup_logging
+from linux_mcp_server.server import main
 
 
 def cli():
@@ -12,7 +12,7 @@ def cli():
     # Initialize logging first, before any other operations
     setup_logging()
 
-    logger = logging.getLogger(__name__)
+    logger = logging.getLogger("linux-mcp-server")
     logger.info("Starting Linux MCP Server")
 
     try:
