@@ -78,7 +78,7 @@ async def _execute_tool(tool_name: str, handler, **kwargs):
     try:
         result = await handler(**kwargs)
         duration = time.time() - start_time
-        log_tool_complete(tool_name, status="success", duration=duration)
+        log_tool_complete(tool_name, status=Status.success, duration=duration)
         return result
     except Exception as e:
         duration = time.time() - start_time

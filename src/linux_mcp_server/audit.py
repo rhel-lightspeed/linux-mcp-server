@@ -43,12 +43,17 @@ class Event(StrEnum):
     SSH_CONNECT = "SSH_CONNECT"
     SSH_CONNECTING = "SSH_CONNECTING"
     TOOL_CALL = "TOOL_CALL"
-    TOOL_COMPLETE = "TOOL_CALL"
+    TOOL_COMPLETE = "TOOL_COMPLETE"
 
 
 class ExecutionMode(StrEnum):
     REMOTE = "REMOTE"
     LOCAL = "LOCAL"
+
+
+class Status(StrEnum):
+    success = "success"
+    error = "error"
 
 
 def sanitize_parameters(params: dict[str, t.Any]) -> dict[str, t.Any]:
@@ -160,7 +165,7 @@ def _log_event_complete(
     """
     stop_time = time.perf_counter_ns()
     duration = timedelta(microseconds=(stop_time - start_time) / 1_000)
-    status = "error" if error else "success"
+    status = Status.error if error else Status.success
     extra = {
         "tool": tool_name,
         "status": status,
@@ -249,7 +254,7 @@ def log_ssh_connect(
 
     user_host = f"{username}@{host}"
 
-    if status == "success":
+    if status == Status.success:
         extra = {
             "host": host,
             "username": username,
