@@ -2,7 +2,7 @@
 
 import os
 
-from datetime import datetime
+from collections.abc import Sequence
 from pathlib import Path
 
 import psutil
@@ -11,7 +11,72 @@ from linux_mcp_server.audit import log_tool_call
 from linux_mcp_server.server import mcp
 from linux_mcp_server.tools.ssh_executor import execute_command
 from linux_mcp_server.utils import format_bytes
-from linux_mcp_server.utils.validation import validate_positive_int
+from linux_mcp_server.utils import StrEnum
+
+
+class OrderBy(StrEnum):
+    SIZE = "size"
+    NAME = "name"
+    MODIFIED = "modified"
+
+
+class SortBy(StrEnum):
+    ASCENDING = "ascending"
+    DESCENDING = "descending"
+
+
+def _format_directory_list(
+    path: str,
+    directories: Sequence[tuple[str, int] | tuple[str, float] | tuple[str]],
+    order_by: OrderBy,
+    sort_desc: str,
+    top_n: int | None = None,
+) -> str:
+    """
+    Format a list of directories with consistent output structure.
+
+    Args:
+        path: The parent directory path
+        directories: List of tuples where first element is dir name, rest is metadata
+        order_by: The ordering mode (size, name, or modified)
+        sort_desc: Human-readable sort description
+        top_n: Optional top N limit (only used for SIZE mode)
+
+    Returns:
+        Formatted string with directory listing
+    """
+    result = []
+
+    # Header with mode-specific title
+    match order_by:
+        case OrderBy.SIZE:
+            prefix = f"Top {top_n} " if top_n is not None else ""
+            result.append(f"=== {prefix}Directories by Size ({sort_desc}) ===")
+        case OrderBy.NAME:
+            result.append(f"=== Directories by Name ({sort_desc}) ===")
+        case OrderBy.MODIFIED:
+            result.append(f"=== Directories by Modified Date ({sort_desc}) ===")
+
+    # Path and count
+    result.append(f"Path: {path}")
+    result.append(f"\nTotal subdirectories: {len(directories)}\n")
+
+    # Directory entries with metadata
+    for i, dir_entry in enumerate(directories, 1):
+        dir_name = dir_entry[0]
+        result.append(f"{i}. {dir_name}")
+
+        # Add metadata based on order_by mode
+        if order_by == OrderBy.SIZE and len(dir_entry) > 1:
+            size = dir_entry[1]  # type: ignore[misc]
+            result.append(f"   Size: {format_bytes(size)}")
+        elif order_by == OrderBy.MODIFIED and len(dir_entry) > 1:
+            timestamp = dir_entry[1]  # type: ignore[misc]
+            dt = datetime.fromtimestamp(timestamp)
+            result.append(f"   Modified: {dt.strftime('%Y-%m-%d %H:%M:%S')}")
+        # NAME mode has no additional metadata
+
+    return "\n".join(result)
 
 
 @mcp.tool()
@@ -118,59 +183,51 @@ async def list_directories(  # noqa: C901
         - Input sanitization for all parameters
         - Graceful error handling for permission issues
     """
+    # Validate order_by parameter
     try:
-        # Validate order_by parameter
-        valid_order_by = ["size", "name", "modified"]
-        if order_by not in valid_order_by:
-            return f"Error: Invalid order_by value '{order_by}'. Must be one of: {', '.join(valid_order_by)}"
+        order_by = OrderBy(order_by)
+    except ValueError:
+        return f"Error: Invalid order_by value '{order_by}'. Must be one of: {', '.join(OrderBy)}"
 
-        # Validate sort parameter
-        valid_sort = ["ascending", "descending"]
-        if sort not in valid_sort:
-            return f"Error: Invalid sort value '{sort}'. Must be one of: {', '.join(valid_sort)}"
+    # Validate sort parameter
+    try:
+        sort = SortBy(sort)
+    except ValueError:
+        return f"Error: Invalid sort value '{sort}'. Must be one of: {', '.join(SortBy)}"
 
-        # Validate top_n if provided
-        validated_top_n = None
-        if top_n is not None:
-            validated_top_n, error = validate_positive_int(
-                top_n,
-                param_name="top_n",
-                min_value=1,
-                max_value=1000,
-            )
-            if error:
-                return error
+    # Validate top_n parameter
+    try:
+        top_n = clamped_int(top_n) if top_n is not None else None
+    except ValueError:
+        return f"Error: Invalid top_n value '{top_n}'. Must be between 1 and 1000."
 
-        # For local execution, validate path
-        if not host:
-            try:
-                path_obj = Path(path).resolve(strict=True)
-            except (OSError, RuntimeError):
-                return f"Error: Path does not exist or cannot be resolved: {path}"
+    # For local execution, validate path
+    if not host:
+        try:
+            path_obj = Path(path).resolve(strict=True)
+        except (OSError, RuntimeError):
+            return f"Error: Path does not exist or cannot be resolved: {path}"
 
-            if not path_obj.is_dir():
-                return f"Error: Path is not a directory: {path}"
+        if not path_obj.is_dir():
+            return f"Error: Path is not a directory: {path}"
 
-            if not os.access(path_obj, os.R_OK):
-                return f"Error: Permission denied to read directory: {path}"
+        if not os.access(path_obj, os.R_OK):
+            return f"Error: Permission denied to read directory: {path}"
 
-            path_str = str(path_obj)
-        else:
-            # For remote execution, use the path as-is
-            path_str = path
+        path = str(path_obj)
 
-        # Handle different ordering methods
-        if order_by == "size":
+    match order_by:
+        case OrderBy.SIZE:
             # Use du command to get directory sizes efficiently
             returncode, stdout, _ = await execute_command(
-                ["du", "-b", "--max-depth=1", path_str],
+                ["du", "-b", "--max-depth=1", path],
                 host=host,
                 username=username,
             )
 
             # Parse output - du may return non-zero on permission errors but still give valid data
             lines = stdout.strip().split("\n")
-            dir_data = []
+            directories_by_size: list[tuple[str, int]] = []
 
             for line in lines:
                 if not line:
@@ -182,45 +239,32 @@ async def list_directories(  # noqa: C901
                         dir_path_str = parts[1]
                         # Skip the parent directory itself
                         dir_name = Path(dir_path_str).name
-                        if dir_path_str != path_str:
-                            dir_data.append((dir_name, size))
+                        if dir_path_str != path:
+                            directories_by_size.append((dir_name, size))
                     except (ValueError, IndexError):
                         continue
 
-            if not dir_data:
+            if not directories_by_size:
                 # Only error if we got no output AND a bad return code
                 if returncode != 0:
                     return "Error: du command failed and returned no directory data"
                 return f"No subdirectories found in: {path}"
 
             # Sort by size
-            reverse = sort == "descending"
-            dir_data.sort(key=lambda x: x[1], reverse=reverse)
+            reverse = sort == SortBy.DESCENDING
+            directories_by_size.sort(key=lambda x: x[1], reverse=reverse)
 
-            # Apply top_n limit if specified
-            if validated_top_n is not None:
-                dir_data = dir_data[:validated_top_n]
-
-            # Format output
-            result = []
-            sort_desc = "Largest First" if sort == "descending" else "Smallest First"
-            if validated_top_n:
-                result.append(f"=== Top {len(dir_data)} Directories by Size ({sort_desc}) ===")
-            else:
-                result.append(f"=== Directories by Size ({sort_desc}) ===")
-            result.append(f"Path: {path_str}")
-            result.append(f"\nTotal subdirectories: {len(dir_data)}\n")
-
-            for i, (dir_name, size) in enumerate(dir_data, 1):
-                result.append(f"{i}. {dir_name}")
-                result.append(f"   Size: {format_bytes(size)}")
-
-            return "\n".join(result)
-
-        elif order_by == "name":
+            return _format_directory_list(
+                path=path,
+                directories=directories_by_size[:top_n] if top_n is not None else directories_by_size,
+                order_by=OrderBy.SIZE,
+                sort_desc="Largest First" if reverse else "Smallest First",
+                top_n=top_n,
+            )
+        case OrderBy.NAME:
             # Use find to list only immediate subdirectories
             returncode, stdout, _ = await execute_command(
-                ["find", path_str, "-mindepth", "1", "-maxdepth", "1", "-type", "d", "-printf", "%f\\n"],
+                ["find", path, "-mindepth", "1", "-maxdepth", "1", "-type", "d", "-printf", "%f\\n"],
                 host=host,
                 username=username,
             )
@@ -229,31 +273,27 @@ async def list_directories(  # noqa: C901
                 return f"Error running find command: command failed with return code {returncode}"
 
             # Parse and sort output
-            directories = [line for line in stdout.strip().split("\n") if line]
+            directories_by_name: list[str] = [line for line in stdout.strip().split("\n") if line]
 
-            if not directories:
+            if not directories_by_name:
                 return f"No subdirectories found in: {path}"
 
             # Sort alphabetically
-            reverse = sort == "descending"
-            directories.sort(reverse=reverse)
+            reverse = sort == SortBy.DESCENDING
+            directories_by_name.sort(reverse=reverse)
 
-            # Format output
-            result = []
-            sort_desc = "Z-A" if sort == "descending" else "A-Z"
-            result.append(f"=== Directories by Name ({sort_desc}) ===")
-            result.append(f"Path: {path_str}")
-            result.append(f"\nTotal subdirectories: {len(directories)}\n")
-
-            for i, dir_name in enumerate(directories, 1):
-                result.append(f"{i}. {dir_name}")
-
-            return "\n".join(result)
-
-        elif order_by == "modified":
+            # Convert to tuples with single element for template compatibility
+            directories_tuples = [(name,) for name in directories_by_name]
+            return _format_directory_list(
+                path=path,
+                directories=directories_tuples,
+                order_by=OrderBy.NAME,
+                sort_desc="Z-A" if reverse else "A-Z",
+            )
+        case OrderBy.MODIFIED:
             # Use find with modification time
             returncode, stdout, _ = await execute_command(
-                ["find", path_str, "-mindepth", "1", "-maxdepth", "1", "-type", "d", "-printf", "%T@\\t%f\\n"],
+                ["find", path, "-mindepth", "1", "-maxdepth", "1", "-type", "d", "-printf", "%T@\\t%f\\n"],
                 host=host,
                 username=username,
             )
@@ -262,7 +302,7 @@ async def list_directories(  # noqa: C901
                 return f"Error running find command: command failed with return code {returncode}"
 
             # Parse output
-            directories = []
+            directories_by_modified: list[tuple[float, str]] = []
             for line in stdout.strip().split("\n"):
                 if line:
                     parts = line.split("\t", 1)
@@ -270,33 +310,22 @@ async def list_directories(  # noqa: C901
                         try:
                             timestamp = float(parts[0])
                             dir_name = parts[1]
-                            directories.append((timestamp, dir_name))
+                            directories_by_modified.append((timestamp, dir_name))
                         except ValueError:
                             continue
 
-            if not directories:
+            if not directories_by_modified:
                 return f"No subdirectories found in: {path}"
 
             # Sort by timestamp
-            reverse = sort == "descending"
-            directories.sort(key=lambda x: x[0], reverse=reverse)
+            reverse = sort == SortBy.DESCENDING
+            directories_by_modified.sort(key=lambda x: x[0], reverse=reverse)
 
-            # Format output
-            result = []
-            sort_desc = "Newest First" if sort == "descending" else "Oldest First"
-            result.append(f"=== Directories by Modified Date ({sort_desc}) ===")
-            result.append(f"Path: {path_str}")
-            result.append(f"\nTotal subdirectories: {len(directories)}\n")
-
-            for i, (timestamp, dir_name) in enumerate(directories, 1):
-                dt = datetime.fromtimestamp(timestamp)
-                result.append(f"{i}. {dir_name}")
-                result.append(f"   Modified: {dt.strftime('%Y-%m-%d %H:%M:%S')}")
-
-            return "\n".join(result)
-        
-        else:
-            return f"Error: Invalid order_by value '{order_by}'. Must be one of: {', '.join(valid_order_by)}"
-
-    except Exception as e:
-        return f"Error listing directories: {str(e)}"
+            # Reorder tuples to (dir_name, timestamp) for template compatibility
+            directories_tuples = [(dir_name, timestamp) for timestamp, dir_name in directories_by_modified]
+            return _format_directory_list(
+                path=path,
+                directories=directories_tuples,
+                order_by=OrderBy.MODIFIED,
+                sort_desc="Newest First" if reverse else "Oldest First",
+            )
