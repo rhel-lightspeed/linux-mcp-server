@@ -147,26 +147,28 @@ class TestLogToolCall:
         assert caplog.records
         assert getattr(record, "execution_mode", None) == mode
 
-    @pytest.mark.parametrize("secret", SENSITIVE_FIELDS)
-    def test_log_tool_call_sanitizes_parameters(self, caplog, decorated, secret):
+    @pytest.mark.parametrize("sensitive_field", SENSITIVE_FIELDS)
+    def test_log_tool_call_sanitizes_parameters(self, caplog, decorated, sensitive_field):
         """Test that tool call logging sanitizes sensitive parameters."""
-        params = {"password": secret, "username": "admin"}
+        secret_value = "secret123"
+        params = {sensitive_field: secret_value, "username": "admin"}
         with caplog.at_level(logging.INFO):
             decorated(**params)
 
         assert Event.TOOL_CALL in caplog.text
-        assert "secret123" not in caplog.text
+        assert secret_value not in caplog.text
         assert "REDACTED" in caplog.text
 
-    @pytest.mark.parametrize("secret", SENSITIVE_FIELDS)
-    async def test_log_tool_call_async_sanitizes_parameters(self, caplog, adecorated, secret):
+    @pytest.mark.parametrize("sensitive_field", SENSITIVE_FIELDS)
+    async def test_log_tool_call_async_sanitizes_parameters(self, caplog, adecorated, sensitive_field):
         """Test that tool call logging sanitizes sensitive parameters."""
-        params = {"password": secret, "username": "admin"}
+        secret_value = "secret123"
+        params = {sensitive_field: secret_value, "username": "admin"}
         with caplog.at_level(logging.INFO):
             await adecorated(**params)
 
         assert Event.TOOL_CALL in caplog.text
-        assert "secret123" not in caplog.text
+        assert secret_value not in caplog.text
         assert "REDACTED" in caplog.text
 
     def test_log_tool_call_failure(self, caplog, decorated_fail):
