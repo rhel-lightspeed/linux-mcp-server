@@ -1,11 +1,15 @@
 """Storage and hardware tools."""
 
 import os
+import typing as t
 
 from collections.abc import Sequence
 from pathlib import Path
 
 import psutil
+
+from mcp.types import ToolAnnotations
+from pydantic import Field
 
 from linux_mcp_server.audit import log_tool_call
 from linux_mcp_server.server import mcp
@@ -25,76 +29,18 @@ class SortBy(StrEnum):
     DESCENDING = "descending"
 
 
-def _format_directory_list(
-    path: str,
-    directories: Sequence[tuple[str, int] | tuple[str, float] | tuple[str]],
-    order_by: OrderBy,
-    sort_desc: str,
-    top_n: int | None = None,
-) -> str:
-    """
-    Format a list of directories with consistent output structure.
-
-    Args:
-        path: The parent directory path
-        directories: List of tuples where first element is dir name, rest is metadata
-        order_by: The ordering mode (size, name, or modified)
-        sort_desc: Human-readable sort description
-        top_n: Optional top N limit (only used for SIZE mode)
-
-    Returns:
-        Formatted string with directory listing
-    """
-    result = []
-
-    # Header with mode-specific title
-    match order_by:
-        case OrderBy.SIZE:
-            prefix = f"Top {top_n} " if top_n is not None else ""
-            result.append(f"=== {prefix}Directories by Size ({sort_desc}) ===")
-        case OrderBy.NAME:
-            result.append(f"=== Directories by Name ({sort_desc}) ===")
-        case OrderBy.MODIFIED:
-            result.append(f"=== Directories by Modified Date ({sort_desc}) ===")
-
-    # Path and count
-    result.append(f"Path: {path}")
-    result.append(f"\nTotal subdirectories: {len(directories)}\n")
-
-    # Directory entries with metadata
-    for i, dir_entry in enumerate(directories, 1):
-        dir_name = dir_entry[0]
-        result.append(f"{i}. {dir_name}")
-
-        # Add metadata based on order_by mode
-        if order_by == OrderBy.SIZE and len(dir_entry) > 1:
-            size = dir_entry[1]  # type: ignore[misc]
-            result.append(f"   Size: {format_bytes(size)}")
-        elif order_by == OrderBy.MODIFIED and len(dir_entry) > 1:
-            timestamp = dir_entry[1]  # type: ignore[misc]
-            dt = datetime.fromtimestamp(timestamp)
-            result.append(f"   Modified: {dt.strftime('%Y-%m-%d %H:%M:%S')}")
-        # NAME mode has no additional metadata
-
-    return "\n".join(result)
-
-
-@mcp.tool()
+@mcp.tool(
+    title="List block devices",
+    description="List block devices on the system",
+    annotations=ToolAnnotations(readOnlyHint=True),
+)
 @log_tool_call
 async def list_block_devices(
-    host: str | None = None,
-    username: str | None = None,
+    host: t.Annotated[str | None, Field(description="Optional remote host to connect to")] = None,
+    username: t.Annotated[
+        str | None, Field(description="Optional SSH username (if not provided, the current user account is used)")
+    ] = None,
 ) -> str:
-    """
-    List block devices.
-
-    Args:
-        host: Optional remote host to connect to
-        username: Optional SSH username (required if host is provided)
-
-    Returns:
-        Formatted string with block device information
-    """
     try:
         # Try using lsblk first (most readable)
         returncode, stdout, _ = await execute_command(
@@ -151,38 +97,25 @@ async def list_block_devices(
         return f"Error listing block devices: {str(e)}"
 
 
-@mcp.tool()
+@mcp.tool(
+    title="List directories",
+    description="List directories under a specified path with flexible sorting options.",
+    annotations=ToolAnnotations(readOnlyHint=True),
+)
 @log_tool_call
 async def list_directories(  # noqa: C901
-    path: str,
-    order_by: str = "name",
-    sort: str = "ascending",
-    top_n: int | None = None,
-    host: str | None = None,
-    username: str | None = None,
+    path: t.Annotated[str, Field(description="The directory path to analyze")],
+    order_by: t.Annotated[str, Field(description="Sort order - 'size', 'name', or 'modified' (default: 'name')")],
+    sort: t.Annotated[str, Field(description="Sort direction - 'ascending' or 'descending' (default: 'ascending')")],
+    top_n: t.Annotated[
+        int | None,
+        Field(description="Optional limit on number of directories to return (1-1000, only used with size ordering)"),
+    ],
+    host: t.Annotated[str | None, Field(description="Optional remote host to connect to")],
+    username: t.Annotated[
+        str | None, Field(description="Optional SSH username (if not provided, the current user account is used)")
+    ],
 ) -> str:
-    """
-    List directories under a specified path with flexible sorting options.
-
-    This function uses efficient Linux primitives (du, find) to list and sort directories.
-
-    Args:
-        path: The directory path to analyze
-        order_by: Sort order - "size", "name", or "modified" (default: "name")
-        sort: Sort direction - "ascending" or "descending" (default: "ascending")
-        top_n: Optional limit on number of directories to return (1-1000, only used with size ordering)
-        host: Optional remote host to connect to
-        username: Optional SSH username (required if host is provided)
-
-    Returns:
-        Formatted string with directory information, or error message if validation fails
-
-    Security Features:
-        - Path validation and resolution using pathlib
-        - Command parameters passed as list (not shell string)
-        - Input sanitization for all parameters
-        - Graceful error handling for permission issues
-    """
     # Validate order_by parameter
     try:
         order_by = OrderBy(order_by)
