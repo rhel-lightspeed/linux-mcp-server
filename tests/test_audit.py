@@ -11,6 +11,7 @@ from linux_mcp_server.audit import log_ssh_command
 from linux_mcp_server.audit import log_ssh_connect
 from linux_mcp_server.audit import sanitize_parameters
 from linux_mcp_server.audit import SENSITIVE_FIELDS
+from linux_mcp_server.audit import Status
 
 
 class TestSanitizeParameters:
@@ -190,7 +191,7 @@ class TestLogSSHConnect:
     def test_log_ssh_connect_success_info(self, caplog):
         """Test logging successful SSH connection at INFO level."""
         with caplog.at_level(logging.INFO):
-            log_ssh_connect("server1.com", "admin", status="success", reused=False)
+            log_ssh_connect("server1.com", "admin", status=Status.success, reused=False)
 
         assert Event.SSH_CONNECT in caplog.text
         assert "admin@server1.com" in caplog.text
@@ -208,7 +209,9 @@ class TestLogSSHConnect:
         logging.getLogger().setLevel(logging.DEBUG)
 
         with caplog.at_level(logging.DEBUG):
-            log_ssh_connect("server1.com", "admin", status="success", reused=True, key_path="/home/user/.ssh/id_rsa")
+            log_ssh_connect(
+                "server1.com", "admin", status=Status.success, reused=True, key_path="/home/user/.ssh/id_rsa"
+            )
 
         assert Event.SSH_CONNECT in caplog.text
         assert "admin@server1.com" in caplog.text

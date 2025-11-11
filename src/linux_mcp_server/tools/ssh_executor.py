@@ -23,6 +23,7 @@ import asyncssh
 from linux_mcp_server.audit import Event
 from linux_mcp_server.audit import log_ssh_command
 from linux_mcp_server.audit import log_ssh_connect
+from linux_mcp_server.audit import Status
 
 
 logger = logging.getLogger("linux-mcp-server")
@@ -118,7 +119,7 @@ class SSHConnectionManager:
                 # DEBUG level: Log connection reuse and pool state
                 logger.debug(f"SSH_REUSE: {key} | pool_size={len(self._connections)}")
                 # Use audit log with connection reuse info
-                log_ssh_connect(host, username, status="success", reused=True, key_path=self._ssh_key)
+                log_ssh_connect(host, username, status=Status.success, reused=True, key_path=self._ssh_key)
                 return conn
             else:
                 # Connection was closed, remove it
@@ -143,7 +144,7 @@ class SSHConnectionManager:
             self._connections[key] = conn
 
             # Log successful connection using audit function
-            log_ssh_connect(host, username, status="success", reused=False, key_path=self._ssh_key)
+            log_ssh_connect(host, username, status=Status.success, reused=False, key_path=self._ssh_key)
 
             # DEBUG level: Log pool state
             logger.debug(f"SSH_POOL: add_connection | connections={len(self._connections)}")
