@@ -10,8 +10,8 @@ from mcp.types import ToolAnnotations
 from pydantic import Field
 
 from linux_mcp_server.audit import log_tool_call
+from linux_mcp_server.connection.ssh import execute_command
 from linux_mcp_server.server import mcp
-from linux_mcp_server.tools.ssh_executor import execute_command
 from linux_mcp_server.utils import format_bytes
 from linux_mcp_server.utils.validation import validate_pid
 
