@@ -4,6 +4,8 @@ from pathlib import Path
 
 import psutil
 
+from mcp.types import ToolAnnotations
+
 from linux_mcp_server.audit import log_tool_call
 from linux_mcp_server.connection.ssh import execute_command
 from linux_mcp_server.server import mcp
@@ -11,7 +13,11 @@ from linux_mcp_server.utils import format_bytes
 from linux_mcp_server.utils.validation import validate_positive_int
 
 
-@mcp.tool()
+@mcp.tool(
+    title="List block devices",
+    description="Get details about block devices attached to the system.",
+    annotations=ToolAnnotations(readOnlyHint=True),
+)
 @log_tool_call
 async def list_block_devices(
     host: str | None = None,
@@ -83,7 +89,11 @@ async def list_block_devices(
         return f"Error listing block devices: {str(e)}"
 
 
-@mcp.tool()
+@mcp.tool(
+    title="List directories by size",
+    description="List directories under a specified path sorted by size (largest first).",
+    annotations=ToolAnnotations(readOnlyHint=True),
+)
 @log_tool_call
 async def list_directories_by_size(  # noqa: C901
     path: str,
@@ -199,7 +209,11 @@ async def list_directories_by_size(  # noqa: C901
         return f"Error analyzing directories: {str(e)}"
 
 
-@mcp.tool()
+@mcp.tool(
+    title="List directories by name",
+    description="List directories under a specified path sorted by name.",
+    annotations=ToolAnnotations(readOnlyHint=True),
+)
 @log_tool_call
 async def list_directories_by_name(
     path: str,
@@ -277,7 +291,11 @@ async def list_directories_by_name(
         return f"Error listing directories: {str(e)}"
 
 
-@mcp.tool()
+@mcp.tool(
+    title="List directories by date",
+    description="List directories under a specified path sorted by modification date.",
+    annotations=ToolAnnotations(readOnlyHint=True),
+)
 @log_tool_call
 async def list_directories_by_modified_date(  # noqa: C901
     path: str,

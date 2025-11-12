@@ -4,13 +4,19 @@ import os
 
 from pathlib import Path
 
+from mcp.types import ToolAnnotations
+
 from linux_mcp_server.audit import log_tool_call
 from linux_mcp_server.connection.ssh import execute_command
 from linux_mcp_server.server import mcp
 from linux_mcp_server.utils.validation import validate_line_count
 
 
-@mcp.tool()
+@mcp.tool(
+    title="Get process logs",
+    description="Get systemd journal logs.",
+    annotations=ToolAnnotations(readOnlyHint=True),
+)
 @log_tool_call
 async def get_journal_logs(
     unit: str | None = None,
@@ -78,7 +84,11 @@ async def get_journal_logs(
         return f"Error reading journal logs: {str(e)}"
 
 
-@mcp.tool()
+@mcp.tool(
+    title="Read audit logs",
+    description="Read the system audit logs. This requires root privileges.",
+    annotations=ToolAnnotations(readOnlyHint=True),
+)
 @log_tool_call
 async def get_audit_logs(
     lines: int = 100,
@@ -131,7 +141,11 @@ async def get_audit_logs(
         return f"Error reading audit logs: {str(e)}"
 
 
-@mcp.tool()
+@mcp.tool(
+    title="Read log file",
+    description="Read a specific log file.",
+    annotations=ToolAnnotations(readOnlyHint=True),
+)
 @log_tool_call
 async def read_log_file(  # noqa: C901
     log_path: str,

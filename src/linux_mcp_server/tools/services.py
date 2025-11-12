@@ -1,12 +1,18 @@
 """Service management tools."""
 
+from mcp.types import ToolAnnotations
+
 from linux_mcp_server.audit import log_tool_call
 from linux_mcp_server.connection.ssh import execute_command
 from linux_mcp_server.server import mcp
 from linux_mcp_server.utils.validation import validate_line_count
 
 
-@mcp.tool()
+@mcp.tool(
+    title="List services",
+    description="List all systemd services.",
+    annotations=ToolAnnotations(readOnlyHint=True),
+)
 @log_tool_call
 async def list_services(
     host: str | None = None,
@@ -55,7 +61,11 @@ async def list_services(
         return f"Error listing services: {str(e)}"
 
 
-@mcp.tool()
+@mcp.tool(
+    title="Get service status",
+    description="Get status of a specific service.",
+    annotations=ToolAnnotations(readOnlyHint=True),
+)
 @log_tool_call
 async def get_service_status(
     service_name: str,
@@ -102,7 +112,11 @@ async def get_service_status(
         return f"Error getting service status: {str(e)}"
 
 
-@mcp.tool()
+@mcp.tool(
+    title="Get service logs",
+    description="Get logs for a specific service.",
+    annotations=ToolAnnotations(readOnlyHint=True),
+)
 @log_tool_call
 async def get_service_logs(
     service_name: str,

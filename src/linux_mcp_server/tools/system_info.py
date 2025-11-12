@@ -7,13 +7,19 @@ from datetime import datetime
 
 import psutil
 
+from mcp.types import ToolAnnotations
+
 from linux_mcp_server.audit import log_tool_call
 from linux_mcp_server.connection.ssh import execute_command
 from linux_mcp_server.server import mcp
 from linux_mcp_server.utils import format_bytes
 
 
-@mcp.tool()
+@mcp.tool(
+    title="Get system information",
+    description="Get basic system information.",
+    annotations=ToolAnnotations(readOnlyHint=True),
+)
 @log_tool_call
 async def get_system_info(  # noqa: C901
     host: str | None = None,
@@ -140,7 +146,11 @@ async def get_system_info(  # noqa: C901
         return f"Error gathering system information: {str(e)}"
 
 
-@mcp.tool()
+@mcp.tool(
+    title="Get CPU information",
+    description="Get CPU information.",
+    annotations=ToolAnnotations(readOnlyHint=True),
+)
 @log_tool_call
 async def get_cpu_info(  # noqa: C901
     host: str | None = None,
@@ -272,7 +282,11 @@ async def get_cpu_info(  # noqa: C901
         return f"Error gathering CPU information: {str(e)}"
 
 
-@mcp.tool()
+@mcp.tool(
+    title="Get memory information",
+    description="Get detailed memory including physical and swap.",
+    annotations=ToolAnnotations(readOnlyHint=True),
+)
 @log_tool_call
 async def get_memory_info(
     host: str | None = None,
@@ -359,7 +373,11 @@ async def get_memory_info(
         return f"Error gathering memory information: {str(e)}"
 
 
-@mcp.tool()
+@mcp.tool(
+    title="Get disk usage",
+    description="Get detailed disk space information including size, mount point, and utilization..",
+    annotations=ToolAnnotations(readOnlyHint=True),
+)
 @log_tool_call
 async def get_disk_usage(
     host: str | None = None,
@@ -442,7 +460,11 @@ async def get_disk_usage(
         return f"Error gathering disk usage information: {str(e)}"
 
 
-@mcp.tool()
+@mcp.tool(
+    title="Get hardware information",
+    description="Get hardware information.",
+    annotations=ToolAnnotations(readOnlyHint=True),
+)
 @log_tool_call
 async def get_hardware_info(host: str | None = None, username: str | None = None) -> str:  # noqa: C901
     """
