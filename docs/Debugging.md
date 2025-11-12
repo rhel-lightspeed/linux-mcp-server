@@ -67,37 +67,17 @@ export LINUX_MCP_LOG_DIR=/path/to/your/logs
 
 ## Implementation
 
-Logging is centralized in `src/linux_mcp_server/server.py` using the `_execute_tool()` helper:
+Logging is centralized in `src/linux_mcp_server/audit.py` using the `log_tool_call()` decorator.
 
-```python
-async def _execute_tool(tool_name: str, handler, **kwargs):
-    """Execute a tool with logging and error handling."""
-    log_tool_call(tool_name, kwargs)  # Log invocation
-    
-    start_time = time.time()
-    try:
-        result = await handler(**kwargs)
-        duration = time.time() - start_time
-        log_tool_complete(tool_name, status=Status.success, duration=duration)
-        return result
-    except Exception as e:
-        duration = time.time() - start_time
-        log_tool_complete(tool_name, status="error", duration=duration, error=str(e))
-        raise
-```
-
-All tools are registered using FastMCP decorators:
 ```python
 @mcp.tool()
-async def list_directories_by_size(path: str, top_n: int, ...) -> str:
-    return await _execute_tool("list_directories_by_size", 
-                               storage.list_directories_by_size,
-                               path=path, top_n=top_n, ...)
+@log_tool_call
+async def list_directories_by_size(path: str, top_n: int) -> str:
+    ...
 ```
 
 The `audit.py` module provides structured logging functions:
 - `log_tool_call()`: Logs tool invocation with parameters
-- `log_tool_complete()`: Logs completion with timing and status
 - `log_ssh_connect()`: Logs SSH connection events
 - `log_ssh_command()`: Logs remote command execution
 
