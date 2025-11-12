@@ -5,6 +5,8 @@ import typing as t
 
 import pytest
 
+from mcp.server.fastmcp.exceptions import ToolError
+
 from linux_mcp_server.tools import storage
 
 
@@ -45,37 +47,37 @@ class TestListDirectories:
             assert isinstance(item[1], str)  # Directory name
 
     async def test_list_directories_invalid_order_by(self, tmp_path):
-        """Test that invalid order_by parameter returns None (error handled by MCP framework)."""
-        result = await storage.list_directories(str(tmp_path), order_by="invalid")
-        assert result is None  # MCP framework catches exceptions and returns None
+        """Test that invalid order_by parameter raises ValueError."""
+        with pytest.raises(ValueError, match="Invalid order_by value"):
+            await storage.list_directories(str(tmp_path), order_by="invalid")
 
     async def test_list_directories_invalid_sort(self, tmp_path):
-        """Test that invalid sort parameter returns None (error handled by MCP framework)."""
-        result = await storage.list_directories(str(tmp_path), sort="invalid")
-        assert result is None  # MCP framework catches exceptions and returns None
+        """Test that invalid sort parameter raises ValueError."""
+        with pytest.raises(ValueError, match="Invalid sort value"):
+            await storage.list_directories(str(tmp_path), sort="invalid")
 
     async def test_list_directories_invalid_path(self):
-        """Test with non-existent path returns None (error handled by MCP framework)."""
-        result = await storage.list_directories("/this/path/absolutely/does/not/exist/anywhere")
-        assert result is None  # MCP framework catches exceptions and returns None
+        """Test with non-existent path raises ToolError."""
+        with pytest.raises(ToolError, match="Path does not exist"):
+            await storage.list_directories("/this/path/absolutely/does/not/exist/anywhere")
 
     async def test_list_directories_path_is_file_not_directory(self, tmp_path):
-        """Test with a file path instead of directory returns None (error handled by MCP framework)."""
+        """Test with a file path instead of directory raises ToolError."""
         tmp_file = tmp_path / "data.txt"
         tmp_file.write_bytes(b"test content")
 
-        result = await storage.list_directories(str(tmp_file))
-        assert result is None  # MCP framework catches exceptions and returns None
+        with pytest.raises(ToolError, match="Path is not a directory"):
+            await storage.list_directories(str(tmp_file))
 
     async def test_list_directories_handles_permission_denied(self, restricted_path):
         """Test handling of permission denied errors gracefully."""
-        result = await storage.list_directories(str(restricted_path))
-        assert result is None  # MCP framework catches exceptions and returns None
+        with pytest.raises(ToolError, match="Permission denied"):
+            await storage.list_directories(str(restricted_path))
 
     async def test_list_directories_sanitizes_path_input(self):
         """Test that path injection attempts are handled safely."""
         # Test with various potentially malicious paths
-        # These should resolve to safe paths (like /tmp) or return None (error)
+        # These should either raise ToolError or resolve to safe paths
         malicious_paths = [
             "/tmp/../../../etc/passwd",
             "/tmp; rm -rf /",
@@ -85,10 +87,14 @@ class TestListDirectories:
         ]
 
         for path in malicious_paths:
-            # Should either return None (error) or safe structured output
-            result = await storage.list_directories(path)
-            # If it succeeds, should return structured output; if not, None
-            assert result is None or isinstance(result, t.Sequence)
+            # Should either raise ToolError or return safe structured output
+            try:
+                result = await storage.list_directories(path)
+                # If it succeeds, should return structured output
+                assert isinstance(result, t.Sequence)
+            except ToolError:
+                # Or it should fail safely with ToolError
+                pass
 
 
 class TestListDirectoriesBySize:
@@ -188,12 +194,12 @@ class TestListDirectoriesBySize:
     async def test_list_directories_by_size_validates_top_n(self, tmp_path):
         """Test that top_n parameter is validated."""
         # Test with negative number
-        result = await storage.list_directories(str(tmp_path), order_by="size", top_n=-5)
-        assert result is None  # MCP framework catches validation errors
+        with pytest.raises(ValueError, match="Invalid top_n value"):
+            await storage.list_directories(str(tmp_path), order_by="size", top_n=-5)
 
         # Test with zero
-        result = await storage.list_directories(str(tmp_path), order_by="size", top_n=0)
-        assert result is None  # MCP framework catches validation errors
+        with pytest.raises(ValueError, match="Invalid top_n value"):
+            await storage.list_directories(str(tmp_path), order_by="size", top_n=0)
 
     @pytest.mark.skipif(sys.platform != "linux", reason="requires GNU version of du")
     async def test_list_directories_by_size_accepts_float_and_truncates(self, tmp_path):
@@ -214,8 +220,8 @@ class TestListDirectoriesBySize:
     @pytest.mark.skipif(sys.platform != "linux", reason="requires GNU version of du")
     async def test_list_directories_by_size_handles_empty_directory(self, tmp_path):
         """Test with empty directory."""
-        result = await storage.list_directories(str(tmp_path), order_by="size")
-        assert result is None  # MCP framework catches ToolError for no subdirectories
+        with pytest.raises(ToolError, match="No subdirectories found"):
+            await storage.list_directories(str(tmp_path), order_by="size")
 
     @pytest.mark.skipif(sys.platform != "linux", reason="requires GNU version of du")
     async def test_list_directories_by_size_returns_bytes(self, tmp_path):
@@ -240,8 +246,8 @@ class TestListDirectoriesBySize:
             (tmp_path / f"dir{i}").mkdir()
 
         # Request an unreasonably large number
-        result = await storage.list_directories(str(tmp_path), order_by="size", top_n=10000)
-        assert result is None  # MCP framework catches validation error
+        with pytest.raises(ValueError, match="Invalid top_n value"):
+            await storage.list_directories(str(tmp_path), order_by="size", top_n=10000)
 
 
 class TestListDirectoriesByName:
