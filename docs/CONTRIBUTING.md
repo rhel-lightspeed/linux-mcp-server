@@ -143,27 +143,22 @@ When adding a new diagnostic tool:
     # src/linux_mcp_server/tools/my_tool.py
     import typing as t
 
-    @mcp.tool()
+    @mcp.tool(
+      title="Useful Tool",
+      description="Description for LLM to understand the tool.",
+      annotations=ToolAnnotations(readOnlyHint=True),
+    )
     @log_tool_call
     async def my_tool_name(
         param1: str,
-        host: Optional[str] = None,
-        username: Optional[str] = None
     ) -> str:
-        """Description for LLM to understand the tool.
-
-        Args:
-            param1: Description of the parameter
-            host: Remote host to connect to via SSH (optional)
-            username: SSH username for remote host (required if host is provided)
+        """Documentation string further describing the tool if necessary.
         """
-        return await _execute_tool(
-            "my_tool_name",
-            my_tool.my_diagnostic_function,
-            param1=param1,
-            host=host,
-            username=username
-        )
+        returncode, stdout, _ = await execute_command(["ps", "aux", "--sort=-%cpu"], host=host, username=username)
+        if returncode != 0:
+          raise ToolError
+
+        return stdout
     ```
 
 2. **Write tests:**
