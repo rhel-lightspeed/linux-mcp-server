@@ -1,7 +1,6 @@
 """Network diagnostic tools."""
 
 import socket
-import typing as t
 
 import psutil
 
@@ -11,6 +10,8 @@ from linux_mcp_server.audit import log_tool_call
 from linux_mcp_server.connection.ssh import execute_command
 from linux_mcp_server.server import mcp
 from linux_mcp_server.utils import format_bytes
+from linux_mcp_server.utils.types import Host
+from linux_mcp_server.utils.types import Username
 
 
 @mcp.tool(
@@ -20,8 +21,8 @@ from linux_mcp_server.utils import format_bytes
 )
 @log_tool_call
 async def get_network_interfaces(  # noqa: C901
-    host: t.Annotated[str | None, "Remote host to connect to"] = None,
-    username: t.Annotated[str | None, "SSH username (required if host is provided)"] = None,
+    host: Host | None = None,
+    username: Username | None = None,
 ) -> str:
     """
     Get network interface information.
@@ -124,8 +125,8 @@ async def get_network_interfaces(  # noqa: C901
 )
 @log_tool_call
 async def get_network_connections(
-    host: t.Annotated[str | None, "Remote host to connect to"] = None,
-    username: t.Annotated[str | None, "SSH username (required if host is provided)"] = None,
+    host: Host | None = None,
+    username: Username | None = None,
 ) -> str:
     """
     Get active network connections.
@@ -209,8 +210,8 @@ async def get_network_connections(
 )
 @log_tool_call
 async def get_listening_ports(
-    host: t.Annotated[str | None, "Remote host to connect to"] = None,
-    username: t.Annotated[str | None, "SSH username (required if host is provided)"] = None,
+    host: Host | None = None,
+    username: Username | None = None,
 ) -> str:
     """
     Get listening ports.

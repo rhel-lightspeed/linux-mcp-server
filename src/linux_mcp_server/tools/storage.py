@@ -12,6 +12,8 @@ from linux_mcp_server.audit import log_tool_call
 from linux_mcp_server.connection.ssh import execute_command
 from linux_mcp_server.server import mcp
 from linux_mcp_server.utils import format_bytes
+from linux_mcp_server.utils.types import Host
+from linux_mcp_server.utils.types import Username
 from linux_mcp_server.utils.validation import validate_positive_int
 
 
@@ -22,8 +24,8 @@ from linux_mcp_server.utils.validation import validate_positive_int
 )
 @log_tool_call
 async def list_block_devices(
-    host: t.Annotated[str | None, "Remote host to connect to"] = None,
-    username: t.Annotated[str | None, "SSH username (required if host is provided)"] = None,
+    host: Host | None = None,
+    username: Username | None = None,
 ) -> str:
     """
     List block devices.
@@ -96,8 +98,8 @@ async def list_directories_by_size(  # noqa: C901
         int | float,
         "Number of top directories to return (1-1000). Accepts int or float (floats are truncated to integers)",
     ],
-    host: t.Annotated[str | None, "Remote host to connect to"] = None,
-    username: t.Annotated[str | None, "SSH username (required if host is provided)"] = None,
+    host: Host | None = None,
+    username: Username | None = None,
 ) -> str:
     """
     List directories under a specified path sorted by size (largest first).
@@ -206,8 +208,8 @@ async def list_directories_by_size(  # noqa: C901
 async def list_directories_by_name(
     path: t.Annotated[str, "The directory path to analyze"],
     reverse: t.Annotated[bool, "If True, sort in reverse alphabetical order (Z-A)"] = False,
-    host: t.Annotated[str | None, "Remote host to connect to"] = None,
-    username: t.Annotated[str | None, "SSH username (required if host is provided)"] = None,
+    host: Host | None = None,
+    username: Username | None = None,
 ) -> str:
     """
     List directories under a specified path sorted by name.
@@ -279,8 +281,8 @@ async def list_directories_by_name(
 async def list_directories_by_modified_date(  # noqa: C901
     path: t.Annotated[str, "The directory path to analyze"],
     newest_first: t.Annotated[bool, "If True, show newest first; if False, show oldest first"] = True,
-    host: t.Annotated[str | None, "Remote host to connect to"] = None,
-    username: t.Annotated[str | None, "SSH username (required if host is provided)"] = None,
+    host: Host | None = None,
+    username: Username | None = None,
 ) -> str:
     """
     List directories under a specified path sorted by modification date.

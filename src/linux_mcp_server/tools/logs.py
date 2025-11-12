@@ -10,6 +10,8 @@ from mcp.types import ToolAnnotations
 from linux_mcp_server.audit import log_tool_call
 from linux_mcp_server.connection.ssh import execute_command
 from linux_mcp_server.server import mcp
+from linux_mcp_server.utils.types import Host
+from linux_mcp_server.utils.types import Username
 from linux_mcp_server.utils.validation import validate_line_count
 
 
@@ -24,8 +26,8 @@ async def get_journal_logs(
     priority: t.Annotated[str | None, "Priority level used for filtering."] = None,
     since: t.Annotated[str | None, "Show entries since specified time."] = None,
     lines: t.Annotated[int, "Number of log lines to retrieve."] = 100,
-    host: t.Annotated[str | None, "Remote host to connect to"] = None,
-    username: t.Annotated[str | None, "SSH username (required if host is provided)"] = None,
+    host: Host | None = None,
+    username: Username | None = None,
 ) -> str:
     """
     Get systemd journal logs.
@@ -82,8 +84,8 @@ async def get_journal_logs(
 @log_tool_call
 async def get_audit_logs(
     lines: t.Annotated[int, "Number of log lines to retrieve."] = 100,
-    host: t.Annotated[str | None, "Remote host to connect to"] = None,
-    username: t.Annotated[str | None, "SSH username (required if host is provided)"] = None,
+    host: Host | None = None,
+    username: Username | None = None,
 ) -> str:
     """
     Get audit logs.
@@ -132,8 +134,8 @@ async def get_audit_logs(
 async def read_log_file(  # noqa: C901
     log_path: t.Annotated[str, "Path to the log file"],
     lines: t.Annotated[int, "Number of lines to retrieve from the end."] = 100,
-    host: t.Annotated[str | None, "Remote host to connect to"] = None,
-    username: t.Annotated[str | None, "SSH username (required if host is provided)"] = None,
+    host: Host | None = None,
+    username: Username | None = None,
 ) -> str:
     """
     Read a specific log file.

@@ -7,6 +7,8 @@ from mcp.types import ToolAnnotations
 from linux_mcp_server.audit import log_tool_call
 from linux_mcp_server.connection.ssh import execute_command
 from linux_mcp_server.server import mcp
+from linux_mcp_server.utils.types import Host
+from linux_mcp_server.utils.types import Username
 from linux_mcp_server.utils.validation import validate_line_count
 
 
@@ -17,8 +19,8 @@ from linux_mcp_server.utils.validation import validate_line_count
 )
 @log_tool_call
 async def list_services(
-    host: t.Annotated[str | None, "Remote host to connect to"] = None,
-    username: t.Annotated[str | None, "SSH username (required if host is provided)"] = None,
+    host: Host | None = None,
+    username: Username | None = None,
 ) -> str:
     """
     List all systemd services.
@@ -64,8 +66,8 @@ async def list_services(
 @log_tool_call
 async def get_service_status(
     service_name: t.Annotated[str, "Name of the service"],
-    host: t.Annotated[str | None, "Remote host to connect to"] = None,
-    username: t.Annotated[str | None, "SSH username (required if host is provided)"] = None,
+    host: Host | None = None,
+    username: Username | None = None,
 ) -> str:
     """
     Get status of a specific service.
@@ -108,8 +110,8 @@ async def get_service_status(
 async def get_service_logs(
     service_name: t.Annotated[str, "Name of the service"],
     lines: t.Annotated[int, "Number of log lines to retrieve."] = 50,
-    host: t.Annotated[str | None, "Remote host to connect to"] = None,
-    username: t.Annotated[str | None, "SSH username (required if host is provided)"] = None,
+    host: Host | None = None,
+    username: Username | None = None,
 ) -> str:
     """
     Get logs for a specific service.

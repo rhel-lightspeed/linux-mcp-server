@@ -2,7 +2,6 @@
 
 import os
 import platform
-import typing as t
 
 from datetime import datetime
 
@@ -14,6 +13,8 @@ from linux_mcp_server.audit import log_tool_call
 from linux_mcp_server.connection.ssh import execute_command
 from linux_mcp_server.server import mcp
 from linux_mcp_server.utils import format_bytes
+from linux_mcp_server.utils.types import Host
+from linux_mcp_server.utils.types import Username
 
 
 @mcp.tool(
@@ -23,8 +24,8 @@ from linux_mcp_server.utils import format_bytes
 )
 @log_tool_call
 async def get_system_info(  # noqa: C901
-    host: t.Annotated[str | None, "Remote host to connect to"] = None,
-    username: t.Annotated[str | None, "SSH username (required if host is provided)"] = None,
+    host: Host | None = None,
+    username: Username | None = None,
 ) -> str:
     """
     Get basic system information.
@@ -147,8 +148,8 @@ async def get_system_info(  # noqa: C901
 )
 @log_tool_call
 async def get_cpu_info(  # noqa: C901
-    host: t.Annotated[str | None, "Remote host to connect to"] = None,
-    username: t.Annotated[str | None, "SSH username (required if host is provided)"] = None,
+    host: Host | None = None,
+    username: Username | None = None,
 ) -> str:
     """
     Get CPU information.
@@ -276,8 +277,8 @@ async def get_cpu_info(  # noqa: C901
 )
 @log_tool_call
 async def get_memory_info(
-    host: t.Annotated[str | None, "Remote host to connect to"] = None,
-    username: t.Annotated[str | None, "SSH username (required if host is provided)"] = None,
+    host: Host | None = None,
+    username: Username | None = None,
 ) -> str:
     """
     Get memory information.
@@ -360,8 +361,8 @@ async def get_memory_info(
 )
 @log_tool_call
 async def get_disk_usage(
-    host: t.Annotated[str | None, "Remote host to connect to"] = None,
-    username: t.Annotated[str | None, "SSH username (required if host is provided)"] = None,
+    host: Host | None = None,
+    username: Username | None = None,
 ) -> str:
     """
     Get disk usage information.
@@ -440,8 +441,8 @@ async def get_disk_usage(
 )
 @log_tool_call
 async def get_hardware_info(  # noqa: C901
-    host: t.Annotated[str | None, "Remote host to connect to"] = None,
-    username: t.Annotated[str | None, "SSH username (required if host is provided)"] = None,
+    host: Host | None = None,
+    username: Username | None = None,
 ) -> str:
     """
     Get hardware information.
