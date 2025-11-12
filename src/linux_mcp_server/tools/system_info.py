@@ -243,13 +243,13 @@ async def get_cpu_info(  # noqa: C901
                 pass  # CPU frequency might not be available
 
             # CPU usage per core
-            cpu_percent = psutil.cpu_percent(interval=1, percpu=True)
+            cpu_percent = psutil.cpu_percent(interval=0.1, percpu=True)
             info.append("\nCPU Usage per Core:")
             for i, percent in enumerate(cpu_percent):
                 info.append(f"  Core {i}: {percent}%")
 
             # Overall CPU usage
-            overall_cpu = psutil.cpu_percent(interval=1)
+            overall_cpu = psutil.cpu_percent(interval=0.1)
             info.append(f"\nOverall CPU Usage: {overall_cpu}%")
 
             # Load average
