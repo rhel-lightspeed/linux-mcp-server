@@ -1,6 +1,7 @@
 """Log and audit tools."""
 
 import os
+import typing as t
 
 from pathlib import Path
 
@@ -19,26 +20,15 @@ from linux_mcp_server.utils.validation import validate_line_count
 )
 @log_tool_call
 async def get_journal_logs(
-    unit: str | None = None,
-    priority: str | None = None,
-    since: str | None = None,
-    lines: int = 100,
-    host: str | None = None,
-    username: str | None = None,
+    unit: t.Annotated[str | None, "Systemd unit name used for filtering."] = None,
+    priority: t.Annotated[str | None, "Priority level used for filtering."] = None,
+    since: t.Annotated[str | None, "Show entries since specified time."] = None,
+    lines: t.Annotated[int, "Number of log lines to retrieve."] = 100,
+    host: t.Annotated[str | None, "Remote host to connect to"] = None,
+    username: t.Annotated[str | None, "SSH username (required if host is provided)"] = None,
 ) -> str:
     """
     Get systemd journal logs.
-
-    Args:
-        unit: Filter by systemd unit
-        priority: Filter by priority level
-        since: Show entries since specified time
-        lines: Number of log lines to retrieve (default: 100)
-        host: Optional remote host to connect to
-        username: Optional SSH username (required if host is provided)
-
-    Returns:
-        Formatted string with journal logs
     """
     try:
         # Validate lines parameter (accepts floats from LLMs)
@@ -91,20 +81,12 @@ async def get_journal_logs(
 )
 @log_tool_call
 async def get_audit_logs(
-    lines: int = 100,
-    host: str | None = None,
-    username: str | None = None,
+    lines: t.Annotated[int, "Number of log lines to retrieve."] = 100,
+    host: t.Annotated[str | None, "Remote host to connect to"] = None,
+    username: t.Annotated[str | None, "SSH username (required if host is provided)"] = None,
 ) -> str:
     """
     Get audit logs.
-
-    Args:
-        lines: Number of log lines to retrieve (default: 100)
-        host: Optional remote host to connect to
-        username: Optional SSH username (required if host is provided)
-
-    Returns:
-        Formatted string with audit logs
     """
     # Validate lines parameter (accepts floats from LLMs)
     lines, _ = validate_line_count(lines, default=100)
@@ -148,22 +130,13 @@ async def get_audit_logs(
 )
 @log_tool_call
 async def read_log_file(  # noqa: C901
-    log_path: str,
-    lines: int = 100,
-    host: str | None = None,
-    username: str | None = None,
+    log_path: t.Annotated[str, "Path to the log file"],
+    lines: t.Annotated[int, "Number of lines to retrieve from the end."] = 100,
+    host: t.Annotated[str | None, "Remote host to connect to"] = None,
+    username: t.Annotated[str | None, "SSH username (required if host is provided)"] = None,
 ) -> str:
     """
     Read a specific log file.
-
-    Args:
-        log_path: Path to the log file
-        lines: Number of lines to retrieve from the end (default: 100)
-        host: Optional remote host to connect to
-        username: Optional SSH username (required if host is provided)
-
-    Returns:
-        Formatted string with log file contents
     """
     try:
         # Validate lines parameter (accepts floats from LLMs)

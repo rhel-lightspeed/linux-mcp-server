@@ -1,6 +1,7 @@
 """Network diagnostic tools."""
 
 import socket
+import typing as t
 
 import psutil
 
@@ -19,18 +20,11 @@ from linux_mcp_server.utils import format_bytes
 )
 @log_tool_call
 async def get_network_interfaces(  # noqa: C901
-    host: str | None = None,
-    username: str | None = None,
+    host: t.Annotated[str | None, "Remote host to connect to"] = None,
+    username: t.Annotated[str | None, "SSH username (required if host is provided)"] = None,
 ) -> str:
     """
     Get network interface information.
-
-    Args:
-        host: Optional remote host to connect to
-        username: Optional SSH username (required if host is provided)
-
-    Returns:
-        Formatted string with network interface information
     """
     try:
         if host:
@@ -129,16 +123,12 @@ async def get_network_interfaces(  # noqa: C901
     annotations=ToolAnnotations(readOnlyHint=True),
 )
 @log_tool_call
-async def get_network_connections(host: str | None = None, username: str | None = None) -> str:
+async def get_network_connections(
+    host: t.Annotated[str | None, "Remote host to connect to"] = None,
+    username: t.Annotated[str | None, "SSH username (required if host is provided)"] = None,
+) -> str:
     """
     Get active network connections.
-
-    Args:
-        host: Optional remote host to connect to
-        username: Optional SSH username (required if host is provided)
-
-    Returns:
-        Formatted string with active network connections
     """
     try:
         if host:
@@ -218,16 +208,12 @@ async def get_network_connections(host: str | None = None, username: str | None 
     annotations=ToolAnnotations(readOnlyHint=True),
 )
 @log_tool_call
-async def get_listening_ports(host: str | None = None, username: str | None = None) -> str:
+async def get_listening_ports(
+    host: t.Annotated[str | None, "Remote host to connect to"] = None,
+    username: t.Annotated[str | None, "SSH username (required if host is provided)"] = None,
+) -> str:
     """
     Get listening ports.
-
-    Args:
-        host: Optional remote host to connect to
-        username: Optional SSH username (required if host is provided)
-
-    Returns:
-        Formatted string with listening ports
     """
     try:
         if host:

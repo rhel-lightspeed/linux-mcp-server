@@ -1,5 +1,7 @@
 """Storage and hardware tools."""
 
+import typing as t
+
 from pathlib import Path
 
 import psutil
@@ -20,18 +22,11 @@ from linux_mcp_server.utils.validation import validate_positive_int
 )
 @log_tool_call
 async def list_block_devices(
-    host: str | None = None,
-    username: str | None = None,
+    host: t.Annotated[str | None, "Remote host to connect to"] = None,
+    username: t.Annotated[str | None, "SSH username (required if host is provided)"] = None,
 ) -> str:
     """
     List block devices.
-
-    Args:
-        host: Optional remote host to connect to
-        username: Optional SSH username (required if host is provided)
-
-    Returns:
-        Formatted string with block device information
     """
     try:
         # Try using lsblk first (most readable)
@@ -96,26 +91,19 @@ async def list_block_devices(
 )
 @log_tool_call
 async def list_directories_by_size(  # noqa: C901
-    path: str,
-    top_n: int | float,
-    host: str | None = None,
-    username: str | None = None,
+    path: t.Annotated[str, "The directory path to analyze"],
+    top_n: t.Annotated[
+        int | float,
+        "Number of top directories to return (1-1000). Accepts int or float (floats are truncated to integers)",
+    ],
+    host: t.Annotated[str | None, "Remote host to connect to"] = None,
+    username: t.Annotated[str | None, "SSH username (required if host is provided)"] = None,
 ) -> str:
     """
     List directories under a specified path sorted by size (largest first).
 
     This function uses efficient Linux primitives (du command) to calculate directory
     sizes, making it much faster than Python-based directory traversal.
-
-    Args:
-        path: The directory path to analyze
-        top_n: Number of top directories to return (1-1000). Accepts int or float
-               (floats are truncated to integers)
-        host: Optional remote host to connect to
-        username: Optional SSH username (required if host is provided)
-
-    Returns:
-        Formatted string with directory sizes, or error message if validation fails
 
     Security Features:
         - Path validation and resolution using pathlib
@@ -216,24 +204,15 @@ async def list_directories_by_size(  # noqa: C901
 )
 @log_tool_call
 async def list_directories_by_name(
-    path: str,
-    reverse: bool = False,
-    host: str | None = None,
-    username: str | None = None,
+    path: t.Annotated[str, "The directory path to analyze"],
+    reverse: t.Annotated[bool, "If True, sort in reverse alphabetical order (Z-A)"] = False,
+    host: t.Annotated[str | None, "Remote host to connect to"] = None,
+    username: t.Annotated[str | None, "SSH username (required if host is provided)"] = None,
 ) -> str:
     """
     List directories under a specified path sorted by name.
 
     This function uses efficient Linux primitives (find and sort) to list directories.
-
-    Args:
-        path: The directory path to analyze
-        reverse: If True, sort in reverse alphabetical order (Z-A)
-        host: Optional remote host to connect to
-        username: Optional SSH username (required if host is provided)
-
-    Returns:
-        Formatted string with directory names, or error message if validation fails
     """
     import os
 
@@ -298,24 +277,15 @@ async def list_directories_by_name(
 )
 @log_tool_call
 async def list_directories_by_modified_date(  # noqa: C901
-    path: str,
-    newest_first: bool = True,
-    host: str | None = None,
-    username: str | None = None,
+    path: t.Annotated[str, "The directory path to analyze"],
+    newest_first: t.Annotated[bool, "If True, show newest first; if False, show oldest first"] = True,
+    host: t.Annotated[str | None, "Remote host to connect to"] = None,
+    username: t.Annotated[str | None, "SSH username (required if host is provided)"] = None,
 ) -> str:
     """
     List directories under a specified path sorted by modification date.
 
     This function uses efficient Linux primitives (find) to list directories with timestamps.
-
-    Args:
-        path: The directory path to analyze
-        newest_first: If True, show newest first; if False, show oldest first
-        host: Optional remote host to connect to
-        username: Optional SSH username (required if host is provided)
-
-    Returns:
-        Formatted string with directory names and dates, or error message if validation fails
     """
     import os
 

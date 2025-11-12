@@ -1,5 +1,7 @@
 """Service management tools."""
 
+import typing as t
+
 from mcp.types import ToolAnnotations
 
 from linux_mcp_server.audit import log_tool_call
@@ -15,18 +17,11 @@ from linux_mcp_server.utils.validation import validate_line_count
 )
 @log_tool_call
 async def list_services(
-    host: str | None = None,
-    username: str | None = None,
+    host: t.Annotated[str | None, "Remote host to connect to"] = None,
+    username: t.Annotated[str | None, "SSH username (required if host is provided)"] = None,
 ) -> str:
     """
     List all systemd services.
-
-    Args:
-        host: Optional remote host to connect to
-        username: Optional SSH username (required if host is provided)
-
-    Returns:
-        Formatted string with service list
     """
     try:
         # Run systemctl to list all services
@@ -68,20 +63,12 @@ async def list_services(
 )
 @log_tool_call
 async def get_service_status(
-    service_name: str,
-    host: str | None = None,
-    username: str | None = None,
+    service_name: t.Annotated[str, "Name of the service"],
+    host: t.Annotated[str | None, "Remote host to connect to"] = None,
+    username: t.Annotated[str | None, "SSH username (required if host is provided)"] = None,
 ) -> str:
     """
     Get status of a specific service.
-
-    Args:
-        service_name: Name of the service
-        host: Optional remote host to connect to
-        username: Optional SSH username (required if host is provided)
-
-    Returns:
-        Formatted string with service status
     """
     try:
         # Ensure service name has .service suffix if not present
@@ -119,22 +106,13 @@ async def get_service_status(
 )
 @log_tool_call
 async def get_service_logs(
-    service_name: str,
-    lines: int = 50,
-    host: str | None = None,
-    username: str | None = None,
+    service_name: t.Annotated[str, "Name of the service"],
+    lines: t.Annotated[int, "Number of log lines to retrieve."] = 50,
+    host: t.Annotated[str | None, "Remote host to connect to"] = None,
+    username: t.Annotated[str | None, "SSH username (required if host is provided)"] = None,
 ) -> str:
     """
     Get logs for a specific service.
-
-    Args:
-        service_name: Name of the service
-        lines: Number of log lines to retrieve (default: 50)
-        host: Optional remote host to connect to
-        username: Optional SSH username (required if host is provided)
-
-    Returns:
-        Formatted string with service logs
     """
     try:
         # Validate lines parameter (accepts floats from LLMs)
