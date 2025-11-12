@@ -166,7 +166,7 @@ async def list_directories(  # noqa: C901
 
             # Parse output - du may return non-zero on permission errors but still give valid data
             lines = stdout.strip().split("\n")
-            directories_by_size: list[tuple[int | float | None, str]] = []
+            directories_by_size: list[tuple[int, str]] = []
 
             for line in lines:
                 if not line:
@@ -191,7 +191,7 @@ async def list_directories(  # noqa: C901
 
             # Sort by size
             reverse = sort == SortBy.DESCENDING
-            directories_by_size.sort(key=lambda x: x[1], reverse=reverse)
+            directories_by_size.sort(key=lambda x: x[0], reverse=reverse)
 
             return directories_by_size
         case OrderBy.NAME:
