@@ -173,14 +173,15 @@ class TestLogToolCall:
         assert "REDACTED" in caplog.text
 
     def test_log_tool_call_failure(self, caplog, decorated_fail):
-        with caplog.at_level(logging.INFO):
+        with caplog.at_level(logging.INFO), pytest.raises(ValueError, match="Raised intentionally"):
             decorated_fail()
 
         assert "error: Raised intentionally" in caplog.text
 
     async def test_log_tool_call_async_failure(self, caplog, adecorated_fail):
         with caplog.at_level(logging.INFO):
-            await adecorated_fail()
+            with pytest.raises(ValueError, match="Raised intentionally"):
+                await adecorated_fail()
 
         assert "error: Raised intentionally" in caplog.text
 

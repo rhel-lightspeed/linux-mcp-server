@@ -1,32 +1,47 @@
 """Storage and hardware tools."""
 
+import os
+import typing as t
+
+from collections.abc import Sequence
 from pathlib import Path
 
 import psutil
+
+from mcp.server.fastmcp.exceptions import ToolError
+from mcp.types import ToolAnnotations
+from pydantic import Field
 
 from linux_mcp_server.audit import log_tool_call
 from linux_mcp_server.server import mcp
 from linux_mcp_server.tools.ssh_executor import execute_command
 from linux_mcp_server.utils import format_bytes
-from linux_mcp_server.utils.validation import validate_positive_int
+from linux_mcp_server.utils import StrEnum
 
 
-@mcp.tool()
+class OrderBy(StrEnum):
+    SIZE = "size"
+    NAME = "name"
+    MODIFIED = "modified"
+
+
+class SortBy(StrEnum):
+    ASCENDING = "ascending"
+    DESCENDING = "descending"
+
+
+@mcp.tool(
+    title="List block devices",
+    description="List block devices on the system",
+    annotations=ToolAnnotations(readOnlyHint=True),
+)
 @log_tool_call
 async def list_block_devices(
-    host: str | None = None,
-    username: str | None = None,
+    host: t.Annotated[str | None, Field(description="Optional remote host to connect to")] = None,
+    username: t.Annotated[
+        str | None, Field(description="Optional SSH username (if not provided, the current user account is used)")
+    ] = None,
 ) -> str:
-    """
-    List block devices.
-
-    Args:
-        host: Optional remote host to connect to
-        username: Optional SSH username (required if host is provided)
-
-    Returns:
-        Formatted string with block device information
-    """
     try:
         # Try using lsblk first (most readable)
         returncode, stdout, _ = await execute_command(
@@ -83,287 +98,155 @@ async def list_block_devices(
         return f"Error listing block devices: {str(e)}"
 
 
-@mcp.tool()
+@mcp.tool(
+    title="List directories",
+    description="List directories under a specified path with flexible sorting options.",
+    annotations=ToolAnnotations(readOnlyHint=True),
+)
 @log_tool_call
-async def list_directories_by_size(  # noqa: C901
-    path: str,
-    top_n: int | float,
-    host: str | None = None,
-    username: str | None = None,
-) -> str:
-    """
-    List directories under a specified path sorted by size (largest first).
-
-    This function uses efficient Linux primitives (du command) to calculate directory
-    sizes, making it much faster than Python-based directory traversal.
-
-    Args:
-        path: The directory path to analyze
-        top_n: Number of top directories to return (1-1000). Accepts int or float
-               (floats are truncated to integers)
-        host: Optional remote host to connect to
-        username: Optional SSH username (required if host is provided)
-
-    Returns:
-        Formatted string with directory sizes, or error message if validation fails
-
-    Security Features:
-        - Path validation and resolution using pathlib
-        - Command parameters passed as list (not shell string)
-        - Input sanitization for all parameters
-        - Graceful error handling for permission issues
-    """
-    import os
-
+async def list_directories(  # noqa: C901
+    path: t.Annotated[str, Field(description="The directory path to analyze")],
+    order_by: t.Annotated[
+        str, Field(description="Sort order - 'size', 'name', or 'modified' (default: 'name')")
+    ] = "name",
+    sort: t.Annotated[
+        str, Field(description="Sort direction - 'ascending' or 'descending' (default: 'ascending')")
+    ] = "ascending",
+    top_n: t.Annotated[
+        int | None,
+        Field(
+            description="Optional limit on number of directories to return (1-1000, only used with size ordering)",
+            gt=0,
+            le=1_000,
+        ),
+    ] = None,
+    host: t.Annotated[str | None, Field(description="Optional remote host to connect to")] = None,
+    username: t.Annotated[
+        str | None, Field(description="Optional SSH username (if not provided, the current user account is used)")
+    ] = None,
+) -> t.Annotated[
+    Sequence[tuple[int | float | None, str]],
+    Field(description="List of directories with size or modified timestamp"),
+]:
+    # Validate order_by parameter
     try:
-        # Validate and normalize top_n parameter
-        validated_top_n, error = validate_positive_int(
-            top_n,
-            param_name="top_n",
-            min_value=1,
-            max_value=1000,
-        )
-        if error:
-            return error
+        order_by = OrderBy(order_by)
+    except ValueError as e:
+        raise ValueError(f"Invalid order_by value '{order_by}'. Must be one of: {', '.join(OrderBy)}") from e
 
-        if validated_top_n is None:
-            return "Invalid top_n value"
+    # Validate sort parameter
+    try:
+        sort = SortBy(sort)
+    except ValueError as e:
+        raise ValueError(f"Invalid sort value '{sort}'. Must be one of: {', '.join(SortBy)}") from e
 
-        # For local execution, validate path
-        if not host:
-            try:
-                path_obj = Path(path).resolve(strict=True)
-            except (OSError, RuntimeError):
-                return f"Error: Path does not exist or cannot be resolved: {path}"
+    # For local execution, validate path
+    if not host:
+        try:
+            path_obj = Path(path).resolve(strict=True)
+        except (OSError, RuntimeError):
+            raise ToolError(f"Path does not exist or cannot be resolved: {path}")
 
-            if not path_obj.is_dir():
-                return f"Error: Path is not a directory: {path}"
+        if not path_obj.is_dir():
+            raise ToolError(f"Path is not a directory: {path}")
 
-            if not os.access(path_obj, os.R_OK):
-                return f"Error: Permission denied to read directory: {path}"
+        if not os.access(path_obj, os.R_OK):
+            raise ToolError(f"Permission denied to read directory: {path}")
 
-            path_str = str(path_obj)
-        else:
-            # For remote execution, use the path as-is
-            path_str = path
+        path = str(path_obj)
 
-        # Use du command to get directory sizes efficiently
-        returncode, stdout, _ = await execute_command(
-            ["du", "-b", "--max-depth=1", path_str],
-            host=host,
-            username=username,
-        )
+    match order_by:
+        case OrderBy.SIZE:
+            # Use du command to get directory sizes efficiently
+            returncode, stdout, _ = await execute_command(
+                ["du", "-b", "--max-depth=1", path],
+                host=host,
+                username=username,
+            )
 
-        # Parse output - du may return non-zero on permission errors but still give valid data
-        lines = stdout.strip().split("\n")
-        dir_sizes = []
+            # Parse output - du may return non-zero on permission errors but still give valid data
+            lines = stdout.strip().split("\n")
+            directories_by_size: list[tuple[int, str]] = []
 
-        for line in lines:
-            if not line:
-                continue
-            parts = line.split("\t", 1)
-            if len(parts) == 2:
-                try:
-                    size = int(parts[0])
-                    dir_path_str = parts[1]
-                    # Skip the parent directory itself
-                    dir_name = Path(dir_path_str).name
-                    if dir_path_str != path_str:
-                        dir_sizes.append((dir_name, size))
-                except (ValueError, IndexError):
+            for line in lines:
+                if not line:
                     continue
-
-        if not dir_sizes:
-            # Only error if we got no output AND a bad return code
-            if returncode != 0:
-                return "Error: du command failed and returned no directory data"
-            return f"No subdirectories found in: {path}"
-
-        # Sort by size (descending) and take top N
-        dir_sizes.sort(key=lambda x: x[1], reverse=True)
-        top_dirs = dir_sizes[:validated_top_n]
-
-        # Format output
-        result = []
-        result.append(f"=== Top {len(top_dirs)} Largest Directories ===")
-        result.append(f"Path: {path_str}")
-        result.append(f"\nTotal subdirectories found: {len(dir_sizes)}\n")
-
-        for i, (dir_name, size) in enumerate(top_dirs, 1):
-            result.append(f"{i}. {dir_name}")
-            result.append(f"   Size: {format_bytes(size)}")
-
-        return "\n".join(result)
-
-    except Exception as e:
-        return f"Error analyzing directories: {str(e)}"
-
-
-@mcp.tool()
-@log_tool_call
-async def list_directories_by_name(
-    path: str,
-    reverse: bool = False,
-    host: str | None = None,
-    username: str | None = None,
-) -> str:
-    """
-    List directories under a specified path sorted by name.
-
-    This function uses efficient Linux primitives (find and sort) to list directories.
-
-    Args:
-        path: The directory path to analyze
-        reverse: If True, sort in reverse alphabetical order (Z-A)
-        host: Optional remote host to connect to
-        username: Optional SSH username (required if host is provided)
-
-    Returns:
-        Formatted string with directory names, or error message if validation fails
-    """
-    import os
-
-    try:
-        # For local execution, validate path
-        if not host:
-            try:
-                path_obj = Path(path).resolve(strict=True)
-            except (OSError, RuntimeError):
-                return f"Error: Path does not exist or cannot be resolved: {path}"
-
-            if not path_obj.is_dir():
-                return f"Error: Path is not a directory: {path}"
-
-            if not os.access(path_obj, os.R_OK):
-                return f"Error: Permission denied to read directory: {path}"
-
-            path_str = str(path_obj)
-        else:
-            # For remote execution, use the path as-is
-            path_str = path
-
-        # Use find to list only immediate subdirectories
-        returncode, stdout, _ = await execute_command(
-            ["find", path_str, "-mindepth", "1", "-maxdepth", "1", "-type", "d", "-printf", "%f\\n"],
-            host=host,
-            username=username,
-        )
-
-        if returncode != 0:
-            return f"Error running find command: command failed with return code {returncode}"
-
-        # Parse and sort output
-        directories = [line for line in stdout.strip().split("\n") if line]
-
-        if not directories:
-            return f"No subdirectories found in: {path}"
-
-        # Sort alphabetically
-        directories.sort(reverse=reverse)
-
-        # Format output
-        result = []
-        sort_order = "Reverse Alphabetical" if reverse else "Alphabetical"
-        result.append(f"=== Directories ({sort_order}) ===")
-        result.append(f"Path: {path_str}")
-        result.append(f"\nTotal subdirectories found: {len(directories)}\n")
-
-        for i, dir_name in enumerate(directories, 1):
-            result.append(f"{i}. {dir_name}")
-
-        return "\n".join(result)
-
-    except Exception as e:
-        return f"Error listing directories: {str(e)}"
-
-
-@mcp.tool()
-@log_tool_call
-async def list_directories_by_modified_date(  # noqa: C901
-    path: str,
-    newest_first: bool = True,
-    host: str | None = None,
-    username: str | None = None,
-) -> str:
-    """
-    List directories under a specified path sorted by modification date.
-
-    This function uses efficient Linux primitives (find) to list directories with timestamps.
-
-    Args:
-        path: The directory path to analyze
-        newest_first: If True, show newest first; if False, show oldest first
-        host: Optional remote host to connect to
-        username: Optional SSH username (required if host is provided)
-
-    Returns:
-        Formatted string with directory names and dates, or error message if validation fails
-    """
-    import os
-
-    from datetime import datetime
-
-    try:
-        # For local execution, validate path
-        if not host:
-            try:
-                path_obj = Path(path).resolve(strict=True)
-            except (OSError, RuntimeError):
-                return f"Error: Path does not exist or cannot be resolved: {path}"
-
-            if not path_obj.is_dir():
-                return f"Error: Path is not a directory: {path}"
-
-            if not os.access(path_obj, os.R_OK):
-                return f"Error: Permission denied to read directory: {path}"
-
-            path_str = str(path_obj)
-        else:
-            # For remote execution, use the path as-is
-            path_str = path
-
-        # Use find with modification time
-        returncode, stdout, _ = await execute_command(
-            ["find", path_str, "-mindepth", "1", "-maxdepth", "1", "-type", "d", "-printf", "%T@\\t%f\\n"],
-            host=host,
-            username=username,
-        )
-
-        if returncode != 0:
-            return f"Error running find command: command failed with return code {returncode}"
-
-        # Parse output
-        directories = []
-        for line in stdout.strip().split("\n"):
-            if line:
                 parts = line.split("\t", 1)
                 if len(parts) == 2:
                     try:
-                        timestamp = float(parts[0])
-                        dir_name = parts[1]
-                        directories.append((timestamp, dir_name))
-                    except ValueError:
+                        size = int(parts[0])
+                        dir_path_str = parts[1]
+                        # Skip the parent directory itself
+                        dir_name = Path(dir_path_str).name
+                        if dir_path_str != path:
+                            directories_by_size.append((size, dir_name))
+                    except (ValueError, IndexError):
                         continue
 
-        if not directories:
-            return f"No subdirectories found in: {path}"
+            if not directories_by_size:
+                # Only error if we got no output AND a bad return code
+                if returncode != 0:
+                    raise ToolError("du command failed and returned no directory data")
+                raise ToolError(f"No subdirectories found in: {path}")
 
-        # Sort by timestamp
-        directories.sort(key=lambda x: x[0], reverse=newest_first)
+            # Sort by size
+            reverse = sort == SortBy.DESCENDING
+            directories_by_size.sort(key=lambda x: x[0], reverse=reverse)
 
-        # Format output
-        result = []
-        sort_order = "Newest First" if newest_first else "Oldest First"
-        result.append(f"=== Directories ({sort_order}) ===")
-        result.append(f"Path: {path_str}")
-        result.append(f"\nTotal subdirectories found: {len(directories)}\n")
+            return directories_by_size
+        case OrderBy.NAME:
+            # Use find to list only immediate subdirectories
+            returncode, stdout, _ = await execute_command(
+                ["find", path, "-mindepth", "1", "-maxdepth", "1", "-type", "d", "-printf", "%f\\n"],
+                host=host,
+                username=username,
+            )
 
-        for i, (timestamp, dir_name) in enumerate(directories, 1):
-            dt = datetime.fromtimestamp(timestamp)
-            result.append(f"{i}. {dir_name}")
-            result.append(f"   Modified: {dt.strftime('%Y-%m-%d %H:%M:%S')}")
+            if returncode != 0:
+                raise ToolError(f"Error running find command: command failed with return code {returncode}")
 
-        return "\n".join(result)
+            # Parse and sort output
+            directories_by_name: list[tuple[None, str]] = [(None, line) for line in stdout.strip().split("\n") if line]
 
-    except Exception as e:
-        return f"Error listing directories: {str(e)}"
+            if not directories_by_name:
+                raise ToolError(f"No subdirectories found in: {path}")
+
+            # Sort alphabetically
+            reverse = sort == SortBy.DESCENDING
+            directories_by_name.sort(reverse=reverse)
+
+            # Convert to tuples with single element for template compatibility
+            directories_tuples: list[tuple[None, str]] = [(name) for name in directories_by_name]
+            return directories_tuples
+        case OrderBy.MODIFIED:
+            # Use find with modification time
+            returncode, stdout, _ = await execute_command(
+                ["find", path, "-mindepth", "1", "-maxdepth", "1", "-type", "d", "-printf", "%T@\\t%f\\n"],
+                host=host,
+                username=username,
+            )
+
+            if returncode != 0:
+                raise ToolError(f"Error running find command: command failed with return code {returncode}")
+
+            # Parse output
+            directories_by_modified: list[tuple[float, str]] = []
+            for line in stdout.strip().split("\n"):
+                if line:
+                    parts = line.split("\t", 1)
+                    if len(parts) == 2:
+                        try:
+                            timestamp = float(parts[0])
+                            dir_name = parts[1]
+                            directories_by_modified.append((timestamp, dir_name))
+                        except ValueError:
+                            continue
+
+            if not directories_by_modified:
+                raise ToolError(f"No subdirectories found in: {path}")
+
+            # Sort by timestamp
+            reverse = sort == SortBy.DESCENDING
+            directories_by_modified.sort(key=lambda x: x[0], reverse=reverse)
+
+            return directories_by_modified
