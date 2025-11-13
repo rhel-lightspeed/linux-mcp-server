@@ -47,7 +47,7 @@ export LINUX_MCP_LOG_DIR=/path/to/your/logs
 
 ```
 2025-10-10 15:30:45.123 | INFO | linux_mcp_server.audit | TOOL_CALL: list_directories_by_size | path=/home/user, top_n=10 | event=TOOL_CALL | tool=list_directories_by_size | execution_mode=local
-2025-10-10 15:30:45.234 | DEBUG | linux_mcp_server.tools.ssh_executor | LOCAL_EXEC completed: du -b --max-depth=1 /home/user | exit_code=0 | duration=0.200s
+2025-10-10 15:30:45.234 | DEBUG | linux_mcp_server.connection.ssh| LOCAL_EXEC completed: du -b --max-depth=1 /home/user | exit_code=0 | duration=0.200s
 2025-10-10 15:30:45.456 | INFO | linux_mcp_server.audit | TOOL_COMPLETE: list_directories_by_size | event=TOOL_COMPLETE | tool=list_directories_by_size | status=success | duration=0.333s
 ```
 

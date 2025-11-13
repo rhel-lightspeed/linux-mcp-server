@@ -9,9 +9,9 @@ from unittest.mock import patch
 import asyncssh
 import pytest
 
-from linux_mcp_server.tools.ssh_executor import discover_ssh_key
-from linux_mcp_server.tools.ssh_executor import execute_command
-from linux_mcp_server.tools.ssh_executor import SSHConnectionManager
+from linux_mcp_server.connection.ssh import discover_ssh_key
+from linux_mcp_server.connection.ssh import execute_command
+from linux_mcp_server.connection.ssh import SSHConnectionManager
 
 
 class TestSSHKeyDiscovery:
@@ -110,7 +110,7 @@ class TestExecuteCommand:
         mock_manager = AsyncMock()
         mock_manager.execute_remote = AsyncMock(return_value=(0, "output", ""))
 
-        with patch("linux_mcp_server.tools.ssh_executor._connection_manager", mock_manager):
+        with patch("linux_mcp_server.connection.ssh._connection_manager", mock_manager):
             returncode, stdout, stderr = await execute_command(
                 ["ls", "-la"],
                 host="remote.example.com",
