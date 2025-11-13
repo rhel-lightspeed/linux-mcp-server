@@ -193,6 +193,9 @@ async def list_directories(  # noqa: C901
             reverse = sort == SortBy.DESCENDING
             directories_by_size.sort(key=lambda x: x[0], reverse=reverse)
 
+            if top_n:
+                directories_by_size = directories_by_size[:top_n]
+
             return directories_by_size
         case OrderBy.NAME:
             # Use find to list only immediate subdirectories
@@ -217,6 +220,9 @@ async def list_directories(  # noqa: C901
 
             # Convert to tuples with single element for template compatibility
             directories_tuples: list[tuple[None, str]] = [(name) for name in directories_by_name]
+            if top_n:
+                directories_tuples = directories_tuples[:top_n]
+
             return directories_tuples
         case OrderBy.MODIFIED:
             # Use find with modification time
@@ -248,5 +254,8 @@ async def list_directories(  # noqa: C901
             # Sort by timestamp
             reverse = sort == SortBy.DESCENDING
             directories_by_modified.sort(key=lambda x: x[0], reverse=reverse)
+
+            if top_n:
+                directories_by_modified = directories_by_modified[:top_n]
 
             return directories_by_modified
