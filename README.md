@@ -105,11 +105,11 @@ For complete Claude Desktop integration instructions including platform-specific
 ## Available Tools
 
 ### System Information
-- `get_system_info` - OS version, kernel, hostname, uptime
-- `get_cpu_info` - CPU details and load averages
-- `get_memory_info` - RAM usage and swap details
+- `get_system_information` - OS version, kernel, hostname, uptime
+- `get_cpu_information` - CPU details and load averages
+- `get_memory_information` - RAM usage and swap details
 - `get_disk_usage` - Filesystem usage and mount points
-- `get_hardware_info` - Hardware details (CPU architecture, PCI/USB devices, memory hardware)
+- `get_hardware_information` - Hardware details (CPU architecture, PCI/USB devices, memory hardware)
 
 ### Service Management
 - `list_services` - List all systemd services with status

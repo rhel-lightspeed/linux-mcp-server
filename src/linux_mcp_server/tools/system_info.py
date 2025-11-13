@@ -23,7 +23,7 @@ from linux_mcp_server.utils.types import Username
     annotations=ToolAnnotations(readOnlyHint=True),
 )
 @log_tool_call
-async def get_system_info(  # noqa: C901
+async def get_system_information(  # noqa: C901
     host: Host | None = None,
     username: Username | None = None,
 ) -> str:
@@ -147,7 +147,7 @@ async def get_system_info(  # noqa: C901
     annotations=ToolAnnotations(readOnlyHint=True),
 )
 @log_tool_call
-async def get_cpu_info(  # noqa: C901
+async def get_cpu_information(  # noqa: C901
     host: Host | None = None,
     username: Username | None = None,
 ) -> str:
@@ -276,7 +276,7 @@ async def get_cpu_info(  # noqa: C901
     annotations=ToolAnnotations(readOnlyHint=True),
 )
 @log_tool_call
-async def get_memory_info(
+async def get_memory_information(
     host: Host | None = None,
     username: Username | None = None,
 ) -> str:
@@ -440,7 +440,7 @@ async def get_disk_usage(
     annotations=ToolAnnotations(readOnlyHint=True),
 )
 @log_tool_call
-async def get_hardware_info(  # noqa: C901
+async def get_hardware_information(  # noqa: C901
     host: Host | None = None,
     username: Username | None = None,
 ) -> str:

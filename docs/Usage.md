@@ -38,21 +38,21 @@ See the [Claude Desktop Integration](INSTALL.md#claude-desktop-integration) sect
 
 ### System Information
 
-#### `get_system_info`
+#### `get_system_information`
 Returns basic system information including OS version, kernel, hostname, and uptime.
 
 **Parameters:** None
 
 **Example use case:** "What version of RHEL is this system running?"
 
-#### `get_cpu_info`
+#### `get_cpu_information`
 Returns detailed CPU information including cores, frequency, usage, and load averages.
 
 **Parameters:** None
 
 **Example use case:** "Show me the current CPU load and usage per core."
 
-#### `get_memory_info`
+#### `get_memory_information`
 Returns RAM and swap memory usage details.
 
 **Parameters:** None
@@ -66,7 +66,7 @@ Returns filesystem usage and mount points.
 
 **Example use case:** "Which filesystems are running out of space?"
 
-#### `get_hardware_info`
+#### `get_hardware_information`
 Returns hardware information including CPU architecture, PCI devices, USB devices, and memory hardware.
 
 **Parameters:** None
@@ -231,7 +231,7 @@ For configuration details including environment variables and AI agent integrati
 ## Example Troubleshooting Sessions
 
 ### High CPU Usage Investigation
-1. "Show me the system CPU information and load averages" → `get_cpu_info`
+1. "Show me the system CPU information and load averages" → `get_cpu_information`
 2. "List all processes sorted by CPU usage" → `list_processes`
 3. "Give me detailed info about process 12345" → `get_process_info`
 4. "Show me the service status for httpd" → `get_service_status`
@@ -252,7 +252,7 @@ For configuration details including environment variables and AI agent integrati
 3. "Find the top 10 largest directories in /var" → `list_directories_by_size`
 4. "What are the biggest directories under /home?" → `list_directories_by_size`
 5. "List recently modified directories in /tmp" → `list_directories_by_modified_date`
-6. "Show me system information including uptime" → `get_system_info`
+6. "Show me system information including uptime" → `get_system_information`
 
 ### Detailed Disk Space Analysis
 1. "Show me overall disk usage" → `get_disk_usage`
@@ -274,7 +274,7 @@ The `read_log_file` tool uses a whitelist approach. Only files explicitly listed
 Some tools may require elevated privileges to show complete information:
 - `get_audit_logs` - Requires read access to `/var/log/audit/audit.log`
 - `get_network_connections` - May require root to see all connections
-- `get_hardware_info` - Some hardware details (dmidecode) require root
+- `get_hardware_information` - Some hardware details (dmidecode) require root
 
 ### Recommended Approach
 Run the MCP server with the minimum required privileges. Consider:
@@ -288,7 +288,7 @@ For detailed troubleshooting, security considerations, and permission setup, see
 
 ## Best Practices
 
-1. **Start Broad, Then Narrow**: Use general tools like `get_system_info` before diving into specific diagnostics.
+1. **Start Broad, Then Narrow**: Use general tools like `get_system_information` before diving into specific diagnostics.
 
 2. **Correlate Information**: Combine multiple tools for comprehensive diagnostics (e.g., process info + service status + logs).
 

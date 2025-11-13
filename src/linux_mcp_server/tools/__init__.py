@@ -24,27 +24,27 @@ from linux_mcp_server.tools.storage import list_directories_by_name
 from linux_mcp_server.tools.storage import list_directories_by_size
 
 # system_info
-from linux_mcp_server.tools.system_info import get_cpu_info
+from linux_mcp_server.tools.system_info import get_cpu_information
 from linux_mcp_server.tools.system_info import get_disk_usage
-from linux_mcp_server.tools.system_info import get_hardware_info
-from linux_mcp_server.tools.system_info import get_memory_info
-from linux_mcp_server.tools.system_info import get_system_info
+from linux_mcp_server.tools.system_info import get_hardware_information
+from linux_mcp_server.tools.system_info import get_memory_information
+from linux_mcp_server.tools.system_info import get_system_information
 
 
 __all__ = [
     "get_audit_logs",
-    "get_cpu_info",
+    "get_cpu_information",
     "get_disk_usage",
-    "get_hardware_info",
+    "get_hardware_information",
     "get_journal_logs",
     "get_listening_ports",
-    "get_memory_info",
+    "get_memory_information",
     "get_network_connections",
     "get_network_interfaces",
     "get_process_info",
     "get_service_logs",
     "get_service_status",
-    "get_system_info",
+    "get_system_information",
     "list_block_devices",
     "list_directories_by_modified_date",
     "list_directories_by_name",
