@@ -4,6 +4,7 @@ import os
 import typing as t
 
 from collections.abc import Sequence
+from dataclasses import dataclass
 from pathlib import Path
 
 import psutil
@@ -17,6 +18,13 @@ from linux_mcp_server.server import mcp
 from linux_mcp_server.tools.ssh_executor import execute_command
 from linux_mcp_server.utils import format_bytes
 from linux_mcp_server.utils import StrEnum
+
+
+@dataclass
+class DirectoryEntry:
+    size: int = 0
+    modified: float = 0.0
+    name: str = ""
 
 
 class OrderBy(StrEnum):
@@ -125,7 +133,7 @@ async def list_directories(  # noqa: C901
         str | None, Field(description="Optional SSH username (if not provided, the current user account is used)")
     ] = None,
 ) -> t.Annotated[
-    Sequence[tuple[int | float | None, str]],
+    Sequence[DirectoryEntry],
     Field(description="List of directories with size or modified timestamp"),
 ]:
     # Validate order_by parameter
@@ -166,7 +174,7 @@ async def list_directories(  # noqa: C901
 
             # Parse output - du may return non-zero on permission errors but still give valid data
             lines = stdout.strip().split("\n")
-            directories_by_size: list[tuple[int, str]] = []
+            directories_by_size: list[DirectoryEntry] = []
 
             for line in lines:
                 if not line:
@@ -179,7 +187,7 @@ async def list_directories(  # noqa: C901
                         # Skip the parent directory itself
                         dir_name = Path(dir_path_str).name
                         if dir_path_str != path:
-                            directories_by_size.append((size, dir_name))
+                            directories_by_size.append(DirectoryEntry(size=size, modified=0.0, name=dir_name))
                     except (ValueError, IndexError):
                         continue
 
@@ -191,7 +199,7 @@ async def list_directories(  # noqa: C901
 
             # Sort by size
             reverse = sort == SortBy.DESCENDING
-            directories_by_size.sort(key=lambda x: x[0], reverse=reverse)
+            directories_by_size.sort(key=lambda x: x.size, reverse=reverse)
 
             if top_n:
                 directories_by_size = directories_by_size[:top_n]
@@ -209,21 +217,21 @@ async def list_directories(  # noqa: C901
                 raise ToolError(f"Error running find command: command failed with return code {returncode}")
 
             # Parse and sort output
-            directories_by_name: list[tuple[None, str]] = [(None, line) for line in stdout.strip().split("\n") if line]
+            directories_by_name: list[DirectoryEntry] = [
+                DirectoryEntry(name=line) for line in stdout.strip().split("\n") if line
+            ]
 
             if not directories_by_name:
                 raise ToolError(f"No subdirectories found in: {path}")
 
             # Sort alphabetically
             reverse = sort == SortBy.DESCENDING
-            directories_by_name.sort(reverse=reverse)
+            directories_by_name.sort(key=lambda x: x.name, reverse=reverse)
 
-            # Convert to tuples with single element for template compatibility
-            directories_tuples: list[tuple[None, str]] = [(name) for name in directories_by_name]
             if top_n:
-                directories_tuples = directories_tuples[:top_n]
+                directories_by_name = directories_by_name[:top_n]
 
-            return directories_tuples
+            return directories_by_name
         case OrderBy.MODIFIED:
             # Use find with modification time
             returncode, stdout, _ = await execute_command(
@@ -236,7 +244,7 @@ async def list_directories(  # noqa: C901
                 raise ToolError(f"Error running find command: command failed with return code {returncode}")
 
             # Parse output
-            directories_by_modified: list[tuple[float, str]] = []
+            directories_by_modified: list[DirectoryEntry] = []
             for line in stdout.strip().split("\n"):
                 if line:
                     parts = line.split("\t", 1)
@@ -244,7 +252,7 @@ async def list_directories(  # noqa: C901
                         try:
                             timestamp = float(parts[0])
                             dir_name = parts[1]
-                            directories_by_modified.append((timestamp, dir_name))
+                            directories_by_modified.append(DirectoryEntry(modified=timestamp, name=dir_name))
                         except ValueError:
                             continue
 
@@ -253,7 +261,7 @@ async def list_directories(  # noqa: C901
 
             # Sort by timestamp
             reverse = sort == SortBy.DESCENDING
-            directories_by_modified.sort(key=lambda x: x[0], reverse=reverse)
+            directories_by_modified.sort(key=lambda x: x.modified, reverse=reverse)
 
             if top_n:
                 directories_by_modified = directories_by_modified[:top_n]
