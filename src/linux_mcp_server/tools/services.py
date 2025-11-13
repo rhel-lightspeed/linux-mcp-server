@@ -60,7 +60,7 @@ async def list_services(
 
 @mcp.tool(
     title="Get service status",
-    description="Get status of a specific service.",
+    description="Get detailed status of a specific systemd service.",
     annotations=ToolAnnotations(readOnlyHint=True),
 )
 @log_tool_call
@@ -103,7 +103,7 @@ async def get_service_status(
 
 @mcp.tool(
     title="Get service logs",
-    description="Get logs for a specific service.",
+    description="Get recent logs for a specific systemd service.",
     annotations=ToolAnnotations(readOnlyHint=True),
 )
 @log_tool_call

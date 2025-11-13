@@ -19,7 +19,7 @@ from linux_mcp_server.utils.types import Username
 
 @mcp.tool(
     title="Get system information",
-    description="Get basic system information.",
+    description="Get basic system information such as operating system, distribution, kernel version, uptime, and last boot time.",
     annotations=ToolAnnotations(readOnlyHint=True),
 )
 @log_tool_call
@@ -356,7 +356,7 @@ async def get_memory_information(
 
 @mcp.tool(
     title="Get disk usage",
-    description="Get detailed disk space information including size, mount point, and utilization..",
+    description="Get detailed disk space information including size, mount points, and utilization..",
     annotations=ToolAnnotations(readOnlyHint=True),
 )
 @log_tool_call
@@ -436,7 +436,7 @@ async def get_disk_usage(
 
 @mcp.tool(
     title="Get hardware information",
-    description="Get hardware information.",
+    description="Get hardware information such as CPU details, PCI devices, USB devices, and hardware information from DMI.",
     annotations=ToolAnnotations(readOnlyHint=True),
 )
 @log_tool_call

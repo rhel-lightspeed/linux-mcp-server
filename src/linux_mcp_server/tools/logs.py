@@ -16,7 +16,7 @@ from linux_mcp_server.utils.validation import validate_line_count
 
 
 @mcp.tool(
-    title="Get process logs",
+    title="Get journal logs",
     description="Get systemd journal logs.",
     annotations=ToolAnnotations(readOnlyHint=True),
 )
@@ -77,7 +77,7 @@ async def get_journal_logs(
 
 
 @mcp.tool(
-    title="Read audit logs",
+    title="Get audit logs",
     description="Read the system audit logs. This requires root privileges.",
     annotations=ToolAnnotations(readOnlyHint=True),
 )
