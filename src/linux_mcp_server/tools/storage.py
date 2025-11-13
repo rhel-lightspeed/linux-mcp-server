@@ -12,6 +12,7 @@ import psutil
 from mcp.server.fastmcp.exceptions import ToolError
 from mcp.types import ToolAnnotations
 from pydantic import Field
+from pydantic import BaseModel
 
 from linux_mcp_server.audit import log_tool_call
 from linux_mcp_server.server import mcp
@@ -20,8 +21,7 @@ from linux_mcp_server.utils import format_bytes
 from linux_mcp_server.utils import StrEnum
 
 
-@dataclass
-class DirectoryEntry:
+class DirectoryEntry(BaseModel):
     size: int = 0
     modified: float = 0.0
     name: str = ""
