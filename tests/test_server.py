@@ -30,7 +30,7 @@ class TestLinuxMCPServer:
         tool_names = [tool.name for tool in tools]
 
         # Should have at least the basic tools
-        assert "get_system_info" in tool_names
+        assert "get_system_information" in tool_names
         assert "list_services" in tool_names
         assert "list_processes" in tool_names
         assert "get_network_interfaces" in tool_names

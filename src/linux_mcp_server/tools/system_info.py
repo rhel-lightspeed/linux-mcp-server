@@ -7,27 +7,28 @@ from datetime import datetime
 
 import psutil
 
+from mcp.types import ToolAnnotations
+
 from linux_mcp_server.audit import log_tool_call
 from linux_mcp_server.connection.ssh import execute_command
 from linux_mcp_server.server import mcp
 from linux_mcp_server.utils import format_bytes
+from linux_mcp_server.utils.types import Host
+from linux_mcp_server.utils.types import Username
 
 
-@mcp.tool()
+@mcp.tool(
+    title="Get system information",
+    description="Get basic system information such as operating system, distribution, kernel version, uptime, and last boot time.",
+    annotations=ToolAnnotations(readOnlyHint=True),
+)
 @log_tool_call
-async def get_system_info(  # noqa: C901
-    host: str | None = None,
-    username: str | None = None,
+async def get_system_information(  # noqa: C901
+    host: Host | None = None,
+    username: Username | None = None,
 ) -> str:
     """
     Get basic system information.
-
-    Args:
-        host: Optional remote host to connect to
-        username: Optional SSH username (required if host is provided)
-
-    Returns:
-        Formatted string with basic system information
     """
     info = []
 
@@ -140,21 +141,18 @@ async def get_system_info(  # noqa: C901
         return f"Error gathering system information: {str(e)}"
 
 
-@mcp.tool()
+@mcp.tool(
+    title="Get CPU information",
+    description="Get CPU information.",
+    annotations=ToolAnnotations(readOnlyHint=True),
+)
 @log_tool_call
-async def get_cpu_info(  # noqa: C901
-    host: str | None = None,
-    username: str | None = None,
+async def get_cpu_information(  # noqa: C901
+    host: Host | None = None,
+    username: Username | None = None,
 ) -> str:
     """
     Get CPU information.
-
-    Args:
-        host: Optional remote host to connect to
-        username: Optional SSH username (required if host is provided)
-
-    Returns:
-        Formatted string with CPU information
     """
     info = []
 
@@ -272,21 +270,18 @@ async def get_cpu_info(  # noqa: C901
         return f"Error gathering CPU information: {str(e)}"
 
 
-@mcp.tool()
+@mcp.tool(
+    title="Get memory information",
+    description="Get detailed memory including physical and swap.",
+    annotations=ToolAnnotations(readOnlyHint=True),
+)
 @log_tool_call
-async def get_memory_info(
-    host: str | None = None,
-    username: str | None = None,
+async def get_memory_information(
+    host: Host | None = None,
+    username: Username | None = None,
 ) -> str:
     """
     Get memory information.
-
-    Args:
-        host: Optional remote host to connect to
-        username: Optional SSH username (required if host is provided)
-
-    Returns:
-        Formatted string with memory information
     """
     info = []
 
@@ -359,21 +354,18 @@ async def get_memory_info(
         return f"Error gathering memory information: {str(e)}"
 
 
-@mcp.tool()
+@mcp.tool(
+    title="Get disk usage",
+    description="Get detailed disk space information including size, mount points, and utilization..",
+    annotations=ToolAnnotations(readOnlyHint=True),
+)
 @log_tool_call
 async def get_disk_usage(
-    host: str | None = None,
-    username: str | None = None,
+    host: Host | None = None,
+    username: Username | None = None,
 ) -> str:
     """
     Get disk usage information.
-
-    Args:
-        host: Optional remote host to connect to
-        username: Optional SSH username (required if host is provided)
-
-    Returns:
-        Formatted string with disk usage information
     """
     info = []
 
@@ -442,18 +434,18 @@ async def get_disk_usage(
         return f"Error gathering disk usage information: {str(e)}"
 
 
-@mcp.tool()
+@mcp.tool(
+    title="Get hardware information",
+    description="Get hardware information such as CPU details, PCI devices, USB devices, and hardware information from DMI.",
+    annotations=ToolAnnotations(readOnlyHint=True),
+)
 @log_tool_call
-async def get_hardware_info(host: str | None = None, username: str | None = None) -> str:  # noqa: C901
+async def get_hardware_information(  # noqa: C901
+    host: Host | None = None,
+    username: Username | None = None,
+) -> str:
     """
     Get hardware information.
-
-    Args:
-        host: Optional remote host to connect to
-        username: Optional SSH username (required if host is provided)
-
-    Returns:
-        Formatted string with hardware information
     """
     try:
         info = []

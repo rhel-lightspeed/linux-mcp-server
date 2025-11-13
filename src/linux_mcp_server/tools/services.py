@@ -1,26 +1,29 @@
 """Service management tools."""
 
+import typing as t
+
+from mcp.types import ToolAnnotations
+
 from linux_mcp_server.audit import log_tool_call
 from linux_mcp_server.connection.ssh import execute_command
 from linux_mcp_server.server import mcp
+from linux_mcp_server.utils.types import Host
+from linux_mcp_server.utils.types import Username
 from linux_mcp_server.utils.validation import validate_line_count
 
 
-@mcp.tool()
+@mcp.tool(
+    title="List services",
+    description="List all systemd services.",
+    annotations=ToolAnnotations(readOnlyHint=True),
+)
 @log_tool_call
 async def list_services(
-    host: str | None = None,
-    username: str | None = None,
+    host: Host | None = None,
+    username: Username | None = None,
 ) -> str:
     """
     List all systemd services.
-
-    Args:
-        host: Optional remote host to connect to
-        username: Optional SSH username (required if host is provided)
-
-    Returns:
-        Formatted string with service list
     """
     try:
         # Run systemctl to list all services
@@ -55,23 +58,19 @@ async def list_services(
         return f"Error listing services: {str(e)}"
 
 
-@mcp.tool()
+@mcp.tool(
+    title="Get service status",
+    description="Get detailed status of a specific systemd service.",
+    annotations=ToolAnnotations(readOnlyHint=True),
+)
 @log_tool_call
 async def get_service_status(
-    service_name: str,
-    host: str | None = None,
-    username: str | None = None,
+    service_name: t.Annotated[str, "Name of the service"],
+    host: Host | None = None,
+    username: Username | None = None,
 ) -> str:
     """
     Get status of a specific service.
-
-    Args:
-        service_name: Name of the service
-        host: Optional remote host to connect to
-        username: Optional SSH username (required if host is provided)
-
-    Returns:
-        Formatted string with service status
     """
     try:
         # Ensure service name has .service suffix if not present
@@ -102,25 +101,20 @@ async def get_service_status(
         return f"Error getting service status: {str(e)}"
 
 
-@mcp.tool()
+@mcp.tool(
+    title="Get service logs",
+    description="Get recent logs for a specific systemd service.",
+    annotations=ToolAnnotations(readOnlyHint=True),
+)
 @log_tool_call
 async def get_service_logs(
-    service_name: str,
-    lines: int = 50,
-    host: str | None = None,
-    username: str | None = None,
+    service_name: t.Annotated[str, "Name of the service"],
+    lines: t.Annotated[int, "Number of log lines to retrieve."] = 50,
+    host: Host | None = None,
+    username: Username | None = None,
 ) -> str:
     """
     Get logs for a specific service.
-
-    Args:
-        service_name: Name of the service
-        lines: Number of log lines to retrieve (default: 50)
-        host: Optional remote host to connect to
-        username: Optional SSH username (required if host is provided)
-
-    Returns:
-        Formatted string with service logs
     """
     try:
         # Validate lines parameter (accepts floats from LLMs)

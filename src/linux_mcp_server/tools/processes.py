@@ -7,12 +7,13 @@ from datetime import datetime
 import psutil
 
 from mcp.types import ToolAnnotations
-from pydantic import Field
 
 from linux_mcp_server.audit import log_tool_call
 from linux_mcp_server.connection.ssh import execute_command
 from linux_mcp_server.server import mcp
 from linux_mcp_server.utils import format_bytes
+from linux_mcp_server.utils.types import Host
+from linux_mcp_server.utils.types import Username
 from linux_mcp_server.utils.validation import validate_pid
 
 
@@ -23,10 +24,8 @@ from linux_mcp_server.utils.validation import validate_pid
 )
 @log_tool_call
 async def list_processes(
-    host: t.Annotated[str | None, Field(description="Optional remote host to connect to")] = None,
-    username: t.Annotated[
-        str | None, Field(description="Optional SSH username (if not provided, the current user account is used)")
-    ] = None,
+    host: Host | None = None,
+    username: Username | None = None,
 ) -> str:
     try:
         if host:
@@ -111,11 +110,9 @@ async def list_processes(
 )
 @log_tool_call
 async def get_process_info(  # noqa: C901
-    pid: t.Annotated[int, Field(description="Process ID")],
-    host: t.Annotated[str | None, Field(description="Optional remote host to connect to")] = None,
-    username: t.Annotated[
-        str | None, Field(description="Optional SSH username (if not provided, the current user account is used)")
-    ] = None,
+    pid: t.Annotated[int, "Process ID"],
+    host: Host | None = None,
+    username: Username | None = None,
 ) -> str:
     # Validate PID (accepts floats from LLMs)
     validated_pid, error = validate_pid(pid)

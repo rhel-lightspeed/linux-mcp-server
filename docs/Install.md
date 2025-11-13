@@ -233,7 +233,7 @@ python
 # Import and test tools
 >>> from linux_mcp_server.tools import system_info
 >>> import asyncio
->>> result = asyncio.run(system_info.get_system_info())
+>>> result = asyncio.run(system_info.get_system_information())
 >>> print(result)
 ```
 
@@ -248,7 +248,7 @@ from linux_mcp_server.tools import system_info, services
 async def main():
     # Test system info tool
     print("=== System Info ===")
-    result = await system_info.get_system_info()
+    result = await system_info.get_system_information()
     print(result)
 
     # Test service listing

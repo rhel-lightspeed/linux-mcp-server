@@ -4,27 +4,28 @@ import socket
 
 import psutil
 
+from mcp.types import ToolAnnotations
+
 from linux_mcp_server.audit import log_tool_call
 from linux_mcp_server.connection.ssh import execute_command
 from linux_mcp_server.server import mcp
 from linux_mcp_server.utils import format_bytes
+from linux_mcp_server.utils.types import Host
+from linux_mcp_server.utils.types import Username
 
 
-@mcp.tool()
+@mcp.tool(
+    title="Get network interfaces",
+    description="Get detailed information about network interfaces including address and traffic statistics.",
+    annotations=ToolAnnotations(readOnlyHint=True),
+)
 @log_tool_call
 async def get_network_interfaces(  # noqa: C901
-    host: str | None = None,
-    username: str | None = None,
+    host: Host | None = None,
+    username: Username | None = None,
 ) -> str:
     """
     Get network interface information.
-
-    Args:
-        host: Optional remote host to connect to
-        username: Optional SSH username (required if host is provided)
-
-    Returns:
-        Formatted string with network interface information
     """
     try:
         if host:
@@ -117,18 +118,18 @@ async def get_network_interfaces(  # noqa: C901
         return f"Error getting network interface information: {str(e)}"
 
 
-@mcp.tool()
+@mcp.tool(
+    title="Get network connections",
+    description="Get detailed information about active network connections.",
+    annotations=ToolAnnotations(readOnlyHint=True),
+)
 @log_tool_call
-async def get_network_connections(host: str | None = None, username: str | None = None) -> str:
+async def get_network_connections(
+    host: Host | None = None,
+    username: Username | None = None,
+) -> str:
     """
     Get active network connections.
-
-    Args:
-        host: Optional remote host to connect to
-        username: Optional SSH username (required if host is provided)
-
-    Returns:
-        Formatted string with active network connections
     """
     try:
         if host:
@@ -202,18 +203,18 @@ async def get_network_connections(host: str | None = None, username: str | None 
         return f"Error getting network connections: {str(e)}"
 
 
-@mcp.tool()
+@mcp.tool(
+    title="Get listening ports",
+    description="Get details on listening port, protocols, and services.",
+    annotations=ToolAnnotations(readOnlyHint=True),
+)
 @log_tool_call
-async def get_listening_ports(host: str | None = None, username: str | None = None) -> str:
+async def get_listening_ports(
+    host: Host | None = None,
+    username: Username | None = None,
+) -> str:
     """
     Get listening ports.
-
-    Args:
-        host: Optional remote host to connect to
-        username: Optional SSH username (required if host is provided)
-
-    Returns:
-        Formatted string with listening ports
     """
     try:
         if host:
