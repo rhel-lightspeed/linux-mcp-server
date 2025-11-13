@@ -7,7 +7,7 @@ import pytest
 
 from mcp.server.fastmcp.exceptions import ToolError
 
-from linux_mcp_server.tools import storage
+from linux_mcp_server.server import mcp
 
 
 @pytest.fixture
@@ -26,9 +26,12 @@ class TestStorageTools:
 
     async def test_list_block_devices_returns_string(self):
         """Test that list_block_devices returns a string."""
-        result = await storage.list_block_devices()
-        assert isinstance(result, str)
-        assert len(result) > 0
+        result = await mcp.call_tool("list_block_devices", {})
+        assert isinstance(result, tuple)
+        assert len(result) == 2
+        # result[0] is the content list, result[1] is the metadata dict
+        assert isinstance(result[0], list)
+        assert len(result[0]) > 0
 
 
 class TestListDirectories:
@@ -37,29 +40,35 @@ class TestListDirectories:
     async def test_list_directories_returns_structured_output(self):
         """Test that list_directories returns structured output."""
         # Use /tmp which should exist on all Linux systems and have subdirectories
-        result = await storage.list_directories("/tmp", order_by="name")
-        assert isinstance(result, t.Sequence)
-        # Result should be tuples of (None, dir_name) for name ordering
-        for item in result:
-            assert isinstance(item, tuple)
-            assert len(item) == 2
-            assert item[0] is None  # No metadata for name ordering
-            assert isinstance(item[1], str)  # Directory name
+        result = await mcp.call_tool("list_directories", {"path": "/tmp", "order_by": "name"})
+        assert isinstance(result, tuple)
+        assert len(result) == 2
+        # result[0] is the content list, result[1] is the metadata dict
+        assert isinstance(result[1], dict)
+        assert "result" in result[1]
+        actual_result = result[1]["result"]
+        assert isinstance(actual_result, list)
+        # Result should be dictionaries (serialized DirectoryEntry objects)
+        for item in actual_result:
+            assert isinstance(item, dict)
+            assert isinstance(item["name"], str)  # Directory name
+            assert isinstance(item["size"], int)
+            assert isinstance(item["modified"], float)
 
     async def test_list_directories_invalid_order_by(self, tmp_path):
         """Test that invalid order_by parameter raises ValueError."""
-        with pytest.raises(ValueError, match="Invalid order_by value"):
-            await storage.list_directories(str(tmp_path), order_by="invalid")
+        with pytest.raises(ToolError, match="1 validation error"):
+            await mcp.call_tool("list_directories", {"path": str(tmp_path), "order_by": "invalid"})
 
     async def test_list_directories_invalid_sort(self, tmp_path):
         """Test that invalid sort parameter raises ValueError."""
-        with pytest.raises(ValueError, match="Invalid sort value"):
-            await storage.list_directories(str(tmp_path), sort="invalid")
+        with pytest.raises(ToolError, match="1 validation error"):
+            await mcp.call_tool("list_directories", {"path": str(tmp_path), "sort": "invalid"})
 
     async def test_list_directories_invalid_path(self):
         """Test with non-existent path raises ToolError."""
         with pytest.raises(ToolError, match="Path does not exist"):
-            await storage.list_directories("/this/path/absolutely/does/not/exist/anywhere")
+            await mcp.call_tool("list_directories", {"path": "/this/path/absolutely/does/not/exist/anywhere"})
 
     async def test_list_directories_path_is_file_not_directory(self, tmp_path):
         """Test with a file path instead of directory raises ToolError."""
@@ -67,12 +76,12 @@ class TestListDirectories:
         tmp_file.write_bytes(b"test content")
 
         with pytest.raises(ToolError, match="Path is not a directory"):
-            await storage.list_directories(str(tmp_file))
+            await mcp.call_tool("list_directories", {"path": str(tmp_file)})
 
     async def test_list_directories_handles_permission_denied(self, restricted_path):
         """Test handling of permission denied errors gracefully."""
         with pytest.raises(ToolError, match="Permission denied"):
-            await storage.list_directories(str(restricted_path))
+            await mcp.call_tool("list_directories", {"path": str(restricted_path)})
 
     async def test_list_directories_sanitizes_path_input(self):
         """Test that path injection attempts are handled safely."""
@@ -89,9 +98,10 @@ class TestListDirectories:
         for path in malicious_paths:
             # Should either raise ToolError or return safe structured output
             try:
-                result = await storage.list_directories(path)
-                # If it succeeds, should return structured output
-                assert isinstance(result, t.Sequence)
+                result = await mcp.call_tool("list_directories", {"path": path})
+                # If it succeeds, should return tuple with structured output
+                assert isinstance(result, tuple)
+                assert len(result) == 2
             except ToolError:
                 # Or it should fail safely with ToolError
                 pass
@@ -117,21 +127,25 @@ class TestListDirectoriesBySize:
         (dir2 / "file2.txt").write_text("x" * 5000)  # 5KB (largest)
         (dir3 / "file3.txt").write_text("x" * 500)  # 0.5KB
 
-        result = await storage.list_directories(str(tmp_path), order_by="size", sort="descending")
+        result = await mcp.call_tool(
+            "list_directories", {"path": str(tmp_path), "order_by": "size", "sort": "descending"}
+        )
 
-        assert isinstance(result, t.Sequence)
-        assert len(result) == 3
+        assert isinstance(result, tuple)
+        assert len(result) == 2
+        actual_result = result[1]["result"]
+        assert isinstance(actual_result, list)
+        assert len(actual_result) == 3
 
-        # Each result should be a tuple of (size, dir_name)
-        for item in result:
-            assert isinstance(item, tuple)
-            assert len(item) == 2
-            assert isinstance(item[0], int)  # Size in bytes
-            assert isinstance(item[1], str)  # Directory name
+        # Each result should be a dictionary (serialized DirectoryEntry)
+        for item in actual_result:
+            assert isinstance(item, dict)
+            assert isinstance(item["size"], int)  # Size in bytes
+            assert isinstance(item["name"], str)  # Directory name
 
         # dir2 should be first (largest)
-        assert result[0][1] == "dir2"
-        assert result[0][0] > result[1][0]  # First should be larger than second
+        assert actual_result[0]["name"] == "dir2"
+        assert actual_result[0]["size"] > actual_result[1]["size"]  # First should be larger than second
 
     @pytest.mark.skipif(sys.platform != "linux", reason="requires GNU version of du")
     async def test_list_directories_by_size_ascending(self, tmp_path):
@@ -146,15 +160,20 @@ class TestListDirectoriesBySize:
         (dir1 / "file.txt").write_text("x" * 100)
         (dir2 / "file.txt").write_text("x" * 10000)
 
-        result = await storage.list_directories(str(tmp_path), order_by="size", sort="ascending")
+        result = await mcp.call_tool(
+            "list_directories", {"path": str(tmp_path), "order_by": "size", "sort": "ascending"}
+        )
 
-        assert isinstance(result, t.Sequence)
+        assert isinstance(result, tuple)
         assert len(result) == 2
+        actual_result = result[1]["result"]
+        assert isinstance(actual_result, list)
+        assert len(actual_result) == 2
 
         # small should be first (smallest)
-        assert result[0][1] == "small"
-        assert result[1][1] == "large"
-        assert result[0][0] < result[1][0]  # First should be smaller than second
+        assert actual_result[0]["name"] == "small"
+        assert actual_result[1]["name"] == "large"
+        assert actual_result[0]["size"] < actual_result[1]["size"]  # First should be smaller than second
 
     @pytest.mark.skipif(sys.platform != "linux", reason="requires GNU version of du")
     async def test_list_directories_by_size_with_top_n(self, tmp_path):
@@ -165,12 +184,16 @@ class TestListDirectoriesBySize:
             dir_path.mkdir()
             (dir_path / f"file{i}.txt").write_text("x" * (i * 100))
 
-        result = await storage.list_directories(str(tmp_path), order_by="size", sort="descending", top_n=3)
+        result = await mcp.call_tool(
+            "list_directories", {"path": str(tmp_path), "order_by": "size", "sort": "descending", "top_n": 3}
+        )
 
-        assert isinstance(result, t.Sequence)
-        # Note: top_n doesn't actually limit the results in the current implementation
-        # It only affects the formatted output header, so all 10 directories are returned
-        assert len(result) == 10
+        assert isinstance(result, tuple)
+        assert len(result) == 2
+        actual_result = result[1]["result"]
+        assert isinstance(actual_result, list)
+        # top_n now properly limits the results
+        assert len(actual_result) == 3
 
     @pytest.mark.skipif(sys.platform != "linux", reason="requires GNU version of du")
     async def test_list_directories_by_size_respects_nested_content(self, tmp_path):
@@ -183,45 +206,45 @@ class TestListDirectoriesBySize:
         (tmp_path / "parent" / "file.txt").write_text("x" * 2000)
         (nested / "nested_file.txt").write_text("x" * 1000)
 
-        result = await storage.list_directories(str(tmp_path), order_by="size")
+        result = await mcp.call_tool("list_directories", {"path": str(tmp_path), "order_by": "size"})
 
-        assert isinstance(result, t.Sequence)
-        assert len(result) == 1
-        assert result[0][1] == "parent"
+        assert isinstance(result, tuple)
+        assert len(result) == 2
+        actual_result = result[1]["result"]
+        assert isinstance(actual_result, list)
+        assert len(actual_result) == 1
+        assert actual_result[0]["name"] == "parent"
         # Size should include nested content (at least 3000 bytes)
-        assert result[0][0] >= 3000
+        assert actual_result[0]["size"] >= 3000
 
     async def test_list_directories_by_size_validates_top_n(self, tmp_path):
         """Test that top_n parameter is validated."""
         # Test with negative number
-        with pytest.raises(ValueError, match="Invalid top_n value"):
-            await storage.list_directories(str(tmp_path), order_by="size", top_n=-5)
+        with pytest.raises(ToolError, match="1 validation error"):
+            await mcp.call_tool("list_directories", {"path": str(tmp_path), "order_by": "size", "top_n": -5})
 
         # Test with zero
-        with pytest.raises(ValueError, match="Invalid top_n value"):
-            await storage.list_directories(str(tmp_path), order_by="size", top_n=0)
+        with pytest.raises(ToolError, match="1 validation error"):
+            await mcp.call_tool("list_directories", {"path": str(tmp_path), "order_by": "size", "top_n": 0})
 
     @pytest.mark.skipif(sys.platform != "linux", reason="requires GNU version of du")
-    async def test_list_directories_by_size_accepts_float_and_truncates(self, tmp_path):
-        """Test that top_n accepts floats and truncates them to integers."""
+    async def test_list_directories_by_size_rejects_float_with_fractional_part(self, tmp_path):
+        """Test that top_n rejects floats with fractional parts."""
         # Create 5 directories
         for i in range(5):
             dir_path = tmp_path / f"dir{i}"
             dir_path.mkdir()
             (dir_path / f"file{i}.txt").write_text("x" * (i * 100))
 
-        # Test with float that should be truncated to 3
-        result = await storage.list_directories(str(tmp_path), order_by="size", top_n=3.9)
-
-        assert isinstance(result, t.Sequence)
-        # top_n is validated but doesn't limit results
-        assert len(result) == 5
+        # Test with float - should reject
+        with pytest.raises(ToolError, match="1 validation error"):
+            await mcp.call_tool("list_directories", {"path": str(tmp_path), "order_by": "size", "top_n": 3.9})
 
     @pytest.mark.skipif(sys.platform != "linux", reason="requires GNU version of du")
     async def test_list_directories_by_size_handles_empty_directory(self, tmp_path):
         """Test with empty directory."""
         with pytest.raises(ToolError, match="No subdirectories found"):
-            await storage.list_directories(str(tmp_path), order_by="size")
+            await mcp.call_tool("list_directories", {"path": str(tmp_path), "order_by": "size"})
 
     @pytest.mark.skipif(sys.platform != "linux", reason="requires GNU version of du")
     async def test_list_directories_by_size_returns_bytes(self, tmp_path):
@@ -232,12 +255,15 @@ class TestListDirectoriesBySize:
         # Create a file > 1MB
         (dir1 / "largefile.bin").write_bytes(b"x" * (2 * 1024 * 1024))  # 2MB
 
-        result = await storage.list_directories(str(tmp_path), order_by="size")
+        result = await mcp.call_tool("list_directories", {"path": str(tmp_path), "order_by": "size"})
 
-        assert isinstance(result, t.Sequence)
-        assert len(result) == 1
+        assert isinstance(result, tuple)
+        assert len(result) == 2
+        actual_result = result[1]["result"]
+        assert isinstance(actual_result, list)
+        assert len(actual_result) == 1
         # Size should be in bytes (at least 2MB)
-        assert result[0][0] >= 2 * 1024 * 1024
+        assert actual_result[0]["size"] >= 2 * 1024 * 1024
 
     async def test_list_directories_by_size_maximum_top_n_limit(self, tmp_path):
         """Test that there's a reasonable upper limit on top_n."""
@@ -246,8 +272,8 @@ class TestListDirectoriesBySize:
             (tmp_path / f"dir{i}").mkdir()
 
         # Request an unreasonably large number
-        with pytest.raises(ValueError, match="Invalid top_n value"):
-            await storage.list_directories(str(tmp_path), order_by="size", top_n=10000)
+        with pytest.raises(ToolError, match="1 validation error"):
+            await mcp.call_tool("list_directories", {"path": str(tmp_path), "order_by": "size", "top_n": 10000})
 
 
 class TestListDirectoriesByName:
@@ -260,20 +286,23 @@ class TestListDirectoriesByName:
         for name in ["zebra", "alpha", "mike"]:
             (tmp_path / name).mkdir()
 
-        result = await storage.list_directories(str(tmp_path), order_by="name", sort="ascending")
+        result = await mcp.call_tool(
+            "list_directories", {"path": str(tmp_path), "order_by": "name", "sort": "ascending"}
+        )
 
-        assert isinstance(result, t.Sequence)
-        assert len(result) == 3
+        assert isinstance(result, tuple)
+        assert len(result) == 2
+        actual_result = result[1]["result"]
+        assert isinstance(actual_result, list)
+        assert len(actual_result) == 3
 
-        # Each result should be a tuple of (None, dir_name)
-        for item in result:
-            assert isinstance(item, tuple)
-            assert len(item) == 2
-            assert item[0] is None  # No metadata for name ordering
-            assert isinstance(item[1], str)
+        # Each result should be a dictionary (serialized DirectoryEntry)
+        for item in actual_result:
+            assert isinstance(item, dict)
+            assert isinstance(item["name"], str)
 
         # alpha should be first, zebra last in alphabetical order
-        dir_names = [item[1] for item in result]
+        dir_names = [item["name"] for item in actual_result]
         assert dir_names == ["alpha", "mike", "zebra"]
 
     @pytest.mark.skipif(sys.platform != "linux", reason="requires GNU version of find")
@@ -282,13 +311,18 @@ class TestListDirectoriesByName:
         for name in ["alpha", "beta", "gamma"]:
             (tmp_path / name).mkdir()
 
-        result = await storage.list_directories(str(tmp_path), order_by="name", sort="descending")
+        result = await mcp.call_tool(
+            "list_directories", {"path": str(tmp_path), "order_by": "name", "sort": "descending"}
+        )
 
-        assert isinstance(result, t.Sequence)
-        assert len(result) == 3
+        assert isinstance(result, tuple)
+        assert len(result) == 2
+        actual_result = result[1]["result"]
+        assert isinstance(actual_result, list)
+        assert len(actual_result) == 3
 
         # gamma should be first, alpha last in reverse order
-        dir_names = [item[1] for item in result]
+        dir_names = [item["name"] for item in actual_result]
         assert dir_names == ["gamma", "beta", "alpha"]
 
     @pytest.mark.skipif(sys.platform != "linux", reason="requires GNU version of find")
@@ -297,11 +331,14 @@ class TestListDirectoriesByName:
         for name in ["zebra", "alpha"]:
             (tmp_path / name).mkdir()
 
-        result = await storage.list_directories(str(tmp_path), order_by="name")
+        result = await mcp.call_tool("list_directories", {"path": str(tmp_path), "order_by": "name"})
 
-        assert isinstance(result, t.Sequence)
+        assert isinstance(result, tuple)
+        assert len(result) == 2
+        actual_result = result[1]["result"]
+        assert isinstance(actual_result, list)
         # Should default to A-Z (ascending)
-        dir_names = [item[1] for item in result]
+        dir_names = [item["name"] for item in actual_result]
         assert dir_names == ["alpha", "zebra"]
 
     @pytest.mark.skipif(sys.platform != "linux", reason="requires GNU version of find")
@@ -310,9 +347,12 @@ class TestListDirectoriesByName:
         for i in range(10):
             (tmp_path / f"dir{i:02d}").mkdir()
 
-        result = await storage.list_directories(str(tmp_path), order_by="name")
-        assert isinstance(result, t.Sequence)
-        assert len(result) == 10
+        result = await mcp.call_tool("list_directories", {"path": str(tmp_path), "order_by": "name"})
+        assert isinstance(result, tuple)
+        assert len(result) == 2
+        actual_result = result[1]["result"]
+        assert isinstance(actual_result, list)
+        assert len(actual_result) == 10
 
 
 class TestListDirectoriesByModifiedDate:
@@ -331,22 +371,26 @@ class TestListDirectoriesByModifiedDate:
         dir2 = tmp_path / "new_dir"
         dir2.mkdir()
 
-        result = await storage.list_directories(str(tmp_path), order_by="modified", sort="descending")
+        result = await mcp.call_tool(
+            "list_directories", {"path": str(tmp_path), "order_by": "modified", "sort": "descending"}
+        )
 
-        assert isinstance(result, t.Sequence)
+        assert isinstance(result, tuple)
         assert len(result) == 2
+        actual_result = result[1]["result"]
+        assert isinstance(actual_result, list)
+        assert len(actual_result) == 2
 
-        # Each result should be a tuple of (timestamp, dir_name)
-        for item in result:
-            assert isinstance(item, tuple)
-            assert len(item) == 2
-            assert isinstance(item[0], float)  # Timestamp
-            assert isinstance(item[1], str)  # Directory name
+        # Each result should be a dictionary (serialized DirectoryEntry)
+        for item in actual_result:
+            assert isinstance(item, dict)
+            assert isinstance(item["modified"], float)  # Timestamp
+            assert isinstance(item["name"], str)  # Directory name
 
         # new_dir should be first (newest)
-        assert result[0][1] == "new_dir"
-        assert result[1][1] == "old_dir"
-        assert result[0][0] > result[1][0]  # Newer timestamp is larger
+        assert actual_result[0]["name"] == "new_dir"
+        assert actual_result[1]["name"] == "old_dir"
+        assert actual_result[0]["modified"] > actual_result[1]["modified"]  # Newer timestamp is larger
 
     @pytest.mark.skipif(sys.platform != "linux", reason="requires GNU version of find")
     async def test_list_directories_by_modified_ascending(self, tmp_path):
@@ -361,28 +405,36 @@ class TestListDirectoriesByModifiedDate:
         dir2 = tmp_path / "new_dir"
         dir2.mkdir()
 
-        result = await storage.list_directories(str(tmp_path), order_by="modified", sort="ascending")
+        result = await mcp.call_tool(
+            "list_directories", {"path": str(tmp_path), "order_by": "modified", "sort": "ascending"}
+        )
 
-        assert isinstance(result, t.Sequence)
+        assert isinstance(result, tuple)
         assert len(result) == 2
+        actual_result = result[1]["result"]
+        assert isinstance(actual_result, list)
+        assert len(actual_result) == 2
 
         # old_dir should be first (oldest)
-        assert result[0][1] == "old_dir"
-        assert result[1][1] == "new_dir"
-        assert result[0][0] < result[1][0]  # Older timestamp is smaller
+        assert actual_result[0]["name"] == "old_dir"
+        assert actual_result[1]["name"] == "new_dir"
+        assert actual_result[0]["modified"] < actual_result[1]["modified"]  # Older timestamp is smaller
 
     @pytest.mark.skipif(sys.platform != "linux", reason="requires GNU version of find")
     async def test_list_directories_by_modified_includes_timestamps(self, tmp_path):
         """Test that output includes modification timestamps."""
         (tmp_path / "dir1").mkdir()
 
-        result = await storage.list_directories(str(tmp_path), order_by="modified")
+        result = await mcp.call_tool("list_directories", {"path": str(tmp_path), "order_by": "modified"})
 
-        assert isinstance(result, t.Sequence)
-        assert len(result) == 1
+        assert isinstance(result, tuple)
+        assert len(result) == 2
+        actual_result = result[1]["result"]
+        assert isinstance(actual_result, list)
+        assert len(actual_result) == 1
         # Timestamp should be a float (Unix timestamp)
-        assert isinstance(result[0][0], float)
-        assert result[0][0] > 0  # Should be a valid timestamp
+        assert isinstance(actual_result[0]["modified"], float)
+        assert actual_result[0]["modified"] > 0  # Should be a valid timestamp
 
     @pytest.mark.skipif(sys.platform != "linux", reason="requires GNU version of find")
     async def test_list_directories_by_modified_lists_all(self, tmp_path):
@@ -390,9 +442,12 @@ class TestListDirectoriesByModifiedDate:
         for i in range(10):
             (tmp_path / f"dir{i}").mkdir()
 
-        result = await storage.list_directories(str(tmp_path), order_by="modified")
-        assert isinstance(result, t.Sequence)
-        assert len(result) == 10
+        result = await mcp.call_tool("list_directories", {"path": str(tmp_path), "order_by": "modified"})
+        assert isinstance(result, tuple)
+        assert len(result) == 2
+        actual_result = result[1]["result"]
+        assert isinstance(actual_result, list)
+        assert len(actual_result) == 10
 
 
 class TestListDirectoriesDefaults:
@@ -404,12 +459,15 @@ class TestListDirectoriesDefaults:
         for name in ["zebra", "alpha", "beta"]:
             (tmp_path / name).mkdir()
 
-        result = await storage.list_directories(str(tmp_path))
+        result = await mcp.call_tool("list_directories", {"path": str(tmp_path)})
 
-        assert isinstance(result, t.Sequence)
-        assert len(result) == 3
+        assert isinstance(result, tuple)
+        assert len(result) == 2
+        actual_result = result[1]["result"]
+        assert isinstance(actual_result, list)
+        assert len(actual_result) == 3
         # Should be sorted by name, A-Z
-        dir_names = [item[1] for item in result]
+        dir_names = [item["name"] for item in actual_result]
         assert dir_names == ["alpha", "beta", "zebra"]
 
 
@@ -456,8 +514,11 @@ class TestListDirectoriesIntegration:
         actual_result = result[1]["result"]
         assert isinstance(actual_result, list)
         assert len(actual_result) > 0
-        assert isinstance(actual_result[0], list)  # Each item is a list [metadata, dir_name]
-        assert len(actual_result[0]) == 2
+        # Each item is a dictionary (serialized DirectoryEntry)
+        assert isinstance(actual_result[0], dict)
+        assert "name" in actual_result[0]
+        assert "size" in actual_result[0]
+        assert "modified" in actual_result[0]
 
     async def test_server_can_call_with_all_parameters(self, tmp_path):
         """Test calling with all parameters."""
@@ -485,10 +546,11 @@ class TestListDirectoriesIntegration:
         assert "result" in result[1]
         actual_result = result[1]["result"]
         assert isinstance(actual_result, list)
-        assert len(actual_result) == 5  # All 5 directories
-        # Result should be lists of [size, dir_name] for size ordering
-        assert isinstance(actual_result[0], list)
-        assert len(actual_result[0]) == 2
+        assert len(actual_result) == 3  # top_n=3 limits to 3 directories
+        # Result should be dictionaries (serialized DirectoryEntry) for size ordering
+        assert isinstance(actual_result[0], dict)
+        assert "size" in actual_result[0]
+        assert "name" in actual_result[0]
 
     async def test_server_tool_has_proper_schema(self):
         """Test that the tool has proper input schema defined."""
