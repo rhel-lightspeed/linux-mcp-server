@@ -107,11 +107,11 @@ async def list_block_devices(
 async def list_directories(  # noqa: C901
     path: t.Annotated[str, Field(description="The directory path to analyze")],
     order_by: t.Annotated[
-        str, Field(description="Sort order - 'size', 'name', or 'modified' (default: 'name')")
-    ] = "name",
+        OrderBy, Field(description="Sort order - 'size', 'name', or 'modified' (default: 'name')")
+    ] = OrderBy.NAME,
     sort: t.Annotated[
-        str, Field(description="Sort direction - 'ascending' or 'descending' (default: 'ascending')")
-    ] = "ascending",
+        SortBy, Field(description="Sort direction - 'ascending' or 'descending' (default: 'ascending')")
+    ] = SortBy.ASCENDING,
     top_n: t.Annotated[
         int | None,
         Field(
