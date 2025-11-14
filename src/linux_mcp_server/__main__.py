@@ -10,7 +10,6 @@ from linux_mcp_server.server import main
 
 def cli():
     """Console script entry point for the Linux MCP Server."""
-    # Initialize logging first, before any other operations
     setup_logging()
 
     logger = logging.getLogger("linux-mcp-server")
