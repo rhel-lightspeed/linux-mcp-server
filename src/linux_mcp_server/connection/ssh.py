@@ -133,6 +133,7 @@ class SSHConnectionManager:
                 "host": host,
                 "username": username,
                 "known_hosts": None,  # Don't verify host keys for now
+                "passphrase": os.getenv("LINUX_MCP_KEY_PASSPHRASE"),
             }
 
             if self._ssh_key:
