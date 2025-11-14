@@ -14,6 +14,7 @@ dependencies = [
     "mcp>=0.9.0",
     "psutil>=5.9.0",
     "asyncssh>=2.14.0",
+    "bcrypt",
 ]
 dynamic = ["version"]
 classifiers = [
