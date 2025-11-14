@@ -15,9 +15,4 @@ from linux_mcp_server.tools import *  # noqa: E402, F403
 
 
 def main():
-    """Run the MCP server using FastMCP."""
-    logger.info("Initialized linux-diagnostics v0.1.0")
-    logger.info("Starting FastMCP server")
-
-    # Run the FastMCP server (it creates its own event loop)
     mcp.run()
