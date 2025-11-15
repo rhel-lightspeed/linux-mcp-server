@@ -1,0 +1,53 @@
+apiVersion: tekton.dev/v1
+kind: Task
+metadata:
+  namespace: rhel-lightspeed-tenant
+  name: get-version
+
+spec:
+  description: Get version number
+  params:
+    - name: source_artifact
+      description: The Trusted Artifact URI pointing to the artifact with the application source code.
+      type: string
+
+    - name: script
+      description: Path to script that will return the version string
+      type: string
+      default: hatch version
+
+  results:
+    - name: version
+      description: Image tag used for release version
+
+  volumes:
+    - name: workdir
+      emptyDir: {}
+
+  stepTemplate:
+    volumeMounts:
+      - name: workdir
+        mountPath: /var/workdir
+
+  steps:
+    - name: use-trusted-artifact
+      image: quay.io/redhat-appstudio/build-trusted-artifacts:latest@sha256:9b180776a41d9a22a1c51539f1647c60defbbd55b44bbebdd4130e33512d8b0d
+      args:
+        - use
+        - $(params.source_artifact)=/var/workdir/source
+
+    - name: determine-image-tag
+      image: registry.access.redhat.com/ubi10/python-312-minimal:latest
+      workingDir: /var/workdir/source
+      script: |
+        #!/usr/bin/env bash
+        set -euo pipefail
+
+        python -V
+        env | sort
+        whoami
+
+        pip install hatch
+
+        image_tag="$($(params.script))"
+        echo -n "$image_tag" | tee "$(results.version.path)"

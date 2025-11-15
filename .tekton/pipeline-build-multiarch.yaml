@@ -209,6 +209,17 @@ spec:
         - name: netrc
           workspace: netrc
 
+    - name: get-version
+      params:
+        - name: source_artifact
+          value: $(tasks.clone-repository.results.SOURCE_ARTIFACT)
+
+      runAfter:
+        - clone-repository
+
+      taskRef:
+        name: get-version
+
     - name: build-images
       matrix:
         params:
@@ -241,6 +252,7 @@ spec:
         - name: BUILD_ARGS
           value:
             - $(params.build-args[*])
+            - PSEUDO_VERSION=$(tasks.get-version.results.version)
 
         - name: BUILD_ARGS_FILE
           value: $(params.build-args-file)
@@ -264,7 +276,7 @@ spec:
           value: "true"
 
       runAfter:
-        - prefetch-dependencies
+        - get-version
 
       taskRef:
         params:
