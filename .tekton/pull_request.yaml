@@ -40,11 +40,6 @@ spec:
     - name: tag-prefix
       value: pr-{{ pull_request_number }}-
 
-    - name: build-platforms
-      value:
-      - linux/x86_64
-      - linux/arm64
-
   pipelineRef:
     name: pipeline-build-multiarch
 
