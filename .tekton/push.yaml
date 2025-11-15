@@ -39,7 +39,7 @@ spec:
         - '{{ target_branch }}'
 
   pipelineRef:
-    name: pipeline-build
+    name: pipeline-build-multiarch
 
   taskRunTemplate:
     serviceAccountName: build-pipeline-linux-mcp-server

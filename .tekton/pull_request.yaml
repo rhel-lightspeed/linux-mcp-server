@@ -46,7 +46,7 @@ spec:
       - linux/arm64
 
   pipelineRef:
-    name: pipeline-build
+    name: pipeline-build-multiarch
 
   taskRunTemplate:
     serviceAccountName: build-pipeline-linux-mcp-server

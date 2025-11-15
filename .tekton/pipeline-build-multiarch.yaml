@@ -1,7 +1,7 @@
 apiVersion: tekton.dev/v1
 kind: Pipeline
 metadata:
-  name: pipeline-build
+  name: pipeline-build-multiarch
 
 spec:
   params:
