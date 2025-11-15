@@ -37,16 +37,19 @@ spec:
         - $(params.source_artifact)=/var/workdir/source
 
     - name: determine-image-tag
-      image: registry.access.redhat.com/ubi10/python-312-minimal:latest
+      image: registry.redhat.io/ubi10/s2i-base:latest
       workingDir: /var/workdir/source
       script: |
         #!/usr/bin/env bash
         set -euo pipefail
 
-        python -V
+        python3 -V
         env | sort
         whoami
 
+        python3 -m venv .venvs/hatch
+
+        export PATH=".venvs/hatch/bin:$PATH"
         pip install hatch
 
         image_tag="$($(params.script))"
