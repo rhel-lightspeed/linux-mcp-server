@@ -95,11 +95,11 @@ spec:
   results:
     - name: IMAGE_URL
       description: ""
-      value: $(tasks.build-container.results.IMAGE_URL)
+      value: $(tasks.build-image-index.results.IMAGE_URL)
 
     - name: IMAGE_DIGEST
       description: ""
-      value: $(tasks.build-container.results.IMAGE_DIGEST)
+      value: $(tasks.build-image-index.results.IMAGE_DIGEST)
 
     - name: CHAINS-GIT_URL
       description: ""
@@ -329,10 +329,10 @@ spec:
     - name: deprecated-base-image-check
       params:
         - name: IMAGE_URL
-          value: $(tasks.build-container.results.IMAGE_URL)
+          value: $(tasks.build-image-index.results.IMAGE_URL)
 
         - name: IMAGE_DIGEST
-          value: $(tasks.build-container.results.IMAGE_DIGEST)
+          value: $(tasks.build-image-index.results.IMAGE_DIGEST)
 
       runAfter:
         - build-image-index
@@ -358,10 +358,10 @@ spec:
     - name: clair-scan
       params:
         - name: image-digest
-          value: $(tasks.build-container.results.IMAGE_DIGEST)
+          value: $(tasks.build-image-index.results.IMAGE_DIGEST)
 
         - name: image-url
-          value: $(tasks.build-container.results.IMAGE_URL)
+          value: $(tasks.build-image-index.results.IMAGE_URL)
 
       runAfter:
         - build-image-index
@@ -386,7 +386,7 @@ spec:
     - name: ecosystem-cert-preflight-checks
       params:
         - name: image-url
-          value: $(tasks.build-container.results.IMAGE_URL)
+          value: $(tasks.build-image-index.results.IMAGE_URL)
 
       runAfter:
         - build-image-index
@@ -411,10 +411,10 @@ spec:
     - name: sast-snyk-check
       params:
         - name: image-digest
-          value: $(tasks.build-container.results.IMAGE_DIGEST)
+          value: $(tasks.build-image-index.results.IMAGE_DIGEST)
 
         - name: image-url
-          value: $(tasks.build-container.results.IMAGE_URL)
+          value: $(tasks.build-image-index.results.IMAGE_URL)
 
         - name: SOURCE_ARTIFACT
           value: $(tasks.prefetch-dependencies.results.SOURCE_ARTIFACT)
@@ -449,10 +449,10 @@ spec:
     - name: clamav-scan
       params:
         - name: image-digest
-          value: $(tasks.build-container.results.IMAGE_DIGEST)
+          value: $(tasks.build-image-index.results.IMAGE_DIGEST)
 
         - name: image-url
-          value: $(tasks.build-container.results.IMAGE_URL)
+          value: $(tasks.build-image-index.results.IMAGE_URL)
 
       runAfter:
         - build-image-index
@@ -639,7 +639,7 @@ spec:
     - name: apply-tags
       params:
         - name: IMAGE_URL
-          value: $(tasks.build-container.results.IMAGE_URL)
+          value: $(tasks.build-image-index.results.IMAGE_URL)
 
         - name: IMAGE_DIGEST
           value: $(tasks.build-image-index.results.IMAGE_DIGEST)
@@ -667,10 +667,10 @@ spec:
     - name: push-dockerfile
       params:
         - name: IMAGE
-          value: $(tasks.build-container.results.IMAGE_URL)
+          value: $(tasks.build-image-index.results.IMAGE_URL)
 
         - name: IMAGE_DIGEST
-          value: $(tasks.build-container.results.IMAGE_DIGEST)
+          value: $(tasks.build-image-index.results.IMAGE_DIGEST)
 
         - name: DOCKERFILE
           value: $(params.dockerfile)
@@ -699,10 +699,10 @@ spec:
     - name: rpms-signature-scan
       params:
         - name: image-digest
-          value: $(tasks.build-container.results.IMAGE_DIGEST)
+          value: $(tasks.build-image-index.results.IMAGE_DIGEST)
 
         - name: image-url
-          value: $(tasks.build-container.results.IMAGE_URL)
+          value: $(tasks.build-image-index.results.IMAGE_URL)
 
       runAfter:
         - build-image-index
