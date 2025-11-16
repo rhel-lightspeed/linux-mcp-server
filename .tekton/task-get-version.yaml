@@ -11,14 +11,12 @@ spec:
       description: The Trusted Artifact URI pointing to the artifact with the application source code.
       type: string
 
-    - name: script
-      description: Path to script that will return the version string
-      type: string
-      default: hatch version
-
   results:
+    - name: pseudo_version
+      description: Version for use by setuptools-scm
+
     - name: version
-      description: Image tag used for release version
+      description: Version that is also a valid container tag
 
   volumes:
     - name: workdir
@@ -56,5 +54,8 @@ spec:
         export PATH=".venvs/hatch/bin:$PATH"
         pip install hatch
 
-        image_tag="$($(params.script) | tr '+' '-')"
-        echo -n "$image_tag" | tee "$(results.version.path)"
+        pseudo_version="$(hatch version)"
+        version="${pseudo_version%%+*}"
+
+        echo -n "$pseudo_version" | tee "$(results.pseudo_version.path)"
+        echo -n "$version" | tee "$(results.version.path)"

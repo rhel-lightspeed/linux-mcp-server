@@ -148,6 +148,9 @@ spec:
         - name: ociArtifactExpiresAfter
           value: $(params.image-expires-after)
 
+        - name: fetchTags
+          value: "true"
+
       runAfter:
         - init
 
@@ -252,7 +255,8 @@ spec:
         - name: BUILD_ARGS
           value:
             - $(params.build-args[*])
-            - PSEUDO_VERSION=$(tasks.get-version.results.version)
+            - PSEUDO_VERSION=$(tasks.get-version.results.pseudo_version)
+            - VERSION=$(tasks.get-version.results.version)
 
         - name: BUILD_ARGS_FILE
           value: $(params.build-args-file)
