@@ -52,5 +52,5 @@ spec:
         export PATH=".venvs/hatch/bin:$PATH"
         pip install hatch
 
-        image_tag="$($(params.script))"
+        image_tag="$($(params.script) | tr '+' '-')"
         echo -n "$image_tag" | tee "$(results.version.path)"
