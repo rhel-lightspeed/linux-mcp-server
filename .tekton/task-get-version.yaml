@@ -46,6 +46,10 @@ spec:
         python3 -V
         env | sort
         whoami
+        pwd
+        ls -la
+        git status
+        git tag
 
         python3 -m venv .venvs/hatch
 
