@@ -151,6 +151,9 @@ spec:
         - name: fetchTags
           value: "true"
 
+        - name: depth
+          value: 42
+
       runAfter:
         - init
 
