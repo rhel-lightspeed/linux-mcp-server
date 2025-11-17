@@ -7,14 +7,115 @@ from datetime import datetime
 
 import psutil
 
+from mcp.server.fastmcp.exceptions import ToolError
 from mcp.types import ToolAnnotations
+from pydantic import BaseModel
+from pydantic import Field
 
 from linux_mcp_server.audit import log_tool_call
 from linux_mcp_server.connection.ssh import execute_command
 from linux_mcp_server.server import mcp
-from linux_mcp_server.utils import format_bytes
 from linux_mcp_server.utils.decorators import disallow_local_execution_in_containers
 from linux_mcp_server.utils.types import Host
+
+
+# Pydantic Models for structured output
+class SystemInfo(BaseModel):
+    """System information model."""
+
+    hostname: str | None = None
+    operating_system: str | None = None
+    os_version: str | None = None
+    kernel_version: str | None = None
+    architecture: str | None = None
+    uptime: str | None = None
+    boot_time: str | None = None
+
+
+class CPUFrequency(BaseModel):
+    """CPU frequency information."""
+
+    current: float | None = None
+    min: float | None = None
+    max: float | None = None
+
+
+class LoadAverage(BaseModel):
+    """Load average information."""
+
+    one_min: float
+    five_min: float
+    fifteen_min: float
+
+
+class CPUInfo(BaseModel):
+    """CPU information model."""
+
+    cpu_model: str | None = None
+    physical_cores: int | None = None
+    logical_cores: int | None = None
+    frequency_mhz: CPUFrequency | None = None
+    load_average: LoadAverage | None = None
+    cpu_usage_percent: float | None = None
+    per_core_usage: list[float] | None = None
+    cpu_details: str | None = None
+
+
+class MemoryStats(BaseModel):
+    """Memory statistics model."""
+
+    total: int
+    used: int
+    free: int
+    percent: float
+    available: int | None = None
+    buffers: int | None = None
+    cached: int | None = None
+
+
+class MemoryInfo(BaseModel):
+    """Memory information model."""
+
+    ram: MemoryStats | None = None
+    swap: MemoryStats | None = None
+
+
+class DiskPartition(BaseModel):
+    """Disk partition information."""
+
+    device: str
+    mountpoint: str
+    size: int
+    used: int
+    free: int
+    percent: float
+    filesystem: str | None = None
+
+
+class DiskIOStats(BaseModel):
+    """Disk I/O statistics."""
+
+    read_bytes: int
+    write_bytes: int
+    read_count: int
+    write_count: int
+
+
+class DiskUsage(BaseModel):
+    """Disk usage information model."""
+
+    partitions: list[DiskPartition]
+    io_stats: DiskIOStats | None = None
+
+
+class HardwareInfo(BaseModel):
+    """Hardware information model."""
+
+    cpu_architecture: str | None = None
+    pci_devices: list[str] = Field(default_factory=list)
+    pci_device_count: int | None = None
+    usb_devices: str | None = None
+    memory_hardware: str | None = None
 
 
 @mcp.tool(
@@ -26,11 +127,11 @@ from linux_mcp_server.utils.types import Host
 @disallow_local_execution_in_containers
 async def get_system_information(  # noqa: C901
     host: Host | None = None,
-) -> str:
+) -> SystemInfo:
     """
     Get basic system information.
     """
-    info = []
+    result = SystemInfo()
 
     try:
         if host:
@@ -41,7 +142,7 @@ async def get_system_information(  # noqa: C901
                 host=host,
             )
             if returncode == 0 and stdout:
-                info.append(f"Hostname: {stdout.strip()}")
+                result.hostname = stdout.strip()
 
             # OS Information from /etc/os-release
             returncode, stdout, _ = await execute_command(
@@ -56,9 +157,9 @@ async def get_system_information(  # noqa: C901
                         key, value = line.split("=", 1)
                         os_info[key] = value.strip('"')
 
-                info.append(f"Operating System: {os_info.get('PRETTY_NAME', 'Unknown')}")
+                result.operating_system = os_info.get("PRETTY_NAME", "Unknown")
                 if "VERSION_ID" in os_info:
-                    info.append(f"OS Version: {os_info['VERSION_ID']}")
+                    result.os_version = os_info["VERSION_ID"]
 
             # Kernel version
             returncode, stdout, _ = await execute_command(
@@ -66,7 +167,7 @@ async def get_system_information(  # noqa: C901
                 host=host,
             )
             if returncode == 0 and stdout:
-                info.append(f"Kernel Version: {stdout.strip()}")
+                result.kernel_version = stdout.strip()
 
             # Architecture
             returncode, stdout, _ = await execute_command(
@@ -74,7 +175,7 @@ async def get_system_information(  # noqa: C901
                 host=host,
             )
             if returncode == 0 and stdout:
-                info.append(f"Architecture: {stdout.strip()}")
+                result.architecture = stdout.strip()
 
             # Uptime
             returncode, stdout, _ = await execute_command(
@@ -82,7 +183,7 @@ async def get_system_information(  # noqa: C901
                 host=host,
             )
             if returncode == 0 and stdout:
-                info.append(f"Uptime: {stdout.strip()}")
+                result.uptime = stdout.strip()
 
             # Boot time
             returncode, stdout, _ = await execute_command(
@@ -90,12 +191,11 @@ async def get_system_information(  # noqa: C901
                 host=host,
             )
             if returncode == 0 and stdout:
-                info.append(f"Boot Time: {stdout.strip()}")
+                result.boot_time = stdout.strip()
         else:
             # Local execution - use psutil and platform
             # Hostname
-            hostname = platform.node()
-            info.append(f"Hostname: {hostname}")
+            result.hostname = platform.node()
 
             # OS Information
             if os.path.exists("/etc/os-release"):
@@ -107,19 +207,17 @@ async def get_system_information(  # noqa: C901
                             key, value = line.split("=", 1)
                             os_info[key] = value.strip('"')
 
-                info.append(f"Operating System: {os_info.get('PRETTY_NAME', 'Unknown')}")
+                result.operating_system = os_info.get("PRETTY_NAME", "Unknown")
                 if "VERSION_ID" in os_info:
-                    info.append(f"OS Version: {os_info['VERSION_ID']}")
+                    result.os_version = os_info["VERSION_ID"]
             else:
-                info.append(f"Operating System: {platform.system()} {platform.release()}")
+                result.operating_system = f"{platform.system()} {platform.release()}"
 
             # Kernel version
-            kernel = platform.release()
-            info.append(f"Kernel Version: {kernel}")
+            result.kernel_version = platform.release()
 
             # Architecture
-            arch = platform.machine()
-            info.append(f"Architecture: {arch}")
+            result.architecture = platform.machine()
 
             # Uptime
             boot_time = datetime.fromtimestamp(psutil.boot_time())
@@ -127,12 +225,12 @@ async def get_system_information(  # noqa: C901
             days = uptime.days
             hours, remainder = divmod(uptime.seconds, 3600)
             minutes, seconds = divmod(remainder, 60)
-            info.append(f"Uptime: {days}d {hours}h {minutes}m {seconds}s")
-            info.append(f"Boot Time: {boot_time.strftime('%Y-%m-%d %H:%M:%S')}")
+            result.uptime = f"{days}d {hours}h {minutes}m {seconds}s"
+            result.boot_time = boot_time.strftime("%Y-%m-%d %H:%M:%S")
 
-        return "\n".join(info)
+        return result
     except Exception as e:
-        return f"Error gathering system information: {str(e)}"
+        raise ToolError(f"Error: {str(e)}") from e
 
 
 @mcp.tool(
@@ -142,13 +240,13 @@ async def get_system_information(  # noqa: C901
 )
 @log_tool_call
 @disallow_local_execution_in_containers
-async def get_cpu_information(  # noqa: C901
+async def get_cpu_information(
     host: Host | None = None,
-) -> str:
+) -> CPUInfo:
     """
     Get CPU information.
     """
-    info = []
+    result = CPUInfo()
 
     try:
         if host:
@@ -159,8 +257,7 @@ async def get_cpu_information(  # noqa: C901
                 host=host,
             )
             if returncode == 0 and stdout:
-                cpu_model = stdout.split(":", 1)[1].strip() if ":" in stdout else stdout.strip()
-                info.append(f"CPU Model: {cpu_model}")
+                result.cpu_model = stdout.split(":", 1)[1].strip() if ":" in stdout else stdout.strip()
 
             # Get CPU core counts from /proc/cpuinfo
             returncode, stdout, _ = await execute_command(
@@ -168,8 +265,7 @@ async def get_cpu_information(  # noqa: C901
                 host=host,
             )
             if returncode == 0 and stdout:
-                logical_cores = int(stdout.strip())
-                info.append(f"CPU Logical Cores (threads): {logical_cores}")
+                result.logical_cores = int(stdout.strip())
 
             # Get physical cores (using core id uniqueness)
             returncode, stdout, _ = await execute_command(
@@ -178,8 +274,7 @@ async def get_cpu_information(  # noqa: C901
             )
             if returncode == 0 and stdout:
                 core_ids = {line.split(":", 1)[1].strip() for line in stdout.strip().split("\n") if ":" in line}
-                physical_cores = len(core_ids)
-                info.append(f"CPU Physical Cores: {physical_cores}")
+                result.physical_cores = len(core_ids)
 
             # Get CPU frequency from /proc/cpuinfo
             returncode, stdout, _ = await execute_command(
@@ -187,8 +282,8 @@ async def get_cpu_information(  # noqa: C901
                 host=host,
             )
             if returncode == 0 and stdout and ":" in stdout:
-                cpu_mhz = stdout.split(":", 1)[1].strip()
-                info.append(f"CPU Frequency: Current={cpu_mhz}MHz")
+                cpu_mhz = float(stdout.split(":", 1)[1].strip())
+                result.frequency_mhz = CPUFrequency(current=cpu_mhz)
 
             # Get load average
             returncode, stdout, _ = await execute_command(
@@ -198,7 +293,9 @@ async def get_cpu_information(  # noqa: C901
             if returncode == 0 and stdout:
                 load_parts = stdout.strip().split()
                 if len(load_parts) >= 3:
-                    info.append(f"\nLoad Average (1m, 5m, 15m): {load_parts[0]}, {load_parts[1]}, {load_parts[2]}")
+                    result.load_average = LoadAverage(
+                        one_min=float(load_parts[0]), five_min=float(load_parts[1]), fifteen_min=float(load_parts[2])
+                    )
 
             # Get CPU usage using top (one iteration)
             returncode, stdout, _ = await execute_command(
@@ -208,54 +305,46 @@ async def get_cpu_information(  # noqa: C901
             if returncode == 0 and stdout:
                 for line in stdout.split("\n"):
                     if "Cpu(s):" in line or "%Cpu" in line:
-                        info.append(f"\n{line.strip()}")
+                        result.cpu_details = line.strip()
                         break
         else:
             # Local execution - use psutil
             # CPU count
-            physical_cores = psutil.cpu_count(logical=False)
-            logical_cores = psutil.cpu_count(logical=True)
-            info.append(f"CPU Physical Cores: {physical_cores}")
-            info.append(f"CPU Logical Cores (threads): {logical_cores}")
+            result.physical_cores = psutil.cpu_count(logical=False)
+            result.logical_cores = psutil.cpu_count(logical=True)
 
             # CPU frequency
             try:
                 cpu_freq = psutil.cpu_freq()
                 if cpu_freq:
-                    info.append(
-                        f"CPU Frequency: Current={cpu_freq.current:.2f}MHz, Min={cpu_freq.min:.2f}MHz, Max={cpu_freq.max:.2f}MHz"
-                    )
+                    result.frequency_mhz = CPUFrequency(current=cpu_freq.current, min=cpu_freq.min, max=cpu_freq.max)
             except Exception:
                 pass  # CPU frequency might not be available
 
             # CPU usage per core
             cpu_percent = psutil.cpu_percent(interval=0.1, percpu=True)
-            info.append("\nCPU Usage per Core:")
-            for i, percent in enumerate(cpu_percent):
-                info.append(f"  Core {i}: {percent}%")
+            result.per_core_usage = cpu_percent
 
             # Overall CPU usage
-            overall_cpu = psutil.cpu_percent(interval=0.1)
-            info.append(f"\nOverall CPU Usage: {overall_cpu}%")
+            result.cpu_usage_percent = psutil.cpu_percent(interval=0.1)
 
             # Load average
             load_avg = os.getloadavg()
-            info.append(f"\nLoad Average (1m, 5m, 15m): {load_avg[0]:.2f}, {load_avg[1]:.2f}, {load_avg[2]:.2f}")
+            result.load_average = LoadAverage(one_min=load_avg[0], five_min=load_avg[1], fifteen_min=load_avg[2])
 
             # Try to get CPU model info from /proc/cpuinfo
             try:
                 with open("/proc/cpuinfo") as f:
                     for line in f:
                         if line.startswith("model name"):
-                            cpu_model = line.split(":")[1].strip()
-                            info.insert(0, f"CPU Model: {cpu_model}")
+                            result.cpu_model = line.split(":")[1].strip()
                             break
             except Exception:
                 pass
 
-        return "\n".join(info)
+        return result
     except Exception as e:
-        return f"Error gathering CPU information: {str(e)}"
+        raise ToolError(f"Error: {str(e)}") from e
 
 
 @mcp.tool(
@@ -267,11 +356,12 @@ async def get_cpu_information(  # noqa: C901
 @disallow_local_execution_in_containers
 async def get_memory_information(
     host: Host | None = None,
-) -> str:
+) -> MemoryInfo:
     """
     Get memory information.
     """
-    info = []
+    ram_stats = None
+    swap_stats = None
 
     try:
         if host:
@@ -295,11 +385,9 @@ async def get_memory_information(
                             available = int(parts[6]) if len(parts) > 6 else free
                             percent = (used / total * 100) if total > 0 else 0
 
-                            info.append("=== RAM Information ===")
-                            info.append(f"Total: {format_bytes(total)}")
-                            info.append(f"Available: {format_bytes(available)}")
-                            info.append(f"Used: {format_bytes(used)} ({percent:.1f}%)")
-                            info.append(f"Free: {format_bytes(free)}")
+                            ram_stats = MemoryStats(
+                                total=total, used=used, free=free, available=available, percent=percent
+                            )
 
                     elif line.startswith("Swap:"):
                         parts = line.split()
@@ -309,36 +397,28 @@ async def get_memory_information(
                             free = int(parts[3])
                             percent = (used / total * 100) if total > 0 else 0
 
-                            info.append("\n=== Swap Information ===")
-                            info.append(f"Total: {format_bytes(total)}")
-                            info.append(f"Used: {format_bytes(used)} ({percent:.1f}%)")
-                            info.append(f"Free: {format_bytes(free)}")
+                            swap_stats = MemoryStats(total=total, used=used, free=free, percent=percent)
         else:
             # Local execution - use psutil
             # Virtual memory (RAM)
             mem = psutil.virtual_memory()
-            info.append("=== RAM Information ===")
-            info.append(f"Total: {format_bytes(mem.total)}")
-            info.append(f"Available: {format_bytes(mem.available)}")
-            info.append(f"Used: {format_bytes(mem.used)} ({mem.percent}%)")
-            info.append(f"Free: {format_bytes(mem.free)}")
-
-            if buffers := getattr(mem, "buffers", None):
-                info.append(f"Buffers: {format_bytes(buffers)}")
-
-            if cached := getattr(mem, "cached", None):
-                info.append(f"Cached: {format_bytes(cached)}")
+            ram_stats = MemoryStats(
+                total=mem.total,
+                used=mem.used,
+                free=mem.free,
+                available=mem.available,
+                percent=mem.percent,
+                buffers=getattr(mem, "buffers", None),
+                cached=getattr(mem, "cached", None),
+            )
 
             # Swap memory
             swap = psutil.swap_memory()
-            info.append("\n=== Swap Information ===")
-            info.append(f"Total: {format_bytes(swap.total)}")
-            info.append(f"Used: {format_bytes(swap.used)} ({swap.percent}%)")
-            info.append(f"Free: {format_bytes(swap.free)}")
+            swap_stats = MemoryStats(total=swap.total, used=swap.used, free=swap.free, percent=swap.percent)
 
-        return "\n".join(info)
+        return MemoryInfo(ram=ram_stats, swap=swap_stats)
     except Exception as e:
-        return f"Error gathering memory information: {str(e)}"
+        raise ToolError(f"Error: {str(e)}") from e
 
 
 @mcp.tool(
@@ -350,73 +430,91 @@ async def get_memory_information(
 @disallow_local_execution_in_containers
 async def get_disk_usage(
     host: Host | None = None,
-) -> str:
+) -> DiskUsage:
     """
     Get disk usage information.
     """
-    info = []
+    partitions = []
+    io_stats = None
 
     try:
         if host:
-            # Remote execution - use df command
+            # Remote execution - use df command to get bytes
             returncode, stdout, _ = await execute_command(
-                ["df", "-h", "--output=source,size,used,avail,pcent,target"],
+                ["df", "-B1"],
                 host=host,
             )
 
             if returncode == 0 and stdout:
-                info.append("=== Filesystem Usage ===\n")
-                info.append(stdout)
-            else:
-                # Fallback to basic df command
-                returncode, stdout, _ = await execute_command(
-                    ["df", "-h"],
-                    host=host,
-                )
-                if returncode == 0 and stdout:
-                    info.append("=== Filesystem Usage ===\n")
-                    info.append(stdout)
+                lines = stdout.strip().split("\n")
+                # Skip header line
+                for line in lines[1:]:
+                    parts = line.split()
+                    if len(parts) >= 6:
+                        try:
+                            device = parts[0]
+                            size = int(parts[1])
+                            used = int(parts[2])
+                            free = int(parts[3])
+                            percent_str = parts[4].rstrip("%")
+                            percent = float(percent_str) if percent_str else 0.0
+                            mountpoint = parts[5]
+
+                            partitions.append(
+                                DiskPartition(
+                                    device=device,
+                                    mountpoint=mountpoint,
+                                    size=size,
+                                    used=used,
+                                    free=free,
+                                    percent=percent,
+                                )
+                            )
+                        except (ValueError, IndexError):
+                            # Skip malformed lines
+                            continue
         else:
             # Local execution - use psutil
-            info.append("=== Filesystem Usage ===\n")
-            info.append(f"{'Filesystem':<30} {'Size':<10} {'Used':<10} {'Avail':<10} {'Use%':<6} {'Mounted on'}")
-            info.append("-" * 90)
-
             # Get all disk partitions
-            partitions = psutil.disk_partitions(all=False)
+            disk_partitions = psutil.disk_partitions(all=False)
 
-            for partition in partitions:
+            for partition in disk_partitions:
                 try:
                     usage = psutil.disk_usage(partition.mountpoint)
-                    info.append(
-                        f"{partition.device:<30} "
-                        f"{format_bytes(usage.total):<10} "
-                        f"{format_bytes(usage.used):<10} "
-                        f"{format_bytes(usage.free):<10} "
-                        f"{usage.percent:<6.1f} "
-                        f"{partition.mountpoint}"
+                    partitions.append(
+                        DiskPartition(
+                            device=partition.device,
+                            mountpoint=partition.mountpoint,
+                            size=usage.total,
+                            used=usage.used,
+                            free=usage.free,
+                            percent=usage.percent,
+                            filesystem=partition.fstype,
+                        )
                     )
                 except PermissionError:
                     # Skip partitions we can't access
                     continue
-                except Exception as e:
-                    info.append(f"{partition.device:<30} Error: {str(e)}")
+                except Exception:
+                    # Skip partitions with errors
+                    continue
 
             # Disk I/O statistics
             try:
                 disk_io = psutil.disk_io_counters()
                 if disk_io:
-                    info.append("\n=== Disk I/O Statistics (since boot) ===")
-                    info.append(f"Read: {format_bytes(disk_io.read_bytes)}")
-                    info.append(f"Write: {format_bytes(disk_io.write_bytes)}")
-                    info.append(f"Read Count: {disk_io.read_count}")
-                    info.append(f"Write Count: {disk_io.write_count}")
+                    io_stats = DiskIOStats(
+                        read_bytes=disk_io.read_bytes,
+                        write_bytes=disk_io.write_bytes,
+                        read_count=disk_io.read_count,
+                        write_count=disk_io.write_count,
+                    )
             except Exception:
                 pass  # Disk I/O might not be available
 
-        return "\n".join(info)
+        return DiskUsage(partitions=partitions, io_stats=io_stats)
     except Exception as e:
-        return f"Error gathering disk usage information: {str(e)}"
+        raise ToolError(f"Error: {str(e)}") from e
 
 
 @mcp.tool(
@@ -425,17 +523,15 @@ async def get_disk_usage(
     annotations=ToolAnnotations(readOnlyHint=True),
 )
 @log_tool_call
-@disallow_local_execution_in_containers
-async def get_hardware_information(  # noqa: C901
+async def get_hardware_information(
     host: Host | None = None,
-) -> str:
+) -> HardwareInfo:
     """
     Get hardware information.
     """
-    try:
-        info = []
-        info.append("=== Hardware Information ===\n")
+    result = HardwareInfo()
 
+    try:
         # Try lscpu for CPU info
         try:
             returncode, stdout, stderr = await execute_command(
@@ -444,10 +540,9 @@ async def get_hardware_information(  # noqa: C901
             )
 
             if returncode == 0:
-                info.append("=== CPU Architecture (lscpu) ===")
-                info.append(stdout)
+                result.cpu_architecture = stdout
         except FileNotFoundError:
-            info.append("CPU info: lscpu command not available")
+            result.cpu_architecture = "lscpu command not available"
 
         # Try lspci for PCI devices
         try:
@@ -458,16 +553,11 @@ async def get_hardware_information(  # noqa: C901
 
             if returncode == 0:
                 pci_lines = stdout.strip().split("\n")
-
-                info.append("\n=== PCI Devices ===")
-                # Show first 50 devices to avoid overwhelming output
-                for line in pci_lines[:50]:
-                    info.append(line)
-
-                if len(pci_lines) > 50:
-                    info.append(f"\n... and {len(pci_lines) - 50} more PCI devices")
+                # Store first 50 devices to avoid overwhelming output
+                result.pci_devices = pci_lines[:50]
+                result.pci_device_count = len(pci_lines)
         except FileNotFoundError:
-            info.append("\nPCI devices: lspci command not available")
+            result.pci_devices = ["lspci command not available"]
 
         # Try lsusb for USB devices
         try:
@@ -477,10 +567,9 @@ async def get_hardware_information(  # noqa: C901
             )
 
             if returncode == 0:
-                info.append("\n\n=== USB Devices ===")
-                info.append(stdout)
+                result.usb_devices = stdout
         except FileNotFoundError:
-            info.append("\nUSB devices: lsusb command not available")
+            result.usb_devices = "lsusb command not available"
 
         # Memory hardware info from dmidecode (requires root)
         try:
@@ -490,16 +579,12 @@ async def get_hardware_information(  # noqa: C901
             )
 
             if returncode == 0:
-                info.append("\n\n=== Memory Hardware (dmidecode) ===")
-                info.append(stdout)
+                result.memory_hardware = stdout
             elif "Permission denied" in stderr:
-                info.append("\n\nMemory hardware info: Requires root privileges (dmidecode)")
+                result.memory_hardware = "Requires root privileges (dmidecode)"
         except FileNotFoundError:
-            info.append("\nMemory hardware info: dmidecode command not available")
+            result.memory_hardware = "dmidecode command not available"
 
-        if len(info) == 1:  # Only the header
-            info.append("No hardware information tools available.")
-
-        return "\n".join(info)
+        return result
     except Exception as e:
-        return f"Error getting hardware information: {str(e)}"
+        raise ToolError(f"Error: {str(e)}") from e
