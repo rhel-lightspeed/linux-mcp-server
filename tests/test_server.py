@@ -37,8 +37,8 @@ class TestLinuxMCPServer:
         assert "list_block_devices" in tool_names
 
     async def test_all_tools_have_correct_count(self):
-        """Test that all 20 tools are registered."""
+        """Test that all 18 tools are registered."""
         tools = await mcp.list_tools()
-        # We have 20 tools total (5 system info + 3 service + 2 process +
-        # 3 log + 3 network + 4 storage)
-        assert len(tools) == 20
+        # We have 18 tools total (5 system info + 3 service + 2 process +
+        # 3 log + 3 network + 2 storage)
+        assert len(tools) == 18

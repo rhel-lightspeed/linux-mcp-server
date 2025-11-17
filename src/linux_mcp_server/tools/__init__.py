@@ -19,9 +19,7 @@ from linux_mcp_server.tools.services import list_services
 
 # storage
 from linux_mcp_server.tools.storage import list_block_devices
-from linux_mcp_server.tools.storage import list_directories_by_modified_date
-from linux_mcp_server.tools.storage import list_directories_by_name
-from linux_mcp_server.tools.storage import list_directories_by_size
+from linux_mcp_server.tools.storage import list_directories
 
 # system_info
 from linux_mcp_server.tools.system_info import get_cpu_information
@@ -46,9 +44,7 @@ __all__ = [
     "get_service_status",
     "get_system_information",
     "list_block_devices",
-    "list_directories_by_modified_date",
-    "list_directories_by_name",
-    "list_directories_by_size",
+    "list_directories",
     "list_processes",
     "list_services",
     "read_log_file",
