@@ -199,8 +199,9 @@ def log_tool_call(func: t.Callable) -> Function:
         try:
             result = func(*args, **kwargs)
         except Exception as exc:
-            # FIXME: This could potentially swallow exceptions. Maybe narrow the exception type.
             error = exc
+            _log_event_complete(logger, tool_name, start_time, error)
+            raise
 
         _log_event_complete(logger, tool_name, start_time, error)
 
@@ -216,6 +217,8 @@ def log_tool_call(func: t.Callable) -> Function:
             result = await func(*args, **kwargs)
         except Exception as exc:
             error = exc
+            _log_event_complete(logger, tool_name, start_time, error)
+            raise
 
         _log_event_complete(logger, tool_name, start_time, error)
 
