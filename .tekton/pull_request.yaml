@@ -1,0 +1,52 @@
+apiVersion: tekton.dev/v1
+kind: PipelineRun
+metadata:
+  annotations:
+    build.appstudio.openshift.io/repo: https://gitlab.cee.redhat.com/rhel-lightspeed/mcp/linux-mcp-server/-/tree/{{ revision }}
+    build.appstudio.redhat.com/commit_sha: '{{ revision }}'
+    build.appstudio.redhat.com/pull_request_number: '{{ pull_request_number }}'
+    build.appstudio.redhat.com/target_branch: '{{ target_branch }}'
+    pipelinesascode.tekton.dev/cancel-in-progress: "true"
+    pipelinesascode.tekton.dev/max-keep-runs: "3"
+    pipelinesascode.tekton.dev/on-cel-expression: event == "pull_request" && target_branch == "main"
+
+  creationTimestamp: null
+
+  labels:
+    appstudio.openshift.io/application: linux-mcp-server
+    appstudio.openshift.io/component: linux-mcp-server
+    pipelines.appstudio.openshift.io/type: build
+
+  namespace: rhel-lightspeed-tenant
+  name: linux-mcp-server-pr
+
+spec:
+  params:
+    - name: git-url
+      value: '{{ source_url }}'
+
+    - name: revision
+      value: '{{ revision }}'
+
+    - name: output-image
+      value: quay.io/redhat-user-workloads/rhel-lightspeed-tenant/linux-mcp-server:pr-{{ pull_request_number }}-latest
+
+    - name: dockerfile
+      value: /Containerfile
+
+    - name: image-expires-after
+      value: 5d
+
+    - name: tag-prefix
+      value: pr-{{ pull_request_number }}-
+
+  pipelineRef:
+    name: pipeline-build-multiarch
+
+  taskRunTemplate:
+    serviceAccountName: build-pipeline-linux-mcp-server
+
+  workspaces:
+    - name: git-auth
+      secret:
+        secretName: '{{ git_auth_secret }}'

@@ -40,6 +40,8 @@ FROM base as final
 
 ARG UID=1001
 ARG SOURCE_DATE_EPOCH
+ARG PSEUDO_VERSION=0.1.0a
+ARG VERSION=0.1.0a
 
 # Indicator the application is running in a container
 ENV container=docker
@@ -58,13 +60,14 @@ LABEL distribution-scope=private
 LABEL io.k8s.description="MCP Server for inspecting Linux"
 LABEL io.k8s.display-name="Linux MCP Server"
 LABEL io.openshift.tags="rhel,mcp,linux"
+LABEL konflux.additional-tags=${VERSION}
 LABEL name=linux-mcp-server
 LABEL org.opencontainers.image.created=${SOURCE_DATE_EPOCH}
-LABEL release=0.1.0a
+LABEL release=${PSEUDO_VERSION}
 LABEL summary="Linux MCP Server"
 LABEL url="https://github.com/rhel-lightspeed/linux-mcp-server"
 LABEL vendor="Red Hat, Inc."
-LABEL version=0.1.0a
+LABEL version=${PSEUDO_VERSION}
 
 ADD LICENSE /licenses/Apache-2.0.txt
 
