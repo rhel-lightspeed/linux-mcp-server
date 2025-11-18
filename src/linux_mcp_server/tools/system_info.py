@@ -1,9 +1,9 @@
 """System information tools."""
 
 import os
-import platform
+import typing as t
 
-from datetime import datetime
+from collections.abc import Callable
 
 import psutil
 
@@ -125,7 +125,7 @@ class HardwareInfo(BaseModel):
 )
 @log_tool_call
 @disallow_local_execution_in_containers
-async def get_system_information(  # noqa: C901
+async def get_system_information(
     host: Host | None = None,
 ) -> SystemInfo:
     """
@@ -133,104 +133,60 @@ async def get_system_information(  # noqa: C901
     """
     result = SystemInfo()
 
-    try:
-        if host:
-            # Remote execution - use Linux commands
-            # Hostname
+    class SystemInfoAttribute(BaseModel):
+        """System information attribute."""
+
+        names: list[str]
+        command: list[str]
+        parser: Callable[[str], t.Any]
+
+    attributes = [
+        SystemInfoAttribute(names=["hostname"], command=["hostname"], parser=lambda x: x.strip()),
+        SystemInfoAttribute(
+            names=["operating_system", "os_version"],
+            command=["cat", "/etc/os-release"],
+            parser=lambda x: {
+                line.strip().split("=", 1)[0]: line.strip().split("=", 1)[1] for line in x.split("\n") if "=" in line
+            },
+        ),
+        SystemInfoAttribute(
+            names=["kernel_version", "architecture"],
+            command=["uname", "-r", "-m"],
+            parser=lambda x: (
+                lambda parts: {"kernel_version": parts[0], "architecture": parts[1] if len(parts) > 1 else None}
+            )(x.strip().split(None, 1)),
+        ),
+        SystemInfoAttribute(names=["uptime"], command=["uptime", "-p"], parser=lambda x: x.strip()),
+        SystemInfoAttribute(names=["boot_time"], command=["uptime", "-s"], parser=lambda x: x.strip()),
+    ]
+
+    for attribute in attributes:
+        try:
             returncode, stdout, _ = await execute_command(
-                ["hostname"],
+                attribute.command,
                 host=host,
             )
-            if returncode == 0 and stdout:
-                result.hostname = stdout.strip()
+        except ValueError or ConnectionError as e:
+            raise ToolError(f"Error: {str(e)}") from e
 
-            # OS Information from /etc/os-release
-            returncode, stdout, _ = await execute_command(
-                ["cat", "/etc/os-release"],
-                host=host,
-            )
-            if returncode == 0 and stdout:
-                os_info = {}
-                for line in stdout.split("\n"):
-                    line = line.strip()
-                    if "=" in line:
-                        key, value = line.split("=", 1)
-                        os_info[key] = value.strip('"')
-
-                result.operating_system = os_info.get("PRETTY_NAME", "Unknown")
-                if "VERSION_ID" in os_info:
-                    result.os_version = os_info["VERSION_ID"]
-
-            # Kernel version
-            returncode, stdout, _ = await execute_command(
-                ["uname", "-r"],
-                host=host,
-            )
-            if returncode == 0 and stdout:
-                result.kernel_version = stdout.strip()
-
-            # Architecture
-            returncode, stdout, _ = await execute_command(
-                ["uname", "-m"],
-                host=host,
-            )
-            if returncode == 0 and stdout:
-                result.architecture = stdout.strip()
-
-            # Uptime
-            returncode, stdout, _ = await execute_command(
-                ["uptime", "-p"],
-                host=host,
-            )
-            if returncode == 0 and stdout:
-                result.uptime = stdout.strip()
-
-            # Boot time
-            returncode, stdout, _ = await execute_command(
-                ["uptime", "-s"],
-                host=host,
-            )
-            if returncode == 0 and stdout:
-                result.boot_time = stdout.strip()
-        else:
-            # Local execution - use psutil and platform
-            # Hostname
-            result.hostname = platform.node()
-
-            # OS Information
-            if os.path.exists("/etc/os-release"):
-                os_info = {}
-                with open("/etc/os-release") as f:
-                    for line in f:
-                        line = line.strip()
-                        if "=" in line:
-                            key, value = line.split("=", 1)
-                            os_info[key] = value.strip('"')
-
-                result.operating_system = os_info.get("PRETTY_NAME", "Unknown")
-                if "VERSION_ID" in os_info:
-                    result.os_version = os_info["VERSION_ID"]
-            else:
-                result.operating_system = f"{platform.system()} {platform.release()}"
-
-            # Kernel version
-            result.kernel_version = platform.release()
-
-            # Architecture
-            result.architecture = platform.machine()
-
-            # Uptime
-            boot_time = datetime.fromtimestamp(psutil.boot_time())
-            uptime = datetime.now() - boot_time
-            days = uptime.days
-            hours, remainder = divmod(uptime.seconds, 3600)
-            minutes, seconds = divmod(remainder, 60)
-            result.uptime = f"{days}d {hours}h {minutes}m {seconds}s"
-            result.boot_time = boot_time.strftime("%Y-%m-%d %H:%M:%S")
-
-        return result
-    except Exception as e:
-        raise ToolError(f"Error: {str(e)}") from e
+        if returncode == 0 and stdout:
+            parsed_output = attribute.parser(stdout)
+            match attribute.names:
+                case ["hostname"]:
+                    result.hostname = parsed_output
+                case ["operating_system", "os_version"]:
+                    result.operating_system = parsed_output["PRETTY_NAME"]
+                    result.os_version = parsed_output["VERSION_ID"]
+                case ["kernel_version", "architecture"]:
+                    result.kernel_version = parsed_output["kernel_version"]
+                    result.architecture = parsed_output["architecture"]
+                case ["uptime"]:
+                    result.uptime = parsed_output
+                case ["boot_time"]:
+                    result.boot_time = parsed_output
+                case _:
+                    raise ToolError(f"Unknown attribute: {attribute.names}")
+    return result
 
 
 @mcp.tool(
