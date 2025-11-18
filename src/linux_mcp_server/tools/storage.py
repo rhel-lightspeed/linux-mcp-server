@@ -149,81 +149,46 @@ async def list_directories(  # noqa: C901
     match order_by:
         case OrderBy.SIZE:
             # Use du command to get directory sizes efficiently
-            returncode, stdout, _ = await execute_command(
-                ["du", "-b", "--max-depth=1", path],
-                host=host,
-                username=username,
-            )
+            command = ["du", "-b", "--max-depth=1", path]
+        case OrderBy.NAME:
+            # Use find to list only immediate subdirectories
+            command = ["find", path, "-mindepth", "1", "-maxdepth", "1", "-type", "d", "-printf", "%f\\n"]
+        case OrderBy.MODIFIED:
+            # Use find with modification time
+            command = ["find", path, "-mindepth", "1", "-maxdepth", "1", "-type", "d", "-printf", "%T@\\t%f\\n"]
 
-            if returncode != 0:
-                raise ToolError(f"Error running du command: command failed with return code {returncode}")
+    returncode, stdout, _ = await execute_command(
+        command,
+        host=host,
+        username=username,
+    )
 
-            lines = [line.strip() for line in stdout.strip().splitlines() if line]
-            directories_by_size = [
+    if returncode != 0:
+        raise ToolError(f"Error running {command[0]} command: command failed with return code {returncode}")
+
+    lines = [line.strip() for line in stdout.strip().splitlines() if line]
+
+    match order_by:
+        case OrderBy.SIZE:
+            directories = [
                 DirectoryEntry(size=int(size), name=Path(dir_path_str).name)
                 for line in lines
                 for size, dir_path_str in [line.split("\t", 1)]
                 if dir_path_str != path
             ]
-
-            if not directories_by_size and returncode != 0:
-                raise ToolError("du command failed and returned no directory data")
-
-            # Sort by size
-            directories_by_size.sort(key=lambda x: x.size, reverse=sort == SortBy.DESCENDING)
-
-            if top_n:
-                directories_by_size = directories_by_size[:top_n]
-
-            return directories_by_size
         case OrderBy.NAME:
-            # Use find to list only immediate subdirectories
-            returncode, stdout, _ = await execute_command(
-                ["find", path, "-mindepth", "1", "-maxdepth", "1", "-type", "d", "-printf", "%f\\n"],
-                host=host,
-                username=username,
-            )
-
-            if returncode != 0:
-                raise ToolError(f"Error running find command: command failed with return code {returncode}")
-
-            directories_by_name = [DirectoryEntry(name=line) for line in stdout.strip().split("\n") if line]
-
-            if not directories_by_name and returncode != 0:
-                raise ToolError("find command failed and returned no directory data")
-
-            # Sort alphabetically
-            directories_by_name.sort(key=lambda x: x.name, reverse=sort == SortBy.DESCENDING)
-
-            if top_n:
-                directories_by_name = directories_by_name[:top_n]
-
-            return directories_by_name
+            directories = [DirectoryEntry(name=line) for line in lines]
         case OrderBy.MODIFIED:
-            # Use find with modification time
-            returncode, stdout, _ = await execute_command(
-                ["find", path, "-mindepth", "1", "-maxdepth", "1", "-type", "d", "-printf", "%T@\\t%f\\n"],
-                host=host,
-                username=username,
-            )
-
-            if returncode != 0:
-                raise ToolError(f"Error running find command: command failed with return code {returncode}")
-
-            lines = [line.strip() for line in stdout.strip().splitlines() if line]
-            directories_by_modified = [
+            directories = [
                 DirectoryEntry(modified=float(timestamp), name=dir_name)
                 for line in lines
                 for timestamp, dir_name in [line.split("\t", 1)]
             ]
 
-            if not directories_by_modified and returncode != 0:
-                raise ToolError("find command failed and returned no directory data")
+    # Sort by the order_by field
+    directories.sort(key=lambda x: getattr(x, order_by), reverse=sort == SortBy.DESCENDING)
 
-            # Sort by timestamp
-            directories_by_modified.sort(key=lambda x: x.modified, reverse=sort == SortBy.DESCENDING)
+    if top_n:
+        return directories[:top_n]
 
-            if top_n:
-                directories_by_modified = directories_by_modified[:top_n]
-
-            return directories_by_modified
+    return directories
