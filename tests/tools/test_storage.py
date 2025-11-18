@@ -302,7 +302,7 @@ class TestListDirectories:
     async def test_list_directories_by_modified(self, setup_test_directory):
         """Test that list_directories returns structured output sorted by modification time."""
         dir_specs = [
-            ("newest", 100, 3000.0),
+            ("newest", 0, 3000.0),
             ("oldest", 100, 1000.0),
             ("middle", 100, 2000.0),
         ]
