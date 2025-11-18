@@ -129,6 +129,19 @@ class TestListBlockDevices:
         assert "Read Count: 1000" in output
         assert "Write Count: 500" in output
 
+    async def test_list_block_devices_with_no_disk_io_stats(self, mocker):
+        """Test list_block_devices includes disk I/O statistics for local execution."""
+        mocker.patch("linux_mcp_server.tools.storage.execute_command", return_value=(0, "", ""))
+        mocker.patch("linux_mcp_server.tools.storage.psutil.disk_io_counters", return_value={})
+
+        result = await mcp.call_tool("list_block_devices", {})
+        assert isinstance(result, tuple)
+        assert len(result) == 2
+        assert isinstance(result[0], list)
+        output = result[0][0].text
+
+        assert "=== Disk I/O Statistics (per disk) ===" not in output
+
     @patch("linux_mcp_server.tools.storage.psutil.disk_partitions")
     @patch("linux_mcp_server.tools.storage.execute_command")
     async def test_list_block_devices_lsblk_fallback(self, mock_execute_command, mock_partitions):
