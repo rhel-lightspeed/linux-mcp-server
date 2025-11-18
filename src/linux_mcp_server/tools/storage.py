@@ -3,7 +3,6 @@
 import os
 import typing as t
 
-from collections.abc import Sequence
 from pathlib import Path
 
 import psutil
@@ -115,13 +114,9 @@ async def list_block_devices(
 )
 @log_tool_call
 async def list_directories(  # noqa: C901
-    path: t.Annotated[str, Field(description="The directory path to analyze")],
-    order_by: t.Annotated[
-        OrderBy, Field(description="Sort order - 'size', 'name', or 'modified' (default: 'name')")
-    ] = OrderBy.NAME,
-    sort: t.Annotated[
-        SortBy, Field(description="Sort direction - 'ascending' or 'descending' (default: 'ascending')")
-    ] = SortBy.ASCENDING,
+    path: t.Annotated[str, "The directory path to analyze"],
+    order_by: t.Annotated[OrderBy, "Sort order - 'size', 'name', or 'modified' (default: 'name')"] = OrderBy.NAME,
+    sort: t.Annotated[SortBy, "Sort direction - 'ascending' or 'descending' (default: 'ascending')"] = SortBy.ASCENDING,
     top_n: t.Annotated[
         int | None,
         Field(
@@ -133,21 +128,9 @@ async def list_directories(  # noqa: C901
     host: Host | None = None,
     username: Username | None = None,
 ) -> t.Annotated[
-    Sequence[DirectoryEntry],
-    Field(description="List of directories with size or modified timestamp"),
+    list[DirectoryEntry],
+    "List of directories with size or modified timestamp",
 ]:
-    # Validate order_by parameter
-    try:
-        order_by = OrderBy(order_by)
-    except ValueError as e:
-        raise ValueError(f"Invalid order_by value '{order_by}'. Must be one of: {', '.join(OrderBy)}") from e
-
-    # Validate sort parameter
-    try:
-        sort = SortBy(sort)
-    except ValueError as e:
-        raise ValueError(f"Invalid sort value '{sort}'. Must be one of: {', '.join(SortBy)}") from e
-
     # For local execution, validate path
     if not host:
         try:
@@ -172,34 +155,22 @@ async def list_directories(  # noqa: C901
                 username=username,
             )
 
-            # Parse output - du may return non-zero on permission errors but still give valid data
-            lines = stdout.strip().split("\n")
-            directories_by_size: list[DirectoryEntry] = []
+            if returncode != 0:
+                raise ToolError(f"Error running du command: command failed with return code {returncode}")
 
-            for line in lines:
-                if not line:
-                    continue
-                parts = line.split("\t", 1)
-                if len(parts) == 2:
-                    try:
-                        size = int(parts[0])
-                        dir_path_str = parts[1]
-                        # Skip the parent directory itself
-                        dir_name = Path(dir_path_str).name
-                        if dir_path_str != path:
-                            directories_by_size.append(DirectoryEntry(size=size, modified=0.0, name=dir_name))
-                    except (ValueError, IndexError):
-                        continue
+            lines = [line.strip() for line in stdout.strip().splitlines() if line]
+            directories_by_size = [
+                DirectoryEntry(size=int(size), name=Path(dir_path_str).name)
+                for line in lines
+                for size, dir_path_str in [line.split("\t", 1)]
+                if dir_path_str != path
+            ]
 
-            if not directories_by_size:
-                # Only error if we got no output AND a bad return code
-                if returncode != 0:
-                    raise ToolError("du command failed and returned no directory data")
-                raise ToolError(f"No subdirectories found in: {path}")
+            if not directories_by_size and returncode != 0:
+                raise ToolError("du command failed and returned no directory data")
 
             # Sort by size
-            reverse = sort == SortBy.DESCENDING
-            directories_by_size.sort(key=lambda x: x.size, reverse=reverse)
+            directories_by_size.sort(key=lambda x: x.size, reverse=sort == SortBy.DESCENDING)
 
             if top_n:
                 directories_by_size = directories_by_size[:top_n]
@@ -216,17 +187,13 @@ async def list_directories(  # noqa: C901
             if returncode != 0:
                 raise ToolError(f"Error running find command: command failed with return code {returncode}")
 
-            # Parse and sort output
-            directories_by_name: list[DirectoryEntry] = [
-                DirectoryEntry(name=line) for line in stdout.strip().split("\n") if line
-            ]
+            directories_by_name = [DirectoryEntry(name=line) for line in stdout.strip().split("\n") if line]
 
-            if not directories_by_name:
-                raise ToolError(f"No subdirectories found in: {path}")
+            if not directories_by_name and returncode != 0:
+                raise ToolError("find command failed and returned no directory data")
 
             # Sort alphabetically
-            reverse = sort == SortBy.DESCENDING
-            directories_by_name.sort(key=lambda x: x.name, reverse=reverse)
+            directories_by_name.sort(key=lambda x: x.name, reverse=sort == SortBy.DESCENDING)
 
             if top_n:
                 directories_by_name = directories_by_name[:top_n]
@@ -243,25 +210,18 @@ async def list_directories(  # noqa: C901
             if returncode != 0:
                 raise ToolError(f"Error running find command: command failed with return code {returncode}")
 
-            # Parse output
-            directories_by_modified: list[DirectoryEntry] = []
-            for line in stdout.strip().split("\n"):
-                if line:
-                    parts = line.split("\t", 1)
-                    if len(parts) == 2:
-                        try:
-                            timestamp = float(parts[0])
-                            dir_name = parts[1]
-                            directories_by_modified.append(DirectoryEntry(modified=timestamp, name=dir_name))
-                        except ValueError:
-                            continue
+            lines = [line.strip() for line in stdout.strip().splitlines() if line]
+            directories_by_modified = [
+                DirectoryEntry(modified=float(timestamp), name=dir_name)
+                for line in lines
+                for timestamp, dir_name in [line.split("\t", 1)]
+            ]
 
-            if not directories_by_modified:
-                raise ToolError(f"No subdirectories found in: {path}")
+            if not directories_by_modified and returncode != 0:
+                raise ToolError("find command failed and returned no directory data")
 
             # Sort by timestamp
-            reverse = sort == SortBy.DESCENDING
-            directories_by_modified.sort(key=lambda x: x.modified, reverse=reverse)
+            directories_by_modified.sort(key=lambda x: x.modified, reverse=sort == SortBy.DESCENDING)
 
             if top_n:
                 directories_by_modified = directories_by_modified[:top_n]
