@@ -153,7 +153,7 @@ async def list_directories(  # noqa: C901
         case OrderBy.NAME:
             # Use find to list only immediate subdirectories
             command = ["find", path, "-mindepth", "1", "-maxdepth", "1", "-type", "d", "-printf", "%f\\n"]
-        case OrderBy.MODIFIED:
+        case OrderBy.MODIFIED:  # pragma: no branch
             # Use find with modification time
             command = ["find", path, "-mindepth", "1", "-maxdepth", "1", "-type", "d", "-printf", "%T@\\t%f\\n"]
 
@@ -178,7 +178,7 @@ async def list_directories(  # noqa: C901
             ]
         case OrderBy.NAME:
             directories = [DirectoryEntry(name=line) for line in lines]
-        case OrderBy.MODIFIED:
+        case OrderBy.MODIFIED:  # pragma: no branch
             directories = [
                 DirectoryEntry(modified=float(timestamp), name=dir_name)
                 for line in lines
