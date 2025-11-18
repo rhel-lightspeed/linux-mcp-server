@@ -1,11 +1,61 @@
 """Tests for storage tools."""
 
+import os
 import sys
-import typing as t
+
+from collections.abc import Callable
+from pathlib import Path
+from unittest.mock import MagicMock
+from unittest.mock import patch
 
 import pytest
 
-from linux_mcp_server.tools import storage
+from mcp.server.fastmcp.exceptions import ToolError
+
+from linux_mcp_server.server import mcp
+from linux_mcp_server.tools.storage import DirectoryEntry
+
+
+@pytest.fixture
+def setup_test_directory(tmp_path) -> Callable[[list[tuple[str, int, float]]], tuple[Path, list[DirectoryEntry]]]:
+    """
+    Factory fixture for creating test directories with subdirectories of specific sizes and modification times.
+
+    Returns a function that accepts a list of (name, size, modified_time) tuples and:
+    - Creates subdirectories with the specified sizes (by adding a file within each)
+    - Sets their modification times
+    - Returns the directory path and list of expected DirectoryEntry objects
+    """
+
+    def _create_directory(dir_specs: list[tuple[str, int, float]]) -> tuple[Path, list[DirectoryEntry]]:
+        """
+        Create a directory structure with specified subdirectories.
+
+        Args:
+            dir_specs: List of (name, size, modified_time) tuples
+
+        Returns:
+            Tuple of (directory_path, expected_entries)
+        """
+        expected_entries = []
+
+        for name, size, modified_time in dir_specs:
+            dir_path = tmp_path / name
+            dir_path.mkdir()
+
+            # Create a file inside the directory to give it size
+            if size > 0:
+                content_file = dir_path / "content.txt"
+                content_file.write_text("x" * size)
+
+            # Set modification time on the directory itself
+            os.utime(dir_path, (modified_time, modified_time))
+
+            expected_entries.append(DirectoryEntry(name=name, size=size, modified=modified_time))
+
+        return tmp_path, expected_entries
+
+    return _create_directory
 
 
 @pytest.fixture
@@ -19,333 +69,644 @@ def restricted_path(tmp_path):
     restricted_path.chmod(0o755)
 
 
-class TestStorageTools:
-    """Test storage diagnostic tools."""
+class TestListBlockDevices:
+    @patch("linux_mcp_server.tools.storage.execute_command")
+    async def test_list_block_devices_lsblk_success(self, mock_execute_command):
+        """Test list_block_devices with successful lsblk command."""
+        mock_execute_command.return_value = (
+            0,
+            "NAME   SIZE TYPE MOUNTPOINT FSTYPE MODEL\nsda    1TB  disk            \nsda1   512G part /          ext4",
+            "",
+        )
 
-    async def test_list_block_devices_returns_string(self):
-        """Test that list_block_devices returns a string."""
-        result = await storage.list_block_devices()
-        assert isinstance(result, str)
-        assert len(result) > 0
+        result = await mcp.call_tool("list_block_devices", {})
+
+        # Verify result structure
+        assert isinstance(result, tuple)
+        assert len(result) == 2
+        assert isinstance(result[0], list)
+        output = result[0][0].text
+
+        assert "=== Block Devices ===" in output
+        assert "sda" in output
+        assert "sda1" in output
+
+        # Verify lsblk was called with correct arguments
+        mock_execute_command.assert_called_once()
+        args = mock_execute_command.call_args[0][0]
+        assert args[0] == "lsblk"
+        assert "-o" in args
+
+    @patch("linux_mcp_server.tools.storage.psutil.disk_io_counters")
+    @patch("linux_mcp_server.tools.storage.execute_command")
+    async def test_list_block_devices_with_disk_io_stats(self, mock_execute_command, mock_disk_io):
+        """Test list_block_devices includes disk I/O statistics for local execution."""
+        mock_execute_command.return_value = (
+            0,
+            "NAME   SIZE TYPE MOUNTPOINT\nsda    1TB  disk",
+            "",
+        )
+
+        # Create mock disk I/O stats
+        mock_stats = MagicMock()
+        mock_stats.read_bytes = 1024 * 1024 * 1024  # 1 GB
+        mock_stats.write_bytes = 512 * 1024 * 1024  # 512 MB
+        mock_stats.read_count = 1000
+        mock_stats.write_count = 500
+
+        mock_disk_io.return_value = {"sda": mock_stats}
+
+        result = await mcp.call_tool("list_block_devices", {})
+        assert isinstance(result, tuple)
+        assert len(result) == 2
+        assert isinstance(result[0], list)
+        output = result[0][0].text
+
+        assert "=== Disk I/O Statistics (per disk) ===" in output
+        assert "sda:" in output
+        assert "Read:" in output
+        assert "Write:" in output
+        assert "Read Count: 1000" in output
+        assert "Write Count: 500" in output
+
+    @patch("linux_mcp_server.tools.storage.psutil.disk_partitions")
+    @patch("linux_mcp_server.tools.storage.execute_command")
+    async def test_list_block_devices_lsblk_fallback(self, mock_execute_command, mock_partitions):
+        """Test list_block_devices falls back to psutil when lsblk fails."""
+        # lsblk returns non-zero
+        mock_execute_command.return_value = (1, "", "command failed")
+
+        # Mock partition data
+        mock_partition = MagicMock()
+        mock_partition.device = "/dev/sda1"
+        mock_partition.mountpoint = "/"
+        mock_partition.fstype = "ext4"
+        mock_partition.opts = "rw,relatime"
+
+        mock_partitions.return_value = [mock_partition]
+
+        result = await mcp.call_tool("list_block_devices", {})
+        assert isinstance(result, tuple)
+        assert len(result) == 2
+        assert isinstance(result[0], list)
+        output = result[0][0].text
+
+        assert "=== Block Devices (fallback) ===" in output
+        assert "/dev/sda1" in output
+        assert "Mountpoint: /" in output
+        assert "Filesystem: ext4" in output
+
+    @patch("linux_mcp_server.tools.storage.psutil.disk_partitions")
+    @patch("linux_mcp_server.tools.storage.execute_command")
+    async def test_list_block_devices_file_not_found(self, mock_execute_command, mock_partitions):
+        """Test list_block_devices when lsblk is not available."""
+        # lsblk not found
+        mock_execute_command.side_effect = FileNotFoundError("lsblk not found")
+
+        # Mock partition data
+        mock_partition = MagicMock()
+        mock_partition.device = "/dev/nvme0n1p1"
+        mock_partition.mountpoint = "/boot"
+        mock_partition.fstype = "vfat"
+        mock_partition.opts = "rw"
+
+        mock_partitions.return_value = [mock_partition]
+
+        result = await mcp.call_tool("list_block_devices", {})
+        assert isinstance(result, tuple)
+        assert len(result) == 2
+        assert isinstance(result[0], list)
+        output = result[0][0].text
+
+        assert "=== Block Devices ===" in output
+        assert "/dev/nvme0n1p1" in output
+        assert "Mountpoint: /boot" in output
+
+    @patch("linux_mcp_server.tools.storage.psutil.disk_io_counters")
+    @patch("linux_mcp_server.tools.storage.execute_command")
+    async def test_list_block_devices_remote_execution(self, mock_execute_command, mock_disk_io):
+        """Test list_block_devices with remote execution (no disk I/O stats)."""
+        mock_execute_command.return_value = (
+            0,
+            "NAME   SIZE TYPE\nsda    1TB  disk",
+            "",
+        )
+
+        # Mock disk I/O to ensure it's not called or used
+        mock_stats = MagicMock()
+        mock_stats.read_bytes = 1024
+        mock_disk_io.return_value = {"sda": mock_stats}
+
+        result = await mcp.call_tool("list_block_devices", {"host": "remote.host.com", "username": "testuser"})
+        assert isinstance(result, tuple)
+        assert len(result) == 2
+        assert isinstance(result[0], list)
+        output = result[0][0].text
+
+        # Should NOT include disk I/O stats for remote execution
+        assert "=== Disk I/O Statistics" not in output
+        assert "=== Block Devices ===" in output
+
+        # Verify execute_command was called with host/username
+        mock_execute_command.assert_called_once()
+        call_kwargs = mock_execute_command.call_args[1]
+        assert call_kwargs["host"] == "remote.host.com"
+        assert call_kwargs["username"] == "testuser"
+
+    @patch("linux_mcp_server.tools.storage.execute_command")
+    async def test_list_block_devices_exception_handling(self, mock_execute_command):
+        """Test list_block_devices handles general exceptions."""
+        mock_execute_command.side_effect = Exception("Unexpected error")
+
+        result = await mcp.call_tool("list_block_devices", {})
+        assert isinstance(result, tuple)
+        assert len(result) == 2
+        assert isinstance(result[0], list)
+        output = result[0][0].text
+
+        assert "Error listing block devices:" in output
+        assert "Unexpected error" in output
 
 
-class TestListDirectoriesBySize:
-    """Test list_directories_by_size function with security focus."""
+@pytest.mark.skipif(sys.platform != "linux", reason="requires GNU version of coreutils/findutils")
+class TestListDirectories:
+    async def test_list_directories_returns_structured_output(self, setup_test_directory):
+        """Test that list_directories returns structured output."""
+        file_specs = [
+            ("alpha", 100, 1000.0),
+            ("beta", 200, 2000.0),
+            ("gamma", 300, 3000.0),
+        ]
+        test_path, _ = setup_test_directory(file_specs)
 
-    async def test_list_directories_by_size_returns_string(self):
-        """Test that list_directories_by_size returns a string."""
-        # Use /tmp which should exist on all Linux systems
-        result = await storage.list_directories_by_size("/tmp", top_n=5)
-        assert isinstance(result, str)
-        assert len(result) > 0
+        result = await mcp.call_tool("list_directories", {"path": str(test_path), "order_by": "name"})
 
-    @pytest.mark.skipif(sys.platform != "linux", reason="requires GNU version of du")
-    async def test_list_directories_by_size_with_temp_dirs(self, tmp_path):
-        """Test with temporary directories."""
-        # Create a temporary directory structure
-        # Create subdirectories with files
-        dir1 = tmp_path / "dir1"
-        dir2 = tmp_path / "dir2"
-        dir3 = tmp_path / "dir3"
+        # Verify the entire result structure
+        assert isinstance(result, tuple)
+        assert len(result) == 2
+        assert isinstance(result[1], dict)
+        directories = list[DirectoryEntry](result[1]["result"])
+        assert directories is not None
 
-        dir1.mkdir()
-        dir2.mkdir()
-        dir3.mkdir()
+    async def test_list_directories_by_name(self, setup_test_directory):
+        """Test that list_directories returns structured output sorted by name."""
+        dir_specs = [
+            ("alpha", 100, 1000.0),
+            ("beta", 200, 2000.0),
+            ("gamma", 300, 3000.0),
+        ]
+        test_path, _ = setup_test_directory(dir_specs)
 
-        # Create files of different sizes
-        (dir1 / "file1.txt").write_text("x" * 1000)  # 1KB
-        (dir2 / "file2.txt").write_text("x" * 5000)  # 5KB
-        (dir3 / "file3.txt").write_text("x" * 500)  # 0.5KB
-
-        result = await storage.list_directories_by_size(str(tmp_path), top_n=3)
-
-        assert isinstance(result, str)
-        assert "dir1" in result or "dir2" in result or "dir3" in result
-        assert "Size" in result or "size" in result.lower()
-
-    @pytest.mark.skipif(sys.platform != "linux", reason="requires GNU version of du")
-    async def test_list_directories_by_size_recursive_mode(self, tmp_path):
-        """Test with nested directories - sizes should include all nested content."""
-        # Create nested structure
-        nested = tmp_path / "parent" / "child"
-        nested.mkdir(parents=True)
-
-        # Add files
-        (tmp_path / "parent" / "file.txt").write_text("x" * 2000)
-        (nested / "nested_file.txt").write_text("x" * 1000)
-
-        result = await storage.list_directories_by_size(tmp_path, top_n=5)
-
-        assert isinstance(result, str)
-        assert "parent" in result
-
-    @pytest.mark.skipif(sys.platform != "linux", reason="requires GNU version of du")
-    async def test_list_directories_by_size_respects_top_n_limit(self, tmp_path):
-        """Test that only top_n directories are returned."""
-        # Create 10 directories
-        for i in range(10):
-            dir_path = tmp_path / f"dir{i}"
-            dir_path.mkdir()
-            (dir_path / f"file{i}.txt").write_text("x" * (i * 100))
-
-            result = await storage.list_directories_by_size(tmp_path, top_n=3)
-
-            assert isinstance(result, str)
-            # The result should mention "Top 3" or similar
-            assert "3" in result or "top" in result.lower()
-
-    async def test_list_directories_by_size_invalid_path(self):
-        """Test with non-existent path returns error message."""
-        result = await storage.list_directories_by_size("/this/path/absolutely/does/not/exist/anywhere", top_n=5)
-
-        assert isinstance(result, str)
-        assert "error" in result.lower() or "not found" in result.lower() or "does not exist" in result.lower()
-
-    async def test_list_directories_by_size_path_is_file_not_directory(self, tmp_path):
-        """Test with a file path instead of directory returns error."""
-        tmp_file = tmp_path / "data.txt"
-        tmp_file.write_bytes(b"test content")
-        tmp_file_path = tmp_file.name
-
-        result = await storage.list_directories_by_size(tmp_file_path, top_n=5)
-
-        assert isinstance(result, str)
-        assert "error" in result.lower() or "not a directory" in result.lower()
-
-    async def test_list_directories_by_size_sanitizes_path_input(self):
-        """Test that path injection attempts are handled safely."""
-        # Test with various potentially malicious paths
-        malicious_paths = [
-            "/tmp/../../../etc/passwd",
-            "/tmp; rm -rf /",
-            "/tmp && echo 'malicious'",
-            "/tmp`whoami`",
-            "/tmp$(whoami)",
+        # When ordering by name, only the name field is populated
+        expected_entries = [
+            DirectoryEntry(name="alpha", size=0, modified=0.0),
+            DirectoryEntry(name="beta", size=0, modified=0.0),
+            DirectoryEntry(name="gamma", size=0, modified=0.0),
         ]
 
-        for path in malicious_paths:
-            result = await storage.list_directories_by_size(path, top_n=5)
-            # Should either error safely or resolve to a safe path
-            assert isinstance(result, str)
-            # Should not execute commands or expose sensitive files
+        result = await mcp.call_tool("list_directories", {"path": str(test_path), "order_by": "name"})
 
-    async def test_list_directories_by_size_validates_top_n(self, tmp_path):
-        """Test that top_n parameter is validated."""
-        # Test with negative number
-        result = await storage.list_directories_by_size(tmp_path, top_n=-5)
-        assert isinstance(result, str)
-        assert "error" in result.lower() or "invalid" in result.lower()
-
-        # Test with zero
-        result = await storage.list_directories_by_size(tmp_path, top_n=0)
-        assert isinstance(result, str)
-        assert "error" in result.lower() or "invalid" in result.lower()
-
-    @pytest.mark.skipif(sys.platform != "linux", reason="requires GNU version of du")
-    async def test_list_directories_by_size_accepts_float_and_truncates(self, tmp_path):
-        """Test that top_n accepts floats and truncates them to integers."""
-        # Create 5 directories
-        for i in range(5):
-            dir_path = tmp_path / f"dir{i}"
-            dir_path.mkdir()
-            (dir_path / f"file{i}.txt").write_text("x" * (i * 100))
-
-        # Test with float that should be truncated to 3
-        result = await storage.list_directories_by_size(tmp_path, top_n=3.9)
-
-        assert isinstance(result, str)
-        assert "error" not in result.lower()
-        assert "Top 3" in result
-
-        # Test with exact float (5.0 should work as 5)
-        result = await storage.list_directories_by_size(tmp_path, top_n=5.0)
-
-        assert isinstance(result, str)
-        assert "error" not in result.lower()
-        assert "5" in result or "Top 5" in result
-
-    @pytest.mark.skipif(sys.platform != "linux", reason="requires GNU version of du")
-    async def test_list_directories_by_size_handles_empty_directory(self, tmp_path):
-        """Test with empty directory."""
-        result = await storage.list_directories_by_size(tmp_path, top_n=5)
-
-        assert isinstance(result, str)
-        assert "no subdirectories" in result.lower() or "empty" in result.lower() or "0" in result
-
-    async def test_list_directories_by_size_handles_permission_denied(self, restricted_path):
-        """Test handling of permission denied errors gracefully."""
-        result = await storage.list_directories_by_size(restricted_path, top_n=5)
-
-        assert "Error: Permission denied to read directory".casefold() in result.casefold()
-        # Should handle gracefully, not crash
-
-    @pytest.mark.skipif(sys.platform != "linux", reason="requires GNU version of du")
-    async def test_list_directories_by_size_formats_sizes_human_readable(self, tmp_path):
-        """Test that sizes are formatted in human-readable format."""
-        dir1 = tmp_path / "bigdir"
-        dir1.mkdir()
-
-        # Create a file > 1MB to test formatting
-        (dir1 / "largefile.bin").write_bytes(b"x" * (2 * 1024 * 1024))  # 2MB
-
-        result = await storage.list_directories_by_size(tmp_path, top_n=5)
-
-        assert isinstance(result, str)
-        # Should have size units
-        assert any(unit in result for unit in ["KB", "MB", "GB", "B", "bytes"])
-
-    async def test_list_directories_by_size_maximum_top_n_limit(self, tmp_path):
-        """Test that there's a reasonable upper limit on top_n."""
-        # Create a few directories
-        for i in range(5):
-            (tmp_path / f"dir{i}").mkdir()
-
-        # Request an unreasonably large number
-        result = await storage.list_directories_by_size(tmp_path, top_n=10000)
-
-        assert isinstance(result, str)
-        # Should either cap it or return available directories
-
-
-# @pytest.mark.skipif(sys.platform != "linux", reason="requires GNU version of du")
-class TestListDirectoriesByName:
-    """Test list_directories_by_name function."""
-
-    async def test_list_directories_by_name_returns_string(self, tmp_path):
-        """Test that list_directories_by_name returns a string."""
-        # Create some directories
-        for name in ["alpha", "beta", "gamma"]:
-            (tmp_path / name).mkdir()
-
-        result = await storage.list_directories_by_name(tmp_path)
-        assert isinstance(result, str)
-        assert len(result) > 0
-
-    @pytest.mark.skipif(sys.platform != "linux", reason="requires GNU version of du")
-    async def test_list_directories_by_name_sorts_alphabetically(self, tmp_path):
-        """Test that directories are sorted alphabetically."""
-        # Create directories
-        for name in ["zebra", "alpha", "mike"]:
-            (tmp_path / name).mkdir()
-
-        result = await storage.list_directories_by_name(tmp_path, reverse=False)
-
-        assert isinstance(result, str)
-        # alpha should appear before zebra in alphabetical order
-        alpha_pos = result.find("alpha")
-        zebra_pos = result.find("zebra")
-        assert alpha_pos < zebra_pos
-
-    @pytest.mark.skipif(sys.platform != "linux", reason="requires GNU version of du")
-    async def test_list_directories_by_name_reverse_sort(self, tmp_path):
-        """Test reverse alphabetical sorting."""
-        for name in ["alpha", "beta", "gamma"]:
-            (tmp_path / name).mkdir()
-
-        result = await storage.list_directories_by_name(tmp_path, reverse=True)
-
-        assert isinstance(result, str)
-        # gamma should appear before alpha in reverse order
-        gamma_pos = result.find("gamma")
-        alpha_pos = result.find("alpha")
-        assert gamma_pos < alpha_pos
-
-    @pytest.mark.skipif(sys.platform != "linux", reason="requires GNU version of du")
-    async def test_list_directories_by_name_lists_all(self, tmp_path):
-        """Test that all directories are returned."""
-        for i in range(10):
-            (tmp_path / f"dir{i:02d}").mkdir()
-
-        result = await storage.list_directories_by_name(tmp_path)
-        assert isinstance(result, str)
-        assert "10" in result  # Total subdirectories found: 10
-
-
-class TestListDirectoriesByModifiedDate:
-    """Test list_directories_by_modified_date function."""
-
-    async def test_list_directories_by_modified_date_returns_string(self, tmp_path):
-        """Test that list_directories_by_modified_date returns a string."""
-        # Create some directories
-        for name in ["dir1", "dir2", "dir3"]:
-            (tmp_path / name).mkdir()
-
-        result = await storage.list_directories_by_modified_date(tmp_path)
-        assert isinstance(result, str)
-        assert len(result) > 0
-
-    @pytest.mark.skipif(sys.platform != "linux", reason="requires GNU version of du")
-    async def test_list_directories_by_modified_date_sorts_by_time(self, tmp_path):
-        """Test that directories are sorted by modification time."""
-        import time
-
-        # Create directories with time delays
-        dir1 = tmp_path / "old_dir"
-        dir1.mkdir()
-        time.sleep(0.1)
-
-        dir2 = tmp_path / "new_dir"
-        dir2.mkdir()
-
-        result = await storage.list_directories_by_modified_date(tmp_path, newest_first=True)
-
-        assert isinstance(result, str)
-        # new_dir should appear before old_dir when sorted newest first
-        new_pos = result.find("new_dir")
-        old_pos = result.find("old_dir")
-        assert new_pos < old_pos
-
-    @pytest.mark.skipif(sys.platform != "linux", reason="requires GNU version of du")
-    async def test_list_directories_by_modified_date_lists_all(self, tmp_path):
-        """Test that all directories are returned."""
-        for i in range(10):
-            (tmp_path / f"dir{i}").mkdir()
-
-        result = await storage.list_directories_by_modified_date(tmp_path)
-        assert isinstance(result, str)
-        assert "10" in result  # Total subdirectories found: 10
-
-    async def test_list_directories_by_modified_date_invalid_path(self):
-        """Test with non-existent path returns error message."""
-        result = await storage.list_directories_by_modified_date("/this/path/absolutely/does/not/exist/anywhere")
-        assert isinstance(result, str)
-        assert "error" in result.lower()
-
-
-class TestListDirectoriesBySizeIntegration:
-    """Test integration of list_directories_by_size with MCP server."""
-
-    async def test_server_lists_list_directories_by_size_tool(self):
-        """Test that the server lists the new tool."""
-        from linux_mcp_server.server import mcp
-
-        tools = await mcp.list_tools()
-        tool_names = [tool.name for tool in tools]
-
-        assert "list_directories_by_size" in tool_names
-
-    async def test_server_can_call_list_directories_by_size(self, tmp_path):
-        """Test that the tool can be called through the server."""
-        from linux_mcp_server.server import mcp
-
-        result = await mcp.call_tool("list_directories_by_size", {"path": str(tmp_path), "top_n": 5})
-
-        assert result is not None
-        assert len(result) > 0
-        assert isinstance(result, t.Sequence)
+        # Verify the structured output
+        assert isinstance(result, tuple)
+        assert len(result) == 2
         assert isinstance(result[1], dict)
-        assert "result" in result[1]
+        got = [DirectoryEntry(**entry) for entry in result[1]["result"]]
+        assert got == expected_entries
 
-    async def test_server_tool_has_proper_schema(self):
-        """Test that the tool has proper input schema defined."""
-        from linux_mcp_server.server import mcp
+    async def test_list_directories_by_size(self, setup_test_directory):
+        """Test that list_directories returns structured output sorted by size."""
+        dir_specs = [
+            ("small", 100, 1000.0),
+            ("large", 300, 3000.0),
+            ("medium", 200, 2000.0),
+        ]
+        test_path, _ = setup_test_directory(dir_specs)
 
-        tools = await mcp.list_tools()
+        expected_entries = [
+            DirectoryEntry(name="small", size=100, modified=0.0),
+            DirectoryEntry(name="medium", size=200, modified=0.0),
+            DirectoryEntry(name="large", size=300, modified=0.0),
+        ]
 
-        tool = next((tool for tool in tools if tool.name == "list_directories_by_size"), None)
-        assert tool is not None
+        result = await mcp.call_tool(
+            "list_directories", {"path": str(test_path), "order_by": "size", "sort": "ascending"}
+        )
 
-        # Check that it has the required parameters
-        props = tool.inputSchema.get("properties", {})
-        assert "path" in props
-        assert "top_n" in props
+        # Verify the structured output - should be sorted by size (ascending)
+        assert isinstance(result, tuple)
+        assert len(result) == 2
+        assert isinstance(result[1], dict)
+        got = [DirectoryEntry(**entry) for entry in result[1]["result"]]
+        assert got == expected_entries
+
+    async def test_list_directories_by_modified(self, setup_test_directory):
+        """Test that list_directories returns structured output sorted by modification time."""
+        dir_specs = [
+            ("newest", 0, 3000.0),
+            ("oldest", 100, 1000.0),
+            ("middle", 100, 2000.0),
+        ]
+        test_path, _ = setup_test_directory(dir_specs)
+
+        # When ordering by modified, only name and modified fields are populated
+        expected_entries = [
+            DirectoryEntry(name="oldest", size=0, modified=1000.0),
+            DirectoryEntry(name="middle", size=0, modified=2000.0),
+            DirectoryEntry(name="newest", size=0, modified=3000.0),
+        ]
+
+        result = await mcp.call_tool(
+            "list_directories", {"path": str(test_path), "order_by": "modified", "sort": "ascending"}
+        )
+
+        # Verify the structured output - should be sorted by modification time (ascending)
+        assert isinstance(result, tuple)
+        assert len(result) == 2
+        assert isinstance(result[1], dict)
+        got = [DirectoryEntry(**entry) for entry in result[1]["result"]]
+        assert got == expected_entries
+
+    async def test_list_directories_by_name_with_top_n(self, setup_test_directory):
+        """Test that list_directories returns structured output sorted by name with top_n limit."""
+        dir_specs = [
+            ("alpha", 100, 1000.0),
+            ("beta", 200, 2000.0),
+            ("gamma", 300, 3000.0),
+        ]
+        test_path, _ = setup_test_directory(dir_specs)
+
+        # When ordering by name, only name field is populated
+        expected_entries = [
+            DirectoryEntry(name="alpha", size=0, modified=0.0),
+            DirectoryEntry(name="beta", size=0, modified=0.0),
+        ]
+
+        result = await mcp.call_tool("list_directories", {"path": str(test_path), "order_by": "name", "top_n": 2})
+        assert isinstance(result, tuple)
+        assert len(result) == 2
+        assert isinstance(result[1], dict)
+        got = [DirectoryEntry(**entry) for entry in result[1]["result"]]
+        assert got == expected_entries
+
+    async def test_list_directories_by_name_descending(self, setup_test_directory):
+        """Test that list_directories returns structured output sorted by name in descending order."""
+        dir_specs = [
+            ("alpha", 100, 1000.0),
+            ("beta", 200, 2000.0),
+            ("gamma", 300, 3000.0),
+        ]
+        test_path, _ = setup_test_directory(dir_specs)
+
+        expected_entries = [
+            DirectoryEntry(name="gamma", size=0, modified=0.0),
+            DirectoryEntry(name="beta", size=0, modified=0.0),
+            DirectoryEntry(name="alpha", size=0, modified=0.0),
+        ]
+
+        result = await mcp.call_tool(
+            "list_directories", {"path": str(test_path), "order_by": "name", "sort": "descending"}
+        )
+
+        assert isinstance(result, tuple)
+        assert len(result) == 2
+        assert isinstance(result[1], dict)
+        got = [DirectoryEntry(**entry) for entry in result[1]["result"]]
+        assert got == expected_entries
+
+    async def test_list_directories_by_size_descending(self, setup_test_directory):
+        """Test that list_directories returns structured output sorted by size in descending order."""
+        dir_specs = [
+            ("small", 100, 1000.0),
+            ("large", 300, 3000.0),
+            ("medium", 200, 2000.0),
+        ]
+        test_path, _ = setup_test_directory(dir_specs)
+
+        expected_entries = [
+            DirectoryEntry(name="large", size=300, modified=0.0),
+            DirectoryEntry(name="medium", size=200, modified=0.0),
+            DirectoryEntry(name="small", size=100, modified=0.0),
+        ]
+
+        result = await mcp.call_tool(
+            "list_directories", {"path": str(test_path), "order_by": "size", "sort": "descending"}
+        )
+
+        assert isinstance(result, tuple)
+        assert len(result) == 2
+        assert isinstance(result[1], dict)
+        got = [DirectoryEntry(**entry) for entry in result[1]["result"]]
+        assert got == expected_entries
+
+    async def test_list_directories_by_modified_descending(self, setup_test_directory):
+        """Test that list_directories returns structured output sorted by modified time in descending order."""
+        dir_specs = [
+            ("newest", 100, 3000.0),
+            ("oldest", 100, 1000.0),
+            ("middle", 100, 2000.0),
+        ]
+        test_path, _ = setup_test_directory(dir_specs)
+
+        expected_entries = [
+            DirectoryEntry(name="newest", size=0, modified=3000.0),
+            DirectoryEntry(name="middle", size=0, modified=2000.0),
+            DirectoryEntry(name="oldest", size=0, modified=1000.0),
+        ]
+
+        result = await mcp.call_tool(
+            "list_directories", {"path": str(test_path), "order_by": "modified", "sort": "descending"}
+        )
+
+        assert isinstance(result, tuple)
+        assert len(result) == 2
+        assert isinstance(result[1], dict)
+        got = [DirectoryEntry(**entry) for entry in result[1]["result"]]
+        assert got == expected_entries
+
+    async def test_list_directories_invalid_order_by(self, tmp_path):
+        """Test that invalid order_by parameter raises ValueError."""
+        with pytest.raises(ToolError, match="1 validation error"):
+            await mcp.call_tool("list_directories", {"path": str(tmp_path), "order_by": "invalid"})
+
+    async def test_list_directories_invalid_sort(self, tmp_path):
+        """Test that invalid sort parameter raises ValueError."""
+        with pytest.raises(ToolError, match="1 validation error"):
+            await mcp.call_tool("list_directories", {"path": str(tmp_path), "sort": "invalid"})
+
+    async def test_list_directories_invalid_path(self, tmp_path):
+        """Test with non-existent path raises ToolError."""
+        non_existent_path = tmp_path / "non_existent_directory"
+        with pytest.raises(ToolError, match="Path does not exist"):
+            await mcp.call_tool("list_directories", {"path": str(non_existent_path), "order_by": "name"})
+
+    async def test_list_directories_path_is_file_not_directory(self, tmp_path):
+        """Test with a file path instead of directory raises ToolError."""
+        tmp_file = tmp_path / "data.txt"
+        tmp_file.write_bytes(b"test content")
+
+        with pytest.raises(ToolError, match="Path is not a directory"):
+            await mcp.call_tool("list_directories", {"path": str(tmp_file), "order_by": "name"})
+
+    async def test_list_directories_handles_permission_denied(self, restricted_path):
+        """Test handling of permission denied errors gracefully."""
+        with pytest.raises(ToolError, match="Permission denied"):
+            await mcp.call_tool("list_directories", {"path": str(restricted_path)})
+
+    async def test_list_directories_empty_directory_by_name(self, tmp_path):
+        """Test list_directories with a directory containing no subdirectories (name ordering)."""
+        result = await mcp.call_tool("list_directories", {"path": str(tmp_path), "order_by": "name"})
+
+        assert isinstance(result, tuple)
+        assert len(result) == 2
+        assert isinstance(result[1], dict)
+        got = [DirectoryEntry(**entry) for entry in result[1]["result"]]
+        assert got == []
+
+    async def test_list_directories_empty_directory_by_size(self, tmp_path):
+        """Test list_directories with a directory containing no subdirectories (size ordering)."""
+        result = await mcp.call_tool("list_directories", {"path": str(tmp_path), "order_by": "size"})
+
+        assert isinstance(result, tuple)
+        assert len(result) == 2
+        assert isinstance(result[1], dict)
+        got = [DirectoryEntry(**entry) for entry in result[1]["result"]]
+        assert got == []
+
+    async def test_list_directories_empty_directory_by_modified(self, tmp_path):
+        """Test list_directories with a directory containing no subdirectories (modified ordering)."""
+        result = await mcp.call_tool("list_directories", {"path": str(tmp_path), "order_by": "modified"})
+
+        assert isinstance(result, tuple)
+        assert len(result) == 2
+        assert isinstance(result[1], dict)
+        got = [DirectoryEntry(**entry) for entry in result[1]["result"]]
+        assert got == []
+
+    async def test_list_directories_special_characters_in_names(self, tmp_path):
+        """Test list_directories handles directory names with special characters."""
+        # Create directories with special characters
+        (tmp_path / "dir with spaces").mkdir()
+        (tmp_path / "dir-with-dashes").mkdir()
+        (tmp_path / "dir_with_underscores").mkdir()
+
+        result = await mcp.call_tool("list_directories", {"path": str(tmp_path), "order_by": "name"})
+
+        assert isinstance(result, tuple)
+        assert len(result) == 2
+        assert isinstance(result[1], dict)
+        got = [DirectoryEntry(**entry) for entry in result[1]["result"]]
+
+        # Verify all directory names are correctly parsed
+        names = [entry.name for entry in got]
+        assert "dir with spaces" in names
+        assert "dir-with-dashes" in names
+        assert "dir_with_underscores" in names
+        assert len(got) == 3
+
+    async def test_list_directories_by_modified_with_top_n(self, setup_test_directory):
+        """Test that list_directories returns structured output sorted by modified time with top_n limit."""
+        dir_specs = [
+            ("newest", 100, 3000.0),
+            ("oldest", 100, 1000.0),
+            ("middle", 100, 2000.0),
+        ]
+        test_path, _ = setup_test_directory(dir_specs)
+
+        expected_entries = [
+            DirectoryEntry(name="oldest", size=0, modified=1000.0),
+            DirectoryEntry(name="middle", size=0, modified=2000.0),
+        ]
+
+        result = await mcp.call_tool(
+            "list_directories", {"path": str(test_path), "order_by": "modified", "sort": "ascending", "top_n": 2}
+        )
+
+        assert isinstance(result, tuple)
+        assert len(result) == 2
+        assert isinstance(result[1], dict)
+        got = [DirectoryEntry(**entry) for entry in result[1]["result"]]
+        assert got == expected_entries
+
+    async def test_list_directories_by_size_with_top_n_descending(self, setup_test_directory):
+        """Test that list_directories returns structured output sorted by size with top_n limit and descending order."""
+        dir_specs = [
+            ("small", 100, 1000.0),
+            ("large", 300, 3000.0),
+            ("medium", 200, 2000.0),
+            ("tiny", 50, 500.0),
+        ]
+        test_path, _ = setup_test_directory(dir_specs)
+
+        expected_entries = [
+            DirectoryEntry(name="large", size=300, modified=0.0),
+            DirectoryEntry(name="medium", size=200, modified=0.0),
+        ]
+
+        result = await mcp.call_tool(
+            "list_directories", {"path": str(test_path), "order_by": "size", "sort": "descending", "top_n": 2}
+        )
+
+        assert isinstance(result, tuple)
+        assert len(result) == 2
+        assert isinstance(result[1], dict)
+        got = [DirectoryEntry(**entry) for entry in result[1]["result"]]
+        assert got == expected_entries
+
+    @patch("linux_mcp_server.tools.storage.execute_command")
+    async def test_list_directories_remote_execution_by_size(self, mock_execute_command):
+        """Test list_directories with remote execution for size ordering."""
+        # Mock du command output
+        mock_execute_command.return_value = (
+            0,
+            "100\t/remote/path/small\n300\t/remote/path/large\n200\t/remote/path/medium\n500\t/remote/path",
+            "",
+        )
+
+        result = await mcp.call_tool(
+            "list_directories",
+            {"path": "/remote/path", "order_by": "size", "host": "remote.server.com", "username": "testuser"},
+        )
+
+        assert isinstance(result, tuple)
+        assert len(result) == 2
+        assert isinstance(result[1], dict)
+        got = [DirectoryEntry(**entry) for entry in result[1]["result"]]
+
+        # Verify results are sorted by size
+        assert len(got) == 3
+        assert got[0].name == "small"
+        assert got[0].size == 100
+        assert got[1].name == "medium"
+        assert got[1].size == 200
+        assert got[2].name == "large"
+        assert got[2].size == 300
+
+        # Verify execute_command was called with host/username
+        mock_execute_command.assert_called_once()
+        call_kwargs = mock_execute_command.call_args[1]
+        assert call_kwargs["host"] == "remote.server.com"
+        assert call_kwargs["username"] == "testuser"
+
+    @patch("linux_mcp_server.tools.storage.execute_command")
+    async def test_list_directories_remote_execution_by_name(self, mock_execute_command):
+        """Test list_directories with remote execution for name ordering."""
+        # Mock find command output
+        mock_execute_command.return_value = (
+            0,
+            "gamma\nalpha\nbeta",
+            "",
+        )
+
+        result = await mcp.call_tool(
+            "list_directories",
+            {"path": "/remote/path", "order_by": "name", "host": "remote.server.com", "username": "testuser"},
+        )
+
+        assert isinstance(result, tuple)
+        assert len(result) == 2
+        assert isinstance(result[1], dict)
+        got = [DirectoryEntry(**entry) for entry in result[1]["result"]]
+
+        # Verify results are sorted by name
+        assert len(got) == 3
+        assert got[0].name == "alpha"
+        assert got[1].name == "beta"
+        assert got[2].name == "gamma"
+
+        # Verify execute_command was called with host/username
+        mock_execute_command.assert_called_once()
+        call_kwargs = mock_execute_command.call_args[1]
+        assert call_kwargs["host"] == "remote.server.com"
+        assert call_kwargs["username"] == "testuser"
+
+    @patch("linux_mcp_server.tools.storage.execute_command")
+    async def test_list_directories_remote_execution_by_modified(self, mock_execute_command):
+        """Test list_directories with remote execution for modified ordering."""
+        # Mock find command output with timestamps
+        mock_execute_command.return_value = (
+            0,
+            "3000.0\tnewest\n1000.0\toldest\n2000.0\tmiddle",
+            "",
+        )
+
+        result = await mcp.call_tool(
+            "list_directories",
+            {"path": "/remote/path", "order_by": "modified", "host": "remote.server.com", "username": "testuser"},
+        )
+
+        assert isinstance(result, tuple)
+        assert len(result) == 2
+        assert isinstance(result[1], dict)
+        got = [DirectoryEntry(**entry) for entry in result[1]["result"]]
+
+        # Verify results are sorted by modified time
+        assert len(got) == 3
+        assert got[0].name == "oldest"
+        assert got[0].modified == 1000.0
+        assert got[1].name == "middle"
+        assert got[1].modified == 2000.0
+        assert got[2].name == "newest"
+        assert got[2].modified == 3000.0
+
+        # Verify execute_command was called with host/username
+        mock_execute_command.assert_called_once()
+        call_kwargs = mock_execute_command.call_args[1]
+        assert call_kwargs["host"] == "remote.server.com"
+        assert call_kwargs["username"] == "testuser"
+
+    @patch("linux_mcp_server.tools.storage.execute_command")
+    async def test_list_directories_remote_skips_path_validation(self, mock_execute_command):
+        """Test that remote execution skips local path validation."""
+        # Mock du command output
+        mock_execute_command.return_value = (
+            0,
+            "100\t/nonexistent/path",
+            "",
+        )
+
+        # This path doesn't exist locally but should not raise an error for remote execution
+        result = await mcp.call_tool(
+            "list_directories",
+            {"path": "/nonexistent/remote/path", "order_by": "size", "host": "remote.server.com"},
+        )
+
+        assert isinstance(result, tuple)
+        assert len(result) == 2
+        # Should succeed even though path doesn't exist locally
+        assert isinstance(result[1], dict)
+
+    @patch("linux_mcp_server.tools.storage.execute_command")
+    async def test_list_directories_du_command_failure(self, mock_execute_command):
+        """Test list_directories handles du command failures for size ordering."""
+        # Mock du command to return non-zero returncode
+        mock_execute_command.return_value = (1, "", "du: cannot read directory")
+
+        with pytest.raises(ToolError, match="Error running du command"):
+            await mcp.call_tool(
+                "list_directories",
+                {"path": "/some/path", "order_by": "size", "host": "remote.server.com"},
+            )
+
+    @patch("linux_mcp_server.tools.storage.execute_command")
+    async def test_list_directories_find_command_failure_name(self, mock_execute_command):
+        """Test list_directories handles find command failures for name ordering."""
+        # Mock find command to return non-zero returncode
+        mock_execute_command.return_value = (1, "", "find: '/some/path': Permission denied")
+
+        with pytest.raises(ToolError, match="Error running find command"):
+            await mcp.call_tool(
+                "list_directories",
+                {"path": "/some/path", "order_by": "name", "host": "remote.server.com"},
+            )
+
+    @patch("linux_mcp_server.tools.storage.execute_command")
+    async def test_list_directories_find_command_failure_modified(self, mock_execute_command):
+        """Test list_directories handles find command failures for modified ordering."""
+        # Mock find command to return non-zero returncode
+        mock_execute_command.return_value = (1, "", "find: '/some/path': Permission denied")
+
+        with pytest.raises(ToolError, match="Error running find command"):
+            await mcp.call_tool(
+                "list_directories",
+                {"path": "/some/path", "order_by": "modified", "host": "remote.server.com"},
+            )
