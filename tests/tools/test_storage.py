@@ -213,19 +213,12 @@ class TestListBlockDevices:
         assert call_kwargs["host"] == "remote.host.com"
         assert call_kwargs["username"] == "testuser"
 
-    @patch("linux_mcp_server.tools.storage.execute_command")
-    async def test_list_block_devices_exception_handling(self, mock_execute_command):
+    async def test_list_block_devices_exception_handling(self, mocker):
         """Test list_block_devices handles general exceptions."""
-        mock_execute_command.side_effect = Exception("Unexpected error")
+        mocker.patch("linux_mcp_server.tools.storage.execute_command", side_effect=ValueError("Raised intentionally"))
 
-        result = await mcp.call_tool("list_block_devices", {})
-        assert isinstance(result, tuple)
-        assert len(result) == 2
-        assert isinstance(result[0], list)
-        output = result[0][0].text
-
-        assert "Error listing block devices:" in output
-        assert "Unexpected error" in output
+        with pytest.raises(ToolError, match="Raised intentionally"):
+            await mcp.call_tool("list_block_devices", {})
 
 
 @pytest.mark.skipif(sys.platform != "linux", reason="requires GNU version of coreutils/findutils")
