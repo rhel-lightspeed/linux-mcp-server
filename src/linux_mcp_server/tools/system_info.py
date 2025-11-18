@@ -1,6 +1,5 @@
 """System information tools."""
 
-import os
 import typing as t
 
 from collections.abc import Callable
@@ -32,14 +31,6 @@ class SystemInfo(BaseModel):
     boot_time: str | None = None
 
 
-class CPUFrequency(BaseModel):
-    """CPU frequency information."""
-
-    current: float | None = None
-    min: float | None = None
-    max: float | None = None
-
-
 class LoadAverage(BaseModel):
     """Load average information."""
 
@@ -52,13 +43,12 @@ class CPUInfo(BaseModel):
     """CPU information model."""
 
     cpu_model: str | None = None
-    physical_cores: int | None = None
     logical_cores: int | None = None
-    frequency_mhz: CPUFrequency | None = None
+    physical_sockets: int | None = None
+    physical_cores_per_processor: int | None = None
+    frequency_mhz: float | None = None
     load_average: LoadAverage | None = None
-    cpu_usage_percent: float | None = None
-    per_core_usage: list[float] | None = None
-    cpu_details: str | None = None
+    cpu_usage: str | None = None
 
 
 class MemoryStats(BaseModel):
@@ -204,103 +194,94 @@ async def get_cpu_information(
     """
     result = CPUInfo()
 
-    try:
-        if host:
-            # Remote execution - use Linux commands
-            # Get CPU model from /proc/cpuinfo
+    class CPUInfoAttribute(BaseModel):
+        """CPU information attribute."""
+
+        names: list[str]
+        command: list[str]
+        parser: Callable[[str], t.Any]
+
+    attributes = [
+        CPUInfoAttribute(
+            names=["cpu_model"],
+            command=["cat", "/proc/cpuinfo"],
+            parser=lambda x: next(
+                (line.split(":", 1)[1].strip() for line in x.strip().split("\n") if line.startswith("model name")), ""
+            ),
+        ),
+        CPUInfoAttribute(
+            names=["logical_cores"],
+            command=["cat", "/proc/cpuinfo"],
+            # count the number of processor entries to get number of logical cores
+            parser=lambda x: sum(1 for line in x.strip().split("\n") if line.startswith("processor")),
+        ),
+        CPUInfoAttribute(
+            names=["physical_sockets"],
+            command=["cat", "/proc/cpuinfo"],
+            parser=lambda x: len(set(line for line in x.strip().split("\n") if line.startswith("physical id"))),
+        ),
+        CPUInfoAttribute(
+            names=["physical_cores_per_processor"],
+            command=["cat", "/proc/cpuinfo"],
+            parser=lambda x: next(
+                (int(line.split(":", 1)[1].strip()) for line in x.strip().split("\n") if line.startswith("cpu cores")),
+                0,
+            ),
+        ),
+        CPUInfoAttribute(
+            names=["frequency_mhz"],
+            command=["cat", "/proc/cpuinfo"],
+            parser=lambda x: float(
+                next(
+                    (line.split(":", 1)[1].strip() for line in x.strip().split("\n") if line.startswith("cpu MHz")), "0"
+                )
+            ),
+        ),
+        CPUInfoAttribute(
+            names=["load_average"],
+            command=["cat", "/proc/loadavg"],
+            parser=lambda x: {
+                "one_min": float(x.strip().split()[0]),
+                "five_min": float(x.strip().split()[1]),
+                "fifteen_min": float(x.strip().split()[2]),
+            },
+        ),
+        CPUInfoAttribute(
+            names=["cpu_usage"],
+            command=["top", "-bn1"],
+            parser=lambda x: x.strip() if "Cpu(s):" in x or "%Cpu" in x else None,
+        ),
+    ]
+
+    for attribute in attributes:
+        try:
             returncode, stdout, _ = await execute_command(
-                ["grep", "-m", "1", "model name", "/proc/cpuinfo"],
+                attribute.command,
                 host=host,
             )
-            if returncode == 0 and stdout:
-                result.cpu_model = stdout.split(":", 1)[1].strip() if ":" in stdout else stdout.strip()
+        except ValueError or ConnectionError as e:
+            raise ToolError(f"Error: {str(e)}") from e
 
-            # Get CPU core counts from /proc/cpuinfo
-            returncode, stdout, _ = await execute_command(
-                ["grep", "-c", "^processor", "/proc/cpuinfo"],
-                host=host,
-            )
-            if returncode == 0 and stdout:
-                result.logical_cores = int(stdout.strip())
-
-            # Get physical cores (using core id uniqueness)
-            returncode, stdout, _ = await execute_command(
-                ["grep", "^core id", "/proc/cpuinfo"],
-                host=host,
-            )
-            if returncode == 0 and stdout:
-                core_ids = {line.split(":", 1)[1].strip() for line in stdout.strip().split("\n") if ":" in line}
-                result.physical_cores = len(core_ids)
-
-            # Get CPU frequency from /proc/cpuinfo
-            returncode, stdout, _ = await execute_command(
-                ["grep", "-m", "1", "cpu MHz", "/proc/cpuinfo"],
-                host=host,
-            )
-            if returncode == 0 and stdout and ":" in stdout:
-                cpu_mhz = float(stdout.split(":", 1)[1].strip())
-                result.frequency_mhz = CPUFrequency(current=cpu_mhz)
-
-            # Get load average
-            returncode, stdout, _ = await execute_command(
-                ["cat", "/proc/loadavg"],
-                host=host,
-            )
-            if returncode == 0 and stdout:
-                load_parts = stdout.strip().split()
-                if len(load_parts) >= 3:
-                    result.load_average = LoadAverage(
-                        one_min=float(load_parts[0]), five_min=float(load_parts[1]), fifteen_min=float(load_parts[2])
-                    )
-
-            # Get CPU usage using top (one iteration)
-            returncode, stdout, _ = await execute_command(
-                ["top", "-bn1"],
-                host=host,
-            )
-            if returncode == 0 and stdout:
-                for line in stdout.split("\n"):
-                    if "Cpu(s):" in line or "%Cpu" in line:
-                        result.cpu_details = line.strip()
-                        break
-        else:
-            # Local execution - use psutil
-            # CPU count
-            result.physical_cores = psutil.cpu_count(logical=False)
-            result.logical_cores = psutil.cpu_count(logical=True)
-
-            # CPU frequency
-            try:
-                cpu_freq = psutil.cpu_freq()
-                if cpu_freq:
-                    result.frequency_mhz = CPUFrequency(current=cpu_freq.current, min=cpu_freq.min, max=cpu_freq.max)
-            except Exception:
-                pass  # CPU frequency might not be available
-
-            # CPU usage per core
-            cpu_percent = psutil.cpu_percent(interval=0.1, percpu=True)
-            result.per_core_usage = cpu_percent
-
-            # Overall CPU usage
-            result.cpu_usage_percent = psutil.cpu_percent(interval=0.1)
-
-            # Load average
-            load_avg = os.getloadavg()
-            result.load_average = LoadAverage(one_min=load_avg[0], five_min=load_avg[1], fifteen_min=load_avg[2])
-
-            # Try to get CPU model info from /proc/cpuinfo
-            try:
-                with open("/proc/cpuinfo") as f:
-                    for line in f:
-                        if line.startswith("model name"):
-                            result.cpu_model = line.split(":")[1].strip()
-                            break
-            except Exception:
-                pass
-
-        return result
-    except Exception as e:
-        raise ToolError(f"Error: {str(e)}") from e
+        if returncode == 0 and stdout:
+            parsed_output = attribute.parser(stdout)
+            match attribute.names:
+                case ["cpu_model"]:
+                    result.cpu_model = parsed_output
+                case ["logical_cores"]:
+                    result.logical_cores = parsed_output
+                case ["physical_sockets"]:
+                    result.physical_sockets = parsed_output
+                case ["physical_cores_per_processor"]:
+                    result.physical_cores_per_processor = parsed_output
+                case ["frequency_mhz"]:
+                    result.frequency_mhz = parsed_output
+                case ["load_average"]:
+                    result.load_average = parsed_output
+                case ["cpu_usage"]:
+                    result.cpu_usage = parsed_output
+                case _:
+                    raise ToolError(f"Unknown attribute: {attribute.names}")
+    return result
 
 
 @mcp.tool(
