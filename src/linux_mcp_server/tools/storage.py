@@ -58,39 +58,6 @@ async def list_block_devices(
             host=host,
             username=username,
         )
-
-        if returncode == 0:
-            result = ["=== Block Devices ===\n"]
-            result.append(stdout)
-
-            # Add disk I/O per-disk stats if available (only for local execution)
-            if not host:
-                try:
-                    disk_io_per_disk = psutil.disk_io_counters(perdisk=True)
-                    if disk_io_per_disk:
-                        result.append("\n=== Disk I/O Statistics (per disk) ===")
-                        for disk, stats in sorted(disk_io_per_disk.items()):
-                            result.append(f"\n{disk}:")
-                            result.append(f"  Read: {format_bytes(stats.read_bytes)}")
-                            result.append(f"  Write: {format_bytes(stats.write_bytes)}")
-                            result.append(f"  Read Count: {stats.read_count}")
-                            result.append(f"  Write Count: {stats.write_count}")
-                except Exception:
-                    pass
-
-            return "\n".join(result)
-        else:
-            # Fallback to listing partitions with psutil
-            result = ["=== Block Devices (fallback) ===\n"]
-            partitions = psutil.disk_partitions(all=True)
-
-            for partition in partitions:
-                result.append(f"\nDevice: {partition.device}")
-                result.append(f"  Mountpoint: {partition.mountpoint}")
-                result.append(f"  Filesystem: {partition.fstype}")
-                result.append(f"  Options: {partition.opts}")
-
-            return "\n".join(result)
     except FileNotFoundError:
         # If lsblk is not available, use psutil
         result = ["=== Block Devices ===\n"]
@@ -103,8 +70,36 @@ async def list_block_devices(
             result.append(f"  Options: {partition.opts}")
 
         return "\n".join(result)
-    except Exception as e:
-        return f"Error listing block devices: {str(e)}"
+
+    if returncode == 0:
+        result = ["=== Block Devices ===\n"]
+        result.append(stdout)
+
+        # Add disk I/O per-disk stats if available (only for local execution)
+        if not host:
+            disk_io_per_disk = psutil.disk_io_counters(perdisk=True)
+            if disk_io_per_disk:
+                result.append("\n=== Disk I/O Statistics (per disk) ===")
+                for disk, stats in sorted(disk_io_per_disk.items()):
+                    result.append(f"\n{disk}:")
+                    result.append(f"  Read: {format_bytes(stats.read_bytes)}")
+                    result.append(f"  Write: {format_bytes(stats.write_bytes)}")
+                    result.append(f"  Read Count: {stats.read_count}")
+                    result.append(f"  Write Count: {stats.write_count}")
+
+        return "\n".join(result)
+
+    # Fallback to listing partitions with psutil
+    result = ["=== Block Devices (fallback) ===\n"]
+    partitions = psutil.disk_partitions(all=True)
+
+    for partition in partitions:
+        result.append(f"\nDevice: {partition.device}")
+        result.append(f"  Mountpoint: {partition.mountpoint}")
+        result.append(f"  Filesystem: {partition.fstype}")
+        result.append(f"  Options: {partition.opts}")
+
+    return "\n".join(result)
 
 
 @mcp.tool(
