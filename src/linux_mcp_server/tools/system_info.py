@@ -297,65 +297,82 @@ async def get_memory_information(
     """
     Get memory information.
     """
-    ram_stats = None
-    swap_stats = None
+    ram_stats: MemoryStats | None = None
+    swap_stats: MemoryStats | None = None
 
-    try:
-        if host:
-            # Remote execution - use free command
+    class MemoryStatsAttribute(BaseModel):
+        """Memory statistics attribute."""
+
+        names: list[str]
+        command: list[str]
+        parser: Callable[[str], t.Any]
+
+    def parse_free_output(output: str) -> dict[str, MemoryStats]:
+        """Parse the output of 'free -b' command into memory statistics."""
+        lines = output.strip().split("\n")
+        result = {}
+
+        for line in lines:
+            if line.startswith("Mem:"):
+                parts = line.split()
+                if len(parts) >= 7:
+                    total = int(parts[1])
+                    used = int(parts[2])
+                    free = int(parts[3])
+                    # parts[4] is shared memory (not used in MemoryStats)
+                    buff_cache = int(parts[5]) if len(parts) > 5 else 0
+                    available = int(parts[6]) if len(parts) > 6 else free
+                    percent = (used / total * 100) if total > 0 else 0
+
+                    result["ram"] = MemoryStats(
+                        total=total,
+                        used=used,
+                        free=free,
+                        available=available,
+                        percent=percent,
+                        buffers=buff_cache,  # buff/cache combined
+                    )
+
+            elif line.startswith("Swap:"):
+                parts = line.split()
+                if len(parts) >= 4:
+                    total = int(parts[1])
+                    used = int(parts[2])
+                    free = int(parts[3])
+                    percent = (used / total * 100) if total > 0 else 0
+
+                    result["swap"] = MemoryStats(
+                        total=total,
+                        used=used,
+                        free=free,
+                        percent=percent,
+                    )
+
+        return result
+
+    attributes = [
+        MemoryStatsAttribute(names=["ram", "swap"], command=["free", "-b"], parser=parse_free_output),
+    ]
+
+    for attribute in attributes:
+        try:
             returncode, stdout, _ = await execute_command(
-                ["free", "-b"],
+                attribute.command,
                 host=host,
             )
+        except ValueError or ConnectionError as e:
+            raise ToolError(f"Error: {str(e)}") from e
 
-            if returncode == 0 and stdout:
-                lines = stdout.strip().split("\n")
+        if returncode == 0 and stdout:
+            parsed_output = attribute.parser(stdout)
+            match attribute.names:
+                case ["ram", "swap"]:
+                    ram_stats = parsed_output["ram"]
+                    swap_stats = parsed_output["swap"]
+                case _:
+                    raise ToolError(f"Unknown attribute: {attribute.names}")
 
-                # Parse memory line
-                for line in lines:
-                    if line.startswith("Mem:"):
-                        parts = line.split()
-                        if len(parts) >= 7:
-                            total = int(parts[1])
-                            used = int(parts[2])
-                            free = int(parts[3])
-                            available = int(parts[6]) if len(parts) > 6 else free
-                            percent = (used / total * 100) if total > 0 else 0
-
-                            ram_stats = MemoryStats(
-                                total=total, used=used, free=free, available=available, percent=percent
-                            )
-
-                    elif line.startswith("Swap:"):
-                        parts = line.split()
-                        if len(parts) >= 4:
-                            total = int(parts[1])
-                            used = int(parts[2])
-                            free = int(parts[3])
-                            percent = (used / total * 100) if total > 0 else 0
-
-                            swap_stats = MemoryStats(total=total, used=used, free=free, percent=percent)
-        else:
-            # Local execution - use psutil
-            # Virtual memory (RAM)
-            mem = psutil.virtual_memory()
-            ram_stats = MemoryStats(
-                total=mem.total,
-                used=mem.used,
-                free=mem.free,
-                available=mem.available,
-                percent=mem.percent,
-                buffers=getattr(mem, "buffers", None),
-                cached=getattr(mem, "cached", None),
-            )
-
-            # Swap memory
-            swap = psutil.swap_memory()
-            swap_stats = MemoryStats(total=swap.total, used=swap.used, free=swap.free, percent=swap.percent)
-
-        return MemoryInfo(ram=ram_stats, swap=swap_stats)
-    except Exception as e:
-        raise ToolError(f"Error: {str(e)}") from e
+    return MemoryInfo(ram=ram_stats, swap=swap_stats)
 
 
 @mcp.tool(
