@@ -67,7 +67,7 @@ LABEL release=${PSEUDO_VERSION}
 LABEL summary="Linux MCP Server"
 LABEL url="https://github.com/rhel-lightspeed/linux-mcp-server"
 LABEL vendor="Red Hat, Inc."
-LABEL version=${PSEUDO_VERSION}
+LABEL version=${VERSION}
 
 ADD LICENSE /licenses/Apache-2.0.txt
 
