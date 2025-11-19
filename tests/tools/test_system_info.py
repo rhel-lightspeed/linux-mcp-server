@@ -16,6 +16,7 @@ from linux_mcp_server.tools.system_info import CPUInfo
 from linux_mcp_server.tools.system_info import DiskUsage
 from linux_mcp_server.tools.system_info import HardwareInfo
 from linux_mcp_server.tools.system_info import MemoryInfo
+from linux_mcp_server.tools.system_info import MemoryStats
 from linux_mcp_server.tools.system_info import SystemInfo
 
 
@@ -119,67 +120,90 @@ class TestSystemInfo:
         )
         assert has_cpu_info
 
-    async def test_get_memory_info_returns_memory_info_model(self):
-        """Test that get_memory_information returns a MemoryInfo model."""
-        result = await mcp.call_tool("get_memory_information", arguments={})
-
-        # MCP call_tool returns a tuple of (content, structured_output)
-        assert isinstance(result, tuple)
-        assert len(result) == 2
-        content, structured_output = result
-
-        # Content should be a TextContent object array
-        assert isinstance(content, list)
-        assert all(isinstance(item, TextContent) for item in content)
-
-        # Verify structured output
-        assert isinstance(structured_output, dict)
-        memory_info = MemoryInfo(**structured_output)
-        assert memory_info.ram is not None
-        assert memory_info.swap is not None
-
     async def test_get_memory_info_contains_memory_data(self):
-        """Test that memory info contains RAM and swap information."""
-        result = await mcp.call_tool("get_memory_information", arguments={})
+        """Test that memory info contains RAM and swap information with exact values."""
+        # Mock free output
+        mock_free_output = """
+              total        used        free      shared  buff/cache   available
+Mem:      6183096320  2513342464  1560502272     3973120  2362519552  3669753856
+Swap:     6182400000           0  6182400000"""
 
-        # MCP call_tool returns a tuple of (content, structured_output)
-        assert isinstance(result, tuple)
-        assert len(result) == 2
-        content, structured_output = result
+        async def mock_execute_command(command, host=None, username=None):
+            """Mock execute_command to return fixture data."""
+            if command == ["free", "-b"]:
+                return (0, mock_free_output, "")
+            return (1, "", "Command not found")
 
-        # Content should be a TextContent object array
-        assert isinstance(content, list)
-        assert all(isinstance(item, TextContent) for item in content)
+        # Expected values from mock data
+        # Percent is calculated as (used / total * 100)
+        # For RAM: 2513342464 / 6183096320 * 100 = 40.64860603691841
+        expected_memory_stats_json = {
+            "ram": {
+                "total": 6183096320,
+                "used": 2513342464,
+                "free": 1560502272,
+                "available": 3669753856,
+                "buffers": 2362519552,
+                "percent": 2513342464 / 6183096320 * 100,  # 40.64860603691841
+            },
+            "swap": {
+                "total": 6182400000,
+                "used": 0,
+                "free": 6182400000,
+                "percent": 0.0,
+            },
+        }
 
-        # Extract text from content
-        assert isinstance(content[0], TextContent)
-        text = content[0].text
-        data = json.loads(text)
+        # Patch execute_command
+        with patch(
+            "linux_mcp_server.tools.system_info.execute_command",
+            new=AsyncMock(side_effect=mock_execute_command),
+        ):
+            result = await mcp.call_tool("get_memory_information", arguments={})
 
-        # Should contain RAM information
-        assert "ram" in data
-        ram = data["ram"]
-        assert ram is not None
-        assert "total" in ram
-        assert "used" in ram
-        assert "free" in ram
-        assert "percent" in ram
+            # MCP call_tool returns a tuple of (content, structured_output)
+            assert isinstance(result, tuple)
+            assert len(result) == 2
+            content, structured_output = result
 
-        # Should contain swap information
-        assert "swap" in data
-        swap = data["swap"]
-        assert swap is not None
-        assert "total" in swap
-        assert "used" in swap
+            # Content should be a TextContent object array
+            assert isinstance(content, list)
+            assert all(isinstance(item, TextContent) for item in content)
 
-        # Verify structured output
-        assert isinstance(structured_output, dict)
-        memory_info = MemoryInfo(**structured_output)
-        assert memory_info.ram is not None
-        assert memory_info.ram.total >= 0
-        assert memory_info.ram.used >= 0
-        assert memory_info.swap is not None
-        assert memory_info.swap.total >= 0
+            # Extract text from content and verify JSON contains exact values
+            assert isinstance(content[0], TextContent)
+            text = content[0].text
+            data = json.loads(text)
+
+            # Verify RAM information in JSON
+            assert "ram" in data
+            ram = data["ram"]
+            assert ram is not None
+            assert ram["total"] == expected_memory_stats_json["ram"]["total"]
+            assert ram["used"] == expected_memory_stats_json["ram"]["used"]
+            assert ram["free"] == expected_memory_stats_json["ram"]["free"]
+            assert ram["available"] == expected_memory_stats_json["ram"]["available"]
+            assert ram["buffers"] == expected_memory_stats_json["ram"]["buffers"]
+            assert ram["percent"] == pytest.approx(expected_memory_stats_json["ram"]["percent"], rel=1e-2)
+
+            # Verify swap information in JSON
+            assert "swap" in data
+            swap = data["swap"]
+            assert swap is not None
+            assert swap["total"] == expected_memory_stats_json["swap"]["total"]
+            assert swap["used"] == expected_memory_stats_json["swap"]["used"]
+            assert swap["free"] == expected_memory_stats_json["swap"]["free"]
+            assert swap["percent"] == expected_memory_stats_json["swap"]["percent"]
+
+            # Verify structured output with exact values
+            assert isinstance(structured_output, dict)
+            memory_info = MemoryInfo(**structured_output)
+
+            # Verify RAM values in structured output
+            assert memory_info.ram == MemoryStats(**expected_memory_stats_json["ram"])
+
+            # Verify Swap values in structured output
+            assert memory_info.swap == MemoryStats(**expected_memory_stats_json["swap"])
 
     async def test_get_disk_usage_returns_disk_usage_model(self):
         """Test that get_disk_usage returns a DiskUsage model."""
