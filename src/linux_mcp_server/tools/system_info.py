@@ -4,8 +4,6 @@ import typing as t
 
 from collections.abc import Callable
 
-import psutil
-
 from mcp.server.fastmcp.exceptions import ToolError
 from mcp.types import ToolAnnotations
 from pydantic import BaseModel
@@ -375,6 +373,149 @@ async def get_memory_information(
     return MemoryInfo(ram=ram_stats, swap=swap_stats)
 
 
+def parse_df_output(output: str) -> list[DiskPartition]:
+    """Parse the output of 'df -B1' command into disk partitions."""
+    lines = output.strip().split("\n")
+    result = []
+
+    # Skip header line
+    for line in lines[1:]:
+        parts = line.split()
+        if len(parts) >= 6:
+            device = parts[0]
+            size = int(parts[1])
+            used = int(parts[2])
+            free = int(parts[3])
+            percent_str = parts[4].rstrip("%")
+            percent = float(percent_str) if percent_str else 0.0
+            mountpoint = parts[5]
+
+            result.append(
+                DiskPartition(
+                    device=device,
+                    mountpoint=mountpoint,
+                    size=size,
+                    used=used,
+                    free=free,
+                    percent=percent,
+                )
+            )
+
+    return result
+
+
+def parse_diskstats_output(output: str) -> DiskIOStats | None:
+    """Parse the contents of '/proc/diskstats' file into disk I/O stats.
+
+    See https://www.kernel.org/doc/html/latest/admin-guide/iostats.html for
+    details on the diskstats file format. Field defintions are copied here for convenience. Not all fields are collected into the DiskIOStats model.
+
+    In diskstats, each line is prefixed with the major and minor device numbers and the device name. The remaining fields are the statistics for that device.
+
+    Field 1 -- # of reads completed (unsigned long)
+    This is the total number of reads completed successfully.
+
+    Field 2 -- # of reads merged, field 6 -- # of writes merged (unsigned long)
+    Reads and writes which are adjacent to each other may be merged for efficiency. Thus two 4K reads may become one 8K read before it is ultimately handed to the disk, and so it will be counted (and queued) as only one I/O. This field lets you know how often this was done.
+
+    Field 3 -- # of sectors read (unsigned long)
+    This is the total number of sectors read successfully.
+
+    Field 4 -- # of milliseconds spent reading (unsigned int)
+    This is the total number of milliseconds spent by all reads (as measured from blk_mq_alloc_request() to __blk_mq_end_request()).
+
+    Field 5 -- # of writes completed (unsigned long)
+    This is the total number of writes completed successfully.
+
+    Field 6 -- # of writes merged (unsigned long)
+    See the description of field 2.
+
+    Field 7 -- # of sectors written (unsigned long)
+    This is the total number of sectors written successfully.
+
+    Field 8 -- # of milliseconds spent writing (unsigned int)
+    This is the total number of milliseconds spent by all writes (as measured from blk_mq_alloc_request() to __blk_mq_end_request()).
+
+    Field 9 -- # of I/Os currently in progress (unsigned int)
+    The only field that should go to zero. Incremented as requests are given to appropriate struct request_queue and decremented as they finish.
+
+    Field 10 -- # of milliseconds spent doing I/Os (unsigned int)
+    This field increases so long as field 9 is nonzero.
+
+    Since 5.0 this field counts jiffies when at least one request was started or completed. If request runs more than 2 jiffies then some I/O time might be not accounted in case of concurrent requests.
+
+    Field 11 -- weighted # of milliseconds spent doing I/Os (unsigned int)
+    This field is incremented at each I/O start, I/O completion, I/O merge, or read of these stats by the number of I/Os in progress (field 9) times the number of milliseconds spent doing I/O since the last update of this field. This can provide an easy measure of both I/O completion time and the backlog that may be accumulating.
+
+    Field 12 -- # of discards completed (unsigned long)
+    This is the total number of discards completed successfully.
+
+    Field 13 -- # of discards merged (unsigned long)
+    See the description of field 2
+
+    Field 14 -- # of sectors discarded (unsigned long)
+    This is the total number of sectors discarded successfully.
+
+    Field 15 -- # of milliseconds spent discarding (unsigned int)
+    This is the total number of milliseconds spent by all discards (as measured from blk_mq_alloc_request() to __blk_mq_end_request()).
+
+    Field 16 -- # of flush requests completed
+    This is the total number of flush requests completed successfully.
+
+    Block layer combines flush requests and executes at most one at a time. This counts flush requests executed by disk. Not tracked for partitions.
+
+    Field 17 -- # of milliseconds spent flushing
+    This is the total number of milliseconds spent by all flush requests.
+    """
+    # Initialize counters for total read and write bytes and counts
+    total_read_bytes = 0
+    total_write_bytes = 0
+    total_read_count = 0
+    total_write_count = 0
+
+    for line in output.strip().split("\n"):
+        parts = line.split()
+
+        # Each line is prefixed with the major and minor device numbers and the device name. The remaining fields are the statistics for that device.
+        if len(parts) >= 14:
+            # Element 0 and 1 are the major and minor device numbers
+            # Element 2 is the device name
+            device_name = parts[2]
+
+            # Only count physical disks (e.g., sda, nvme0n1), skip partitions
+            # Skip loop devices, ram devices, etc.
+            if (
+                device_name.startswith(("loop", "ram", "sr"))
+                or any(c.isdigit() for c in device_name[-1])
+                and not device_name.startswith("nvme")
+            ):
+                continue
+
+            # Element 3 is the number of reads completed
+            # Element 5 is the number of sectors read
+            # Element 7 is the number of writes completed
+            # Element 9 is the number of sectors written
+            reads_completed = int(parts[3])
+            sectors_read = int(parts[5])
+            writes_completed = int(parts[7])
+            sectors_written = int(parts[9])
+
+            total_read_count += reads_completed
+            total_read_bytes += sectors_read * 512
+            total_write_count += writes_completed
+            total_write_bytes += sectors_written * 512
+
+    if total_read_bytes or total_write_bytes or total_read_count or total_write_count:
+        return DiskIOStats(
+            read_bytes=total_read_bytes,
+            write_bytes=total_write_bytes,
+            read_count=total_read_count,
+            write_count=total_write_count,
+        )
+
+    return None
+
+
 @mcp.tool(
     title="Get disk usage",
     description="Get detailed disk space information including size, mount points, and utilization..",
@@ -388,87 +529,41 @@ async def get_disk_usage(
     """
     Get disk usage information.
     """
-    partitions = []
-    io_stats = None
+    partitions: list[DiskPartition] = []
+    io_stats: DiskIOStats | None = None
 
-    try:
-        if host:
-            # Remote execution - use df command to get bytes
+    class DiskUsageAttribute(BaseModel):
+        """Disk usage attribute."""
+
+        names: list[str]
+        command: list[str]
+        parser: Callable[[str], t.Any]
+
+    attributes = [
+        DiskUsageAttribute(names=["partitions"], command=["df", "-B1"], parser=parse_df_output),
+        DiskUsageAttribute(names=["io_stats"], command=["cat", "/proc/diskstats"], parser=parse_diskstats_output),
+    ]
+
+    for attribute in attributes:
+        try:
             returncode, stdout, _ = await execute_command(
-                ["df", "-B1"],
+                attribute.command,
                 host=host,
             )
+        except ValueError or ConnectionError as e:
+            raise ToolError(f"Error: {str(e)}") from e
 
-            if returncode == 0 and stdout:
-                lines = stdout.strip().split("\n")
-                # Skip header line
-                for line in lines[1:]:
-                    parts = line.split()
-                    if len(parts) >= 6:
-                        try:
-                            device = parts[0]
-                            size = int(parts[1])
-                            used = int(parts[2])
-                            free = int(parts[3])
-                            percent_str = parts[4].rstrip("%")
-                            percent = float(percent_str) if percent_str else 0.0
-                            mountpoint = parts[5]
+        if returncode == 0 and stdout:
+            parsed_output = attribute.parser(stdout)
+            match attribute.names:
+                case ["partitions"]:
+                    partitions = parsed_output
+                case ["io_stats"]:
+                    io_stats = parsed_output
+                case _:
+                    raise ToolError(f"Unknown attribute: {attribute.names}")
 
-                            partitions.append(
-                                DiskPartition(
-                                    device=device,
-                                    mountpoint=mountpoint,
-                                    size=size,
-                                    used=used,
-                                    free=free,
-                                    percent=percent,
-                                )
-                            )
-                        except (ValueError, IndexError):
-                            # Skip malformed lines
-                            continue
-        else:
-            # Local execution - use psutil
-            # Get all disk partitions
-            disk_partitions = psutil.disk_partitions(all=False)
-
-            for partition in disk_partitions:
-                try:
-                    usage = psutil.disk_usage(partition.mountpoint)
-                    partitions.append(
-                        DiskPartition(
-                            device=partition.device,
-                            mountpoint=partition.mountpoint,
-                            size=usage.total,
-                            used=usage.used,
-                            free=usage.free,
-                            percent=usage.percent,
-                            filesystem=partition.fstype,
-                        )
-                    )
-                except PermissionError:
-                    # Skip partitions we can't access
-                    continue
-                except Exception:
-                    # Skip partitions with errors
-                    continue
-
-            # Disk I/O statistics
-            try:
-                disk_io = psutil.disk_io_counters()
-                if disk_io:
-                    io_stats = DiskIOStats(
-                        read_bytes=disk_io.read_bytes,
-                        write_bytes=disk_io.write_bytes,
-                        read_count=disk_io.read_count,
-                        write_count=disk_io.write_count,
-                    )
-            except Exception:
-                pass  # Disk I/O might not be available
-
-        return DiskUsage(partitions=partitions, io_stats=io_stats)
-    except Exception as e:
-        raise ToolError(f"Error: {str(e)}") from e
+    return DiskUsage(partitions=partitions, io_stats=io_stats)
 
 
 @mcp.tool(

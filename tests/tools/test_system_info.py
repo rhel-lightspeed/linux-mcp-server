@@ -205,74 +205,153 @@ Swap:     6182400000           0  6182400000"""
             # Verify Swap values in structured output
             assert memory_info.swap == MemoryStats(**expected_memory_stats_json["swap"])
 
-    async def test_get_disk_usage_returns_disk_usage_model(self):
-        """Test that get_disk_usage returns a DiskUsage model."""
-        result = await mcp.call_tool("get_disk_usage", arguments={})
-
-        # MCP call_tool returns a tuple of (content, structured_output)
-        assert isinstance(result, tuple)
-        assert len(result) == 2
-        content, structured_output = result
-
-        # Content should be a TextContent object array
-        assert isinstance(content, list)
-        assert all(isinstance(item, TextContent) for item in content)
-
-        # Verify structured output
-        assert isinstance(structured_output, dict)
-        disk_usage = DiskUsage(**structured_output)
-        assert disk_usage.partitions is not None
-        assert isinstance(disk_usage.partitions, list)
-
     async def test_get_disk_usage_contains_filesystem_data(self):
         """Test that disk usage contains filesystem information."""
-        result = await mcp.call_tool("get_disk_usage", arguments={})
+        # Mock df output
+        mock_df_output = """Filesystem     1B-blocks        Used   Available Use% Mounted on
+devtmpfs         4096000           0     4096000   0% /dev
+tmpfs            8192000      204800     7987200   3% /dev/shm
+/dev/vda1    107374182400 53687091200  48150528000  53% /
+tmpfs            1048576           0     1048576   0% /run/credentials/serial-getty@hvc0.service"""
 
-        # MCP call_tool returns a tuple of (content, structured_output)
-        assert isinstance(result, tuple)
-        assert len(result) == 2
-        content, structured_output = result
+        # Mock /proc/diskstats output
+        mock_diskstats_output = """ 252       0 vda 12345 0 987654 0 54321 0 876543 0 0 0 0 0 0 0 0 0 0
+ 252       1 vda1 10000 0 800000 0 45000 0 720000 0 0 0 0 0 0 0 0 0 0
+ 253       0 vdb 5000 0 400000 0 20000 0 320000 0 0 0 0 0 0 0 0 0 0
+ 251       0 zram0 105 0 4448 0 1 0 8 0 0 0 0 0 0 0 0 0 0"""
 
-        # Content should be a TextContent object array
-        assert isinstance(content, list)
-        assert all(isinstance(item, TextContent) for item in content)
+        async def mock_execute_command(command, host=None, username=None):
+            """Mock execute_command to return fixture data."""
+            if command == ["df", "-B1"]:
+                return (0, mock_df_output, "")
+            elif command == ["cat", "/proc/diskstats"]:
+                return (0, mock_diskstats_output, "")
+            return (1, "", "Command not found")
 
-        # Extract text from content
-        assert isinstance(content[0], TextContent)
-        text = content[0].text
-        data = json.loads(text)
+        # Expected values from mock data
+        expected_partitions = [
+            {
+                "device": "devtmpfs",
+                "mountpoint": "/dev",
+                "size": 4096000,
+                "used": 0,
+                "free": 4096000,
+                "percent": 0.0,
+                "filesystem": None,
+            },
+            {
+                "device": "tmpfs",
+                "mountpoint": "/dev/shm",
+                "size": 8192000,
+                "used": 204800,
+                "free": 7987200,
+                "percent": 3.0,
+                "filesystem": None,
+            },
+            {
+                "device": "/dev/vda1",
+                "mountpoint": "/",
+                "size": 107374182400,
+                "used": 53687091200,
+                "free": 48150528000,
+                "percent": 53.0,
+                "filesystem": None,
+            },
+            {
+                "device": "tmpfs",
+                "mountpoint": "/run/credentials/serial-getty@hvc0.service",
+                "size": 1048576,
+                "used": 0,
+                "free": 1048576,
+                "percent": 0.0,
+                "filesystem": None,
+            },
+        ]
 
-        # Should contain partitions
-        assert "partitions" in data
-        partitions = data["partitions"]
-        assert isinstance(partitions, list)
+        # Expected I/O stats (sum of vda and vdb; vda1 is a partition so excluded)
+        # vda: 987654 sectors read, 876543 sectors written
+        # vdb: 400000 sectors read, 320000 sectors written
+        # Total: (987654 + 400000) * 512 = 710,478,848 bytes read
+        #        (876543 + 320000) * 512 = 612,630,016 bytes written
+        expected_io_stats = {
+            "read_bytes": (987654 + 400000) * 512,  # 710,478,848 bytes
+            "write_bytes": (876543 + 320000) * 512,  # 612,630,016 bytes
+            "read_count": 12345 + 5000,  # 17,345
+            "write_count": 54321 + 20000,  # 74,321
+        }
 
-        # Should have at least one partition
-        assert len(partitions) > 0
+        # Patch execute_command
+        with patch(
+            "linux_mcp_server.tools.system_info.execute_command",
+            new=AsyncMock(side_effect=mock_execute_command),
+        ):
+            result = await mcp.call_tool("get_disk_usage", arguments={})
 
-        # Check first partition has required fields
-        first_partition = partitions[0]
-        assert "device" in first_partition
-        assert "mountpoint" in first_partition
-        assert "size" in first_partition
-        assert "used" in first_partition
-        assert "free" in first_partition
-        assert "percent" in first_partition
+            # MCP call_tool returns a tuple of (content, structured_output)
+            assert isinstance(result, tuple)
+            assert len(result) == 2
+            content, structured_output = result
 
-        # Should at least have root filesystem
-        has_root = any(p["mountpoint"] == "/" for p in partitions)
-        assert has_root
+            # Content should be a TextContent object array
+            assert isinstance(content, list)
+            assert all(isinstance(item, TextContent) for item in content)
 
-        # Verify structured output
-        assert isinstance(structured_output, dict)
-        disk_usage = DiskUsage(**structured_output)
-        assert len(disk_usage.partitions) > 0
-        first_partition_model = disk_usage.partitions[0]
-        assert first_partition_model.device is not None
-        assert first_partition_model.mountpoint is not None
-        assert first_partition_model.size >= 0
-        assert first_partition_model.used >= 0
-        assert first_partition_model.free >= 0
+            # Extract text from content
+            assert isinstance(content[0], TextContent)
+            text = content[0].text
+            data = json.loads(text)
+
+            # Should contain partitions
+            assert "partitions" in data
+            partitions = data["partitions"]
+            assert isinstance(partitions, list)
+
+            # Should have expected number of partitions
+            assert len(partitions) == len(expected_partitions)
+
+            # Verify each partition
+            for i, partition in enumerate(partitions):
+                expected = expected_partitions[i]
+                assert partition["device"] == expected["device"]
+                assert partition["mountpoint"] == expected["mountpoint"]
+                assert partition["size"] == expected["size"]
+                assert partition["used"] == expected["used"]
+                assert partition["free"] == expected["free"]
+                assert partition["percent"] == expected["percent"]
+
+            # Should have root filesystem
+            has_root = any(p["mountpoint"] == "/" for p in partitions)
+            assert has_root
+
+            # Verify I/O stats
+            assert "io_stats" in data
+            io_stats = data["io_stats"]
+            assert io_stats is not None
+            assert io_stats["read_bytes"] == expected_io_stats["read_bytes"]
+            assert io_stats["write_bytes"] == expected_io_stats["write_bytes"]
+            assert io_stats["read_count"] == expected_io_stats["read_count"]
+            assert io_stats["write_count"] == expected_io_stats["write_count"]
+
+            # Verify structured output
+            assert isinstance(structured_output, dict)
+            disk_usage = DiskUsage(**structured_output)
+            assert len(disk_usage.partitions) == len(expected_partitions)
+
+            # Verify first partition in structured output
+            first_partition_model = disk_usage.partitions[0]
+            assert first_partition_model.device == expected_partitions[0]["device"]
+            assert first_partition_model.mountpoint == expected_partitions[0]["mountpoint"]
+            assert first_partition_model.size == expected_partitions[0]["size"]
+            assert first_partition_model.used == expected_partitions[0]["used"]
+            assert first_partition_model.free == expected_partitions[0]["free"]
+            assert first_partition_model.percent == expected_partitions[0]["percent"]
+
+            # Verify I/O stats in structured output
+            assert disk_usage.io_stats is not None
+            assert disk_usage.io_stats.read_bytes == expected_io_stats["read_bytes"]
+            assert disk_usage.io_stats.write_bytes == expected_io_stats["write_bytes"]
+            assert disk_usage.io_stats.read_count == expected_io_stats["read_count"]
+            assert disk_usage.io_stats.write_count == expected_io_stats["write_count"]
 
     async def test_get_hardware_info_returns_hardware_info_model(self):
         """Test that get_hardware_information returns a HardwareInfo model."""
