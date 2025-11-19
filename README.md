@@ -43,6 +43,12 @@ uv tool install linux-mcp-server
 
 See the [complete installation guide](docs/Install.md) for more details.
 
+## Running from a container
+
+A container runtime such as [Podman] or [Docker] is required.
+
+Since the MCP server uses SSH to connect to remote hosts, SSH keys need to be available inside the container. If the SSH key is encrypted, a passphrase needs to be provided to decrypt the key.
+
 
 ## Configuration
 
@@ -50,9 +56,116 @@ Key environment variables:
 - `LINUX_MCP_ALLOWED_LOG_PATHS` - Comma-separated list of log files that can be accessed
 - `LINUX_MCP_LOG_LEVEL` - Logging level (DEBUG, INFO, WARNING, ERROR, CRITICAL)
 - `LINUX_MCP_SSH_KEY_PATH` - Path to SSH private key for remote execution
+- `LINUX_MCP_USER` - Username used for SSH connections
 
 See [Environment Variables](docs/Install.md#environment-variables) for more details.
 
+### Example Configurations
+
+For the following example configurations, make sure to provide real paths to SSH key and log files.
+
+If `ssh-agent` is configured, any keys loaded into the session will be used automatically when running natively.
+
+<details>
+  <summary>Claude Desktop Configuration using a container</summary>
+
+```shell
+{
+  "mcpServers": {
+    "Linux Tools": {
+      "command": "podman",
+      "args": [
+        "run",
+        "--rm",
+        "--name", "linux-mcp-server",
+        "-i",
+        "-e", "LINUX_MCP_KEY_PASSPHRASE",
+        "-e", "LINUX_MCP_USER",
+        "-v", "/home/tljones/.ssh/id_ed25519:/var/lib/mcp/.ssh/id_ed25519:ro",
+        "-v", "/home/tljones/.local/share/linux-mcp-server/logs:/var/lib/mcp/.local/share/linux-mcp-server/logs:rw",
+        "quay.io/redhat-services-prod/rhel-lightspeed-tenant/linux-mcp-server:latest"
+      ],
+      "env": {
+        "LINUX_MCP_KEY_PASSPHRASE": "<secret>",
+        "LINUX_MCP_USER": "tljones"
+      }
+    }
+  }
+}
+
+```
+</details>
+
+<details>
+  <summary>Claude Desktop Configuration running natively</summary>
+
+```shell
+{
+  "mcpServers": {
+    "Linux Tools": {
+      "command": "[venv]/bin/linux-mcp-server",
+    }
+  }
+}
+```
+</details>
+
+<details>
+  <summary>Goose configuration using a container</summary>
+
+```shell
+extensions:
+  linux-tools:
+  enabled: true
+  type: stdio
+  name: linux-tools
+  description: Linux tools
+  cmd: podman
+  args:
+    - run
+    - --rm
+    - --name
+    - linux-mcp-server
+    - -i
+    - -e
+    - LINUX_MCP_KEY_PASSPHRASE
+    - -e
+    - LINUX_MCP_USER
+    - -v
+    - /home/tljones/.ssh/id_ed25519:/var/lib/mcp/.ssh/id_ed25519:ro
+    - -v
+    - /home/tljones/.local/share/linux-mcp-server/logs:/var/lib/mcp/.local/share/linux-mcp-server/logs:rw
+    - quay.io/redhat-services-prod/rhel-lightspeed-tenant/linux-mcp-server:latest
+  envs: {}
+  env_keys:
+    - LINUX_MCP_KEY_PASSPHRASE
+    - LINUX_MCP_USER
+  timeout: 30
+  bundled: null
+  available_tools: []
+```
+</details>
+
+<details>
+  <summary>Goose configuration running natively</summary>
+
+```shell
+extensions:
+  linux-tools:
+  enabled: true
+  type: stdio
+  name: linux-tools
+  description: Linux tools
+  cmd: [venv]/bin/linux-mcp-server
+  envs: {}
+  env_keys:
+    - LINUX_MCP_KEY_PASSPHRASE
+    - LINUX_MCP_USER
+  timeout: 30
+  bundled: null
+  available_tools: []
+```
+</details>
 
 ## Audit Logging
 
@@ -201,3 +314,7 @@ graph TB
 - **SSH Executor**: Routes commands to local subprocess or remote SSH execution with connection pooling
 - **Audit Logger**: Comprehensive logging in both human-readable and JSON formats with automatic rotation
 - **Multi-Target Execution**: Single server instance can execute commands on local system or multiple remote hosts
+
+
+[Podman]: https://podman-desktop.io
+[Docker]: https://www.docker.com
