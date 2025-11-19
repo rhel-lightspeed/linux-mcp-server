@@ -13,11 +13,13 @@ from mcp.types import TextContent
 
 from linux_mcp_server.server import mcp
 from linux_mcp_server.tools.system_info import CPUInfo
+from linux_mcp_server.tools.system_info import DeviceInfo
 from linux_mcp_server.tools.system_info import DiskUsage
-from linux_mcp_server.tools.system_info import HardwareInfo
 from linux_mcp_server.tools.system_info import MemoryInfo
 from linux_mcp_server.tools.system_info import MemoryStats
+from linux_mcp_server.tools.system_info import PCIDevice
 from linux_mcp_server.tools.system_info import SystemInfo
+from linux_mcp_server.tools.system_info import USBDevice
 
 
 class TestSystemInfo:
@@ -353,42 +355,153 @@ tmpfs            1048576           0     1048576   0% /run/credentials/serial-ge
             assert disk_usage.io_stats.read_count == expected_io_stats["read_count"]
             assert disk_usage.io_stats.write_count == expected_io_stats["write_count"]
 
-    async def test_get_hardware_info_returns_hardware_info_model(self):
-        """Test that get_hardware_information returns a HardwareInfo model."""
-        result = await mcp.call_tool("get_hardware_information", arguments={})
+    async def test_get_device_info_contains_device_data(self):
+        """Test that get_device_information returns a DeviceInfo model with PCI and USB devices."""
+        # Mock sysfs output for PCI devices
+        mock_pci_find_output = """/sys/bus/pci/devices/0000:00:00.0
+/sys/bus/pci/devices/0000:00:1f.2
+/sys/bus/pci/devices/0000:00:1f.3"""
 
-        # MCP call_tool returns a tuple of (content, structured_output)
-        assert isinstance(result, tuple)
-        assert len(result) == 2
-        content, structured_output = result
+        # Mock sysfs output for USB devices
+        mock_usb_find_output = """/sys/bus/usb/devices/usb1
+/sys/bus/usb/devices/1-1
+/sys/bus/usb/devices/1-1.1
+/sys/bus/usb/devices/usb2
+/sys/bus/usb/devices/2-1"""
 
-        # Content should be a TextContent object array
-        assert isinstance(content, list)
-        assert all(isinstance(item, TextContent) for item in content)
+        async def mock_execute_command(command, host=None, username=None):
+            """Mock execute_command to return sysfs fixture data."""
+            match command:
+                case ["find", "/sys/bus/pci/devices", "-maxdepth", "1", "-type", "l"]:
+                    return (0, mock_pci_find_output, "")
+                case ["sh", "-c", cmd] if "/sys/bus/pci/devices/0000:00:00.0" in cmd:
+                    return (0, "vendor:0x8086\ndevice:0x1234\nclass:0x060000\nlabel:disk\n", "")
+                case ["sh", "-c", cmd] if "/sys/bus/pci/devices/0000:00:1f.2" in cmd:
+                    return (0, "vendor:0x8086\ndevice:0x2922\nclass:0x010601\nlabel:dock\n", "")
+                case ["sh", "-c", cmd] if "/sys/bus/pci/devices/0000:00:1f.3" in cmd:
+                    return (0, "vendor:0x8086\ndevice:0x2930\nclass:0x0c0500\nlabel:cable\n", "")
+                case ["find", "/sys/bus/usb/devices", "-maxdepth", "1", "-type", "l"]:
+                    return (0, mock_usb_find_output, "")
+                # Check for 1-1.1 before 1-1 to avoid substring matching issues
+                case ["sh", "-c", cmd] if "/sys/bus/usb/devices/1-1.1" in cmd:
+                    return (0, "idVendor:0bda\nidProduct:5411\nproduct:4-Port USB 2.0 Hub\nmanufacturer:Generic\n", "")
+                case ["sh", "-c", cmd] if "/sys/bus/usb/devices/1-1" in cmd:
+                    return (0, "idVendor:046d\nidProduct:c52b\nproduct:USB Receiver\nmanufacturer:Logitech\n", "")
+                case ["sh", "-c", cmd] if "/sys/bus/usb/devices/2-1" in cmd:
+                    return (
+                        0,
+                        "idVendor:8087\nidProduct:0024\nproduct:Integrated Camera\nmanufacturer:Chicony Electronics\n",
+                        "",
+                    )
+                case _:
+                    return (1, "", "Command not found")
 
-        # Extract text from content
-        assert isinstance(content[0], TextContent)
-        text = content[0].text
-        data = json.loads(text)
+        # Expected device data
+        expected_pci_devices = [
+            {
+                "address": "0000:00:00.0",
+                "vendor_id": "0x8086",
+                "device_id": "0x1234",
+                "class_id": "0x060000",
+                "description": "disk",
+            },
+            {
+                "address": "0000:00:1f.2",
+                "vendor_id": "0x8086",
+                "device_id": "0x2922",
+                "class_id": "0x010601",
+                "description": "dock",
+            },
+            {
+                "address": "0000:00:1f.3",
+                "vendor_id": "0x8086",
+                "device_id": "0x2930",
+                "class_id": "0x0c0500",
+                "description": "cable",
+            },
+        ]
 
-        # Should have some hardware information fields
-        # At least one of these should be present
-        has_hardware_data = (
-            data.get("cpu_architecture") is not None
-            or data.get("pci_devices") is not None
-            or data.get("usb_devices") is not None
-        )
-        assert has_hardware_data
+        expected_usb_devices = [
+            {
+                "bus": "1",
+                "device": "1-1",
+                "vendor_id": "046d",
+                "product_id": "c52b",
+                "description": "USB Receiver",
+                "manufacturer": "Logitech",
+            },
+            {
+                "bus": "1",
+                "device": "1-1.1",
+                "vendor_id": "0bda",
+                "product_id": "5411",
+                "description": "4-Port USB 2.0 Hub",
+                "manufacturer": "Generic",
+            },
+            {
+                "bus": "2",
+                "device": "2-1",
+                "vendor_id": "8087",
+                "product_id": "0024",
+                "description": "Integrated Camera",
+                "manufacturer": "Chicony Electronics",
+            },
+        ]
 
-        # Verify structured output
-        assert isinstance(structured_output, dict)
-        hardware_info = HardwareInfo(**structured_output)
-        has_hardware_info = (
-            hardware_info.cpu_architecture is not None
-            or len(hardware_info.pci_devices) > 0
-            or hardware_info.usb_devices is not None
-        )
-        assert has_hardware_info
+        # Patch execute_command
+        with patch(
+            "linux_mcp_server.tools.system_info.execute_command",
+            new=AsyncMock(side_effect=mock_execute_command),
+        ):
+            result = await mcp.call_tool("get_device_information", arguments={})
+
+            # MCP call_tool returns a tuple of (content, structured_output)
+            assert isinstance(result, tuple)
+            assert len(result) == 2
+            content, structured_output = result
+
+            # Content should be a TextContent object array
+            assert isinstance(content, list)
+            assert all(isinstance(item, TextContent) for item in content)
+
+            # Extract text from content
+            assert isinstance(content[0], TextContent)
+            text = content[0].text
+            data = json.loads(text)
+
+            # Verify PCI devices in JSON
+            assert "pci_devices" in data
+            pci_devices = data["pci_devices"]
+            assert isinstance(pci_devices, list)
+            assert len(pci_devices) == data["pci_device_count"]
+
+            for i, pci_device in enumerate(pci_devices):
+                assert pci_device == expected_pci_devices[i]
+
+            # Verify USB devices in JSON
+            assert "usb_devices" in data
+            usb_devices = data["usb_devices"]
+            assert isinstance(usb_devices, list)
+            assert len(usb_devices) == data["usb_device_count"]
+
+            for i, usb_device in enumerate(usb_devices):
+                assert usb_device == expected_usb_devices[i]
+
+            # Verify structured output
+            assert isinstance(structured_output, dict)
+            device_info = DeviceInfo(**structured_output)
+
+            # Verify PCI devices in structured output
+            assert len(device_info.pci_devices) == device_info.pci_device_count
+            for i, pci_device in enumerate(device_info.pci_devices):
+                assert isinstance(pci_device, PCIDevice)
+                assert pci_device == PCIDevice(**expected_pci_devices[i])
+
+            # Verify USB devices in structured output
+            assert len(device_info.usb_devices) == device_info.usb_device_count
+            for i, usb_device in enumerate(device_info.usb_devices):
+                assert isinstance(usb_device, USBDevice)
+                assert usb_device == USBDevice(**expected_usb_devices[i])
 
     async def test_error_handling(self):
         """Test that errors are properly raised as ToolError."""

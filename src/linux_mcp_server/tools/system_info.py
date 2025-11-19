@@ -96,14 +96,34 @@ class DiskUsage(BaseModel):
     io_stats: DiskIOStats | None = None
 
 
-class HardwareInfo(BaseModel):
-    """Hardware information model."""
+class PCIDevice(BaseModel):
+    """PCI device information."""
 
-    cpu_architecture: str | None = None
-    pci_devices: list[str] = Field(default_factory=list)
-    pci_device_count: int | None = None
-    usb_devices: str | None = None
-    memory_hardware: str | None = None
+    address: str
+    vendor_id: str | None = None
+    device_id: str | None = None
+    class_id: str | None = None
+    description: str | None = None
+
+
+class USBDevice(BaseModel):
+    """USB device information."""
+
+    bus: str
+    device: str
+    vendor_id: str | None = None
+    product_id: str | None = None
+    description: str | None = None
+    manufacturer: str | None = None
+
+
+class DeviceInfo(BaseModel):
+    """Device information model for PCI and USB devices."""
+
+    pci_devices: list[PCIDevice] = Field(default_factory=list)
+    pci_device_count: int = 0
+    usb_devices: list[USBDevice] = Field(default_factory=list)
+    usb_device_count: int = 0
 
 
 @mcp.tool(
@@ -566,74 +586,166 @@ async def get_disk_usage(
     return DiskUsage(partitions=partitions, io_stats=io_stats)
 
 
+async def parse_pci_devices(host: Host | None = None, username: Username | None = None) -> list[PCIDevice]:
+    """
+    Parse PCI devices from sysfs.
+
+    Reads device information from /sys/bus/pci/devices/ without relying on lspci.
+    """
+    pci_devices = []
+
+    # List all PCI devices
+    returncode, stdout, stderr = await execute_command(
+        ["find", "/sys/bus/pci/devices", "-maxdepth", "1", "-type", "l"],
+        host=host,
+        username=username,
+    )
+
+    if returncode != 0 or not stdout:
+        return pci_devices
+
+    device_paths = [
+        path.strip() for path in stdout.strip().split("\n") if path.strip() and path != "/sys/bus/pci/devices"
+    ]
+
+    for device_path in device_paths:
+        # Extract the device address from path (e.g., 0000:00:1f.2)
+        address = device_path.split("/")[-1]
+
+        device = PCIDevice(address=address)
+
+        # Read all device attributes in a single command
+        # Format: "key:value" for each file, one per line
+        returncode, stdout, _ = await execute_command(
+            [
+                "sh",
+                "-c",
+                f"cd {device_path} && for f in vendor device class label; do echo \"$f:$(cat $f 2>/dev/null || echo '')\"; done",
+            ],
+            host=host,
+            username=username,
+        )
+
+        if returncode == 0 and stdout:
+            # Parse the output: each line is "key:value"
+            for line in stdout.strip().split("\n"):
+                if ":" in line:
+                    key, value = line.split(":", 1)
+                    value = value.strip()
+                    if value:  # Only set if value is not empty
+                        match key:
+                            case "vendor":
+                                device.vendor_id = value
+                            case "device":
+                                device.device_id = value
+                            case "class":
+                                device.class_id = value
+                            case "label":
+                                device.description = value
+
+        pci_devices.append(device)
+
+    return pci_devices
+
+
+async def parse_usb_devices(host: Host | None = None, username: Username | None = None) -> list[USBDevice]:
+    """
+    Parse USB devices from sysfs.
+
+    Reads device information from /sys/bus/usb/devices/ without relying on lsusb.
+    """
+    usb_devices = []
+
+    # List all USB devices
+    returncode, stdout, stderr = await execute_command(
+        ["find", "/sys/bus/usb/devices", "-maxdepth", "1", "-type", "l"],
+        host=host,
+        username=username,
+    )
+
+    if returncode != 0 or not stdout:
+        return usb_devices
+
+    device_paths = [
+        path.strip() for path in stdout.strip().split("\n") if path.strip() and path != "/sys/bus/usb/devices"
+    ]
+
+    for device_path in device_paths:
+        # Extract the bus-device identifier (e.g., 1-1, 2-1.1)
+        # Skip root hubs (like usb1, usb2)
+        device_name = device_path.split("/")[-1]
+        if "-" not in device_name:
+            continue
+
+        # Parse bus and device from name (e.g., "1-1" -> bus 1, device path 1)
+        parts = device_name.split("-")
+        bus = parts[0]
+
+        device = USBDevice(bus=bus, device=device_name)
+
+        # Read all device attributes in a single command
+        # Format: "key:value" for each file, one per line
+        returncode, stdout, _ = await execute_command(
+            [
+                "sh",
+                "-c",
+                f"cd {device_path} && for f in idVendor idProduct product manufacturer; do echo \"$f:$(cat $f 2>/dev/null || echo '')\"; done",
+            ],
+            host=host,
+            username=username,
+        )
+
+        if returncode == 0 and stdout:
+            # Parse the output: each line is "key:value"
+            for line in stdout.strip().split("\n"):
+                if ":" in line:
+                    key, value = line.split(":", 1)
+                    value = value.strip()
+                    if value:  # Only set if value is not empty
+                        match key:
+                            case "idVendor":
+                                device.vendor_id = value
+                            case "idProduct":
+                                device.product_id = value
+                            case "product":
+                                device.description = value
+                            case "manufacturer":
+                                device.manufacturer = value
+
+        usb_devices.append(device)
+
+    return usb_devices
+
+
 @mcp.tool(
-    title="Get hardware information",
-    description="Get hardware information such as CPU details, PCI devices, USB devices, and hardware information from DMI.",
+    title="Get device information",
+    description="Get hardware device information including PCI and USB devices. Reads directly from sysfs without requiring lspci or lsusb utilities.",
     annotations=ToolAnnotations(readOnlyHint=True),
 )
 @log_tool_call
-async def get_hardware_information(
+async def get_device_information(
     host: Host | None = None,
-) -> HardwareInfo:
+    username: Username | None = None,
+) -> DeviceInfo:
     """
-    Get hardware information.
-    """
-    result = HardwareInfo()
+    Get device information for PCI and USB devices.
 
+    This tool reads device information directly from the Linux sysfs filesystem
+    (/sys/bus/pci/devices/ and /sys/bus/usb/devices/) and does not rely on
+    external utilities like lspci or lsusb which may not be installed.
+    """
     try:
-        # Try lscpu for CPU info
-        try:
-            returncode, stdout, stderr = await execute_command(
-                ["lscpu"],
-                host=host,
-            )
+        # Parse PCI devices
+        pci_devices = await parse_pci_devices(host=host, username=username)
 
-            if returncode == 0:
-                result.cpu_architecture = stdout
-        except FileNotFoundError:
-            result.cpu_architecture = "lscpu command not available"
+        # Parse USB devices
+        usb_devices = await parse_usb_devices(host=host, username=username)
 
-        # Try lspci for PCI devices
-        try:
-            returncode, stdout, stderr = await execute_command(
-                ["lspci"],
-                host=host,
-            )
-
-            if returncode == 0:
-                pci_lines = stdout.strip().split("\n")
-                # Store first 50 devices to avoid overwhelming output
-                result.pci_devices = pci_lines[:50]
-                result.pci_device_count = len(pci_lines)
-        except FileNotFoundError:
-            result.pci_devices = ["lspci command not available"]
-
-        # Try lsusb for USB devices
-        try:
-            returncode, stdout, stderr = await execute_command(
-                ["lsusb"],
-                host=host,
-            )
-
-            if returncode == 0:
-                result.usb_devices = stdout
-        except FileNotFoundError:
-            result.usb_devices = "lsusb command not available"
-
-        # Memory hardware info from dmidecode (requires root)
-        try:
-            returncode, stdout, stderr = await execute_command(
-                ["dmidecode", "-t", "memory"],
-                host=host,
-            )
-
-            if returncode == 0:
-                result.memory_hardware = stdout
-            elif "Permission denied" in stderr:
-                result.memory_hardware = "Requires root privileges (dmidecode)"
-        except FileNotFoundError:
-            result.memory_hardware = "dmidecode command not available"
-
-        return result
+        return DeviceInfo(
+            pci_devices=pci_devices,
+            pci_device_count=len(pci_devices),
+            usb_devices=usb_devices,
+            usb_device_count=len(usb_devices),
+        )
     except Exception as e:
         raise ToolError(f"Error: {str(e)}") from e

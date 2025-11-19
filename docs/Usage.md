@@ -66,12 +66,12 @@ Returns filesystem usage and mount points.
 
 **Example use case:** "Which filesystems are running out of space?"
 
-#### `get_hardware_information`
-Returns hardware information including CPU architecture, PCI devices, USB devices, and memory hardware.
+#### `get_device_information`
+Returns hardware device information including PCI and USB devices. Reads directly from sysfs without requiring lspci or lsusb utilities.
 
 **Parameters:** None
 
-**Example use case:** "What hardware is installed in this system?"
+**Example use case:** "What PCI and USB devices are installed in this system?"
 
 ### Service Management
 
@@ -257,7 +257,7 @@ The `read_log_file` tool uses a whitelist approach. Only files explicitly listed
 Some tools may require elevated privileges to show complete information:
 - `get_audit_logs` - Requires read access to `/var/log/audit/audit.log`
 - `get_network_connections` - May require root to see all connections
-- `get_hardware_information` - Some hardware details (dmidecode) require root
+- `get_device_information` - Requires read access to `/sys/bus/pci/devices/` and `/sys/bus/usb/devices/`
 
 ### Recommended Approach
 Run the MCP server with the minimum required privileges. Consider:
