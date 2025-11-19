@@ -50,3 +50,5 @@ Thumbs.db
 # Configuration files (user-specific)
 config.sh
 
+.claude/settings.local.json
+CLAUDE.local.md
