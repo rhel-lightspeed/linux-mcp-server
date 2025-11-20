@@ -67,7 +67,7 @@ uv sync
 **Step 3: Verify the installation**
 
 ```bash
-uv run linux_mcp_server
+uv run linux-mcp-server
 ```
 
 **Step 5: Run the tests**
