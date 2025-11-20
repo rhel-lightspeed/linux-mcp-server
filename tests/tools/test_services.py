@@ -82,7 +82,7 @@ class TestRemoteServices:
         with patch("linux_mcp_server.tools.services.execute_command") as mock_exec:
             mock_exec.return_value = (0, mock_output, "")
 
-            result = await services.list_services(host="remote.example.com", username="admin")
+            result = await services.list_services(host="remote.example.com")
 
             assert "nginx.service" in result
             assert "System Services" in result
@@ -95,7 +95,7 @@ class TestRemoteServices:
         with patch("linux_mcp_server.tools.services.execute_command") as mock_exec:
             mock_exec.return_value = (0, mock_output, "")
 
-            result = await services.get_service_status("nginx", host="remote.example.com", username="admin")
+            result = await services.get_service_status("nginx", host="remote.example.com")
 
             assert "nginx.service" in result
             assert "active" in result.lower()
@@ -108,7 +108,7 @@ class TestRemoteServices:
         with patch("linux_mcp_server.tools.services.execute_command") as mock_exec:
             mock_exec.return_value = (0, mock_output, "")
 
-            result = await services.get_service_logs("nginx", lines=50, host="remote.example.com", username="admin")
+            result = await services.get_service_logs("nginx", lines=50, host="remote.example.com")
 
             assert "nginx" in result.lower()
             assert "Starting" in result

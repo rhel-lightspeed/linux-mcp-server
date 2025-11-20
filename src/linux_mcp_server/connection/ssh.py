@@ -18,6 +18,7 @@ from typing import Optional
 
 import asyncssh
 
+from linux_mcp_server import CONFIG
 from linux_mcp_server.audit import Event
 from linux_mcp_server.audit import log_ssh_command
 from linux_mcp_server.audit import log_ssh_connect
@@ -247,7 +248,7 @@ _connection_manager = SSHConnectionManager()
 async def execute_command(
     command: list[str],
     host: str | None = None,
-    username: str | None = None,
+    username: str = CONFIG.user,
     **kwargs,
 ) -> tuple[int, str, str]:
     """

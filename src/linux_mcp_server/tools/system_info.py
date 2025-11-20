@@ -14,7 +14,6 @@ from linux_mcp_server.connection.ssh import execute_command
 from linux_mcp_server.server import mcp
 from linux_mcp_server.utils import format_bytes
 from linux_mcp_server.utils.types import Host
-from linux_mcp_server.utils.types import Username
 
 
 @mcp.tool(
@@ -25,7 +24,6 @@ from linux_mcp_server.utils.types import Username
 @log_tool_call
 async def get_system_information(  # noqa: C901
     host: Host | None = None,
-    username: Username | None = None,
 ) -> str:
     """
     Get basic system information.
@@ -39,7 +37,6 @@ async def get_system_information(  # noqa: C901
             returncode, stdout, _ = await execute_command(
                 ["hostname"],
                 host=host,
-                username=username,
             )
             if returncode == 0 and stdout:
                 info.append(f"Hostname: {stdout.strip()}")
@@ -48,7 +45,6 @@ async def get_system_information(  # noqa: C901
             returncode, stdout, _ = await execute_command(
                 ["cat", "/etc/os-release"],
                 host=host,
-                username=username,
             )
             if returncode == 0 and stdout:
                 os_info = {}
@@ -66,7 +62,6 @@ async def get_system_information(  # noqa: C901
             returncode, stdout, _ = await execute_command(
                 ["uname", "-r"],
                 host=host,
-                username=username,
             )
             if returncode == 0 and stdout:
                 info.append(f"Kernel Version: {stdout.strip()}")
@@ -75,7 +70,6 @@ async def get_system_information(  # noqa: C901
             returncode, stdout, _ = await execute_command(
                 ["uname", "-m"],
                 host=host,
-                username=username,
             )
             if returncode == 0 and stdout:
                 info.append(f"Architecture: {stdout.strip()}")
@@ -84,7 +78,6 @@ async def get_system_information(  # noqa: C901
             returncode, stdout, _ = await execute_command(
                 ["uptime", "-p"],
                 host=host,
-                username=username,
             )
             if returncode == 0 and stdout:
                 info.append(f"Uptime: {stdout.strip()}")
@@ -93,7 +86,6 @@ async def get_system_information(  # noqa: C901
             returncode, stdout, _ = await execute_command(
                 ["uptime", "-s"],
                 host=host,
-                username=username,
             )
             if returncode == 0 and stdout:
                 info.append(f"Boot Time: {stdout.strip()}")
@@ -149,7 +141,6 @@ async def get_system_information(  # noqa: C901
 @log_tool_call
 async def get_cpu_information(  # noqa: C901
     host: Host | None = None,
-    username: Username | None = None,
 ) -> str:
     """
     Get CPU information.
@@ -163,7 +154,6 @@ async def get_cpu_information(  # noqa: C901
             returncode, stdout, _ = await execute_command(
                 ["grep", "-m", "1", "model name", "/proc/cpuinfo"],
                 host=host,
-                username=username,
             )
             if returncode == 0 and stdout:
                 cpu_model = stdout.split(":", 1)[1].strip() if ":" in stdout else stdout.strip()
@@ -173,7 +163,6 @@ async def get_cpu_information(  # noqa: C901
             returncode, stdout, _ = await execute_command(
                 ["grep", "-c", "^processor", "/proc/cpuinfo"],
                 host=host,
-                username=username,
             )
             if returncode == 0 and stdout:
                 logical_cores = int(stdout.strip())
@@ -183,7 +172,6 @@ async def get_cpu_information(  # noqa: C901
             returncode, stdout, _ = await execute_command(
                 ["grep", "^core id", "/proc/cpuinfo"],
                 host=host,
-                username=username,
             )
             if returncode == 0 and stdout:
                 core_ids = {line.split(":", 1)[1].strip() for line in stdout.strip().split("\n") if ":" in line}
@@ -194,7 +182,6 @@ async def get_cpu_information(  # noqa: C901
             returncode, stdout, _ = await execute_command(
                 ["grep", "-m", "1", "cpu MHz", "/proc/cpuinfo"],
                 host=host,
-                username=username,
             )
             if returncode == 0 and stdout and ":" in stdout:
                 cpu_mhz = stdout.split(":", 1)[1].strip()
@@ -204,7 +191,6 @@ async def get_cpu_information(  # noqa: C901
             returncode, stdout, _ = await execute_command(
                 ["cat", "/proc/loadavg"],
                 host=host,
-                username=username,
             )
             if returncode == 0 and stdout:
                 load_parts = stdout.strip().split()
@@ -215,7 +201,6 @@ async def get_cpu_information(  # noqa: C901
             returncode, stdout, _ = await execute_command(
                 ["top", "-bn1"],
                 host=host,
-                username=username,
             )
             if returncode == 0 and stdout:
                 for line in stdout.split("\n"):
@@ -278,7 +263,6 @@ async def get_cpu_information(  # noqa: C901
 @log_tool_call
 async def get_memory_information(
     host: Host | None = None,
-    username: Username | None = None,
 ) -> str:
     """
     Get memory information.
@@ -291,7 +275,6 @@ async def get_memory_information(
             returncode, stdout, _ = await execute_command(
                 ["free", "-b"],
                 host=host,
-                username=username,
             )
 
             if returncode == 0 and stdout:
@@ -362,7 +345,6 @@ async def get_memory_information(
 @log_tool_call
 async def get_disk_usage(
     host: Host | None = None,
-    username: Username | None = None,
 ) -> str:
     """
     Get disk usage information.
@@ -375,7 +357,6 @@ async def get_disk_usage(
             returncode, stdout, _ = await execute_command(
                 ["df", "-h", "--output=source,size,used,avail,pcent,target"],
                 host=host,
-                username=username,
             )
 
             if returncode == 0 and stdout:
@@ -386,7 +367,6 @@ async def get_disk_usage(
                 returncode, stdout, _ = await execute_command(
                     ["df", "-h"],
                     host=host,
-                    username=username,
                 )
                 if returncode == 0 and stdout:
                     info.append("=== Filesystem Usage ===\n")
@@ -442,7 +422,6 @@ async def get_disk_usage(
 @log_tool_call
 async def get_hardware_information(  # noqa: C901
     host: Host | None = None,
-    username: Username | None = None,
 ) -> str:
     """
     Get hardware information.
@@ -456,7 +435,6 @@ async def get_hardware_information(  # noqa: C901
             returncode, stdout, stderr = await execute_command(
                 ["lscpu"],
                 host=host,
-                username=username,
             )
 
             if returncode == 0:
@@ -470,7 +448,6 @@ async def get_hardware_information(  # noqa: C901
             returncode, stdout, stderr = await execute_command(
                 ["lspci"],
                 host=host,
-                username=username,
             )
 
             if returncode == 0:
@@ -491,7 +468,6 @@ async def get_hardware_information(  # noqa: C901
             returncode, stdout, stderr = await execute_command(
                 ["lsusb"],
                 host=host,
-                username=username,
             )
 
             if returncode == 0:
@@ -505,7 +481,6 @@ async def get_hardware_information(  # noqa: C901
             returncode, stdout, stderr = await execute_command(
                 ["dmidecode", "-t", "memory"],
                 host=host,
-                username=username,
             )
 
             if returncode == 0:
