@@ -10,6 +10,7 @@ from mcp.types import ToolAnnotations
 from linux_mcp_server.audit import log_tool_call
 from linux_mcp_server.connection.ssh import execute_command
 from linux_mcp_server.server import mcp
+from linux_mcp_server.utils.decorators import disallow_local_execution_in_containers
 from linux_mcp_server.utils.types import Host
 from linux_mcp_server.utils.types import Username
 from linux_mcp_server.utils.validation import validate_line_count
@@ -21,6 +22,7 @@ from linux_mcp_server.utils.validation import validate_line_count
     annotations=ToolAnnotations(readOnlyHint=True),
 )
 @log_tool_call
+@disallow_local_execution_in_containers
 async def get_journal_logs(
     unit: t.Annotated[str | None, "Systemd unit name used for filtering."] = None,
     priority: t.Annotated[str | None, "Priority level used for filtering."] = None,
@@ -82,6 +84,7 @@ async def get_journal_logs(
     annotations=ToolAnnotations(readOnlyHint=True),
 )
 @log_tool_call
+@disallow_local_execution_in_containers
 async def get_audit_logs(
     lines: t.Annotated[int, "Number of log lines to retrieve."] = 100,
     host: Host | None = None,
@@ -131,6 +134,7 @@ async def get_audit_logs(
     annotations=ToolAnnotations(readOnlyHint=True),
 )
 @log_tool_call
+@disallow_local_execution_in_containers
 async def read_log_file(  # noqa: C901
     log_path: t.Annotated[str, "Path to the log file"],
     lines: t.Annotated[int, "Number of lines to retrieve from the end."] = 100,

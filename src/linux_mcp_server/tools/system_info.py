@@ -13,6 +13,7 @@ from linux_mcp_server.audit import log_tool_call
 from linux_mcp_server.connection.ssh import execute_command
 from linux_mcp_server.server import mcp
 from linux_mcp_server.utils import format_bytes
+from linux_mcp_server.utils.decorators import disallow_local_execution_in_containers
 from linux_mcp_server.utils.types import Host
 from linux_mcp_server.utils.types import Username
 
@@ -23,6 +24,7 @@ from linux_mcp_server.utils.types import Username
     annotations=ToolAnnotations(readOnlyHint=True),
 )
 @log_tool_call
+@disallow_local_execution_in_containers
 async def get_system_information(  # noqa: C901
     host: Host | None = None,
     username: Username | None = None,
@@ -147,6 +149,7 @@ async def get_system_information(  # noqa: C901
     annotations=ToolAnnotations(readOnlyHint=True),
 )
 @log_tool_call
+@disallow_local_execution_in_containers
 async def get_cpu_information(  # noqa: C901
     host: Host | None = None,
     username: Username | None = None,
@@ -276,6 +279,7 @@ async def get_cpu_information(  # noqa: C901
     annotations=ToolAnnotations(readOnlyHint=True),
 )
 @log_tool_call
+@disallow_local_execution_in_containers
 async def get_memory_information(
     host: Host | None = None,
     username: Username | None = None,
@@ -360,6 +364,7 @@ async def get_memory_information(
     annotations=ToolAnnotations(readOnlyHint=True),
 )
 @log_tool_call
+@disallow_local_execution_in_containers
 async def get_disk_usage(
     host: Host | None = None,
     username: Username | None = None,
@@ -440,6 +445,7 @@ async def get_disk_usage(
     annotations=ToolAnnotations(readOnlyHint=True),
 )
 @log_tool_call
+@disallow_local_execution_in_containers
 async def get_hardware_information(  # noqa: C901
     host: Host | None = None,
     username: Username | None = None,

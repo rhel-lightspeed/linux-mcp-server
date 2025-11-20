@@ -7,6 +7,7 @@ from mcp.types import ToolAnnotations
 from linux_mcp_server.audit import log_tool_call
 from linux_mcp_server.connection.ssh import execute_command
 from linux_mcp_server.server import mcp
+from linux_mcp_server.utils.decorators import disallow_local_execution_in_containers
 from linux_mcp_server.utils.types import Host
 from linux_mcp_server.utils.types import Username
 from linux_mcp_server.utils.validation import validate_line_count
@@ -18,6 +19,7 @@ from linux_mcp_server.utils.validation import validate_line_count
     annotations=ToolAnnotations(readOnlyHint=True),
 )
 @log_tool_call
+@disallow_local_execution_in_containers
 async def list_services(
     host: Host | None = None,
     username: Username | None = None,
@@ -64,6 +66,7 @@ async def list_services(
     annotations=ToolAnnotations(readOnlyHint=True),
 )
 @log_tool_call
+@disallow_local_execution_in_containers
 async def get_service_status(
     service_name: t.Annotated[str, "Name of the service"],
     host: Host | None = None,
@@ -107,6 +110,7 @@ async def get_service_status(
     annotations=ToolAnnotations(readOnlyHint=True),
 )
 @log_tool_call
+@disallow_local_execution_in_containers
 async def get_service_logs(
     service_name: t.Annotated[str, "Name of the service"],
     lines: t.Annotated[int, "Number of log lines to retrieve."] = 50,
