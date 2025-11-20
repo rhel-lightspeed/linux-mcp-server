@@ -13,6 +13,7 @@ from linux_mcp_server.audit import log_tool_call
 from linux_mcp_server.connection.ssh import execute_command
 from linux_mcp_server.server import mcp
 from linux_mcp_server.utils import format_bytes
+from linux_mcp_server.utils.decorators import disallow_local_execution_in_containers
 from linux_mcp_server.utils.types import Host
 from linux_mcp_server.utils.validation import validate_pid
 
@@ -23,6 +24,7 @@ from linux_mcp_server.utils.validation import validate_pid
     annotations=ToolAnnotations(readOnlyHint=True),
 )
 @log_tool_call
+@disallow_local_execution_in_containers
 async def list_processes(
     host: Host | None = None,
 ) -> str:
@@ -108,6 +110,7 @@ async def list_processes(
     annotations=ToolAnnotations(readOnlyHint=True),
 )
 @log_tool_call
+@disallow_local_execution_in_containers
 async def get_process_info(  # noqa: C901
     pid: t.Annotated[int, Field(description="Process ID")],
     host: Host | None = None,
