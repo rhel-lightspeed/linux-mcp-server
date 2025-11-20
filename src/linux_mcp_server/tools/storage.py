@@ -104,7 +104,7 @@ async def list_block_devices(
 
 @mcp.tool(
     title="List directories",
-    description="List directories under a specified path with flexible sorting options.",
+    description="List directories under a specified path with various sorting options.",
     annotations=ToolAnnotations(readOnlyHint=True),
 )
 @log_tool_call

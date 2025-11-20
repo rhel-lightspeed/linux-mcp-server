@@ -183,46 +183,29 @@ Lists block devices, partitions, and disk I/O statistics.
 
 **Example use case:** "Show me all disk devices and their usage statistics."
 
-#### `list_directories_by_size`
-Lists immediate subdirectories under a specified path, sorted by size (largest first). Uses efficient Linux `du` command for fast disk space analysis.
+#### `list_directories`
+Lists immediate subdirectories under a specified path with flexible sorting options. Uses efficient Linux commands (`du` for size, `find` for name and date) for fast analysis.
 
 **Parameters:**
 - `path` (string, required): Directory path to analyze (e.g., "/home", "/var", "/")
-- `top_n` (number, required): Number of largest directories to return (1-1000)
+- `order_by` (string, optional): Sort order - 'size', 'name', or 'modified' (default: 'name')
+- `sort` (string, optional): Sort direction - 'ascending' or 'descending' (default: 'ascending')
+- `top_n` (number, optional): Limit number of directories to return (1-1000, primarily used with size ordering)
 
 **Key Features:**
 - Lists only immediate children (not nested paths)
-- Sizes include all nested content recursively
-- Fast performance using native `du` command
+- When ordering by size, sizes include all nested content recursively
+- Fast performance using native Linux commands
 - Path validation prevents traversal attacks
+- Flexible sorting options for different use cases
 
 **Example use cases:**
-- "Find the top 5 largest directories in /var" → `list_directories_by_size("/var", 5)`
-- "What are the 10 biggest directories under /home?" → `list_directories_by_size("/home", 10)`
-- "Show me the 3 largest directories in root partition" → `list_directories_by_size("/", 3)`
-
-#### `list_directories_by_name`
-Lists all immediate subdirectories under a specified path, sorted alphabetically. Uses efficient Linux `find` command.
-
-**Parameters:**
-- `path` (string, required): Directory path to analyze
-- `reverse` (boolean, optional): Sort in reverse order (Z-A). Default: false (A-Z)
-
-**Example use cases:**
-- "List all directories in /home alphabetically" → `list_directories_by_name("/home")`
-- "Show me directories in /var in reverse alphabetical order" → `list_directories_by_name("/var", true)`
-
-#### `list_directories_by_modified_date`
-Lists all immediate subdirectories under a specified path, sorted by modification date. Uses efficient Linux `find` command.
-
-**Parameters:**
-- `path` (string, required): Directory path to analyze
-- `newest_first` (boolean, optional): Show newest first. Default: true
-
-**Example use cases:**
-- "Show me recently modified directories in /home" → `list_directories_by_modified_date("/home")`
-- "List directories in /var sorted by oldest first" → `list_directories_by_modified_date("/var", false)`
-- "What directories in /tmp were changed recently?" → `list_directories_by_modified_date("/tmp", true)`
+- "Find the top 5 largest directories in /var" → `list_directories(path="/var", order_by="size", sort="descending", top_n=5)`
+- "What are the 10 biggest directories under /home?" → `list_directories(path="/home", order_by="size", sort="descending", top_n=10)`
+- "List all directories in /home alphabetically" → `list_directories(path="/home", order_by="name")`
+- "Show me directories in /var in reverse alphabetical order" → `list_directories(path="/var", order_by="name", sort="descending")`
+- "Show me recently modified directories in /home" → `list_directories(path="/home", order_by="modified", sort="descending")`
+- "What directories in /tmp were changed (oldest first)?" → `list_directories(path="/tmp", order_by="modified", sort="ascending")`
 
 ## Configuration
 
@@ -249,18 +232,18 @@ For configuration details including environment variables and AI agent integrati
 ### Disk Space Problems
 1. "Show me disk usage for all filesystems" → `get_disk_usage`
 2. "List all block devices" → `list_block_devices`
-3. "Find the top 10 largest directories in /var" → `list_directories_by_size`
-4. "What are the biggest directories under /home?" → `list_directories_by_size`
-5. "List recently modified directories in /tmp" → `list_directories_by_modified_date`
+3. "Find the top 10 largest directories in /var" → `list_directories`
+4. "What are the biggest directories under /home?" → `list_directories`
+5. "List recently modified directories in /tmp" → `list_directories`
 6. "Show me system information including uptime" → `get_system_information`
 
 ### Detailed Disk Space Analysis
 1. "Show me overall disk usage" → `get_disk_usage`
-2. "Which directories under /var are using the most space?" → `list_directories_by_size("/var", 10)`
-3. "What are the biggest directories under /home?" → `list_directories_by_size("/home", 20)`
-4. "What's taking up space in the root filesystem?" → `list_directories_by_size("/", 5)`
-5. "Show me all directories in /opt alphabetically" → `list_directories_by_name("/opt")`
-6. "Which directories in /var/log were modified recently?" → `list_directories_by_modified_date("/var/log")`
+2. "Which directories under /var are using the most space?" → `list_directories(path="/var", order_by="size", sort="descending", top_n=10)`
+3. "What are the biggest directories under /home?" → `list_directories(path="/home", order_by="size", sort="descending", top_n=20)`
+4. "What's taking up space in the root filesystem?" → `list_directories(path="/", order_by="size", sort="descending", top_n=5)`
+5. "Show me all directories in /opt alphabetically" → `list_directories(path="/opt", order_by="name")`
+6. "Which directories in /var/log were modified recently?" → `list_directories(path="/var/log", order_by="modified", sort="descending")`
 
 ## Security Considerations
 

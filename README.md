@@ -132,9 +132,7 @@ For complete Claude Desktop integration instructions including platform-specific
 
 ### Storage & Disk Analysis
 - `list_block_devices` - Block devices and partitions
-- `list_directories_by_size` - List directories sorted by size (largest first) with top N limit
-- `list_directories_by_name` - List all directories sorted alphabetically (A-Z or Z-A)
-- `list_directories_by_modified_date` - List all directories sorted by modification date (newest/oldest first)
+- `list_directories` - List directories under a specified path with various sorting options
 
 
 ## Architecture Overview
