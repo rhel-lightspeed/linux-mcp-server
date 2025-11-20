@@ -36,7 +36,7 @@ pip install -e . --group dev
 **Step 4: Verify the installation**
 
 ```bash
-python -m linux-mcp-server
+python -m linux_mcp_server
 ```
 
 **Step 5: Run the tests**
@@ -67,7 +67,7 @@ uv sync
 **Step 3: Verify the installation**
 
 ```bash
-uv run linux_mcp_server
+uv run linux-mcp-server
 ```
 
 **Step 5: Run the tests**
