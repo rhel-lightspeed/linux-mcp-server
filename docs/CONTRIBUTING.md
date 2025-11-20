@@ -36,7 +36,7 @@ pip install -e . --group dev
 **Step 4: Verify the installation**
 
 ```bash
-python -m linux_mcp_server
+python -m linux-mcp-server
 ```
 
 **Step 5: Run the tests**
