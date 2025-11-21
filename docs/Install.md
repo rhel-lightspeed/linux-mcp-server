@@ -117,6 +117,7 @@ Configure these environment variables in the `env` section:
 | `LINUX_MCP_LOG_RETENTION_DAYS` | No | Days to retain log files (default: 10) | `30` |
 | `LINUX_MCP_SSH_KEY_PATH` | No | Path to SSH private key for remote execution | `~/.ssh/id_ed25519` |
 | `LINUX_MCP_KEY_PASSPHRASE` | No | Passphrase used to decrypt the SSH private key, if required | `<secret>` |
+| `LINUX_MCP_USER` | No | User name used when making remote connections over `ssh`. | `tljones` |
 
 *Required if you want to use the `read_log_file` tool.
 

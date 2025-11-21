@@ -6,7 +6,6 @@ either local or remote execution based on the provided parameters.
 """
 
 import asyncio
-import getpass
 import logging
 import os
 import shlex
@@ -18,6 +17,7 @@ from typing import Optional
 
 import asyncssh
 
+from linux_mcp_server import CONFIG
 from linux_mcp_server.audit import Event
 from linux_mcp_server.audit import log_ssh_command
 from linux_mcp_server.audit import log_ssh_connect
@@ -247,7 +247,7 @@ _connection_manager = SSHConnectionManager()
 async def execute_command(
     command: list[str],
     host: str | None = None,
-    username: str | None = None,
+    username: str = CONFIG.user,
     **kwargs,
 ) -> tuple[int, str, str]:
     """
@@ -285,9 +285,6 @@ async def execute_command(
 
     # Route to remote execution if host is provided
     if host:
-        if not username:
-            username = getpass.getuser()
-
         logger.debug(f"Routing to remote execution: {username}@{host} | command={cmd_str}")
         return await _connection_manager.execute_remote(command, host, username)
 

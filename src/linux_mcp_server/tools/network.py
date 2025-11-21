@@ -11,7 +11,6 @@ from linux_mcp_server.connection.ssh import execute_command
 from linux_mcp_server.server import mcp
 from linux_mcp_server.utils import format_bytes
 from linux_mcp_server.utils.types import Host
-from linux_mcp_server.utils.types import Username
 
 
 @mcp.tool(
@@ -22,7 +21,6 @@ from linux_mcp_server.utils.types import Username
 @log_tool_call
 async def get_network_interfaces(  # noqa: C901
     host: Host | None = None,
-    username: Username | None = None,
 ) -> str:
     """
     Get network interface information.
@@ -37,7 +35,6 @@ async def get_network_interfaces(  # noqa: C901
             returncode, stdout, _ = await execute_command(
                 ["ip", "-brief", "address"],
                 host=host,
-                username=username,
             )
 
             if returncode == 0 and stdout:
@@ -47,7 +44,6 @@ async def get_network_interfaces(  # noqa: C901
             returncode, stdout, _ = await execute_command(
                 ["ip", "address"],
                 host=host,
-                username=username,
             )
 
             if returncode == 0 and stdout:
@@ -58,7 +54,6 @@ async def get_network_interfaces(  # noqa: C901
             returncode, stdout, _ = await execute_command(
                 ["cat", "/proc/net/dev"],
                 host=host,
-                username=username,
             )
 
             if returncode == 0 and stdout:
@@ -126,7 +121,6 @@ async def get_network_interfaces(  # noqa: C901
 @log_tool_call
 async def get_network_connections(
     host: Host | None = None,
-    username: Username | None = None,
 ) -> str:
     """
     Get active network connections.
@@ -138,7 +132,6 @@ async def get_network_connections(
             returncode, stdout, _ = await execute_command(
                 ["ss", "-tunap"],
                 host=host,
-                username=username,
             )
 
             if returncode == 0 and stdout:
@@ -156,7 +149,6 @@ async def get_network_connections(
                 returncode, stdout, _ = await execute_command(
                     ["netstat", "-tunap"],
                     host=host,
-                    username=username,
                 )
 
                 if returncode == 0 and stdout:
@@ -211,7 +203,6 @@ async def get_network_connections(
 @log_tool_call
 async def get_listening_ports(
     host: Host | None = None,
-    username: Username | None = None,
 ) -> str:
     """
     Get listening ports.
@@ -223,7 +214,6 @@ async def get_listening_ports(
             returncode, stdout, _ = await execute_command(
                 ["ss", "-tulnp"],
                 host=host,
-                username=username,
             )
 
             if returncode == 0 and stdout:
@@ -241,7 +231,6 @@ async def get_listening_ports(
                 returncode, stdout, _ = await execute_command(
                     ["netstat", "-tulnp"],
                     host=host,
-                    username=username,
                 )
 
                 if returncode == 0 and stdout:

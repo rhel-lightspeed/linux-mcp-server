@@ -13,7 +13,6 @@ from linux_mcp_server.connection.ssh import execute_command
 from linux_mcp_server.server import mcp
 from linux_mcp_server.utils import format_bytes
 from linux_mcp_server.utils.types import Host
-from linux_mcp_server.utils.types import Username
 from linux_mcp_server.utils.validation import validate_pid
 
 
@@ -25,12 +24,11 @@ from linux_mcp_server.utils.validation import validate_pid
 @log_tool_call
 async def list_processes(
     host: Host | None = None,
-    username: Username | None = None,
 ) -> str:
     try:
         if host:
             # Remote execution - use ps command
-            returncode, stdout, _ = await execute_command(["ps", "aux", "--sort=-%cpu"], host=host, username=username)
+            returncode, stdout, _ = await execute_command(["ps", "aux", "--sort=-%cpu"], host=host)
 
             if returncode == 0 and stdout:
                 info = []
@@ -112,7 +110,6 @@ async def list_processes(
 async def get_process_info(  # noqa: C901
     pid: t.Annotated[int, "Process ID"],
     host: Host | None = None,
-    username: Username | None = None,
 ) -> str:
     # Validate PID (accepts floats from LLMs)
     validated_pid, error = validate_pid(pid)
@@ -128,7 +125,6 @@ async def get_process_info(  # noqa: C901
             returncode, stdout, _ = await execute_command(
                 ["ps", "-p", str(validated_pid), "-o", "pid,user,stat,pcpu,pmem,vsz,rss,etime,comm,args"],
                 host=host,
-                username=username,
             )
 
             if returncode != 0:
@@ -143,7 +139,6 @@ async def get_process_info(  # noqa: C901
                 returncode, stdout, _ = await execute_command(
                     ["cat", f"/proc/{validated_pid}/status"],
                     host=host,
-                    username=username,
                 )
 
                 if returncode == 0 and stdout:

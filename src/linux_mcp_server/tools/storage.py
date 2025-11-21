@@ -18,7 +18,6 @@ from linux_mcp_server.server import mcp
 from linux_mcp_server.utils import format_bytes
 from linux_mcp_server.utils import StrEnum
 from linux_mcp_server.utils.types import Host
-from linux_mcp_server.utils.types import Username
 
 
 class DirectoryEntry(BaseModel):
@@ -46,7 +45,6 @@ class SortBy(StrEnum):
 @log_tool_call
 async def list_block_devices(
     host: Host | None = None,
-    username: Username | None = None,
 ) -> str:
     """
     List block devices.
@@ -56,7 +54,6 @@ async def list_block_devices(
         returncode, stdout, _ = await execute_command(
             ["lsblk", "-o", "NAME,SIZE,TYPE,MOUNTPOINT,FSTYPE,MODEL", "--no-pager"],
             host=host,
-            username=username,
         )
     except FileNotFoundError:
         # If lsblk is not available, use psutil
@@ -121,7 +118,6 @@ async def list_directories(  # noqa: C901
         ),
     ] = None,
     host: Host | None = None,
-    username: Username | None = None,
 ) -> t.Annotated[
     list[DirectoryEntry],
     "List of directories with size or modified timestamp",
@@ -155,7 +151,6 @@ async def list_directories(  # noqa: C901
     returncode, stdout, _ = await execute_command(
         command,
         host=host,
-        username=username,
     )
 
     if returncode != 0 and stdout == "":

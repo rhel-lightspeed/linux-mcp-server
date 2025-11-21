@@ -154,7 +154,7 @@ When adding a new diagnostic tool:
     ) -> str:
         """Documentation string further describing the tool if necessary.
         """
-        returncode, stdout, _ = await execute_command(["ps", "aux", "--sort=-%cpu"], host=host, username=username)
+        returncode, stdout, _ = await execute_command(["ps", "aux", "--sort=-%cpu"], host=host)
         if returncode != 0:
           raise ToolError
 

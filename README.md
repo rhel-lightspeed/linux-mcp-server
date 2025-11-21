@@ -200,7 +200,7 @@ All server operations are logged in both human-readable and JSON formats with au
 
 ## Tool execution
 
-All tools support optional `host` and `username` parameters for remote execution via SSH:
+All tools support an optional `host` parameter for remote execution via SSH:
 
 - **Authentication**: SSH key-based authentication only (no password support)
 - **Key Discovery**: Automatically discovers SSH keys from `~/.ssh/` or use `LINUX_MCP_SSH_KEY_PATH`

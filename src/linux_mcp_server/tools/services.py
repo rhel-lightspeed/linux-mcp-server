@@ -8,7 +8,6 @@ from linux_mcp_server.audit import log_tool_call
 from linux_mcp_server.connection.ssh import execute_command
 from linux_mcp_server.server import mcp
 from linux_mcp_server.utils.types import Host
-from linux_mcp_server.utils.types import Username
 from linux_mcp_server.utils.validation import validate_line_count
 
 
@@ -20,7 +19,6 @@ from linux_mcp_server.utils.validation import validate_line_count
 @log_tool_call
 async def list_services(
     host: Host | None = None,
-    username: Username | None = None,
 ) -> str:
     """
     List all systemd services.
@@ -30,7 +28,6 @@ async def list_services(
         returncode, stdout, stderr = await execute_command(
             ["systemctl", "list-units", "--type=service", "--all", "--no-pager"],
             host=host,
-            username=username,
         )
 
         if returncode != 0:
@@ -44,7 +41,6 @@ async def list_services(
         returncode_summary, stdout_summary, _ = await execute_command(
             ["systemctl", "list-units", "--type=service", "--state=running", "--no-pager"],
             host=host,
-            username=username,
         )
 
         if returncode_summary == 0:
@@ -67,7 +63,6 @@ async def list_services(
 async def get_service_status(
     service_name: t.Annotated[str, "Name of the service"],
     host: Host | None = None,
-    username: Username | None = None,
 ) -> str:
     """
     Get status of a specific service.
@@ -81,7 +76,6 @@ async def get_service_status(
         _, stdout, stderr = await execute_command(
             ["systemctl", "status", service_name, "--no-pager", "--full"],
             host=host,
-            username=username,
         )
 
         # Note: systemctl status returns non-zero for inactive services, but that's expected
@@ -111,7 +105,6 @@ async def get_service_logs(
     service_name: t.Annotated[str, "Name of the service"],
     lines: t.Annotated[int, "Number of log lines to retrieve."] = 50,
     host: Host | None = None,
-    username: Username | None = None,
 ) -> str:
     """
     Get logs for a specific service.
@@ -128,7 +121,6 @@ async def get_service_logs(
         returncode, stdout, stderr = await execute_command(
             ["journalctl", "-u", service_name, "-n", str(lines), "--no-pager"],
             host=host,
-            username=username,
         )
 
         if returncode != 0:

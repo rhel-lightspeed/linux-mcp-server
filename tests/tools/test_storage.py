@@ -210,7 +210,7 @@ class TestListBlockDevices:
         mock_stats.read_bytes = 1024
         mock_disk_io.return_value = {"sda": mock_stats}
 
-        result = await mcp.call_tool("list_block_devices", {"host": "remote.host.com", "username": "testuser"})
+        result = await mcp.call_tool("list_block_devices", {"host": "remote.host.com"})
         assert isinstance(result, tuple)
         assert len(result) == 2
         assert isinstance(result[0], list)
@@ -220,11 +220,10 @@ class TestListBlockDevices:
         assert "=== Disk I/O Statistics" not in output
         assert "=== Block Devices ===" in output
 
-        # Verify execute_command was called with host/username
+        # Verify execute_command was called with host
         mock_execute_command.assert_called_once()
         call_kwargs = mock_execute_command.call_args[1]
         assert call_kwargs["host"] == "remote.host.com"
-        assert call_kwargs["username"] == "testuser"
 
     async def test_list_block_devices_exception_handling(self, mocker):
         """Test list_block_devices handles general exceptions."""
@@ -570,7 +569,7 @@ class TestListDirectories:
 
         result = await mcp.call_tool(
             "list_directories",
-            {"path": "/remote/path", "order_by": "size", "host": "remote.server.com", "username": "testuser"},
+            {"path": "/remote/path", "order_by": "size", "host": "remote.server.com"},
         )
 
         assert isinstance(result, tuple)
@@ -587,11 +586,10 @@ class TestListDirectories:
         assert got[2].name == "large"
         assert got[2].size == 300
 
-        # Verify execute_command was called with host/username
+        # Verify execute_command was called with host
         mock_execute_command.assert_called_once()
         call_kwargs = mock_execute_command.call_args[1]
         assert call_kwargs["host"] == "remote.server.com"
-        assert call_kwargs["username"] == "testuser"
 
     @patch("linux_mcp_server.tools.storage.execute_command")
     async def test_list_directories_remote_execution_by_name(self, mock_execute_command):
@@ -605,7 +603,7 @@ class TestListDirectories:
 
         result = await mcp.call_tool(
             "list_directories",
-            {"path": "/remote/path", "order_by": "name", "host": "remote.server.com", "username": "testuser"},
+            {"path": "/remote/path", "order_by": "name", "host": "remote.server.com"},
         )
 
         assert isinstance(result, tuple)
@@ -619,11 +617,10 @@ class TestListDirectories:
         assert got[1].name == "beta"
         assert got[2].name == "gamma"
 
-        # Verify execute_command was called with host/username
+        # Verify execute_command was called with host
         mock_execute_command.assert_called_once()
         call_kwargs = mock_execute_command.call_args[1]
         assert call_kwargs["host"] == "remote.server.com"
-        assert call_kwargs["username"] == "testuser"
 
     @patch("linux_mcp_server.tools.storage.execute_command")
     async def test_list_directories_remote_execution_by_modified(self, mock_execute_command):
@@ -637,7 +634,7 @@ class TestListDirectories:
 
         result = await mcp.call_tool(
             "list_directories",
-            {"path": "/remote/path", "order_by": "modified", "host": "remote.server.com", "username": "testuser"},
+            {"path": "/remote/path", "order_by": "modified", "host": "remote.server.com"},
         )
 
         assert isinstance(result, tuple)
@@ -654,11 +651,10 @@ class TestListDirectories:
         assert got[2].name == "newest"
         assert got[2].modified == 3000.0
 
-        # Verify execute_command was called with host/username
+        # Verify execute_command was called with host
         mock_execute_command.assert_called_once()
         call_kwargs = mock_execute_command.call_args[1]
         assert call_kwargs["host"] == "remote.server.com"
-        assert call_kwargs["username"] == "testuser"
 
     @patch("linux_mcp_server.tools.storage.execute_command")
     async def test_list_directories_remote_skips_path_validation(self, mock_execute_command):
