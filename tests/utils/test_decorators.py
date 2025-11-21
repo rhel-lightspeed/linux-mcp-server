@@ -114,19 +114,22 @@ class TestDisallowLocalExecutionInContainers:
             await basic_test_func(host=None)
             assert "Local execution is not allowed" in str(exc_info.value)
 
-    @pytest.mark.parametrize("container_value", ["docker", "podman", "true", "1", "yes"])
-    async def test_works_with_different_container_values(self, host_only_test_func, mocker, container_value):
+    @pytest.mark.parametrize(
+        "container_value",
+        ["openvz", "lxc", "lxc-libvirt", "systemd-nspawn", "docker", "podman", "rkt", "wsl", "proot", "pouch"],
+    )
+    async def test_works_with_supported_container_values(self, host_only_test_func, mocker, container_value):
         """Test that any truthy value for 'container' env var triggers the check."""
         mocker.patch.dict(os.environ, {"container": container_value})
         with pytest.raises(ToolError):
             await host_only_test_func(host=None)
 
-    async def test_raises_error_with_empty_container_value(self, host_only_test_func, mocker):
-        """Test that empty string for 'container' env var raises error."""
+    async def test_works_with_empty_container_value(self, host_only_test_func, mocker):
+        """Test that empty string for 'container' env var works."""
         # Presence of 'container' env var with empty value raises error
         mocker.patch.dict(os.environ, {"container": ""})
-        with pytest.raises(ToolError):
-            await host_only_test_func(host=None)
+        result = await host_only_test_func(host=None)
+        assert result == "success"
 
     async def test_works_with_functions_without_username_param(self):
         """Test that decorator works with functions that only have host parameter."""
