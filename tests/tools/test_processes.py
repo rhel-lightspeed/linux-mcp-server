@@ -48,3 +48,10 @@ class TestProcesses:
         assert len(result) > 0
         # Should handle gracefully
         assert "not found" in result.lower() or "does not exist" in result.lower() or "error" in result.lower()
+
+    async def test_list_processes_with_host(self, mocker):
+        mocker.patch.object(processes, "execute_command", return_value=(0, "some process", ""))
+
+        result = await processes.list_processes(host="starship.command")
+
+        assert "Running Processes" in result
