@@ -77,12 +77,12 @@ If `ssh-agent` is configured, any keys loaded into the session will be used auto
       "args": [
         "run",
         "--rm",
-        "--name", "linux-mcp-server",
-        "-i",
+        "--interactive",
+        "--userns", "keep-id:uid=1001,gid=0",
         "-e", "LINUX_MCP_KEY_PASSPHRASE",
         "-e", "LINUX_MCP_USER",
-        "-v", "/home/tljones/.ssh/id_ed25519:/var/lib/mcp/.ssh/id_ed25519:ro",
-        "-v", "/home/tljones/.local/share/linux-mcp-server/logs:/var/lib/mcp/.local/share/linux-mcp-server/logs:rw",
+        "-v", "/home/tljones/.ssh/id_ed25519:/var/lib/mcp/.ssh/id_ed25519:ro,Z",
+        "-v", "/home/tljones/.local/share/linux-mcp-server/logs:/var/lib/mcp/.local/share/linux-mcp-server/logs:rw,Z",
         "quay.io/redhat-services-prod/rhel-lightspeed-tenant/linux-mcp-server:latest"
       ],
       "env": {
@@ -124,9 +124,9 @@ extensions:
   args:
     - run
     - --rm
-    - --name
-    - linux-mcp-server
-    - -i
+    - --interactive
+    --userns,
+    "keep-id:uid=1001,gid=0",
     - -e
     - LINUX_MCP_KEY_PASSPHRASE
     - -e
