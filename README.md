@@ -64,10 +64,34 @@ See [Environment Variables](docs/Install.md#environment-variables) for more deta
 
 For the following example configurations, make sure to provide real paths to SSH key and log files.
 
-If `ssh-agent` is configured, any keys loaded into the session will be used automatically when running natively.
+
+> [!NOTE]
+> If `ssh-agent` is configured, any keys loaded into the session will be used automatically when running natively.
+
+> [!NOTE]
+> When using Docker
+>   - the SSH key must be owned by UID 1001
+>   - the log directory must be created beforehand and owned by 1001
+>   - remove the `--userns` paramater
+
+Here is an example of setting up the files on the container host so they are accessible in the running container.
+```
+ORIGINAL_UMASK=$(umask)
+
+umask 0002
+mkdir -p ~/.local/share/linux-mcp-server/logs
+sudo chown -R 1001 .local/share/linux-mcp-server/logs
+
+cp ~/.ssh/id_ed25519 ~/.local/share/linux-mcp-server/
+sudo chown 1001 ~/.local/share/linux-mcp-server/id_ed25519
+
+umask ${ORIGINAL_UMASK}
+```
+
+#### Claude Desktop Configuration
 
 <details>
-  <summary>Claude Desktop Configuration using a container</summary>
+  <summary>Container</summary>
 
 ```shell
 {
@@ -97,7 +121,7 @@ If `ssh-agent` is configured, any keys loaded into the session will be used auto
 </details>
 
 <details>
-  <summary>Claude Desktop Configuration running natively</summary>
+  <summary>Native</summary>
 
 ```shell
 {
@@ -110,8 +134,10 @@ If `ssh-agent` is configured, any keys loaded into the session will be used auto
 ```
 </details>
 
+#### Goose configuration
+
 <details>
-  <summary>Goose configuration using a container</summary>
+  <summary>Container</summary>
 
 ```shell
 extensions:
@@ -147,7 +173,7 @@ extensions:
 </details>
 
 <details>
-  <summary>Goose configuration running natively</summary>
+  <summary>Native</summary>
 
 ```shell
 extensions:
