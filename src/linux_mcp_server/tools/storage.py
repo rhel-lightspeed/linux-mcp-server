@@ -158,8 +158,10 @@ async def list_directories(  # noqa: C901
         username=username,
     )
 
-    if returncode != 0:
-        raise ToolError(f"Error running {command[0]} command: command failed with return code {returncode}")
+    if returncode != 0 and stdout == "":
+        raise ToolError(
+            f"Error running {command[0]} command: command failed with return code {returncode} and no output was returned"
+        )
 
     lines = [line.strip() for line in stdout.strip().splitlines() if line]
 
