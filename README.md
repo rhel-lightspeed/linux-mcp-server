@@ -43,6 +43,12 @@ uv tool install linux-mcp-server
 
 See the [complete installation guide](docs/Install.md) for more details.
 
+## Running from a container
+
+A container runtime such as [Podman] or [Docker] is required.
+
+Since the MCP server uses SSH to connect to remote hosts, SSH keys need to be available inside the container. If the SSH key is encrypted, a passphrase needs to be provided to decrypt the key.
+
 
 ## Configuration
 
@@ -50,9 +56,142 @@ Key environment variables:
 - `LINUX_MCP_ALLOWED_LOG_PATHS` - Comma-separated list of log files that can be accessed
 - `LINUX_MCP_LOG_LEVEL` - Logging level (DEBUG, INFO, WARNING, ERROR, CRITICAL)
 - `LINUX_MCP_SSH_KEY_PATH` - Path to SSH private key for remote execution
+- `LINUX_MCP_USER` - Username used for SSH connections
 
 See [Environment Variables](docs/Install.md#environment-variables) for more details.
 
+### Example Configurations
+
+For the following example configurations, make sure to provide real paths to SSH key and log files.
+
+
+> [!NOTE]
+> If `ssh-agent` is configured, any keys loaded into the session will be used automatically when running natively.
+
+> [!NOTE]
+> When using Docker
+>   - the SSH key must be owned by UID 1001
+>   - the log directory must be created beforehand and owned by 1001
+>   - remove the `--userns` paramater
+
+Here is an example of setting up the files on the container host so they are accessible in the running container.
+```
+ORIGINAL_UMASK=$(umask)
+
+umask 0002
+mkdir -p ~/.local/share/linux-mcp-server/logs
+sudo chown -R 1001 .local/share/linux-mcp-server/logs
+
+cp ~/.ssh/id_ed25519 ~/.local/share/linux-mcp-server/
+sudo chown 1001 ~/.local/share/linux-mcp-server/id_ed25519
+
+umask ${ORIGINAL_UMASK}
+```
+
+#### Claude Desktop Configuration
+
+<details>
+  <summary>Container</summary>
+
+```shell
+{
+  "mcpServers": {
+    "Linux Tools": {
+      "command": "podman",
+      "args": [
+        "run",
+        "--rm",
+        "--interactive",
+        "--userns", "keep-id:uid=1001,gid=0",
+        "-e", "LINUX_MCP_KEY_PASSPHRASE",
+        "-e", "LINUX_MCP_USER",
+        "-v", "/home/tljones/.ssh/id_ed25519:/var/lib/mcp/.ssh/id_ed25519:ro,Z",
+        "-v", "/home/tljones/.local/share/linux-mcp-server/logs:/var/lib/mcp/.local/share/linux-mcp-server/logs:rw,Z",
+        "quay.io/redhat-services-prod/rhel-lightspeed-tenant/linux-mcp-server:latest"
+      ],
+      "env": {
+        "LINUX_MCP_KEY_PASSPHRASE": "<secret>",
+        "LINUX_MCP_USER": "tljones"
+      }
+    }
+  }
+}
+
+```
+</details>
+
+<details>
+  <summary>Native</summary>
+
+```shell
+{
+  "mcpServers": {
+    "Linux Tools": {
+      "command": "[venv]/bin/linux-mcp-server",
+    }
+  }
+}
+```
+</details>
+
+#### Goose configuration
+
+<details>
+  <summary>Container</summary>
+
+```shell
+extensions:
+  linux-tools:
+  enabled: true
+  type: stdio
+  name: linux-tools
+  description: Linux tools
+  cmd: podman
+  args:
+    - run
+    - --rm
+    - --interactive
+    --userns,
+    "keep-id:uid=1001,gid=0",
+    - -e
+    - LINUX_MCP_KEY_PASSPHRASE
+    - -e
+    - LINUX_MCP_USER
+    - -v
+    - /home/tljones/.ssh/id_ed25519:/var/lib/mcp/.ssh/id_ed25519:ro
+    - -v
+    - /home/tljones/.local/share/linux-mcp-server/logs:/var/lib/mcp/.local/share/linux-mcp-server/logs:rw
+    - quay.io/redhat-services-prod/rhel-lightspeed-tenant/linux-mcp-server:latest
+  envs: {}
+  env_keys:
+    - LINUX_MCP_KEY_PASSPHRASE
+    - LINUX_MCP_USER
+  timeout: 30
+  bundled: null
+  available_tools: []
+```
+</details>
+
+<details>
+  <summary>Native</summary>
+
+```shell
+extensions:
+  linux-tools:
+  enabled: true
+  type: stdio
+  name: linux-tools
+  description: Linux tools
+  cmd: [venv]/bin/linux-mcp-server
+  envs: {}
+  env_keys:
+    - LINUX_MCP_KEY_PASSPHRASE
+    - LINUX_MCP_USER
+  timeout: 30
+  bundled: null
+  available_tools: []
+```
+</details>
 
 ## Audit Logging
 
@@ -199,3 +338,7 @@ graph TB
 - **SSH Executor**: Routes commands to local subprocess or remote SSH execution with connection pooling
 - **Audit Logger**: Comprehensive logging in both human-readable and JSON formats with automatic rotation
 - **Multi-Target Execution**: Single server instance can execute commands on local system or multiple remote hosts
+
+
+[Podman]: https://podman-desktop.io
+[Docker]: https://www.docker.com
