@@ -7,6 +7,7 @@ from datetime import datetime
 import psutil
 
 from mcp.types import ToolAnnotations
+from pydantic import Field
 
 from linux_mcp_server.audit import log_tool_call
 from linux_mcp_server.connection.ssh import execute_command
@@ -108,7 +109,7 @@ async def list_processes(
 )
 @log_tool_call
 async def get_process_info(  # noqa: C901
-    pid: t.Annotated[int, "Process ID"],
+    pid: t.Annotated[int, Field(description="Process ID")],
     host: Host | None = None,
 ) -> str:
     # Validate PID (accepts floats from LLMs)

@@ -6,6 +6,7 @@ import typing as t
 from pathlib import Path
 
 from mcp.types import ToolAnnotations
+from pydantic import Field
 
 from linux_mcp_server.audit import log_tool_call
 from linux_mcp_server.connection.ssh import execute_command
@@ -21,10 +22,10 @@ from linux_mcp_server.utils.validation import validate_line_count
 )
 @log_tool_call
 async def get_journal_logs(
-    unit: t.Annotated[str | None, "Systemd unit name used for filtering."] = None,
-    priority: t.Annotated[str | None, "Priority level used for filtering."] = None,
-    since: t.Annotated[str | None, "Show entries since specified time."] = None,
-    lines: t.Annotated[int, "Number of log lines to retrieve."] = 100,
+    unit: t.Annotated[str | None, Field(description="Systemd unit name used for filtering.")] = None,
+    priority: t.Annotated[str | None, Field(description="Priority level used for filtering.")] = None,
+    since: t.Annotated[str | None, Field(description="Show entries since specified time.")] = None,
+    lines: t.Annotated[int, Field(description="Number of log lines to retrieve.")] = 100,
     host: Host | None = None,
 ) -> str:
     """
@@ -81,7 +82,7 @@ async def get_journal_logs(
 )
 @log_tool_call
 async def get_audit_logs(
-    lines: t.Annotated[int, "Number of log lines to retrieve."] = 100,
+    lines: t.Annotated[int, Field(description="Number of log lines to retrieve.")] = 100,
     host: Host | None = None,
 ) -> str:
     """
@@ -128,8 +129,8 @@ async def get_audit_logs(
 )
 @log_tool_call
 async def read_log_file(  # noqa: C901
-    log_path: t.Annotated[str, "Path to the log file"],
-    lines: t.Annotated[int, "Number of lines to retrieve from the end."] = 100,
+    log_path: t.Annotated[str, Field(description="Path to the log file")],
+    lines: t.Annotated[int, Field(description="Number of lines to retrieve from the end.")] = 100,
     host: Host | None = None,
 ) -> str:
     """
