@@ -24,10 +24,22 @@ from linux_mcp_server.utils.validation import validate_line_count
 @log_tool_call
 @disallow_local_execution_in_containers
 async def get_journal_logs(
-    unit: t.Annotated[str | None, Field(description="Systemd unit name used for filtering.")] = None,
-    priority: t.Annotated[str | None, Field(description="Priority level used for filtering.")] = None,
-    since: t.Annotated[str | None, Field(description="Show entries since specified time.")] = None,
-    lines: t.Annotated[int, Field(description="Number of log lines to retrieve.")] = 100,
+    unit: t.Annotated[
+        str | None, Field(description="Filter by systemd unit name or pattern (e.g., 'nginx.service', 'ssh*')")
+    ] = None,
+    priority: t.Annotated[
+        str | None,
+        Field(
+            description="Filter by priority. Possible values: priority level (0-7), syslog level name ('emerg' to 'debug'), or range (e.g., 'err..info')"
+        ),
+    ] = None,
+    since: t.Annotated[
+        str | None,
+        Field(
+            description="Filter entries since specified time. Date/time filter (format: 'YYYY-MM-DD HH:MM:SS', 'today', 'yesterday', 'now', or relative like '-1h')"
+        ),
+    ] = None,
+    lines: t.Annotated[int, Field(description="Number of log lines to retrieve. Default: 100")] = 100,
     host: Host | None = None,
 ) -> str:
     """
