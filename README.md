@@ -41,7 +41,7 @@ Install using `uv`
 uv tool install linux-mcp-server
 ```
 
-See the [complete installation guide](docs/Install.md) for more details.
+See the [complete installation guide](https://github.com/rhel-lightspeed/linux-mcp-server/blob/main/docs/Install.md) for more details.
 
 ## Running from a container
 
@@ -58,7 +58,7 @@ Key environment variables:
 - `LINUX_MCP_SSH_KEY_PATH` - Path to SSH private key for remote execution
 - `LINUX_MCP_USER` - Username used for SSH connections
 
-See [Environment Variables](docs/Install.md#environment-variables) for more details.
+See [Environment Variables](https://github.com/rhel-lightspeed/linux-mcp-server/blob/main/docs/Install.md#environment-variables) for more details.
 
 ### Example Configurations
 
@@ -234,11 +234,11 @@ Or run from the Python user directory:
 uv tool run linux-mcp-server
 ```
 
-For detailed usage instructions, available tools, and example troubleshooting sessions, see [Usage](docs/Usage.md).
+For detailed usage instructions, available tools, and example troubleshooting sessions, see [Usage](https://github.com/rhel-lightspeed/linux-mcp-server/blob/main/docs/Usage.md).
 
 ### Using with Claude Desktop
 
-For complete Claude Desktop integration instructions including platform-specific config file locations and alternative configurations, see [Claude Desktop Integration](docs/Install.md#claude-desktop-integration).
+For complete Claude Desktop integration instructions including platform-specific config file locations and alternative configurations, see [Claude Desktop Integration](https://github.com/rhel-lightspeed/linux-mcp-server/blob/main/docs/Install.md#claude-desktop-integration).
 
 
 ## Available Tools
