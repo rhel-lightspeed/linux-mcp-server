@@ -17,6 +17,7 @@ from linux_mcp_server.connection.ssh import execute_command
 from linux_mcp_server.server import mcp
 from linux_mcp_server.utils import format_bytes
 from linux_mcp_server.utils import StrEnum
+from linux_mcp_server.utils.decorators import disallow_local_execution_in_containers
 from linux_mcp_server.utils.types import Host
 
 
@@ -43,6 +44,7 @@ class SortBy(StrEnum):
     annotations=ToolAnnotations(readOnlyHint=True),
 )
 @log_tool_call
+@disallow_local_execution_in_containers
 async def list_block_devices(
     host: Host | None = None,
 ) -> str:
@@ -105,6 +107,7 @@ async def list_block_devices(
     annotations=ToolAnnotations(readOnlyHint=True),
 )
 @log_tool_call
+@disallow_local_execution_in_containers
 async def list_directories(  # noqa: C901
     path: t.Annotated[str, Field(description="The directory path to analyze")],
     order_by: t.Annotated[
