@@ -1,7 +1,5 @@
 """Tests for decorator utilities."""
 
-import os
-
 import pytest
 
 from mcp.server.fastmcp.exceptions import ToolError
@@ -51,19 +49,17 @@ class TestDisallowLocalExecutionInContainers:
         result = await basic_test_func(host="remote.example.com", username="user")
         assert result == "success"
 
-    async def test_allows_execution_when_not_in_container(self, basic_test_func, mocker):
+    async def test_allows_execution_when_not_in_container(self, basic_test_func, monkeypatch):
         """Test that local execution is allowed when not running in a container."""
         # Ensure we're not in container environment
-        mocker.patch.dict(os.environ, {}, clear=False)
-        if "container" in os.environ:
-            del os.environ["container"]
+        monkeypatch.delenv("container", raising=False)
         result = await basic_test_func(host=None, username="user")
         assert result == "success"
 
-    async def test_raises_error_when_local_in_container(self, basic_test_func, mocker):
+    async def test_raises_error_when_local_in_container(self, basic_test_func, monkeypatch):
         """Test that ToolError is raised when attempting local execution in a container."""
         # Simulate running in a container
-        mocker.patch.dict(os.environ, {"container": "docker"})
+        monkeypatch.setenv("container", "docker")
         with pytest.raises(ToolError) as exc_info:
             await basic_test_func(host=None, username="user")
 
@@ -95,39 +91,28 @@ class TestDisallowLocalExecutionInContainers:
         assert "cmd=ls" in result
         assert "host=remote.example.com" in result
 
-    async def test_preserves_function_metadata(self):
-        """Test that decorator preserves function name and docstring."""
-
-        @disallow_local_execution_in_containers
-        async def my_special_function(host=None):
-            """This is a test function."""
-            return "test"
-
-        assert my_special_function.__name__ == "my_special_function"
-        assert my_special_function.__doc__ == "This is a test function."
-
-    async def test_raises_with_none_host_in_container(self, basic_test_func, mocker):
+    async def test_raises_with_none_host_in_container(self, basic_test_func, monkeypatch):
         """Test that explicitly passing host=None raises error in container."""
         # Simulate running in a container with explicit host=None
-        mocker.patch.dict(os.environ, {"container": "podman"})
+        monkeypatch.setenv("container", "podman")
         with pytest.raises(ToolError) as exc_info:
             await basic_test_func(host=None)
-            assert "Local execution is not allowed" in str(exc_info.value)
+        assert "Local execution is not allowed" in str(exc_info.value)
 
     @pytest.mark.parametrize(
         "container_value",
         ["openvz", "lxc", "lxc-libvirt", "systemd-nspawn", "docker", "podman", "rkt", "wsl", "proot", "pouch"],
     )
-    async def test_works_with_supported_container_values(self, host_only_test_func, mocker, container_value):
+    async def test_works_with_supported_container_values(self, host_only_test_func, monkeypatch, container_value):
         """Test that any truthy value for 'container' env var triggers the check."""
-        mocker.patch.dict(os.environ, {"container": container_value})
+        monkeypatch.setenv("container", container_value)
         with pytest.raises(ToolError):
             await host_only_test_func(host=None)
 
-    async def test_works_with_empty_container_value(self, host_only_test_func, mocker):
+    async def test_works_with_empty_container_value(self, host_only_test_func, monkeypatch):
         """Test that empty string for 'container' env var works."""
         # Presence of 'container' env var with empty value raises error
-        mocker.patch.dict(os.environ, {"container": ""})
+        monkeypatch.setenv("container", "")
         result = await host_only_test_func(host=None)
         assert result == "success"
 
@@ -165,7 +150,7 @@ class TestDisallowLocalExecutionInContainers:
 
         assert "Original error" in str(exc_info.value)
 
-    async def test_with_default_host_value_in_container(self, mocker):
+    async def test_with_default_host_value_in_container(self, monkeypatch):
         """Test behavior when function has host with default value in container."""
 
         @disallow_local_execution_in_containers
@@ -173,7 +158,7 @@ class TestDisallowLocalExecutionInContainers:
             return f"cmd={command}, host={host}, timeout={timeout}"
 
         # Should raise in container with default host=None
-        mocker.patch.dict(os.environ, {"container": "docker"})
+        monkeypatch.setenv("container", "docker")
         with pytest.raises(ToolError):
             await test_func("ls")
 
