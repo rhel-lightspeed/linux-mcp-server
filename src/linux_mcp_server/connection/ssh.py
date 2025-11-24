@@ -38,7 +38,7 @@ def discover_ssh_key() -> str | None:
         Path to SSH private key if found, None otherwise.
     """
     logger.debug("Discovering SSH key for authentication")
-    # Check environment variable first
+
     env_key = CONFIG.ssh_key_path
     if env_key:
         logger.debug(f"Checking SSH key from environment: {env_key}")

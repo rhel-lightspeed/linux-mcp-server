@@ -26,7 +26,7 @@ class Config(BaseSettings):
     allowed_log_paths: Optional[str] = None
 
     # SSH configuration
-    ssh_key_path: Optional[str] = None
+    ssh_key_path: Optional[Path] = None
     key_passphrase: Optional[str] = None
     search_for_ssh_key: bool = False
 
