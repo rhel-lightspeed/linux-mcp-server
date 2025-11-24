@@ -191,3 +191,44 @@ async def list_directories(  # noqa: C901
         return directories[:top_n]
 
     return directories
+
+
+@mcp.tool(
+    title="Read file",
+    description="Read the contents of a file using cat",
+    annotations=ToolAnnotations(readOnlyHint=True),
+)
+@log_tool_call
+@disallow_local_execution_in_containers
+async def read_file(
+    path: t.Annotated[str, Field(description="The file path to read")],
+    host: Host | None = None,
+) -> str:
+    """
+    Read the contents of a file using cat.
+    """
+    # For local execution, validate path
+    if not host:
+        try:
+            path_obj = Path(path).resolve(strict=True)
+        except (OSError, RuntimeError):
+            raise ToolError(f"Path does not exist or cannot be resolved: {path}")
+
+        if not path_obj.is_file():
+            raise ToolError(f"Path is not a file: {path}")
+
+        if not os.access(path_obj, os.R_OK):
+            raise ToolError(f"Permission denied to read file: {path}")
+
+        path = str(path_obj)
+
+    # Use cat to read the file
+    command = ["cat", path]
+    returncode, stdout, stderr = await execute_command(command, host=host)
+
+    if returncode != 0:
+        raise ToolError(
+            f"Error reading file: {stderr if stderr else 'command failed with return code ' + str(returncode)}"
+        )
+
+    return stdout
