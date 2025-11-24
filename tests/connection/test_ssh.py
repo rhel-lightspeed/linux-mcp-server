@@ -1,7 +1,5 @@
 """Tests for SSH executor module."""
 
-import os
-
 from unittest.mock import AsyncMock
 from unittest.mock import Mock
 from unittest.mock import patch
@@ -17,24 +15,29 @@ from linux_mcp_server.connection.ssh import SSHConnectionManager
 class TestSSHKeyDiscovery:
     """Test SSH key discovery functionality."""
 
-    def test_discover_ssh_key_with_env_var(self, tmp_path):
+    @patch("linux_mcp_server.connection.ssh.CONFIG")
+    def test_discover_ssh_key_with_env_var(self, mock_settings, tmp_path):
         """Test SSH key discovery with explicit environment variable."""
         key_path = tmp_path / "custom_key"
         key_path.touch()
 
-        with patch.dict(os.environ, {"LINUX_MCP_SSH_KEY_PATH": str(key_path)}):
-            result = discover_ssh_key()
-            assert result == str(key_path)
+        # Use mocker.patch with PropertyMock for proper attribute access
+        mock_settings.ssh_key_path = str(key_path)
+        mock_settings.search_for_ssh_key = False
+        result = discover_ssh_key()
+        assert result == str(key_path)
 
-    def test_discover_ssh_key_env_var_not_exists(self, tmp_path):
+    @patch("linux_mcp_server.connection.ssh.CONFIG")
+    def test_discover_ssh_key_env_var_not_exists(self, mock_settings, tmp_path):
         """Test SSH key discovery with non-existent env var path."""
         key_path = tmp_path / "nonexistent_key"
 
-        with patch.dict(os.environ, {"LINUX_MCP_SSH_KEY_PATH": str(key_path)}):
-            result = discover_ssh_key()
-            assert result is None
+        mock_settings.ssh_key_path = str(key_path)
+        result = discover_ssh_key()
+        assert result is None
 
-    def test_discover_ssh_key_default_locations(self, tmp_path, mocker):
+    @patch("linux_mcp_server.connection.ssh.CONFIG")
+    def test_discover_ssh_key_default_locations(self, mock_settings, tmp_path, mocker):
         """Test SSH key discovery falls back to default locations."""
         # Mock home directory
         fake_ssh_dir = tmp_path / ".ssh"
@@ -44,13 +47,18 @@ class TestSSHKeyDiscovery:
         id_ed25519 = fake_ssh_dir / "id_ed25519"
         id_ed25519.touch()
 
-        mocker.patch.dict(os.environ, {"LINUX_MCP_SEARCH_FOR_SSH_KEY": "yes"}, clear=True)
         mocker.patch("pathlib.Path.home", return_value=tmp_path)
+        # Use mocker.patch with proper attribute configuration
+        # Configure mock to return None for ssh_key_path (not a MagicMock)
+        mock_settings.ssh_key_path = None
+        mock_settings.search_for_ssh_key = True
+
         result = discover_ssh_key()
 
         assert result == str(id_ed25519)
 
-    def test_discover_ssh_key_prefers_ed25519(self, tmp_path, mocker):
+    @patch("linux_mcp_server.connection.ssh.CONFIG")
+    def test_discover_ssh_key_prefers_ed25519(self, mock_settings, tmp_path, mocker):
         """Test SSH key discovery prefers ed25519 over rsa."""
         fake_ssh_dir = tmp_path / ".ssh"
         fake_ssh_dir.mkdir()
@@ -61,20 +69,23 @@ class TestSSHKeyDiscovery:
         id_rsa.touch()
         id_ed25519.touch()
 
-        mocker.patch.dict(os.environ, {"LINUX_MCP_SEARCH_FOR_SSH_KEY": "yes"}, clear=True)
         mocker.patch("pathlib.Path.home", return_value=tmp_path)
+        # Use mocker.patch with proper attribute configuration
+        mock_settings.ssh_key_path = None
+        mock_settings.search_for_ssh_key = True
 
         result = discover_ssh_key()
 
         # Should prefer ed25519
         assert result == str(id_ed25519)
 
-    def test_discover_ssh_key_no_keys_found(self, tmp_path, mocker):
+    @patch("linux_mcp_server.connection.ssh.CONFIG")
+    def test_discover_ssh_key_no_keys_found(self, mock_settings, tmp_path, mocker):
         """Test SSH key discovery when no keys exist."""
         fake_ssh_dir = tmp_path / ".ssh"
         fake_ssh_dir.mkdir()
 
-        mocker.patch.dict(os.environ, {"LINUX_MCP_SEARCH_FOR_SSH_KEY": "yes"}, clear=True)
+        mock_settings.seach_for_ssh_key = "yes"
         mocker.patch("pathlib.Path.home", return_value=tmp_path)
 
         result = discover_ssh_key()

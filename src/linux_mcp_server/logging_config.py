@@ -7,29 +7,29 @@ Supports structured logging with extra fields for audit and diagnostic purposes.
 import json
 import logging
 import logging.handlers
-import os
 
 from pathlib import Path
+
+from linux_mcp_server.config import CONFIG
 
 
 def get_log_directory() -> Path:
     """Get the log directory path, creating it if necessary."""
-    env_log_dir = os.getenv("LINUX_MCP_LOG_DIR")
-    log_dir = Path(env_log_dir) if env_log_dir else Path.home() / ".local" / "share" / "linux-mcp-server" / "logs"
+    log_dir = CONFIG.log_dir if CONFIG.log_dir else Path.home() / ".local" / "share" / "linux-mcp-server" / "logs"
     log_dir.mkdir(parents=True, exist_ok=True)
     return log_dir
 
 
 def get_log_level() -> int:
     """Get the log level from environment variable (defaults to INFO)."""
-    level_name = os.getenv("LINUX_MCP_LOG_LEVEL", "INFO").upper()
+    level_name = CONFIG.log_level
     return getattr(logging, level_name, logging.INFO)
 
 
 def get_retention_days() -> int:
     """Get the log retention days from environment variable (defaults to 10)."""
     try:
-        return int(os.getenv("LINUX_MCP_LOG_RETENTION_DAYS", "10"))
+        return int(CONFIG.log_retention_days)
     except ValueError:
         return 10
 

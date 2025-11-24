@@ -7,7 +7,6 @@ either local or remote execution based on the provided parameters.
 
 import asyncio
 import logging
-import os
 import shlex
 import subprocess
 import time
@@ -17,11 +16,11 @@ from typing import Optional
 
 import asyncssh
 
-from linux_mcp_server import CONFIG
 from linux_mcp_server.audit import Event
 from linux_mcp_server.audit import log_ssh_command
 from linux_mcp_server.audit import log_ssh_connect
 from linux_mcp_server.audit import Status
+from linux_mcp_server.config import CONFIG
 
 
 logger = logging.getLogger("linux-mcp-server")
@@ -39,9 +38,8 @@ def discover_ssh_key() -> str | None:
         Path to SSH private key if found, None otherwise.
     """
     logger.debug("Discovering SSH key for authentication")
-
     # Check environment variable first
-    env_key = os.getenv("LINUX_MCP_SSH_KEY_PATH")
+    env_key = CONFIG.ssh_key_path
     if env_key:
         logger.debug(f"Checking SSH key from environment: {env_key}")
         key_path = Path(env_key)
@@ -53,7 +51,7 @@ def discover_ssh_key() -> str | None:
             return None
 
     # Check default locations (prefer modern algorithms)
-    if os.getenv("LINUX_MCP_SEARCH_FOR_SSH_KEY", False):
+    if CONFIG.search_for_ssh_key:
         home = Path.home()
         default_keys = [
             home / ".ssh" / "id_ed25519",
@@ -133,7 +131,7 @@ class SSHConnectionManager:
                 "host": host,
                 "username": username,
                 "known_hosts": None,  # Don't verify host keys for now
-                "passphrase": os.getenv("LINUX_MCP_KEY_PASSPHRASE"),
+                "passphrase": CONFIG.key_passphrase,
             }
 
             if self._ssh_key:
