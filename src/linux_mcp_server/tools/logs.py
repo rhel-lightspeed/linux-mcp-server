@@ -9,6 +9,7 @@ from mcp.types import ToolAnnotations
 from pydantic import Field
 
 from linux_mcp_server.audit import log_tool_call
+from linux_mcp_server.config import CONFIG
 from linux_mcp_server.connection.ssh import execute_command
 from linux_mcp_server.server import mcp
 from linux_mcp_server.utils.decorators import disallow_local_execution_in_containers
@@ -145,7 +146,7 @@ async def read_log_file(  # noqa: C901
         lines, _ = validate_line_count(lines, default=100)
 
         # Get allowed log paths from environment variable
-        allowed_paths_env = os.getenv("LINUX_MCP_ALLOWED_LOG_PATHS", "")
+        allowed_paths_env = CONFIG.allowed_log_paths
 
         if not allowed_paths_env:
             return (

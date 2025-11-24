@@ -1,8 +1,8 @@
 """Tests for logging configuration."""
 
+import importlib
 import json
 import logging
-import os
 
 from linux_mcp_server.logging_config import get_log_directory
 from linux_mcp_server.logging_config import JSONFormatter
@@ -19,21 +19,20 @@ class TestGetLogDirectory:
         assert log_dir.is_absolute()
         assert ".local/share/linux-mcp-server/logs" in str(log_dir)
 
-    def test_custom_log_directory(self, tmp_path, mocker):
+    def test_custom_log_directory(self, mocker, tmp_path):
         """Test custom log directory from environment variable."""
-        mocker.patch.dict(os.environ, {"LINUX_MCP_LOG_DIR": str(tmp_path)})
+        mocker.patch("linux_mcp_server.config.CONFIG.log_dir", tmp_path)
 
         log_dir = get_log_directory()
 
         assert log_dir == tmp_path
 
-    def test_log_directory_created(self, tmp_path, mocker):
+    def test_log_directory_created(self, mocker, tmp_path):
         """Test that log directory is created if it doesn't exist."""
         log_path = tmp_path / "subdir" / "logs"
-        mocker.patch.dict(os.environ, {"LINUX_MCP_LOG_DIR": str(log_path)})
 
+        mocker.patch("linux_mcp_server.logging_config.CONFIG.log_dir", log_path)
         log_dir = get_log_directory()
-
         assert log_dir.exists()
         assert log_dir.is_dir()
 
@@ -43,7 +42,7 @@ class TestSetupLogging:
 
     def test_setup_creates_log_files(self, tmp_path, mocker):
         """Test that setup creates both text and JSON log files."""
-        mocker.patch.dict(os.environ, {"LINUX_MCP_LOG_DIR": str(tmp_path)})
+        mocker.patch("linux_mcp_server.logging_config.CONFIG.log_dir", tmp_path)
 
         setup_logging()
 
@@ -58,15 +57,25 @@ class TestSetupLogging:
         assert text_log.exists()
         assert json_log.exists()
 
-    def test_log_level_from_environment(self, tmp_path, mocker):
+    def test_log_level_from_environment(self, tmp_path, monkeypatch):
         """Test that log level can be set from environment variable."""
-        mocker.patch.dict(
-            os.environ,
-            {
-                "LINUX_MCP_LOG_DIR": str(tmp_path),
-                "LINUX_MCP_LOG_LEVEL": "DEBUG",
-            },
-        )
+        # Patch log_dir to avoid creating files in home directory during tests
+        monkeypatch.setenv("LINUX_MCP_LOG_LEVEL", "DEBUG")
+        monkeypatch.setenv("LINUX_MCP_LOG_RETENTION_DAYS", "10")
+        monkeypatch.setenv("LINUX_MCP_LOG_DIR", str(tmp_path))
+
+        # Reload config module to pick up the environment variables
+        import linux_mcp_server.config
+
+        importlib.reload(linux_mcp_server.config)
+
+        # Reload logging_config to pick up the new CONFIG
+        import linux_mcp_server.logging_config
+
+        importlib.reload(linux_mcp_server.logging_config)
+
+        # Import setup_logging again to get the reloaded version
+        from linux_mcp_server.logging_config import setup_logging
 
         setup_logging()
 
@@ -74,12 +83,11 @@ class TestSetupLogging:
         root_logger = logging.getLogger()
         assert root_logger.level == logging.DEBUG
 
-    def test_default_log_level_is_info(self, tmp_path, mocker):
+    def test_default_log_level_is_info(self, mocker, tmp_path):
         """Test that default log level is INFO."""
-        mocker.patch.dict(os.environ, {"LINUX_MCP_LOG_DIR": str(tmp_path)}, clear=True)
+        mocker.patch("linux_mcp_server.logging_config.CONFIG.log_dir", tmp_path)
+        mocker.patch("linux_mcp_server.logging_config.CONFIG.log_level", "INFO")
 
-        # Clear any existing LINUX_MCP_LOG_LEVEL
-        os.environ.pop("LINUX_MCP_LOG_LEVEL", None)
         setup_logging()
 
         root_logger = logging.getLogger()

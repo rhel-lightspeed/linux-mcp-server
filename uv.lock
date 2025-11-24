@@ -639,6 +639,8 @@ dependencies = [
     { name = "bcrypt" },
     { name = "mcp" },
     { name = "psutil" },
+    { name = "pydantic" },
+    { name = "pydantic-settings" },
 ]
 
 [package.dev-dependencies]
@@ -670,6 +672,8 @@ requires-dist = [
     { name = "bcrypt" },
     { name = "mcp", specifier = ">=0.9.0" },
     { name = "psutil", specifier = ">=5.9.0" },
+    { name = "pydantic", specifier = ">=2.12.4" },
+    { name = "pydantic-settings", specifier = ">=2.12.0" },
 ]
 
 [package.metadata.requires-dev]
