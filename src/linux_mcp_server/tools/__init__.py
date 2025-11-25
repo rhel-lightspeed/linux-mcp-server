@@ -20,6 +20,7 @@ from linux_mcp_server.tools.services import list_services
 # storage
 from linux_mcp_server.tools.storage import list_block_devices
 from linux_mcp_server.tools.storage import list_directories
+from linux_mcp_server.tools.storage import read_file
 
 # system_info
 from linux_mcp_server.tools.system_info import get_cpu_information
@@ -47,5 +48,6 @@ __all__ = [
     "list_directories",
     "list_processes",
     "list_services",
+    "read_file",
     "read_log_file",
 ]

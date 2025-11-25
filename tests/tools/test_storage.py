@@ -712,3 +712,210 @@ class TestListDirectories:
                 "list_directories",
                 {"path": "/some/path", "order_by": "modified", "host": "remote.server.com"},
             )
+
+
+class TestReadFile:
+    async def test_read_file_success(self, tmp_path):
+        """Test read_file with a valid file."""
+        # Create a test file
+        test_file = tmp_path / "test.txt"
+        test_content = "Hello, World!\nThis is a test file.\nLine 3."
+        test_file.write_text(test_content)
+
+        result = await mcp.call_tool("read_file", {"path": str(test_file)})
+
+        # Verify result structure
+        assert isinstance(result, tuple)
+        assert len(result) == 2
+        assert isinstance(result[0], list)
+        output = result[0][0].text
+
+        assert output == test_content
+
+    async def test_read_file_empty_file(self, tmp_path):
+        """Test read_file with an empty file."""
+        test_file = tmp_path / "empty.txt"
+        test_file.write_text("")
+
+        result = await mcp.call_tool("read_file", {"path": str(test_file)})
+
+        assert isinstance(result, tuple)
+        assert len(result) == 2
+        assert isinstance(result[0], list)
+        output = result[0][0].text
+
+        assert output == ""
+
+    async def test_read_file_nonexistent(self, tmp_path):
+        """Test read_file with a non-existent file."""
+        non_existent_file = tmp_path / "nonexistent.txt"
+
+        with pytest.raises(ToolError, match="Path does not exist"):
+            await mcp.call_tool("read_file", {"path": str(non_existent_file)})
+
+    async def test_read_file_directory_not_file(self, tmp_path):
+        """Test read_file with a directory path instead of a file."""
+        with pytest.raises(ToolError, match="Path is not a file"):
+            await mcp.call_tool("read_file", {"path": str(tmp_path)})
+
+    async def test_read_file_permission_denied(self, tmp_path):
+        """Test read_file with a file that has no read permissions."""
+        restricted_file = tmp_path / "restricted.txt"
+        restricted_file.write_text("secret content")
+        restricted_file.chmod(0o000)
+
+        try:
+            with pytest.raises(ToolError, match="Permission denied"):
+                await mcp.call_tool("read_file", {"path": str(restricted_file)})
+        finally:
+            # Restore permissions for cleanup
+            restricted_file.chmod(0o644)
+
+    async def test_read_file_with_special_characters(self, tmp_path):
+        """Test read_file with content containing special characters."""
+        test_file = tmp_path / "special.txt"
+        special_content = "Line with\ttabs\nLine with 'quotes'\nLine with \"double quotes\"\n$pecial ch@rs: !@#$%"
+        test_file.write_text(special_content)
+
+        result = await mcp.call_tool("read_file", {"path": str(test_file)})
+
+        assert isinstance(result, tuple)
+        assert len(result) == 2
+        assert isinstance(result[0], list)
+        output = result[0][0].text
+
+        assert output == special_content
+
+    async def test_read_file_with_unicode(self, tmp_path):
+        """Test read_file with unicode content."""
+        test_file = tmp_path / "unicode.txt"
+        unicode_content = "Hello 世界\nBonjour 🌍\n한글"
+        test_file.write_text(unicode_content)
+
+        result = await mcp.call_tool("read_file", {"path": str(test_file)})
+
+        assert isinstance(result, tuple)
+        assert len(result) == 2
+        assert isinstance(result[0], list)
+        output = result[0][0].text
+
+        assert output == unicode_content
+
+    async def test_read_file_large_file(self, tmp_path):
+        """Test read_file with a relatively large file."""
+        test_file = tmp_path / "large.txt"
+        # Create a file with 1000 lines
+        large_content = "\n".join([f"Line {i}" for i in range(1000)])
+        test_file.write_text(large_content)
+
+        result = await mcp.call_tool("read_file", {"path": str(test_file)})
+
+        assert isinstance(result, tuple)
+        assert len(result) == 2
+        assert isinstance(result[0], list)
+        output = result[0][0].text
+
+        assert output == large_content
+        assert "Line 0" in output
+        assert "Line 999" in output
+
+    @patch("linux_mcp_server.tools.storage.execute_command")
+    async def test_read_file_remote_execution(self, mock_execute_command):
+        """Test read_file with remote execution."""
+        mock_content = "Remote file content\nLine 2\nLine 3"
+        mock_execute_command.return_value = (0, mock_content, "")
+
+        result = await mcp.call_tool("read_file", {"path": "/remote/path/file.txt", "host": "remote.host.com"})
+
+        assert isinstance(result, tuple)
+        assert len(result) == 2
+        assert isinstance(result[0], list)
+        output = result[0][0].text
+
+        assert output == mock_content
+
+        # Verify execute_command was called with correct arguments
+        mock_execute_command.assert_called_once()
+        args = mock_execute_command.call_args[0][0]
+        assert args[0] == "cat"
+        assert args[1] == "/remote/path/file.txt"
+        call_kwargs = mock_execute_command.call_args[1]
+        assert call_kwargs["host"] == "remote.host.com"
+
+    @patch("linux_mcp_server.tools.storage.execute_command")
+    async def test_read_file_remote_command_failure(self, mock_execute_command):
+        """Test read_file handles command failures for remote execution."""
+        mock_execute_command.return_value = (1, "", "cat: /remote/file.txt: No such file or directory")
+
+        with pytest.raises(ToolError, match="Error reading file"):
+            await mcp.call_tool("read_file", {"path": "/remote/file.txt", "host": "remote.host.com"})
+
+    @patch("linux_mcp_server.tools.storage.execute_command")
+    async def test_read_file_remote_skips_path_validation(self, mock_execute_command):
+        """Test that remote execution skips local path validation."""
+        mock_execute_command.return_value = (0, "Remote content", "")
+
+        # This path doesn't exist locally but should not raise an error for remote execution
+        result = await mcp.call_tool("read_file", {"path": "/nonexistent/remote/file.txt", "host": "remote.server.com"})
+
+        assert isinstance(result, tuple)
+        assert len(result) == 2
+        # Should succeed even though path doesn't exist locally
+        assert isinstance(result[0], list)
+
+    @patch("linux_mcp_server.tools.storage.execute_command")
+    async def test_read_file_remote_empty_output(self, mock_execute_command):
+        """Test read_file with remote execution returning empty content."""
+        mock_execute_command.return_value = (0, "", "")
+
+        result = await mcp.call_tool("read_file", {"path": "/remote/empty.txt", "host": "remote.host.com"})
+
+        assert isinstance(result, tuple)
+        assert len(result) == 2
+        assert isinstance(result[0], list)
+        output = result[0][0].text
+
+        assert output == ""
+
+    async def test_read_file_with_relative_path(self, tmp_path):
+        """Test read_file resolves relative paths correctly."""
+        test_file = tmp_path / "test.txt"
+        test_content = "Content"
+        test_file.write_text(test_content)
+
+        # Change to tmp_path directory and use relative path
+        import os
+
+        original_cwd = os.getcwd()
+        try:
+            os.chdir(tmp_path)
+            result = await mcp.call_tool("read_file", {"path": "test.txt"})
+
+            assert isinstance(result, tuple)
+            assert len(result) == 2
+            assert isinstance(result[0], list)
+            output = result[0][0].text
+
+            assert output == test_content
+        finally:
+            os.chdir(original_cwd)
+
+    async def test_read_file_with_symlink(self, tmp_path):
+        """Test read_file follows symlinks correctly."""
+        # Create a real file
+        real_file = tmp_path / "real.txt"
+        test_content = "Real content"
+        real_file.write_text(test_content)
+
+        # Create a symlink
+        symlink_file = tmp_path / "link.txt"
+        symlink_file.symlink_to(real_file)
+
+        result = await mcp.call_tool("read_file", {"path": str(symlink_file)})
+
+        assert isinstance(result, tuple)
+        assert len(result) == 2
+        assert isinstance(result[0], list)
+        output = result[0][0].text
+
+        assert output == test_content

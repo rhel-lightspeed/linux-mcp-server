@@ -41,4 +41,4 @@ class TestLinuxMCPServer:
         tools = await mcp.list_tools()
         # We have 18 tools total (5 system info + 3 service + 2 process +
         # 3 log + 3 network + 2 storage)
-        assert len(tools) == 18
+        assert len(tools) == 19
