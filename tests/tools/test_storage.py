@@ -5,8 +5,8 @@ import sys
 
 from collections.abc import Callable
 from pathlib import Path
+from unittest.mock import AsyncMock
 from unittest.mock import MagicMock
-from unittest.mock import patch
 
 import pytest
 
@@ -70,14 +70,16 @@ def restricted_path(tmp_path):
 
 
 class TestListBlockDevices:
-    @patch("linux_mcp_server.tools.storage.execute_command")
-    async def test_list_block_devices_lsblk_success(self, mock_execute_command):
+    async def test_list_block_devices_lsblk_success(self, mocker):
         """Test list_block_devices with successful lsblk command."""
-        mock_execute_command.return_value = (
-            0,
-            "NAME   SIZE TYPE MOUNTPOINT FSTYPE MODEL\nsda    1TB  disk            \nsda1   512G part /          ext4",
-            "",
+        mock_execute_command = AsyncMock(
+            return_value=(
+                0,
+                "NAME   SIZE TYPE MOUNTPOINT FSTYPE MODEL\nsda    1TB  disk            \nsda1   512G part /          ext4",
+                "",
+            )
         )
+        mocker.patch("linux_mcp_server.tools.storage.execute_command", mock_execute_command)
 
         result = await mcp.call_tool("list_block_devices", {})
 
@@ -97,14 +99,17 @@ class TestListBlockDevices:
         assert args[0] == "lsblk"
         assert "-o" in args
 
-    @patch("linux_mcp_server.tools.storage.psutil.disk_io_counters")
-    @patch("linux_mcp_server.tools.storage.execute_command")
-    async def test_list_block_devices_with_disk_io_stats(self, mock_execute_command, mock_disk_io):
+    async def test_list_block_devices_with_disk_io_stats(self, mocker):
         """Test list_block_devices includes disk I/O statistics for local execution."""
-        mock_execute_command.return_value = (
-            0,
-            "NAME   SIZE TYPE MOUNTPOINT\nsda    1TB  disk",
-            "",
+        mocker.patch(
+            "linux_mcp_server.tools.storage.execute_command",
+            AsyncMock(
+                return_value=(
+                    0,
+                    "NAME   SIZE TYPE MOUNTPOINT\nsda    1TB  disk",
+                    "",
+                )
+            ),
         )
 
         # Create mock disk I/O stats
@@ -114,7 +119,7 @@ class TestListBlockDevices:
         mock_stats.read_count = 1000
         mock_stats.write_count = 500
 
-        mock_disk_io.return_value = {"sda": mock_stats}
+        mocker.patch("linux_mcp_server.tools.storage.psutil.disk_io_counters", return_value={"sda": mock_stats})
 
         result = await mcp.call_tool("list_block_devices", {})
         assert isinstance(result, tuple)
@@ -142,12 +147,12 @@ class TestListBlockDevices:
 
         assert "=== Disk I/O Statistics (per disk) ===" not in output
 
-    @patch("linux_mcp_server.tools.storage.psutil.disk_partitions")
-    @patch("linux_mcp_server.tools.storage.execute_command")
-    async def test_list_block_devices_lsblk_fallback(self, mock_execute_command, mock_partitions):
+    async def test_list_block_devices_lsblk_fallback(self, mocker):
         """Test list_block_devices falls back to psutil when lsblk fails."""
         # lsblk returns non-zero
-        mock_execute_command.return_value = (1, "", "command failed")
+        mocker.patch(
+            "linux_mcp_server.tools.storage.execute_command", AsyncMock(return_value=(1, "", "command failed"))
+        )
 
         # Mock partition data
         mock_partition = MagicMock()
@@ -156,7 +161,7 @@ class TestListBlockDevices:
         mock_partition.fstype = "ext4"
         mock_partition.opts = "rw,relatime"
 
-        mock_partitions.return_value = [mock_partition]
+        mocker.patch("linux_mcp_server.tools.storage.psutil.disk_partitions", return_value=[mock_partition])
 
         result = await mcp.call_tool("list_block_devices", {})
         assert isinstance(result, tuple)
@@ -169,12 +174,10 @@ class TestListBlockDevices:
         assert "Mountpoint: /" in output
         assert "Filesystem: ext4" in output
 
-    @patch("linux_mcp_server.tools.storage.psutil.disk_partitions")
-    @patch("linux_mcp_server.tools.storage.execute_command")
-    async def test_list_block_devices_file_not_found(self, mock_execute_command, mock_partitions):
+    async def test_list_block_devices_file_not_found(self, mocker):
         """Test list_block_devices when lsblk is not available."""
         # lsblk not found
-        mock_execute_command.side_effect = FileNotFoundError("lsblk not found")
+        mocker.patch("linux_mcp_server.tools.storage.execute_command", side_effect=FileNotFoundError("lsblk not found"))
 
         # Mock partition data
         mock_partition = MagicMock()
@@ -183,7 +186,7 @@ class TestListBlockDevices:
         mock_partition.fstype = "vfat"
         mock_partition.opts = "rw"
 
-        mock_partitions.return_value = [mock_partition]
+        mocker.patch("linux_mcp_server.tools.storage.psutil.disk_partitions", return_value=[mock_partition])
 
         result = await mcp.call_tool("list_block_devices", {})
         assert isinstance(result, tuple)
@@ -195,20 +198,21 @@ class TestListBlockDevices:
         assert "/dev/nvme0n1p1" in output
         assert "Mountpoint: /boot" in output
 
-    @patch("linux_mcp_server.tools.storage.psutil.disk_io_counters")
-    @patch("linux_mcp_server.tools.storage.execute_command")
-    async def test_list_block_devices_remote_execution(self, mock_execute_command, mock_disk_io):
+    async def test_list_block_devices_remote_execution(self, mocker):
         """Test list_block_devices with remote execution (no disk I/O stats)."""
-        mock_execute_command.return_value = (
-            0,
-            "NAME   SIZE TYPE\nsda    1TB  disk",
-            "",
+        mock_execute_command = AsyncMock(
+            return_value=(
+                0,
+                "NAME   SIZE TYPE\nsda    1TB  disk",
+                "",
+            )
         )
+        mocker.patch("linux_mcp_server.tools.storage.execute_command", mock_execute_command)
 
         # Mock disk I/O to ensure it's not called or used
         mock_stats = MagicMock()
         mock_stats.read_bytes = 1024
-        mock_disk_io.return_value = {"sda": mock_stats}
+        mocker.patch("linux_mcp_server.tools.storage.psutil.disk_io_counters", return_value={"sda": mock_stats})
 
         result = await mcp.call_tool("list_block_devices", {"host": "remote.host.com"})
         assert isinstance(result, tuple)
@@ -557,15 +561,17 @@ class TestListDirectories:
         got = [DirectoryEntry(**entry) for entry in result[1]["result"]]
         assert got == expected_entries
 
-    @patch("linux_mcp_server.tools.storage.execute_command")
-    async def test_list_directories_remote_execution_by_size(self, mock_execute_command):
+    async def test_list_directories_remote_execution_by_size(self, mocker):
         """Test list_directories with remote execution for size ordering."""
         # Mock du command output
-        mock_execute_command.return_value = (
-            0,
-            "100\t/remote/path/small\n300\t/remote/path/large\n200\t/remote/path/medium\n500\t/remote/path",
-            "",
+        mock_execute_command = AsyncMock(
+            return_value=(
+                0,
+                "100\t/remote/path/small\n300\t/remote/path/large\n200\t/remote/path/medium\n500\t/remote/path",
+                "",
+            )
         )
+        mocker.patch("linux_mcp_server.tools.storage.execute_command", mock_execute_command)
 
         result = await mcp.call_tool(
             "list_directories",
@@ -591,15 +597,17 @@ class TestListDirectories:
         call_kwargs = mock_execute_command.call_args[1]
         assert call_kwargs["host"] == "remote.server.com"
 
-    @patch("linux_mcp_server.tools.storage.execute_command")
-    async def test_list_directories_remote_execution_by_name(self, mock_execute_command):
+    async def test_list_directories_remote_execution_by_name(self, mocker):
         """Test list_directories with remote execution for name ordering."""
         # Mock find command output
-        mock_execute_command.return_value = (
-            0,
-            "gamma\nalpha\nbeta",
-            "",
+        mock_execute_command = AsyncMock(
+            return_value=(
+                0,
+                "gamma\nalpha\nbeta",
+                "",
+            )
         )
+        mocker.patch("linux_mcp_server.tools.storage.execute_command", mock_execute_command)
 
         result = await mcp.call_tool(
             "list_directories",
@@ -622,15 +630,17 @@ class TestListDirectories:
         call_kwargs = mock_execute_command.call_args[1]
         assert call_kwargs["host"] == "remote.server.com"
 
-    @patch("linux_mcp_server.tools.storage.execute_command")
-    async def test_list_directories_remote_execution_by_modified(self, mock_execute_command):
+    async def test_list_directories_remote_execution_by_modified(self, mocker):
         """Test list_directories with remote execution for modified ordering."""
         # Mock find command output with timestamps
-        mock_execute_command.return_value = (
-            0,
-            "3000.0\tnewest\n1000.0\toldest\n2000.0\tmiddle",
-            "",
+        mock_execute_command = AsyncMock(
+            return_value=(
+                0,
+                "3000.0\tnewest\n1000.0\toldest\n2000.0\tmiddle",
+                "",
+            )
         )
+        mocker.patch("linux_mcp_server.tools.storage.execute_command", mock_execute_command)
 
         result = await mcp.call_tool(
             "list_directories",
@@ -656,14 +666,18 @@ class TestListDirectories:
         call_kwargs = mock_execute_command.call_args[1]
         assert call_kwargs["host"] == "remote.server.com"
 
-    @patch("linux_mcp_server.tools.storage.execute_command")
-    async def test_list_directories_remote_skips_path_validation(self, mock_execute_command):
+    async def test_list_directories_remote_skips_path_validation(self, mocker):
         """Test that remote execution skips local path validation."""
         # Mock du command output
-        mock_execute_command.return_value = (
-            0,
-            "100\t/nonexistent/path",
-            "",
+        mocker.patch(
+            "linux_mcp_server.tools.storage.execute_command",
+            AsyncMock(
+                return_value=(
+                    0,
+                    "100\t/nonexistent/path",
+                    "",
+                )
+            ),
         )
 
         # This path doesn't exist locally but should not raise an error for remote execution
@@ -677,11 +691,13 @@ class TestListDirectories:
         # Should succeed even though path doesn't exist locally
         assert isinstance(result[1], dict)
 
-    @patch("linux_mcp_server.tools.storage.execute_command")
-    async def test_list_directories_du_command_failure(self, mock_execute_command):
+    async def test_list_directories_du_command_failure(self, mocker):
         """Test list_directories handles du command failures for size ordering."""
         # Mock du command to return non-zero returncode
-        mock_execute_command.return_value = (1, "", "du: cannot read directory")
+        mocker.patch(
+            "linux_mcp_server.tools.storage.execute_command",
+            AsyncMock(return_value=(1, "", "du: cannot read directory")),
+        )
 
         with pytest.raises(ToolError, match="Error running du command"):
             await mcp.call_tool(
@@ -689,11 +705,13 @@ class TestListDirectories:
                 {"path": "/some/path", "order_by": "size", "host": "remote.server.com"},
             )
 
-    @patch("linux_mcp_server.tools.storage.execute_command")
-    async def test_list_directories_find_command_failure_name(self, mock_execute_command):
+    async def test_list_directories_find_command_failure_name(self, mocker):
         """Test list_directories handles find command failures for name ordering."""
         # Mock find command to return non-zero returncode
-        mock_execute_command.return_value = (1, "", "find: '/some/path': Permission denied")
+        mocker.patch(
+            "linux_mcp_server.tools.storage.execute_command",
+            AsyncMock(return_value=(1, "", "find: '/some/path': Permission denied")),
+        )
 
         with pytest.raises(ToolError, match="Error running find command"):
             await mcp.call_tool(
@@ -701,11 +719,13 @@ class TestListDirectories:
                 {"path": "/some/path", "order_by": "name", "host": "remote.server.com"},
             )
 
-    @patch("linux_mcp_server.tools.storage.execute_command")
-    async def test_list_directories_find_command_failure_modified(self, mock_execute_command):
+    async def test_list_directories_find_command_failure_modified(self, mocker):
         """Test list_directories handles find command failures for modified ordering."""
         # Mock find command to return non-zero returncode
-        mock_execute_command.return_value = (1, "", "find: '/some/path': Permission denied")
+        mocker.patch(
+            "linux_mcp_server.tools.storage.execute_command",
+            AsyncMock(return_value=(1, "", "find: '/some/path': Permission denied")),
+        )
 
         with pytest.raises(ToolError, match="Error running find command"):
             await mcp.call_tool(

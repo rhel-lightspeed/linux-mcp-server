@@ -2,7 +2,7 @@
 
 import sys
 
-from unittest.mock import patch
+from unittest.mock import AsyncMock
 
 import pytest
 
@@ -75,41 +75,44 @@ class TestServices:
 class TestRemoteServices:
     """Test remote service management."""
 
-    async def test_list_services_remote(self):
+    async def test_list_services_remote(self, mocker):
         """Test listing services on a remote host."""
         mock_output = "UNIT                     LOAD   ACTIVE SUB     DESCRIPTION\nnginx.service           loaded active running Nginx server\n"
 
-        with patch("linux_mcp_server.tools.services.execute_command") as mock_exec:
-            mock_exec.return_value = (0, mock_output, "")
+        mock_exec = AsyncMock()
+        mock_exec.return_value = (0, mock_output, "")
+        mocker.patch("linux_mcp_server.tools.services.execute_command", mock_exec)
 
-            result = await services.list_services(host="remote.example.com")
+        result = await services.list_services(host="remote.example.com")
 
-            assert "nginx.service" in result
-            assert "System Services" in result
-            mock_exec.assert_called()
+        assert "nginx.service" in result
+        assert "System Services" in result
+        mock_exec.assert_called()
 
-    async def test_get_service_status_remote(self):
+    async def test_get_service_status_remote(self, mocker):
         """Test getting service status on a remote host."""
         mock_output = "● nginx.service - Nginx HTTP Server\n   Loaded: loaded\n   Active: active (running)"
 
-        with patch("linux_mcp_server.tools.services.execute_command") as mock_exec:
-            mock_exec.return_value = (0, mock_output, "")
+        mock_exec = AsyncMock()
+        mock_exec.return_value = (0, mock_output, "")
+        mocker.patch("linux_mcp_server.tools.services.execute_command", mock_exec)
 
-            result = await services.get_service_status("nginx", host="remote.example.com")
+        result = await services.get_service_status("nginx", host="remote.example.com")
 
-            assert "nginx.service" in result
-            assert "active" in result.lower()
-            mock_exec.assert_called()
+        assert "nginx.service" in result
+        assert "active" in result.lower()
+        mock_exec.assert_called()
 
-    async def test_get_service_logs_remote(self):
+    async def test_get_service_logs_remote(self, mocker):
         """Test getting service logs on a remote host."""
         mock_output = "Jan 01 12:00:00 host nginx[1234]: Starting Nginx\nJan 01 12:00:01 host nginx[1234]: Started"
 
-        with patch("linux_mcp_server.tools.services.execute_command") as mock_exec:
-            mock_exec.return_value = (0, mock_output, "")
+        mock_exec = AsyncMock()
+        mock_exec.return_value = (0, mock_output, "")
+        mocker.patch("linux_mcp_server.tools.services.execute_command", mock_exec)
 
-            result = await services.get_service_logs("nginx", lines=50, host="remote.example.com")
+        result = await services.get_service_logs("nginx", lines=50, host="remote.example.com")
 
-            assert "nginx" in result.lower()
-            assert "Starting" in result
-            mock_exec.assert_called()
+        assert "nginx" in result.lower()
+        assert "Starting" in result
+        mock_exec.assert_called()
