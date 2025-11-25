@@ -2,8 +2,6 @@
 
 import typing as t
 
-from collections.abc import Callable
-
 from mcp.server.fastmcp.exceptions import ToolError
 from mcp.types import ToolAnnotations
 from pydantic import BaseModel
@@ -14,6 +12,91 @@ from linux_mcp_server.connection.ssh import execute_command
 from linux_mcp_server.server import mcp
 from linux_mcp_server.utils.decorators import disallow_local_execution_in_containers
 from linux_mcp_server.utils.types import Host
+
+
+# Type aliases for the collect-parse-filter pattern
+CommandKey = tuple[str, ...]
+RawCommandOutput = str
+ParsedData = dict[str, t.Any]
+
+
+# Collection function for collect phase
+async def collect_command_outputs(
+    commands: list[list[str]],
+    host: Host | None = None,
+) -> dict[CommandKey, RawCommandOutput]:
+    """
+    Collect phase: Execute multiple commands and cache results.
+
+    Returns a dictionary mapping command tuples to their stdout output.
+    Commands are executed in order, and each unique command is only executed once.
+    """
+    cache: dict[CommandKey, RawCommandOutput] = {}
+
+    for command in commands:
+        command_key = tuple(command)
+        if command_key in cache:
+            continue
+
+        try:
+            returncode, stdout, _ = await execute_command(
+                command,
+                host=host,
+                username=username,
+            )
+            if returncode == 0 and stdout:
+                cache[command_key] = stdout
+        except (ValueError, ConnectionError) as e:
+            raise ToolError(f"Error executing command {' '.join(command)}: {str(e)}") from e
+
+    return cache
+
+
+# Helper function for filter phase
+def filter_fields(data: ParsedData, fields: list[str] | None) -> ParsedData:
+    """
+    Filter phase helper: Filter parsed data to include only specified fields.
+
+    If fields is None, return all data. Otherwise, return only the specified fields.
+    Supports nested field access using dot notation (e.g., "ram.total").
+    """
+    if fields is None:
+        return data
+
+    filtered: ParsedData = {}
+    for field in fields:
+        if "." in field:
+            # Handle nested fields
+            parts = field.split(".", 1)
+            parent, child = parts[0], parts[1]
+            if parent in data:
+                if parent not in filtered:
+                    filtered[parent] = {}
+                if isinstance(data[parent], dict) and child in data[parent]:
+                    if not isinstance(filtered[parent], dict):
+                        filtered[parent] = {}
+                    filtered[parent][child] = data[parent][child]
+        elif field in data:
+            filtered[field] = data[field]
+
+    return filtered
+
+
+# Helper function for filter phase
+def apply_list_filter(
+    items: list[t.Any],
+    filter_key: str,
+    filter_values: list[str] | None,
+) -> list[t.Any]:
+    """
+    Helper to filter a list of dictionaries by a specific key.
+
+    If filter_values is None, return all items.
+    """
+    if filter_values is None:
+        return items
+
+    return [item for item in items if isinstance(item, dict) and item.get(filter_key) in filter_values]
 
 
 # Pydantic Models for structured output
@@ -126,6 +209,45 @@ class DeviceInfo(BaseModel):
     usb_device_count: int = 0
 
 
+def parse_system_information(raw_outputs: dict[CommandKey, RawCommandOutput]) -> ParsedData:
+    """
+    Parse phase: Convert raw command outputs into structured data for system information.
+
+    Returns a dictionary with system information fields.
+    """
+    parsed: ParsedData = {}
+
+    for command, output in raw_outputs.items():
+        match command:
+            case ("hostname",):
+                # Parse hostname
+                parsed["hostname"] = output.strip()
+            case ("cat", "/etc/os-release"):
+                # Parse os-release file
+                os_release_data = {}
+                for line in output.split("\n"):
+                    if "=" in line:
+                        key, value = line.strip().split("=", 1)
+                        os_release_data[key] = value.strip('"')
+                parsed["operating_system"] = os_release_data.get("PRETTY_NAME")
+                parsed["os_version"] = os_release_data.get("VERSION_ID")
+            case ("uname", "-r", "-m"):
+                # Parse uname output
+                parts = output.strip().split(None, 1)
+                parsed["kernel_version"] = parts[0] if len(parts) > 0 else None
+                parsed["architecture"] = parts[1] if len(parts) > 1 else None
+            case ("uptime", "-p"):
+                # Parse uptime
+                parsed["uptime"] = output.strip()
+            case ("uptime", "-s"):
+                # Parse boot time
+                parsed["boot_time"] = output.strip()
+            case _:
+                continue
+
+    return parsed
+
+
 @mcp.tool(
     title="Get system information",
     description="Get basic system information such as operating system, distribution, kernel version, uptime, and last boot time.",
@@ -135,66 +257,97 @@ class DeviceInfo(BaseModel):
 @disallow_local_execution_in_containers
 async def get_system_information(
     host: Host | None = None,
-) -> SystemInfo:
-    """
-    Get basic system information.
-    """
-    result = SystemInfo()
-
-    class SystemInfoAttribute(BaseModel):
-        """System information attribute."""
-
-        names: list[str]
-        command: list[str]
-        parser: Callable[[str], t.Any]
-
-    attributes = [
-        SystemInfoAttribute(names=["hostname"], command=["hostname"], parser=lambda x: x.strip()),
-        SystemInfoAttribute(
-            names=["operating_system", "os_version"],
-            command=["cat", "/etc/os-release"],
-            parser=lambda x: {
-                line.strip().split("=", 1)[0]: line.strip().split("=", 1)[1] for line in x.split("\n") if "=" in line
-            },
+    fields: t.Annotated[
+        list[str],
+        Field(
+            description="List of fields to include. If None, all fields are included. Valid fields: hostname, operating_system, os_version, kernel_version, architecture, uptime, boot_time"
         ),
-        SystemInfoAttribute(
-            names=["kernel_version", "architecture"],
-            command=["uname", "-r", "-m"],
-            parser=lambda x: (
-                lambda parts: {"kernel_version": parts[0], "architecture": parts[1] if len(parts) > 1 else None}
-            )(x.strip().split(None, 1)),
-        ),
-        SystemInfoAttribute(names=["uptime"], command=["uptime", "-p"], parser=lambda x: x.strip()),
-        SystemInfoAttribute(names=["boot_time"], command=["uptime", "-s"], parser=lambda x: x.strip()),
     ]
+    | None = None,
+) -> SystemInfo:
+    """Get basic system information."""
 
-    for attribute in attributes:
-        try:
-            returncode, stdout, _ = await execute_command(
-                attribute.command,
-                host=host,
-            )
-        except ValueError or ConnectionError as e:
-            raise ToolError(f"Error: {str(e)}") from e
+    # Collect phase: Execute all commands
+    commands = [
+        ["hostname"],
+        ["cat", "/etc/os-release"],
+        ["uname", "-r", "-m"],
+        ["uptime", "-p"],
+        ["uptime", "-s"],
+    ]
+    raw_outputs = await collect_command_outputs(commands, host=host, username=username)
 
-        if returncode == 0 and stdout:
-            parsed_output = attribute.parser(stdout)
-            match attribute.names:
-                case ["hostname"]:
-                    result.hostname = parsed_output
-                case ["operating_system", "os_version"]:
-                    result.operating_system = parsed_output["PRETTY_NAME"]
-                    result.os_version = parsed_output["VERSION_ID"]
-                case ["kernel_version", "architecture"]:
-                    result.kernel_version = parsed_output["kernel_version"]
-                    result.architecture = parsed_output["architecture"]
-                case ["uptime"]:
-                    result.uptime = parsed_output
-                case ["boot_time"]:
-                    result.boot_time = parsed_output
-                case _:
-                    raise ToolError(f"Unknown attribute: {attribute.names}")
-    return result
+    # Parse phase: Convert raw outputs to structured data
+    parsed_data = parse_system_information(raw_outputs)
+
+    # Filter phase: Apply field filters and build result
+    filtered_data = filter_fields(parsed_data, fields)
+
+    # Build SystemInfo object from filtered data
+    return SystemInfo(
+        hostname=filtered_data.get("hostname"),
+        operating_system=filtered_data.get("operating_system"),
+        os_version=filtered_data.get("os_version"),
+        kernel_version=filtered_data.get("kernel_version"),
+        architecture=filtered_data.get("architecture"),
+        uptime=filtered_data.get("uptime"),
+        boot_time=filtered_data.get("boot_time"),
+    )
+
+
+def parse_cpuinfo(output: str) -> ParsedData:
+    """Parse /proc/cpuinfo output into structured CPU data."""
+    parsed: ParsedData = {}
+    lines = output.strip().split("\n")
+
+    # Extract cpu_model
+    parsed["cpu_model"] = next((line.split(":", 1)[1].strip() for line in lines if line.startswith("model name")), None)
+    # Count logical cores
+    parsed["logical_cores"] = sum(1 for line in lines if line.startswith("processor"))
+    # Count physical sockets
+    parsed["physical_sockets"] = len(set(line for line in lines if line.startswith("physical id")))
+    # Get physical cores per processor
+    parsed["physical_cores_per_processor"] = next(
+        (int(line.split(":", 1)[1].strip()) for line in lines if line.startswith("cpu cores")), None
+    )
+    # Get CPU frequency
+    parsed["frequency_mhz"] = next(
+        (float(line.split(":", 1)[1].strip()) for line in lines if line.startswith("cpu MHz")), 0.0
+    )
+
+    return parsed
+
+
+def parse_cpu_information(raw_outputs: dict[CommandKey, RawCommandOutput]) -> ParsedData:
+    """
+    Parse phase: Convert raw command outputs into structured CPU data for CPU information.
+
+    Returns a dictionary with CPU information fields.
+    """
+    parsed: ParsedData = {}
+
+    # Parse /proc/cpuinfo (only once for all fields)
+    if ("cat", "/proc/cpuinfo") in raw_outputs:
+        cpuinfo = raw_outputs[("cat", "/proc/cpuinfo")]
+        parsed.update(parse_cpuinfo(cpuinfo))
+
+    # Parse load average
+    if ("cat", "/proc/loadavg") in raw_outputs:
+        parts = raw_outputs[("cat", "/proc/loadavg")].strip().split()
+        if len(parts) >= 3:
+            parsed["load_average"] = {
+                "one_min": float(parts[0]),
+                "five_min": float(parts[1]),
+                "fifteen_min": float(parts[2]),
+            }
+
+    # Parse CPU usage from top
+    if ("top", "-bn1") in raw_outputs:
+        top_output = raw_outputs[("top", "-bn1")]
+        if "Cpu(s):" in top_output or "%Cpu" in top_output:
+            parsed["cpu_usage"] = top_output.strip()
+
+    return parsed
 
 
 @mcp.tool(
@@ -206,129 +359,56 @@ async def get_system_information(
 @disallow_local_execution_in_containers
 async def get_cpu_information(
     host: Host | None = None,
-) -> CPUInfo:
-    """
-    Get CPU information.
-    """
-    result = CPUInfo()
-
-    class CPUInfoAttribute(BaseModel):
-        """CPU information attribute."""
-
-        names: list[str]
-        command: list[str]
-        parser: Callable[[str], t.Any]
-
-    attributes = [
-        CPUInfoAttribute(
-            names=["cpu_model"],
-            command=["cat", "/proc/cpuinfo"],
-            parser=lambda x: next(
-                (line.split(":", 1)[1].strip() for line in x.strip().split("\n") if line.startswith("model name")), ""
-            ),
-        ),
-        CPUInfoAttribute(
-            names=["logical_cores"],
-            command=["cat", "/proc/cpuinfo"],
-            # count the number of processor entries to get number of logical cores
-            parser=lambda x: sum(1 for line in x.strip().split("\n") if line.startswith("processor")),
-        ),
-        CPUInfoAttribute(
-            names=["physical_sockets"],
-            command=["cat", "/proc/cpuinfo"],
-            parser=lambda x: len(set(line for line in x.strip().split("\n") if line.startswith("physical id"))),
-        ),
-        CPUInfoAttribute(
-            names=["physical_cores_per_processor"],
-            command=["cat", "/proc/cpuinfo"],
-            parser=lambda x: next(
-                (int(line.split(":", 1)[1].strip()) for line in x.strip().split("\n") if line.startswith("cpu cores")),
-                0,
-            ),
-        ),
-        CPUInfoAttribute(
-            names=["frequency_mhz"],
-            command=["cat", "/proc/cpuinfo"],
-            parser=lambda x: float(
-                next(
-                    (line.split(":", 1)[1].strip() for line in x.strip().split("\n") if line.startswith("cpu MHz")), "0"
-                )
-            ),
-        ),
-        CPUInfoAttribute(
-            names=["load_average"],
-            command=["cat", "/proc/loadavg"],
-            parser=lambda x: {
-                "one_min": float(x.strip().split()[0]),
-                "five_min": float(x.strip().split()[1]),
-                "fifteen_min": float(x.strip().split()[2]),
-            },
-        ),
-        CPUInfoAttribute(
-            names=["cpu_usage"],
-            command=["top", "-bn1"],
-            parser=lambda x: x.strip() if "Cpu(s):" in x or "%Cpu" in x else None,
+    fields: t.Annotated[
+        list[str],
+        Field(
+            description="List of fields to include. If None, all fields are included. Valid fields: cpu_model, logical_cores, physical_sockets, physical_cores_per_processor, frequency_mhz, load_average, cpu_usage"
         ),
     ]
+    | None = None,
+) -> CPUInfo:
+    """Get CPU information."""
 
-    for attribute in attributes:
-        try:
-            returncode, stdout, _ = await execute_command(
-                attribute.command,
-                host=host,
-            )
-        except ValueError or ConnectionError as e:
-            raise ToolError(f"Error: {str(e)}") from e
+    # Collect phase: Execute all unique commands (note: /proc/cpuinfo only read once!)
+    commands = [
+        ["cat", "/proc/cpuinfo"],
+        ["cat", "/proc/loadavg"],
+        ["top", "-bn1"],
+    ]
+    raw_outputs = await collect_command_outputs(commands, host=host, username=username)
 
-        if returncode == 0 and stdout:
-            parsed_output = attribute.parser(stdout)
-            match attribute.names:
-                case ["cpu_model"]:
-                    result.cpu_model = parsed_output
-                case ["logical_cores"]:
-                    result.logical_cores = parsed_output
-                case ["physical_sockets"]:
-                    result.physical_sockets = parsed_output
-                case ["physical_cores_per_processor"]:
-                    result.physical_cores_per_processor = parsed_output
-                case ["frequency_mhz"]:
-                    result.frequency_mhz = parsed_output
-                case ["load_average"]:
-                    result.load_average = parsed_output
-                case ["cpu_usage"]:
-                    result.cpu_usage = parsed_output
-                case _:
-                    raise ToolError(f"Unknown attribute: {attribute.names}")
-    return result
+    # Parse phase: Convert raw outputs to structured data
+    parsed_data = parse_cpu_information(raw_outputs)
+
+    # Filter phase: Apply field filters and build result
+    filtered_data = filter_fields(parsed_data, fields)
+
+    # Build CPUInfo object from filtered data
+    load_avg_data = filtered_data.get("load_average")
+    load_average = LoadAverage(**load_avg_data) if load_avg_data else None
+
+    return CPUInfo(
+        cpu_model=filtered_data.get("cpu_model"),
+        logical_cores=filtered_data.get("logical_cores"),
+        physical_sockets=filtered_data.get("physical_sockets"),
+        physical_cores_per_processor=filtered_data.get("physical_cores_per_processor"),
+        frequency_mhz=filtered_data.get("frequency_mhz"),
+        load_average=load_average,
+        cpu_usage=filtered_data.get("cpu_usage"),
+    )
 
 
-@mcp.tool(
-    title="Get memory information",
-    description="Get detailed memory including physical and swap.",
-    annotations=ToolAnnotations(readOnlyHint=True),
-)
-@log_tool_call
-@disallow_local_execution_in_containers
-async def get_memory_information(
-    host: Host | None = None,
-) -> MemoryInfo:
+def parse_memory_information(raw_outputs: dict[CommandKey, RawCommandOutput]) -> ParsedData:
     """
-    Get memory information.
+    Parse phase: Convert raw command outputs into structured memory data for memory information.
+
+    Returns a dictionary with memory information fields.
     """
-    ram_stats: MemoryStats | None = None
-    swap_stats: MemoryStats | None = None
+    parsed: ParsedData = {}
 
-    class MemoryStatsAttribute(BaseModel):
-        """Memory statistics attribute."""
-
-        names: list[str]
-        command: list[str]
-        parser: Callable[[str], t.Any]
-
-    def parse_free_output(output: str) -> dict[str, MemoryStats]:
-        """Parse the output of 'free -b' command into memory statistics."""
-        lines = output.strip().split("\n")
-        result = {}
+    # Parse free output
+    if ("free", "-b") in raw_outputs:
+        lines = raw_outputs[("free", "-b")].strip().split("\n")
 
         for line in lines:
             if line.startswith("Mem:"):
@@ -342,14 +422,14 @@ async def get_memory_information(
                     available = int(parts[6]) if len(parts) > 6 else free
                     percent = (used / total * 100) if total > 0 else 0
 
-                    result["ram"] = MemoryStats(
-                        total=total,
-                        used=used,
-                        free=free,
-                        available=available,
-                        percent=percent,
-                        buffers=buff_cache,  # buff/cache combined
-                    )
+                    parsed["ram"] = {
+                        "total": total,
+                        "used": used,
+                        "free": free,
+                        "available": available,
+                        "percent": percent,
+                        "buffers": buff_cache,
+                    }
 
             elif line.startswith("Swap:"):
                 parts = line.split()
@@ -359,181 +439,141 @@ async def get_memory_information(
                     free = int(parts[3])
                     percent = (used / total * 100) if total > 0 else 0
 
-                    result["swap"] = MemoryStats(
-                        total=total,
-                        used=used,
-                        free=free,
-                        percent=percent,
-                    )
+                    parsed["swap"] = {
+                        "total": total,
+                        "used": used,
+                        "free": free,
+                        "percent": percent,
+                    }
 
-        return result
+    return parsed
 
-    attributes = [
-        MemoryStatsAttribute(names=["ram", "swap"], command=["free", "-b"], parser=parse_free_output),
+
+@mcp.tool(
+    title="Get memory information",
+    description="Get detailed memory including physical and swap.",
+    annotations=ToolAnnotations(readOnlyHint=True),
+)
+@log_tool_call
+async def get_memory_information(
+    host: Host | None = None,
+    username: Username | None = None,
+    fields: t.Annotated[
+        list[str],
+        Field(
+            description="List of fields to include. If None, all fields are included. Valid fields: ram, swap (and nested fields like ram.total, ram.used, etc.)"
+        ),
     ]
+    | None = None,
+) -> MemoryInfo:
+    """
+    Get memory information.
+    """
+    # Collect phase: Execute command
+    commands = [
+        ["free", "-b"],
+    ]
+    raw_outputs = await collect_command_outputs(commands, host=host, username=username)
 
-    for attribute in attributes:
-        try:
-            returncode, stdout, _ = await execute_command(
-                attribute.command,
-                host=host,
-            )
-        except ValueError or ConnectionError as e:
-            raise ToolError(f"Error: {str(e)}") from e
+    # Parse phase: Convert raw outputs to structured data
+    parsed_data = parse_memory_information(raw_outputs)
 
-        if returncode == 0 and stdout:
-            parsed_output = attribute.parser(stdout)
-            match attribute.names:
-                case ["ram", "swap"]:
-                    ram_stats = parsed_output["ram"]
-                    swap_stats = parsed_output["swap"]
-                case _:
-                    raise ToolError(f"Unknown attribute: {attribute.names}")
+    # Filter phase: Apply field filters and build result
+    filtered_data = filter_fields(parsed_data, fields)
+
+    # Build MemoryInfo object from filtered data
+    ram_data = filtered_data.get("ram")
+    swap_data = filtered_data.get("swap")
+
+    ram_stats = MemoryStats(**ram_data) if ram_data else None
+    swap_stats = MemoryStats(**swap_data) if swap_data else None
 
     return MemoryInfo(ram=ram_stats, swap=swap_stats)
 
 
-def parse_df_output(output: str) -> list[DiskPartition]:
-    """Parse the output of 'df -B1' command into disk partitions."""
-    lines = output.strip().split("\n")
-    result = []
-
-    # Skip header line
-    for line in lines[1:]:
-        parts = line.split()
-        if len(parts) >= 6:
-            device = parts[0]
-            size = int(parts[1])
-            used = int(parts[2])
-            free = int(parts[3])
-            percent_str = parts[4].rstrip("%")
-            percent = float(percent_str) if percent_str else 0.0
-            mountpoint = parts[5]
-
-            result.append(
-                DiskPartition(
-                    device=device,
-                    mountpoint=mountpoint,
-                    size=size,
-                    used=used,
-                    free=free,
-                    percent=percent,
-                )
-            )
-
-    return result
-
-
-def parse_diskstats_output(output: str) -> DiskIOStats | None:
-    """Parse the contents of '/proc/diskstats' file into disk I/O stats.
-
-    See https://www.kernel.org/doc/html/latest/admin-guide/iostats.html for
-    details on the diskstats file format. Field defintions are copied here for convenience. Not all fields are collected into the DiskIOStats model.
-
-    In diskstats, each line is prefixed with the major and minor device numbers and the device name. The remaining fields are the statistics for that device.
-
-    Field 1 -- # of reads completed (unsigned long)
-    This is the total number of reads completed successfully.
-
-    Field 2 -- # of reads merged, field 6 -- # of writes merged (unsigned long)
-    Reads and writes which are adjacent to each other may be merged for efficiency. Thus two 4K reads may become one 8K read before it is ultimately handed to the disk, and so it will be counted (and queued) as only one I/O. This field lets you know how often this was done.
-
-    Field 3 -- # of sectors read (unsigned long)
-    This is the total number of sectors read successfully.
-
-    Field 4 -- # of milliseconds spent reading (unsigned int)
-    This is the total number of milliseconds spent by all reads (as measured from blk_mq_alloc_request() to __blk_mq_end_request()).
-
-    Field 5 -- # of writes completed (unsigned long)
-    This is the total number of writes completed successfully.
-
-    Field 6 -- # of writes merged (unsigned long)
-    See the description of field 2.
-
-    Field 7 -- # of sectors written (unsigned long)
-    This is the total number of sectors written successfully.
-
-    Field 8 -- # of milliseconds spent writing (unsigned int)
-    This is the total number of milliseconds spent by all writes (as measured from blk_mq_alloc_request() to __blk_mq_end_request()).
-
-    Field 9 -- # of I/Os currently in progress (unsigned int)
-    The only field that should go to zero. Incremented as requests are given to appropriate struct request_queue and decremented as they finish.
-
-    Field 10 -- # of milliseconds spent doing I/Os (unsigned int)
-    This field increases so long as field 9 is nonzero.
-
-    Since 5.0 this field counts jiffies when at least one request was started or completed. If request runs more than 2 jiffies then some I/O time might be not accounted in case of concurrent requests.
-
-    Field 11 -- weighted # of milliseconds spent doing I/Os (unsigned int)
-    This field is incremented at each I/O start, I/O completion, I/O merge, or read of these stats by the number of I/Os in progress (field 9) times the number of milliseconds spent doing I/O since the last update of this field. This can provide an easy measure of both I/O completion time and the backlog that may be accumulating.
-
-    Field 12 -- # of discards completed (unsigned long)
-    This is the total number of discards completed successfully.
-
-    Field 13 -- # of discards merged (unsigned long)
-    See the description of field 2
-
-    Field 14 -- # of sectors discarded (unsigned long)
-    This is the total number of sectors discarded successfully.
-
-    Field 15 -- # of milliseconds spent discarding (unsigned int)
-    This is the total number of milliseconds spent by all discards (as measured from blk_mq_alloc_request() to __blk_mq_end_request()).
-
-    Field 16 -- # of flush requests completed
-    This is the total number of flush requests completed successfully.
-
-    Block layer combines flush requests and executes at most one at a time. This counts flush requests executed by disk. Not tracked for partitions.
-
-    Field 17 -- # of milliseconds spent flushing
-    This is the total number of milliseconds spent by all flush requests.
+def parse_disk_usage(raw_outputs: dict[CommandKey, RawCommandOutput]) -> ParsedData:
     """
-    # Initialize counters for total read and write bytes and counts
-    total_read_bytes = 0
-    total_write_bytes = 0
-    total_read_count = 0
-    total_write_count = 0
+    Parse phase: Convert raw command outputs into structured disk usage data for disk usage.
 
-    for line in output.strip().split("\n"):
-        parts = line.split()
+    Returns a dictionary with disk usage information fields.
+    """
+    parsed: ParsedData = {}
 
-        # Each line is prefixed with the major and minor device numbers and the device name. The remaining fields are the statistics for that device.
-        if len(parts) >= 14:
-            # Element 0 and 1 are the major and minor device numbers
-            # Element 2 is the device name
-            device_name = parts[2]
+    # Parse df output
+    if ("df", "-B1") in raw_outputs:
+        lines = raw_outputs[("df", "-B1")].strip().split("\n")
+        partitions = []
 
-            # Only count physical disks (e.g., sda, nvme0n1), skip partitions
-            # Skip loop devices, ram devices, etc.
-            if (
-                device_name.startswith(("loop", "ram", "sr"))
-                or any(c.isdigit() for c in device_name[-1])
-                and not device_name.startswith("nvme")
-            ):
-                continue
+        # Skip header line
+        for line in lines[1:]:
+            parts = line.split()
+            if len(parts) >= 6:
+                device = parts[0]
+                size = int(parts[1])
+                used = int(parts[2])
+                free = int(parts[3])
+                percent_str = parts[4].rstrip("%")
+                percent = float(percent_str) if percent_str else 0.0
+                mountpoint = parts[5]
 
-            # Element 3 is the number of reads completed
-            # Element 5 is the number of sectors read
-            # Element 7 is the number of writes completed
-            # Element 9 is the number of sectors written
-            reads_completed = int(parts[3])
-            sectors_read = int(parts[5])
-            writes_completed = int(parts[7])
-            sectors_written = int(parts[9])
+                partitions.append(
+                    {
+                        "device": device,
+                        "mountpoint": mountpoint,
+                        "size": size,
+                        "used": used,
+                        "free": free,
+                        "percent": percent,
+                    }
+                )
 
-            total_read_count += reads_completed
-            total_read_bytes += sectors_read * 512
-            total_write_count += writes_completed
-            total_write_bytes += sectors_written * 512
+            parsed["partitions"] = partitions
 
-    if total_read_bytes or total_write_bytes or total_read_count or total_write_count:
-        return DiskIOStats(
-            read_bytes=total_read_bytes,
-            write_bytes=total_write_bytes,
-            read_count=total_read_count,
-            write_count=total_write_count,
-        )
+    # Parse diskstats
+    if ("cat", "/proc/diskstats") in raw_outputs:
+        output = raw_outputs[("cat", "/proc/diskstats")]
 
-    return None
+        # Initialize counters for total read and write bytes and counts
+        total_read_bytes = 0
+        total_write_bytes = 0
+        total_read_count = 0
+        total_write_count = 0
+
+        for line in output.strip().split("\n"):
+            parts = line.split()
+
+            # Each line is prefixed with the major and minor device numbers and the device name
+            if len(parts) >= 14:
+                device_name = parts[2]
+
+                # Only count physical disks (e.g., sda, nvme0n1), skip partitions
+                # Skip loop devices, ram devices, etc.
+                if (
+                    device_name.startswith(("loop", "ram", "sr"))
+                    or any(c.isdigit() for c in device_name[-1])
+                    and not device_name.startswith("nvme")
+                ):
+                    continue
+
+                reads_completed = int(parts[3])
+                sectors_read = int(parts[5])
+                writes_completed = int(parts[7])
+                sectors_written = int(parts[9])
+
+                total_read_count += reads_completed
+                total_read_bytes += sectors_read * 512
+                total_write_count += writes_completed
+                total_write_bytes += sectors_written * 512
+
+        if total_read_bytes or total_write_bytes or total_read_count or total_write_count:
+            parsed["io_stats"] = {
+                "read_bytes": total_read_bytes,
+                "write_bytes": total_write_bytes,
+                "read_count": total_read_count,
+                "write_count": total_write_count,
+            }
+
+    return parsed
 
 
 @mcp.tool(
@@ -545,43 +585,44 @@ def parse_diskstats_output(output: str) -> DiskIOStats | None:
 @disallow_local_execution_in_containers
 async def get_disk_usage(
     host: Host | None = None,
+    mountpoints: t.Annotated[
+        list[str], Field(description="List of mountpoints to include. If None, all mountpoints are included.")
+    ]
+    | None = None,
+    fields: t.Annotated[
+        list[str],
+        Field(
+            description="List of fields to include. If None, all fields are included. Valid fields: partitions, io_stats"
+        ),
+    ]
+    | None = None,
 ) -> DiskUsage:
     """
     Get disk usage information.
     """
-    partitions: list[DiskPartition] = []
-    io_stats: DiskIOStats | None = None
-
-    class DiskUsageAttribute(BaseModel):
-        """Disk usage attribute."""
-
-        names: list[str]
-        command: list[str]
-        parser: Callable[[str], t.Any]
-
-    attributes = [
-        DiskUsageAttribute(names=["partitions"], command=["df", "-B1"], parser=parse_df_output),
-        DiskUsageAttribute(names=["io_stats"], command=["cat", "/proc/diskstats"], parser=parse_diskstats_output),
+    # Collect phase: Execute commands
+    commands = [
+        ["df", "-B1"],
+        ["cat", "/proc/diskstats"],
     ]
+    raw_outputs = await collect_command_outputs(commands, host=host, username=username)
 
-    for attribute in attributes:
-        try:
-            returncode, stdout, _ = await execute_command(
-                attribute.command,
-                host=host,
-            )
-        except ValueError or ConnectionError as e:
-            raise ToolError(f"Error: {str(e)}") from e
+    # Parse phase: Convert raw outputs to structured data
+    parsed_data = parse_disk_usage(raw_outputs)
 
-        if returncode == 0 and stdout:
-            parsed_output = attribute.parser(stdout)
-            match attribute.names:
-                case ["partitions"]:
-                    partitions = parsed_output
-                case ["io_stats"]:
-                    io_stats = parsed_output
-                case _:
-                    raise ToolError(f"Unknown attribute: {attribute.names}")
+    # Filter phase: Apply field filters
+    filtered_data = filter_fields(parsed_data, fields)
+
+    # Apply mountpoint filter to partitions
+    partitions_data = filtered_data.get("partitions", [])
+    if mountpoints is not None:
+        partitions_data = apply_list_filter(partitions_data, "mountpoint", mountpoints)
+
+    # Build DiskUsage object from filtered data
+    partitions = [DiskPartition(**p) for p in partitions_data]
+
+    io_stats_data = filtered_data.get("io_stats")
+    io_stats = DiskIOStats(**io_stats_data) if io_stats_data else None
 
     return DiskUsage(partitions=partitions, io_stats=io_stats)
 
@@ -726,6 +767,17 @@ async def parse_usb_devices(host: Host | None = None, username: Username | None 
 async def get_device_information(
     host: Host | None = None,
     username: Username | None = None,
+    device_types: t.Annotated[
+        list[str],
+        Field(
+            description="List of device types to include. If None, all types are included. Valid types: 'pci', 'usb'"
+        ),
+    ]
+    | None = None,
+    limit: t.Annotated[
+        int, Field(description="Maximum number of devices to return per type. If None, all devices are returned.")
+    ]
+    | None = None,
 ) -> DeviceInfo:
     """
     Get device information for PCI and USB devices.
@@ -735,11 +787,25 @@ async def get_device_information(
     external utilities like lspci or lsusb which may not be installed.
     """
     try:
-        # Parse PCI devices
-        pci_devices = await parse_pci_devices(host=host, username=username)
+        # Collect and Parse phases: These are handled by helper functions due to
+        # the dynamic nature of device enumeration (need to find devices first,
+        # then query each one)
+        pci_devices: list[PCIDevice] = []
+        usb_devices: list[USBDevice] = []
 
-        # Parse USB devices
-        usb_devices = await parse_usb_devices(host=host, username=username)
+        # Filter phase: Apply device type filter
+        should_collect_pci = device_types is None or "pci" in device_types
+        should_collect_usb = device_types is None or "usb" in device_types
+
+        if should_collect_pci:
+            pci_devices = await parse_pci_devices(host=host, username=username)
+            if limit is not None:
+                pci_devices = pci_devices[:limit]
+
+        if should_collect_usb:
+            usb_devices = await parse_usb_devices(host=host, username=username)
+            if limit is not None:
+                usb_devices = usb_devices[:limit]
 
         return DeviceInfo(
             pci_devices=pci_devices,
