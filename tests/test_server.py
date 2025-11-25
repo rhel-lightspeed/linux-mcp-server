@@ -35,10 +35,10 @@ class TestLinuxMCPServer:
         assert "list_processes" in tool_names
         assert "get_network_interfaces" in tool_names
         assert "list_block_devices" in tool_names
+        assert "list_directories" in tool_names
+        assert "list_files" in tool_names
 
     async def test_all_tools_have_correct_count(self):
         """Test that all 18 tools are registered."""
         tools = await mcp.list_tools()
-        # We have 18 tools total (5 system info + 3 service + 2 process +
-        # 3 log + 3 network + 2 storage)
-        assert len(tools) == 19
+        assert len(tools) == 20
