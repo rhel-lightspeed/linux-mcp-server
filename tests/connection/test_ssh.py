@@ -1,8 +1,8 @@
 """Tests for SSH executor module."""
 
 from unittest.mock import AsyncMock
+from unittest.mock import MagicMock
 from unittest.mock import Mock
-from unittest.mock import patch
 
 import asyncssh
 import pytest
@@ -101,21 +101,21 @@ class TestExecuteCommand:
 
         assert "error" in stderr
 
-    async def test_execute_command_remote_routes_to_ssh(self):
+    async def test_execute_command_remote_routes_to_ssh(self, mocker):
         """Test that remote execution routes through SSH."""
         mock_manager = AsyncMock()
         mock_manager.execute_remote = AsyncMock(return_value=(0, "output", ""))
 
-        with patch("linux_mcp_server.connection.ssh._connection_manager", mock_manager):
-            returncode, stdout, stderr = await execute_command(
-                ["ls", "-la"],
-                host="remote.example.com",
-                username="testuser",
-            )
+        mocker.patch("linux_mcp_server.connection.ssh._connection_manager", mock_manager)
+        returncode, stdout, stderr = await execute_command(
+            ["ls", "-la"],
+            host="remote.example.com",
+            username="testuser",
+        )
 
-            assert returncode == 0
-            assert stdout == "output"
-            mock_manager.execute_remote.assert_called_once()
+        assert returncode == 0
+        assert stdout == "output"
+        mock_manager.execute_remote.assert_called_once()
 
     async def test_execute_command_remote_requires_host(self):
         """Test that username without host uses local execution."""
@@ -134,7 +134,7 @@ class TestSSHConnectionManager:
 
         assert manager1 is manager2
 
-    async def test_get_connection_creates_new(self):
+    async def test_get_connection_creates_new(self, mocker):
         """Test getting a new SSH connection."""
         manager = SSHConnectionManager()
 
@@ -144,13 +144,15 @@ class TestSSHConnectionManager:
         async def async_connect(*args, **kwargs):
             return mock_conn
 
-        with patch("asyncssh.connect", side_effect=async_connect) as mock_connect:
-            conn = await manager.get_connection("host1", "user1")
+        mock_connect = MagicMock()
+        mock_connect.side_effect = async_connect
+        mocker.patch("asyncssh.connect", mock_connect)
 
-            assert conn is mock_conn
-            mock_connect.assert_called_once()
+        conn = await manager.get_connection("host1", "user1")
+        assert conn is mock_conn
+        mock_connect.assert_called_once()
 
-    async def test_get_connection_reuses_existing(self):
+    async def test_get_connection_reuses_existing(self, mocker):
         """Test that existing connections are reused."""
         manager = SSHConnectionManager()
         manager._connections.clear()  # Clear any existing connections
@@ -161,14 +163,17 @@ class TestSSHConnectionManager:
         async def async_connect(*args, **kwargs):
             return mock_conn
 
-        with patch("asyncssh.connect", side_effect=async_connect) as mock_connect:
-            conn1 = await manager.get_connection("host1", "user1")
-            conn2 = await manager.get_connection("host1", "user1")
+        mock_connect = MagicMock()
+        mock_connect.side_effect = async_connect
+        mocker.patch("asyncssh.connect", mock_connect)
 
-            assert conn1 is conn2
-            assert mock_connect.call_count == 1  # Only connected once
+        conn1 = await manager.get_connection("host1", "user1")
+        conn2 = await manager.get_connection("host1", "user1")
 
-    async def test_get_connection_different_hosts(self):
+        assert conn1 is conn2
+        assert mock_connect.call_count == 1  # Only connected once
+
+    async def test_get_connection_different_hosts(self, mocker):
         """Test that different hosts get different connections."""
         manager = SSHConnectionManager()
         manager._connections.clear()
@@ -181,13 +186,16 @@ class TestSSHConnectionManager:
         async def async_connect(*args, **kwargs):
             return mock_conn1 if kwargs.get("host") == "host1" else mock_conn2
 
-        with patch("asyncssh.connect", side_effect=async_connect):
-            conn1 = await manager.get_connection("host1", "user1")
-            conn2 = await manager.get_connection("host2", "user1")
+        mock_connect = MagicMock()
+        mock_connect.side_effect = async_connect
+        mocker.patch("asyncssh.connect", mock_connect)
 
-            assert conn1 is not conn2
+        conn1 = await manager.get_connection("host1", "user1")
+        conn2 = await manager.get_connection("host2", "user1")
 
-    async def test_execute_remote_success(self):
+        assert conn1 is not conn2
+
+    async def test_execute_remote_success(self, mocker):
         """Test successful remote command execution."""
         manager = SSHConnectionManager()
         manager._connections.clear()
@@ -205,15 +213,18 @@ class TestSSHConnectionManager:
         async def async_connect(*args, **kwargs):
             return mock_conn
 
-        with patch("asyncssh.connect", side_effect=async_connect):
-            returncode, stdout, stderr = await manager.execute_remote(["ls", "-la"], "testhost", "testuser")
+        mock_connect = MagicMock()
+        mock_connect.side_effect = async_connect
+        mocker.patch("asyncssh.connect", mock_connect)
 
-            assert returncode == 0
-            assert stdout == "remote output"
-            assert stderr == ""
-            mock_conn.run.assert_called_once()
+        returncode, stdout, stderr = await manager.execute_remote(["ls", "-la"], "testhost", "testuser")
 
-    async def test_execute_remote_command_failure(self):
+        assert returncode == 0
+        assert stdout == "remote output"
+        assert stderr == ""
+        mock_conn.run.assert_called_once()
+
+    async def test_execute_remote_command_failure(self, mocker):
         """Test remote command that returns non-zero exit code."""
         manager = SSHConnectionManager()
         manager._connections.clear()
@@ -230,13 +241,15 @@ class TestSSHConnectionManager:
         async def async_connect(*args, **kwargs):
             return mock_conn
 
-        with patch("asyncssh.connect", side_effect=async_connect):
-            returncode, stdout, stderr = await manager.execute_remote(["invalid_command"], "testhost", "testuser")
+        mock_connect = MagicMock()
+        mock_connect.side_effect = async_connect
+        mocker.patch("asyncssh.connect", mock_connect)
+        returncode, stdout, stderr = await manager.execute_remote(["invalid_command"], "testhost", "testuser")
 
-            assert returncode == 1
-            assert "command not found" in stderr
+        assert returncode == 1
+        assert "command not found" in stderr
 
-    async def test_execute_remote_connection_failure(self):
+    async def test_execute_remote_connection_failure(self, mocker):
         """Test handling of SSH connection failures."""
         manager = SSHConnectionManager()
         manager._connections.clear()
@@ -244,20 +257,26 @@ class TestSSHConnectionManager:
         async def async_connect_fail(*args, **kwargs):
             raise asyncssh.DisconnectError(1, "Connection refused")
 
-        with patch("asyncssh.connect", side_effect=async_connect_fail):
-            with pytest.raises(ConnectionError, match="Failed to connect"):
-                await manager.execute_remote(["ls"], "unreachable", "testuser")
+        mock_connect = MagicMock()
+        mock_connect.side_effect = async_connect_fail
+        mocker.patch("asyncssh.connect", mock_connect)
 
-    async def test_execute_remote_authentication_failure(self):
+        with pytest.raises(ConnectionError, match="Failed to connect"):
+            await manager.execute_remote(["ls"], "unreachable", "testuser")
+
+    async def test_execute_remote_authentication_failure(self, mocker):
         """Test handling of authentication failures."""
         manager = SSHConnectionManager()
         manager._connections.clear()
 
-        with patch("asyncssh.connect", side_effect=asyncssh.PermissionDenied("Auth failed")):
-            with pytest.raises(ConnectionError, match="Authentication failed"):
-                await manager.execute_remote(["ls"], "testhost", "baduser")
+        mock_connect = MagicMock()
+        mock_connect.side_effect = asyncssh.PermissionDenied("Auth failed")
+        mocker.patch("asyncssh.connect", mock_connect)
 
-    async def test_execute_remote_uses_discovered_key(self):
+        with pytest.raises(ConnectionError, match="Authentication failed"):
+            await manager.execute_remote(["ls"], "testhost", "baduser")
+
+    async def test_execute_remote_uses_discovered_key(self, mocker):
         """Test that remote execution uses discovered SSH key."""
         manager = SSHConnectionManager()
         manager._connections.clear()
@@ -276,14 +295,17 @@ class TestSSHConnectionManager:
         async def async_connect(*args, **kwargs):
             return mock_conn
 
-        with patch("asyncssh.connect", side_effect=async_connect) as mock_connect:
-            await manager.execute_remote(["ls"], "testhost", "testuser")
+        mock_connect = MagicMock()
+        mock_connect.side_effect = async_connect
+        mocker.patch("asyncssh.connect", mock_connect)
 
-            # Verify connect was called with the key
-            call_kwargs = mock_connect.call_args[1]
-            assert call_kwargs.get("client_keys") == ["/home/user/.ssh/id_ed25519"]
+        await manager.execute_remote(["ls"], "testhost", "testuser")
 
-    async def test_close_connections(self):
+        # Verify connect was called with the key
+        call_kwargs = mock_connect.call_args[1]
+        assert call_kwargs.get("client_keys") == ["/home/user/.ssh/id_ed25519"]
+
+    async def test_close_connections(self, mocker):
         """Test closing all connections."""
         manager = SSHConnectionManager()
         manager._connections.clear()
@@ -299,12 +321,15 @@ class TestSSHConnectionManager:
         async def async_connect(*args, **kwargs):
             return mock_conn1 if kwargs.get("host") == "host1" else mock_conn2
 
-        with patch("asyncssh.connect", side_effect=async_connect):
-            await manager.get_connection("host1", "user1")
-            await manager.get_connection("host2", "user1")
+        mock_connect = MagicMock()
+        mock_connect.side_effect = async_connect
+        mocker.patch("asyncssh.connect", mock_connect)
 
-            await manager.close_all()
+        await manager.get_connection("host1", "user1")
+        await manager.get_connection("host2", "user1")
 
-            mock_conn1.close.assert_called_once()
-            mock_conn2.close.assert_called_once()
-            assert len(manager._connections) == 0
+        await manager.close_all()
+
+        mock_conn1.close.assert_called_once()
+        mock_conn2.close.assert_called_once()
+        assert len(manager._connections) == 0
