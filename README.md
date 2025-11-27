@@ -80,7 +80,7 @@ ORIGINAL_UMASK=$(umask)
 
 umask 0002
 mkdir -p ~/.local/share/linux-mcp-server/logs
-sudo chown -R 1001 .local/share/linux-mcp-server/logs
+sudo chown -R 1001 ~/.local/share/linux-mcp-server/logs
 
 cp ~/.ssh/id_ed25519 ~/.local/share/linux-mcp-server/
 sudo chown 1001 ~/.local/share/linux-mcp-server/id_ed25519
