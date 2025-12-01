@@ -2,84 +2,19 @@
 
 import typing as t
 
-from mcp.server.fastmcp.exceptions import ToolError
 from mcp.types import ToolAnnotations
 from pydantic import BaseModel
 from pydantic import Field
 
 from linux_mcp_server.audit import log_tool_call
 from linux_mcp_server.connection.ssh import execute_command
+from linux_mcp_server.processing import CommandKey
+from linux_mcp_server.processing import ParsedData
+from linux_mcp_server.processing import RawCommandOutput
+from linux_mcp_server.processing import Rummager
 from linux_mcp_server.server import mcp
 from linux_mcp_server.utils.decorators import disallow_local_execution_in_containers
 from linux_mcp_server.utils.types import Host
-
-
-# Type aliases for the collect-parse-filter pattern
-CommandKey = tuple[str, ...]
-RawCommandOutput = str
-ParsedData = dict[str, t.Any]
-
-
-# Collection function for collect phase
-async def collect_command_outputs(
-    commands: list[list[str]],
-    host: Host | None = None,
-) -> dict[CommandKey, RawCommandOutput]:
-    """
-    Collect phase: Execute multiple commands and cache results.
-
-    Returns a dictionary mapping command tuples to their stdout output.
-    Commands are executed in order, and each unique command is only executed once.
-    """
-    cache: dict[CommandKey, RawCommandOutput] = {}
-
-    for command in commands:
-        command_key = tuple(command)
-        if command_key in cache:
-            continue
-
-        try:
-            returncode, stdout, _ = await execute_command(
-                command,
-                host=host,
-                username=username,
-            )
-            if returncode == 0 and stdout:
-                cache[command_key] = stdout
-        except (ValueError, ConnectionError) as e:
-            raise ToolError(f"Error executing command {' '.join(command)}: {str(e)}") from e
-
-    return cache
-
-
-# Helper function for filter phase
-def filter_fields(data: ParsedData, fields: list[str] | None) -> ParsedData:
-    """
-    Filter phase helper: Filter parsed data to include only specified fields.
-
-    If fields is None, return all data. Otherwise, return only the specified fields.
-    Supports nested field access using dot notation (e.g., "ram.total").
-    """
-    if fields is None:
-        return data
-
-    filtered: ParsedData = {}
-    for field in fields:
-        if "." in field:
-            # Handle nested fields
-            parts = field.split(".", 1)
-            parent, child = parts[0], parts[1]
-            if parent in data:
-                if parent not in filtered:
-                    filtered[parent] = {}
-                if isinstance(data[parent], dict) and child in data[parent]:
-                    if not isinstance(filtered[parent], dict):
-                        filtered[parent] = {}
-                    filtered[parent][child] = data[parent][child]
-        elif field in data:
-            filtered[field] = data[field]
-
-    return filtered
 
 
 # Helper function for filter phase
@@ -115,9 +50,9 @@ class SystemInfo(BaseModel):
 class LoadAverage(BaseModel):
     """Load average information."""
 
-    one_min: float
-    five_min: float
-    fifteen_min: float
+    one_min: float = 0.0
+    five_min: float = 0.0
+    fifteen_min: float = 0.0
 
 
 class CPUInfo(BaseModel):
@@ -209,7 +144,7 @@ class DeviceInfo(BaseModel):
     usb_device_count: int = 0
 
 
-def parse_system_information(raw_outputs: dict[CommandKey, RawCommandOutput]) -> ParsedData:
+async def parse_system_information(raw_outputs: dict[CommandKey, RawCommandOutput]) -> ParsedData:
     """
     Parse phase: Convert raw command outputs into structured data for system information.
 
@@ -267,7 +202,6 @@ async def get_system_information(
 ) -> SystemInfo:
     """Get basic system information."""
 
-    # Collect phase: Execute all commands
     commands = [
         ["hostname"],
         ["cat", "/etc/os-release"],
@@ -275,13 +209,8 @@ async def get_system_information(
         ["uptime", "-p"],
         ["uptime", "-s"],
     ]
-    raw_outputs = await collect_command_outputs(commands, host=host, username=username)
-
-    # Parse phase: Convert raw outputs to structured data
-    parsed_data = parse_system_information(raw_outputs)
-
-    # Filter phase: Apply field filters and build result
-    filtered_data = filter_fields(parsed_data, fields)
+    rummager = Rummager(parse_func=parse_system_information)
+    filtered_data = await rummager.rummage(commands, fields=fields, host=host)
 
     # Build SystemInfo object from filtered data
     return SystemInfo(
@@ -318,7 +247,7 @@ def parse_cpuinfo(output: str) -> ParsedData:
     return parsed
 
 
-def parse_cpu_information(raw_outputs: dict[CommandKey, RawCommandOutput]) -> ParsedData:
+async def parse_cpu_information(raw_outputs: dict[CommandKey, RawCommandOutput]) -> ParsedData:
     """
     Parse phase: Convert raw command outputs into structured CPU data for CPU information.
 
@@ -369,23 +298,17 @@ async def get_cpu_information(
 ) -> CPUInfo:
     """Get CPU information."""
 
-    # Collect phase: Execute all unique commands (note: /proc/cpuinfo only read once!)
     commands = [
         ["cat", "/proc/cpuinfo"],
         ["cat", "/proc/loadavg"],
         ["top", "-bn1"],
     ]
-    raw_outputs = await collect_command_outputs(commands, host=host, username=username)
-
-    # Parse phase: Convert raw outputs to structured data
-    parsed_data = parse_cpu_information(raw_outputs)
-
-    # Filter phase: Apply field filters and build result
-    filtered_data = filter_fields(parsed_data, fields)
+    rummager = Rummager(parse_func=parse_cpu_information)
+    filtered_data = await rummager.rummage(commands, fields=fields, host=host)
 
     # Build CPUInfo object from filtered data
     load_avg_data = filtered_data.get("load_average")
-    load_average = LoadAverage(**load_avg_data) if load_avg_data else None
+    load_average = LoadAverage(**load_avg_data) if load_avg_data else LoadAverage()
 
     return CPUInfo(
         cpu_model=filtered_data.get("cpu_model"),
@@ -398,7 +321,7 @@ async def get_cpu_information(
     )
 
 
-def parse_memory_information(raw_outputs: dict[CommandKey, RawCommandOutput]) -> ParsedData:
+async def parse_memory_information(raw_outputs: dict[CommandKey, RawCommandOutput]) -> ParsedData:
     """
     Parse phase: Convert raw command outputs into structured memory data for memory information.
 
@@ -457,7 +380,6 @@ def parse_memory_information(raw_outputs: dict[CommandKey, RawCommandOutput]) ->
 @log_tool_call
 async def get_memory_information(
     host: Host | None = None,
-    username: Username | None = None,
     fields: t.Annotated[
         list[str],
         Field(
@@ -473,13 +395,8 @@ async def get_memory_information(
     commands = [
         ["free", "-b"],
     ]
-    raw_outputs = await collect_command_outputs(commands, host=host, username=username)
-
-    # Parse phase: Convert raw outputs to structured data
-    parsed_data = parse_memory_information(raw_outputs)
-
-    # Filter phase: Apply field filters and build result
-    filtered_data = filter_fields(parsed_data, fields)
+    rummager = Rummager(parse_func=parse_memory_information)
+    filtered_data = await rummager.rummage(commands, fields=fields, host=host)
 
     # Build MemoryInfo object from filtered data
     ram_data = filtered_data.get("ram")
@@ -491,7 +408,7 @@ async def get_memory_information(
     return MemoryInfo(ram=ram_stats, swap=swap_stats)
 
 
-def parse_disk_usage(raw_outputs: dict[CommandKey, RawCommandOutput]) -> ParsedData:
+async def parse_disk_usage(raw_outputs: dict[CommandKey, RawCommandOutput]) -> ParsedData:
     """
     Parse phase: Convert raw command outputs into structured disk usage data for disk usage.
 
@@ -605,13 +522,8 @@ async def get_disk_usage(
         ["df", "-B1"],
         ["cat", "/proc/diskstats"],
     ]
-    raw_outputs = await collect_command_outputs(commands, host=host, username=username)
-
-    # Parse phase: Convert raw outputs to structured data
-    parsed_data = parse_disk_usage(raw_outputs)
-
-    # Filter phase: Apply field filters
-    filtered_data = filter_fields(parsed_data, fields)
+    rummager = Rummager(parse_func=parse_disk_usage)
+    filtered_data = await rummager.rummage(commands, fields=fields, host=host)
 
     # Apply mountpoint filter to partitions
     partitions_data = filtered_data.get("partitions", [])
@@ -627,135 +539,171 @@ async def get_disk_usage(
     return DiskUsage(partitions=partitions, io_stats=io_stats)
 
 
-async def parse_pci_devices(host: Host | None = None, username: Username | None = None) -> list[PCIDevice]:
+async def collect_device_information(
+    commands: list[list[str]], host: Host | None = None
+) -> dict[CommandKey, RawCommandOutput]:
     """
-    Parse PCI devices from sysfs.
+    Custom collect function for device information.
 
-    Reads device information from /sys/bus/pci/devices/ without relying on lspci.
+    This function dynamically discovers devices and reads their attributes.
+    It doesn't use the commands parameter since device paths are discovered at runtime.
     """
-    pci_devices = []
+    cache: dict[CommandKey, RawCommandOutput] = {}
 
-    # List all PCI devices
-    returncode, stdout, stderr = await execute_command(
-        ["find", "/sys/bus/pci/devices", "-maxdepth", "1", "-type", "l"],
-        host=host,
-        username=username,
-    )
+    # Collect PCI devices
+    pci_find_key = ("find", "/sys/bus/pci/devices", "-maxdepth", "1", "-type", "l")
+    returncode, stdout, _ = await execute_command(list(pci_find_key[1:]), host=host)
 
-    if returncode != 0 or not stdout:
-        return pci_devices
+    if returncode == 0 and stdout:
+        cache[pci_find_key] = stdout
+        device_paths = [
+            path.strip() for path in stdout.strip().split("\n") if path.strip() and path != "/sys/bus/pci/devices"
+        ]
 
-    device_paths = [
-        path.strip() for path in stdout.strip().split("\n") if path.strip() and path != "/sys/bus/pci/devices"
-    ]
-
-    for device_path in device_paths:
-        # Extract the device address from path (e.g., 0000:00:1f.2)
-        address = device_path.split("/")[-1]
-
-        device = PCIDevice(address=address)
-
-        # Read all device attributes in a single command
-        # Format: "key:value" for each file, one per line
-        returncode, stdout, _ = await execute_command(
-            [
+        for device_path in device_paths:
+            address = device_path.split("/")[-1]
+            cmd = (
                 "sh",
                 "-c",
                 f"cd {device_path} && for f in vendor device class label; do echo \"$f:$(cat $f 2>/dev/null || echo '')\"; done",
-            ],
-            host=host,
-            username=username,
-        )
+            )
+            returncode, stdout, _ = await execute_command(list(cmd), host=host)
+            if returncode == 0 and stdout:
+                # Use address as part of key to identify this specific device
+                cache[("pci_attrs", address)] = stdout
 
-        if returncode == 0 and stdout:
-            # Parse the output: each line is "key:value"
-            for line in stdout.strip().split("\n"):
-                if ":" in line:
-                    key, value = line.split(":", 1)
-                    value = value.strip()
-                    if value:  # Only set if value is not empty
-                        match key:
-                            case "vendor":
-                                device.vendor_id = value
-                            case "device":
-                                device.device_id = value
-                            case "class":
-                                device.class_id = value
-                            case "label":
-                                device.description = value
+    # Collect USB devices
+    usb_find_key = ("find", "/sys/bus/usb/devices", "-maxdepth", "1", "-type", "l")
+    returncode, stdout, _ = await execute_command(list(usb_find_key[1:]), host=host)
 
-        pci_devices.append(device)
+    if returncode == 0 and stdout:
+        cache[usb_find_key] = stdout
+        device_paths = [
+            path.strip() for path in stdout.strip().split("\n") if path.strip() and path != "/sys/bus/usb/devices"
+        ]
 
-    return pci_devices
+        for device_path in device_paths:
+            device_name = device_path.split("/")[-1]
+            # Skip root hubs (like usb1, usb2)
+            if "-" not in device_name:
+                continue
 
-
-async def parse_usb_devices(host: Host | None = None, username: Username | None = None) -> list[USBDevice]:
-    """
-    Parse USB devices from sysfs.
-
-    Reads device information from /sys/bus/usb/devices/ without relying on lsusb.
-    """
-    usb_devices = []
-
-    # List all USB devices
-    returncode, stdout, stderr = await execute_command(
-        ["find", "/sys/bus/usb/devices", "-maxdepth", "1", "-type", "l"],
-        host=host,
-        username=username,
-    )
-
-    if returncode != 0 or not stdout:
-        return usb_devices
-
-    device_paths = [
-        path.strip() for path in stdout.strip().split("\n") if path.strip() and path != "/sys/bus/usb/devices"
-    ]
-
-    for device_path in device_paths:
-        # Extract the bus-device identifier (e.g., 1-1, 2-1.1)
-        # Skip root hubs (like usb1, usb2)
-        device_name = device_path.split("/")[-1]
-        if "-" not in device_name:
-            continue
-
-        # Parse bus and device from name (e.g., "1-1" -> bus 1, device path 1)
-        parts = device_name.split("-")
-        bus = parts[0]
-
-        device = USBDevice(bus=bus, device=device_name)
-
-        # Read all device attributes in a single command
-        # Format: "key:value" for each file, one per line
-        returncode, stdout, _ = await execute_command(
-            [
+            cmd = (
                 "sh",
                 "-c",
                 f"cd {device_path} && for f in idVendor idProduct product manufacturer; do echo \"$f:$(cat $f 2>/dev/null || echo '')\"; done",
-            ],
-            host=host,
-            username=username,
-        )
+            )
+            returncode, stdout, _ = await execute_command(list(cmd), host=host)
+            if returncode == 0 and stdout:
+                # Use device_name as part of key to identify this specific device
+                cache[("usb_attrs", device_name)] = stdout
 
-        if returncode == 0 and stdout:
-            # Parse the output: each line is "key:value"
-            for line in stdout.strip().split("\n"):
-                if ":" in line:
-                    key, value = line.split(":", 1)
-                    value = value.strip()
-                    if value:  # Only set if value is not empty
-                        match key:
-                            case "idVendor":
-                                device.vendor_id = value
-                            case "idProduct":
-                                device.product_id = value
-                            case "product":
-                                device.description = value
-                            case "manufacturer":
-                                device.manufacturer = value
+    return cache
 
-        usb_devices.append(device)
 
-    return usb_devices
+def _parse_pci_device_attrs(address: str, output: str) -> PCIDevice:
+    """Parse PCI device attributes from raw output."""
+    device = PCIDevice(address=address)
+
+    for line in output.strip().split("\n"):
+        if ":" in line:
+            key, value = line.split(":", 1)
+            value = value.strip()
+            if value:
+                match key:
+                    case "vendor":
+                        device.vendor_id = value
+                    case "device":
+                        device.device_id = value
+                    case "class":
+                        device.class_id = value
+                    case "label":
+                        device.description = value
+
+    return device
+
+
+def _parse_usb_device_attrs(device_name: str, output: str) -> USBDevice:
+    """Parse USB device attributes from raw output."""
+    parts = device_name.split("-")
+    bus = parts[0]
+    device = USBDevice(bus=bus, device=device_name)
+
+    for line in output.strip().split("\n"):
+        if ":" in line:
+            key, value = line.split(":", 1)
+            value = value.strip()
+            if value:
+                match key:
+                    case "idVendor":
+                        device.vendor_id = value
+                    case "idProduct":
+                        device.product_id = value
+                    case "product":
+                        device.description = value
+                    case "manufacturer":
+                        device.manufacturer = value
+
+    return device
+
+
+async def parse_device_information(raw_outputs: dict[CommandKey, RawCommandOutput]) -> ParsedData:
+    """
+    Parse phase: Convert raw device outputs into structured device data.
+
+    Returns a dictionary with pci_devices and usb_devices lists.
+    """
+    pci_devices = []
+    usb_devices = []
+
+    # Parse PCI and USB devices
+    for command_key, output in raw_outputs.items():
+        if command_key[0] == "pci_attrs" and len(command_key) == 2:
+            address = command_key[1]
+            pci_devices.append(_parse_pci_device_attrs(address, output))
+        elif command_key[0] == "usb_attrs" and len(command_key) == 2:
+            device_name = command_key[1]
+            usb_devices.append(_parse_usb_device_attrs(device_name, output))
+
+    return {
+        "pci_devices": pci_devices,
+        "usb_devices": usb_devices,
+    }
+
+
+async def filter_device_information(
+    parsed_data: ParsedData, device_types: list[str] | None = None, limit: int | None = None
+) -> ParsedData:
+    """
+    Filter phase: Apply device type and limit filters to device data.
+
+    Args:
+        parsed_data: The parsed device data containing pci_devices and usb_devices
+        device_types: List of device types to include ('pci', 'usb'), or None for all
+        limit: Maximum number of devices to return per type, or None for all
+
+    Returns:
+        Filtered device data
+    """
+    filtered = {}
+
+    # Apply device type filter
+    should_include_pci = device_types is None or "pci" in device_types
+    should_include_usb = device_types is None or "usb" in device_types
+
+    if should_include_pci and "pci_devices" in parsed_data:
+        pci_devices = parsed_data["pci_devices"]
+        if limit is not None:
+            pci_devices = pci_devices[:limit]
+        filtered["pci_devices"] = pci_devices
+
+    if should_include_usb and "usb_devices" in parsed_data:
+        usb_devices = parsed_data["usb_devices"]
+        if limit is not None:
+            usb_devices = usb_devices[:limit]
+        filtered["usb_devices"] = usb_devices
+
+    return filtered
 
 
 @mcp.tool(
@@ -766,7 +714,6 @@ async def parse_usb_devices(host: Host | None = None, username: Username | None 
 @log_tool_call
 async def get_device_information(
     host: Host | None = None,
-    username: Username | None = None,
     device_types: t.Annotated[
         list[str],
         Field(
@@ -786,32 +733,35 @@ async def get_device_information(
     (/sys/bus/pci/devices/ and /sys/bus/usb/devices/) and does not rely on
     external utilities like lspci or lsusb which may not be installed.
     """
-    try:
-        # Collect and Parse phases: These are handled by helper functions due to
-        # the dynamic nature of device enumeration (need to find devices first,
-        # then query each one)
-        pci_devices: list[PCIDevice] = []
-        usb_devices: list[USBDevice] = []
 
-        # Filter phase: Apply device type filter
-        should_collect_pci = device_types is None or "pci" in device_types
-        should_collect_usb = device_types is None or "usb" in device_types
+    # Create a custom filter function that wraps filter_device_information
+    # to match the FilterFunc signature
+    async def custom_filter(parsed_data: ParsedData, fields: list[str] | None) -> ParsedData:
+        return await filter_device_information(parsed_data, device_types=device_types, limit=limit)
 
-        if should_collect_pci:
-            pci_devices = await parse_pci_devices(host=host, username=username)
-            if limit is not None:
-                pci_devices = pci_devices[:limit]
+    # Use Rummager with custom collect, parse, and filter functions
+    rummager = Rummager(
+        collect_func=collect_device_information,
+        parse_func=parse_device_information,
+        filter_func=custom_filter,
+    )
 
-        if should_collect_usb:
-            usb_devices = await parse_usb_devices(host=host, username=username)
-            if limit is not None:
-                usb_devices = usb_devices[:limit]
+    # Commands list is empty since collection is dynamic
+    filtered_data = await rummager.rummage(commands=[], host=host)
 
-        return DeviceInfo(
-            pci_devices=pci_devices,
-            pci_device_count=len(pci_devices),
-            usb_devices=usb_devices,
-            usb_device_count=len(usb_devices),
-        )
-    except Exception as e:
-        raise ToolError(f"Error: {str(e)}") from e
+    # Build DeviceInfo object from filtered data
+    pci_devices = [
+        device if isinstance(device, PCIDevice) else PCIDevice(**device)
+        for device in filtered_data.get("pci_devices", [])
+    ]
+    usb_devices = [
+        device if isinstance(device, USBDevice) else USBDevice(**device)
+        for device in filtered_data.get("usb_devices", [])
+    ]
+
+    return DeviceInfo(
+        pci_devices=pci_devices,
+        pci_device_count=len(pci_devices),
+        usb_devices=usb_devices,
+        usb_device_count=len(usb_devices),
+    )

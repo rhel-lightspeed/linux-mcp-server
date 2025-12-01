@@ -67,9 +67,9 @@ VARIANT_ID=server"""
                 case _:
                     return (1, "", "Command not found")
 
-        # Patch execute_command
+        # Patch execute_command in processing module (used by default Rummager._collect)
         with patch(
-            "linux_mcp_server.tools.system_info.execute_command",
+            "linux_mcp_server.processing.execute_command",
             new=AsyncMock(side_effect=mock_execute_command),
         ):
             result = await mcp.call_tool("get_system_information", arguments={})
@@ -161,10 +161,8 @@ VARIANT_ID=server"""
 
             return (1, "", "Command not found")
 
-        # Patch execute_command
-        with patch(
-            "linux_mcp_server.tools.system_info.execute_command", new=AsyncMock(side_effect=mock_execute_command)
-        ):
+        # Patch execute_command in processing module (used by default Rummager._collect)
+        with patch("linux_mcp_server.processing.execute_command", new=AsyncMock(side_effect=mock_execute_command)):
             result = await mcp.call_tool("get_cpu_information", arguments={})
 
             # Verify result structure
@@ -241,9 +239,9 @@ Swap:     6182400000           0  6182400000"""
             },
         }
 
-        # Patch execute_command
+        # Patch execute_command in processing module (used by default Rummager._collect)
         with patch(
-            "linux_mcp_server.tools.system_info.execute_command",
+            "linux_mcp_server.processing.execute_command",
             new=AsyncMock(side_effect=mock_execute_command),
         ):
             result = await mcp.call_tool("get_memory_information", arguments={})
@@ -367,9 +365,9 @@ tmpfs            1048576           0     1048576   0% /run/credentials/serial-ge
             "write_count": 54321 + 20000,  # 74,321
         }
 
-        # Patch execute_command
+        # Patch execute_command in processing module (used by default Rummager._collect)
         with patch(
-            "linux_mcp_server.tools.system_info.execute_command",
+            "linux_mcp_server.processing.execute_command",
             new=AsyncMock(side_effect=mock_execute_command),
         ):
             result = await mcp.call_tool("get_disk_usage", arguments={})
@@ -533,7 +531,7 @@ tmpfs            1048576           0     1048576   0% /run/credentials/serial-ge
             },
         ]
 
-        # Patch execute_command
+        # Patch execute_command in system_info module (used by custom collect_device_information)
         with patch(
             "linux_mcp_server.tools.system_info.execute_command",
             new=AsyncMock(side_effect=mock_execute_command),
