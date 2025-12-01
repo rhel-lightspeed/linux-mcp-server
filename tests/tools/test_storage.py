@@ -839,11 +839,12 @@ class TestReadFile:
         assert "Line 0" in output
         assert "Line 999" in output
 
-    @patch("linux_mcp_server.tools.storage.execute_command")
-    async def test_read_file_remote_execution(self, mock_execute_command):
+    async def test_read_file_remote_execution(self, mocker):
         """Test read_file with remote execution."""
         mock_content = "Remote file content\nLine 2\nLine 3"
-        mock_execute_command.return_value = (0, mock_content, "")
+        mock_execute_command = mocker.patch(
+            "linux_mcp_server.tools.storage.execute_command", AsyncMock(return_value=(0, mock_content, ""))
+        )
 
         result = await mcp.call_tool("read_file", {"path": "/remote/path/file.txt", "host": "remote.host.com"})
 
@@ -862,18 +863,21 @@ class TestReadFile:
         call_kwargs = mock_execute_command.call_args[1]
         assert call_kwargs["host"] == "remote.host.com"
 
-    @patch("linux_mcp_server.tools.storage.execute_command")
-    async def test_read_file_remote_command_failure(self, mock_execute_command):
+    async def test_read_file_remote_command_failure(self, mocker):
         """Test read_file handles command failures for remote execution."""
-        mock_execute_command.return_value = (1, "", "cat: /remote/file.txt: No such file or directory")
+        mocker.patch(
+            "linux_mcp_server.tools.storage.execute_command",
+            AsyncMock((1, "", "cat: /remote/file.txt: No such file or directory")),
+        )
 
-        with pytest.raises(ToolError, match="Error reading file"):
+        with pytest.raises(ToolError, match="Error executing tool read_file"):
             await mcp.call_tool("read_file", {"path": "/remote/file.txt", "host": "remote.host.com"})
 
-    @patch("linux_mcp_server.tools.storage.execute_command")
-    async def test_read_file_remote_skips_path_validation(self, mock_execute_command):
+    async def test_read_file_remote_skips_path_validation(self, mocker):
         """Test that remote execution skips local path validation."""
-        mock_execute_command.return_value = (0, "Remote content", "")
+        mocker.patch(
+            "linux_mcp_server.tools.storage.execute_command", AsyncMock(return_value=(0, "Remote content", ""))
+        )
 
         # This path doesn't exist locally but should not raise an error for remote execution
         result = await mcp.call_tool("read_file", {"path": "/nonexistent/remote/file.txt", "host": "remote.server.com"})
@@ -883,10 +887,9 @@ class TestReadFile:
         # Should succeed even though path doesn't exist locally
         assert isinstance(result[0], list)
 
-    @patch("linux_mcp_server.tools.storage.execute_command")
-    async def test_read_file_remote_empty_output(self, mock_execute_command):
+    async def test_read_file_remote_empty_output(self, mocker):
         """Test read_file with remote execution returning empty content."""
-        mock_execute_command.return_value = (0, "", "")
+        mocker.patch("linux_mcp_server.tools.storage.execute_command", AsyncMock(return_value=(0, "", "")))
 
         result = await mcp.call_tool("read_file", {"path": "/remote/empty.txt", "host": "remote.host.com"})
 
