@@ -69,7 +69,7 @@ LABEL url="https://github.com/rhel-lightspeed/linux-mcp-server"
 LABEL vendor="Red Hat, Inc."
 LABEL version=${VERSION}
 
-ADD LICENSE /licenses/Apache-2.0.txt
+ADD licenses/ /licenses/
 
 RUN microdnf -y --nodocs --setopt=install_weak_deps=0 install \
         git \
