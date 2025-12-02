@@ -25,12 +25,9 @@ class DataPipeline:
         parse_func: ParseFunc | None = None,
         filter_func: FilterFunc | None = None,
     ):
-        if collect_func is not None:
-            self._collect = collect_func  # type: ignore[method-assign]
-        if parse_func is not None:
-            self._parse = parse_func  # type: ignore[method-assign]
-        if filter_func is not None:
-            self._filter = filter_func  # type: ignore[method-assign]
+        self._collect = collect_func or self._default_collect
+        self._parse = parse_func or self._default_parse
+        self._filter = filter_func or self._default_filter
 
     async def rummage(
         self, commands: CommandList, fields: list[str] | None = None, host: Host | None = None
@@ -45,7 +42,9 @@ class DataPipeline:
         filtered_data = await self._filter(parsed_data, fields)
         return filtered_data
 
-    async def _collect(self, commands: CommandList, host: Host | None = None) -> dict[CommandKey, RawCommandOutput]:
+    async def _default_collect(
+        self, commands: CommandList, host: Host | None = None
+    ) -> dict[CommandKey, RawCommandOutput]:
         """
         Default collect function: Execute multiple commands and cache results.
 
@@ -71,13 +70,13 @@ class DataPipeline:
 
         return cache
 
-    async def _parse(self, raw_outputs: dict[CommandKey, RawCommandOutput]) -> ParsedData:
+    async def _default_parse(self, raw_outputs: dict[CommandKey, RawCommandOutput]) -> ParsedData:
         """
         Default parse function: Return a dictionary of unmodified raw outputs.
         """
         return ParsedData(iterable=dict(raw_outputs))
 
-    async def _filter(self, parsed_data: ParsedData, fields: list[str] | None) -> ParsedData:
+    async def _default_filter(self, parsed_data: ParsedData, fields: list[str] | None) -> ParsedData:
         """
         Default filter function: Filter parsed data to include only specified fields.
 
