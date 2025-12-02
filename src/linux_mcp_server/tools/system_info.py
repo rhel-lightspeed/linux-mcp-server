@@ -70,10 +70,11 @@ class CPUInfo(BaseModel):
 class MemoryStats(BaseModel):
     """Memory statistics model."""
 
-    total: int
-    used: int
-    free: int
-    percent: float
+    total: int = 0
+    used: int = 0
+    free: int = 0
+    shared: int = 0
+    percent: float = 0.0
     available: int | None = None
     buffers: int | None = None
     cached: int | None = None
@@ -82,8 +83,8 @@ class MemoryStats(BaseModel):
 class MemoryInfo(BaseModel):
     """Memory information model."""
 
-    ram: MemoryStats | None = None
-    swap: MemoryStats | None = None
+    ram: MemoryStats
+    swap: MemoryStats
 
 
 class DiskPartition(BaseModel):
@@ -101,17 +102,17 @@ class DiskPartition(BaseModel):
 class DiskIOStats(BaseModel):
     """Disk I/O statistics."""
 
-    read_bytes: int
-    write_bytes: int
-    read_count: int
-    write_count: int
+    read_bytes: int = 0
+    write_bytes: int = 0
+    read_count: int = 0
+    write_count: int = 0
 
 
 class DiskUsage(BaseModel):
     """Disk usage information model."""
 
     partitions: list[DiskPartition]
-    io_stats: DiskIOStats | None = None
+    io_stats: DiskIOStats
 
 
 class PCIDevice(BaseModel):
@@ -410,8 +411,8 @@ async def get_memory_information(
     ram_data = filtered_data.get("ram")
     swap_data = filtered_data.get("swap")
 
-    ram_stats = MemoryStats(**ram_data) if ram_data else None
-    swap_stats = MemoryStats(**swap_data) if swap_data else None
+    ram_stats = MemoryStats(**ram_data) if ram_data else MemoryStats()
+    swap_stats = MemoryStats(**swap_data) if swap_data else MemoryStats()
 
     return MemoryInfo(ram=ram_stats, swap=swap_stats)
 
@@ -542,7 +543,7 @@ async def get_disk_usage(
     partitions = [DiskPartition(**p) for p in partitions_data]
 
     io_stats_data = filtered_data.get("io_stats")
-    io_stats = DiskIOStats(**io_stats_data) if io_stats_data else None
+    io_stats = DiskIOStats(**io_stats_data) if io_stats_data else DiskIOStats()
 
     return DiskUsage(partitions=partitions, io_stats=io_stats)
 
