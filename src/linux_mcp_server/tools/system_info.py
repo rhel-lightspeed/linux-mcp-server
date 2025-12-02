@@ -562,15 +562,18 @@ async def collect_device_information(
 
         for device_path in device_paths:
             address = device_path.split("/")[-1]
-            cmd = (
-                "sh",
-                "-c",
-                f"cd {device_path} && for f in vendor device class label; do echo \"$f:$(cat $f 2>/dev/null || echo '')\"; done",
-            )
-            returncode, stdout, _ = await execute_command(list(cmd), host=host)
-            if returncode == 0 and stdout:
-                # Use address as part of key to identify this specific device
-                cache[("pci_attrs", address)] = stdout
+            attrs = ["vendor", "device", "class", "label"]
+            results = []
+            for attr in attrs:
+                file_path = f"{device_path}/{attr}"
+                returncode, stdout, _ = await execute_command(["cat", file_path], host=host)
+                # Handle both success and failure (file may not exist)
+                value = stdout.strip() if returncode == 0 and stdout else ""
+                results.append(f"{attr}:{value}")
+
+            # Combine into single cache entry
+            combined_output = "\n".join(results)
+            cache[("pci_attrs", address)] = combined_output
 
     # Collect USB devices
     usb_find_key = ("find", "/sys/bus/usb/devices", "-maxdepth", "1", "-type", "l")
@@ -588,15 +591,18 @@ async def collect_device_information(
             if "-" not in device_name:
                 continue
 
-            cmd = (
-                "sh",
-                "-c",
-                f"cd {device_path} && for f in idVendor idProduct product manufacturer; do echo \"$f:$(cat $f 2>/dev/null || echo '')\"; done",
-            )
-            returncode, stdout, _ = await execute_command(list(cmd), host=host)
-            if returncode == 0 and stdout:
-                # Use device_name as part of key to identify this specific device
-                cache[("usb_attrs", device_name)] = stdout
+            attrs = ["idVendor", "idProduct", "product", "manufacturer"]
+            results = []
+            for attr in attrs:
+                file_path = f"{device_path}/{attr}"
+                returncode, stdout, _ = await execute_command(["cat", file_path], host=host)
+                # Handle both success and failure (file may not exist)
+                value = stdout.strip() if returncode == 0 and stdout else ""
+                results.append(f"{attr}:{value}")
+
+            # Combine into single cache entry
+            combined_output = "\n".join(results)
+            cache[("usb_attrs", device_name)] = combined_output
 
     return cache
 
