@@ -347,7 +347,7 @@ async def parse_memory_information(raw_outputs: dict[CommandKey, RawCommandOutpu
                     total = int(parts[1])
                     used = int(parts[2])
                     free = int(parts[3])
-                    # parts[4] is shared memory (not used in MemoryStats)
+                    shared = int(parts[4])
                     buff_cache = int(parts[5]) if len(parts) > 5 else 0
                     available = int(parts[6]) if len(parts) > 6 else free
                     percent = (used / total * 100) if total > 0 else 0
@@ -356,6 +356,7 @@ async def parse_memory_information(raw_outputs: dict[CommandKey, RawCommandOutpu
                         "total": total,
                         "used": used,
                         "free": free,
+                        "shared": shared,
                         "available": available,
                         "percent": percent,
                         "buffers": buff_cache,
