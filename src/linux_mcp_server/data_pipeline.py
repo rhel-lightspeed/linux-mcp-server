@@ -18,7 +18,7 @@ ParseFunc = t.Callable[[dict[CommandKey, RawCommandOutput]], t.Awaitable[ParsedD
 FilterFunc = t.Callable[[ParsedData, list[str] | None], t.Awaitable[ParsedData]]
 
 
-class Rummager:
+class DataPipeline:
     def __init__(
         self,
         collect_func: CollectFunc | None = None,

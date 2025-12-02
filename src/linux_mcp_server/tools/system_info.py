@@ -8,10 +8,10 @@ from pydantic import Field
 
 from linux_mcp_server.audit import log_tool_call
 from linux_mcp_server.connection.ssh import execute_command
-from linux_mcp_server.processing import CommandKey
-from linux_mcp_server.processing import ParsedData
-from linux_mcp_server.processing import RawCommandOutput
-from linux_mcp_server.processing import Rummager
+from linux_mcp_server.data_pipeline import CommandKey
+from linux_mcp_server.data_pipeline import DataPipeline
+from linux_mcp_server.data_pipeline import ParsedData
+from linux_mcp_server.data_pipeline import RawCommandOutput
 from linux_mcp_server.server import mcp
 from linux_mcp_server.utils.decorators import disallow_local_execution_in_containers
 from linux_mcp_server.utils.types import Host
@@ -217,7 +217,7 @@ async def get_system_information(
         ["uptime", "-p"],
         ["uptime", "-s"],
     ]
-    rummager = Rummager(parse_func=parse_system_information)
+    rummager = DataPipeline(parse_func=parse_system_information)
     filtered_data = await rummager.rummage(commands, fields=fields, host=host)
 
     # Build SystemInfo object from filtered data
@@ -311,7 +311,7 @@ async def get_cpu_information(
         ["cat", "/proc/loadavg"],
         ["top", "-bn1"],
     ]
-    rummager = Rummager(parse_func=parse_cpu_information)
+    rummager = DataPipeline(parse_func=parse_cpu_information)
     filtered_data = await rummager.rummage(commands, fields=fields, host=host)
 
     # Build CPUInfo object from filtered data
@@ -404,7 +404,7 @@ async def get_memory_information(
     commands = [
         ["free", "-b"],
     ]
-    rummager = Rummager(parse_func=parse_memory_information)
+    rummager = DataPipeline(parse_func=parse_memory_information)
     filtered_data = await rummager.rummage(commands, fields=fields, host=host)
 
     # Build MemoryInfo object from filtered data
@@ -531,7 +531,7 @@ async def get_disk_usage(
         ["df", "-B1"],
         ["cat", "/proc/diskstats"],
     ]
-    rummager = Rummager(parse_func=parse_disk_usage)
+    rummager = DataPipeline(parse_func=parse_disk_usage)
     filtered_data = await rummager.rummage(commands, fields=fields, host=host)
 
     # Apply mountpoint filter to partitions
@@ -755,7 +755,7 @@ async def get_device_information(
         return await filter_device_information(parsed_data, device_types=device_types, limit=limit)
 
     # Use Rummager with custom collect, parse, and filter functions
-    rummager = Rummager(
+    rummager = DataPipeline(
         collect_func=collect_device_information,
         parse_func=parse_device_information,
         filter_func=custom_filter,
