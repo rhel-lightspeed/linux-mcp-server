@@ -25,9 +25,9 @@ class DataPipeline:
         parse_func: ParseFunc | None = None,
         filter_func: FilterFunc | None = None,
     ):
-        self._collect = collect_func or self._default_collect
-        self._parse = parse_func or self._default_parse
-        self._filter = filter_func or self._default_filter
+        self._collect_func = collect_func
+        self._parse_func = parse_func
+        self._filter_func = filter_func
 
     async def rummage(
         self, commands: CommandList, fields: list[str] | None = None, host: Host | None = None
@@ -42,64 +42,80 @@ class DataPipeline:
         filtered_data = await self._filter(parsed_data, fields)
         return filtered_data
 
-    async def _default_collect(
-        self, commands: CommandList, host: Host | None = None
-    ) -> dict[CommandKey, RawCommandOutput]:
-        """
-        Default collect function: Execute multiple commands and cache results.
+    async def _collect(self, commands: CommandList, host: Host | None = None) -> dict[CommandKey, RawCommandOutput]:
+        if self._collect_func is not None:
+            return await self._collect_func(commands, host)
+        return await _default_collect(commands, host)
 
-        Returns a dictionary mapping command tuples to their stdout output.
-        Commands are executed in order, and each unique command is only executed once.
-        """
-        cache: dict[CommandKey, RawCommandOutput] = {}
+    async def _parse(self, raw_outputs: dict[CommandKey, RawCommandOutput]) -> ParsedData:
+        if self._parse_func is not None:
+            return await self._parse_func(raw_outputs)
+        return await _default_parse(raw_outputs)
 
-        for command in commands:
-            command_key = tuple(command)
-            if command_key in cache:
-                continue
+    async def _filter(self, parsed_data: ParsedData, fields: list[str] | None) -> ParsedData:
+        if self._filter_func is not None:
+            return await self._filter_func(parsed_data, fields)
+        return await _default_filter(parsed_data, fields)
 
-            try:
-                returncode, stdout, _ = await execute_command(
-                    command,
-                    host=host,
-                )
-                if returncode == 0 and stdout:
-                    cache[command_key] = stdout
-            except (ValueError, ConnectionError) as e:
-                raise ToolError(f"Error executing command {' '.join(command)}: {str(e)}") from e
 
-        return cache
+async def _default_collect(commands: CommandList, host: Host | None = None) -> dict[CommandKey, RawCommandOutput]:
+    """
+    Default collect function: Execute multiple commands and cache results.
 
-    async def _default_parse(self, raw_outputs: dict[CommandKey, RawCommandOutput]) -> ParsedData:
-        """
-        Default parse function: Return a dictionary of unmodified raw outputs.
-        """
-        return ParsedData(iterable=dict(raw_outputs))
+    Returns a dictionary mapping command tuples to their stdout output.
+    Commands are executed in order, and each unique command is only executed once.
+    """
+    cache: dict[CommandKey, RawCommandOutput] = {}
 
-    async def _default_filter(self, parsed_data: ParsedData, fields: list[str] | None) -> ParsedData:
-        """
-        Default filter function: Filter parsed data to include only specified fields.
+    for command in commands:
+        command_key = tuple(command)
+        if command_key in cache:
+            continue
 
-        If fields is None, return all data. Otherwise, return only the specified fields.
-        Supports nested field access using dot notation (e.g., "ram.total").
-        """
-        if fields is None:
-            return parsed_data
+        try:
+            returncode, stdout, _ = await execute_command(
+                command,
+                host=host,
+            )
+            if returncode == 0 and stdout:
+                cache[command_key] = stdout
+        except (ValueError, ConnectionError) as e:
+            raise ToolError(f"Error executing command {' '.join(command)}: {str(e)}") from e
 
-        filtered: ParsedData = {}
-        for field in fields:
-            if "." in field:
-                # Handle nested fields
-                parts = field.split(".", 1)
-                parent, child = parts[0], parts[1]
-                if parent in parsed_data:
-                    if parent not in filtered:
+    return cache
+
+
+async def _default_parse(raw_outputs: dict[CommandKey, RawCommandOutput]) -> ParsedData:
+    """
+    Default parse function: Return a dictionary of unmodified raw outputs.
+    """
+    return ParsedData(iterable=dict(raw_outputs))
+
+
+async def _default_filter(parsed_data: ParsedData, fields: list[str] | None) -> ParsedData:
+    """
+    Default filter function: Filter parsed data to include only specified fields.
+
+    If fields is None, return all data. Otherwise, return only the specified fields.
+    Supports nested field access using dot notation (e.g., "ram.total").
+    """
+    if fields is None:
+        return parsed_data
+
+    filtered: ParsedData = {}
+    for field in fields:
+        if "." in field:
+            # Handle nested fields
+            parts = field.split(".", 1)
+            parent, child = parts[0], parts[1]
+            if parent in parsed_data:
+                if parent not in filtered:
+                    filtered[parent] = {}
+                if isinstance(parsed_data[parent], dict) and child in parsed_data[parent]:
+                    if not isinstance(filtered[parent], dict):
                         filtered[parent] = {}
-                    if isinstance(parsed_data[parent], dict) and child in parsed_data[parent]:
-                        if not isinstance(filtered[parent], dict):
-                            filtered[parent] = {}
-                        filtered[parent][child] = parsed_data[parent][child]
-            elif field in parsed_data:
-                filtered[field] = parsed_data[field]
+                    filtered[parent][child] = parsed_data[parent][child]
+        elif field in parsed_data:
+            filtered[field] = parsed_data[field]
 
-        return filtered
+    return filtered
