@@ -18,46 +18,6 @@ ParseFunc = t.Callable[[dict[CommandKey, RawCommandOutput]], t.Awaitable[ParsedD
 FilterFunc = t.Callable[[ParsedData, list[str] | None], t.Awaitable[ParsedData]]
 
 
-class DataPipeline:
-    def __init__(
-        self,
-        collect_func: CollectFunc | None = None,
-        parse_func: ParseFunc | None = None,
-        filter_func: FilterFunc | None = None,
-    ):
-        self._collect_func = collect_func
-        self._parse_func = parse_func
-        self._filter_func = filter_func
-
-    async def rummage(
-        self, commands: CommandList, fields: list[str] | None = None, host: Host | None = None
-    ) -> ParsedData:
-        """
-        Step 1: Collect raw outputs from the commands.
-        Step 2: Parse the raw outputs into structured data.
-        Step 3: Filter the parsed data to include only specified fields.
-        """
-        raw_outputs = await self._collect(commands, host)
-        parsed_data = await self._parse(raw_outputs)
-        filtered_data = await self._filter(parsed_data, fields)
-        return filtered_data
-
-    async def _collect(self, commands: CommandList, host: Host | None = None) -> dict[CommandKey, RawCommandOutput]:
-        if self._collect_func is not None:
-            return await self._collect_func(commands, host)
-        return await _default_collect(commands, host)
-
-    async def _parse(self, raw_outputs: dict[CommandKey, RawCommandOutput]) -> ParsedData:
-        if self._parse_func is not None:
-            return await self._parse_func(raw_outputs)
-        return await _default_parse(raw_outputs)
-
-    async def _filter(self, parsed_data: ParsedData, fields: list[str] | None) -> ParsedData:
-        if self._filter_func is not None:
-            return await self._filter_func(parsed_data, fields)
-        return await _default_filter(parsed_data, fields)
-
-
 async def _default_collect(commands: CommandList, host: Host | None = None) -> dict[CommandKey, RawCommandOutput]:
     """
     Default collect function: Execute multiple commands and cache results.
@@ -119,3 +79,28 @@ async def _default_filter(parsed_data: ParsedData, fields: list[str] | None) -> 
             filtered[field] = parsed_data[field]
 
     return filtered
+
+
+class DataPipeline:
+    def __init__(
+        self,
+        collect_func: CollectFunc = _default_collect,
+        parse_func: ParseFunc = _default_parse,
+        filter_func: FilterFunc = _default_filter,
+    ):
+        self._collect = collect_func
+        self._parse = parse_func
+        self._filter = filter_func
+
+    async def rummage(
+        self, commands: CommandList, fields: list[str] | None = None, host: Host | None = None
+    ) -> ParsedData:
+        """
+        Step 1: Collect raw outputs from the commands.
+        Step 2: Parse the raw outputs into structured data.
+        Step 3: Filter the parsed data to include only specified fields.
+        """
+        raw_outputs = await self._collect(commands, host)
+        parsed_data = await self._parse(raw_outputs)
+        filtered_data = await self._filter(parsed_data, fields)
+        return filtered_data
