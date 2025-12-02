@@ -1,0 +1,35 @@
+# See the documentation for more information:
+# https://packit.dev/docs/configuration/
+
+specfile_path: packaging/linux-mcp-server.spec
+
+# name in upstream package repository or registry (e.g. in PyPI)
+upstream_package_name: linux-mcp-server
+# downstream (Fedora) RPM package name
+downstream_package_name: linux-mcp-server
+
+srpm_build_deps: []
+
+jobs:
+  # Build RPMs for each pull request
+  - job: copr_build
+    trigger: pull_request
+    owner: "@rhel-lightspeed"
+    project: linux-mcp-server
+    targets:
+      # TODO(r0x0d): Remove this once packit updates `fedora-all`
+      - fedora-42-x86_64
+      - fedora-43-x86_64
+      - fedora-rawhide-x86_64
+
+  # Build RPMs for main branch
+  - job: copr_build
+    trigger: commit
+    branch: main
+    owner: "@rhel-lightspeed"
+    project: linux-mcp-server
+    targets:
+      # TODO(r0x0d): Remove this once packit updates `fedora-all`
+      - fedora-42-x86_64
+      - fedora-43-x86_64
+      - fedora-rawhide-x86_64
