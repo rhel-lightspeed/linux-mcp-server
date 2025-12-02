@@ -5,9 +5,10 @@ import getpass
 from pathlib import Path
 from typing import Optional
 
-from pydantic import field_validator
 from pydantic_settings import BaseSettings
 from pydantic_settings import SettingsConfigDict
+
+from linux_mcp_server.utils.types import UpperCase
 
 
 class Config(BaseSettings):
@@ -19,7 +20,7 @@ class Config(BaseSettings):
 
     # Logging configuration
     log_dir: Optional[Path] = None
-    log_level: str = "INFO"
+    log_level: UpperCase = "INFO"
     log_retention_days: int = 10
 
     # Log file access control
@@ -29,11 +30,6 @@ class Config(BaseSettings):
     ssh_key_path: Optional[Path] = None
     key_passphrase: Optional[str] = None
     search_for_ssh_key: bool = False
-
-    @field_validator("log_level")
-    @classmethod
-    def normalize_log_level(cls, v: str) -> str:
-        return v.upper()
 
 
 CONFIG = Config()
