@@ -21,7 +21,29 @@ from linux_mcp_server.utils.decorators import disallow_local_execution_in_contai
 from linux_mcp_server.utils.types import Host
 
 
-class DirectoryEntry(BaseModel):
+class ToolExecutionAttributes(BaseModel):
+    names: list[str]
+    command: list[str]
+    parser: t.Callable[[str], t.Any]
+
+    async def execute(self, host: Host | None) -> str:
+        try:
+            returncode, stdout, _ = await execute_command(self.command, host=host)
+        except ValueError or ConnectionError as e:
+            raise ToolError(f"Error: {str(e)}") from e
+
+        if returncode != 0 and stdout == "":
+            # Throw error in case returncode/stdout is not what expected
+            raise ToolError(
+                f"Error running {self.command} command: command failed with return code {returncode} and no output was returned"
+            )
+
+        return stdout
+
+
+class NodeEntry(BaseModel):
+    """A node entry model that is used by both directories and files listing."""
+
     size: int = 0
     modified: float = 0.0
     name: str = ""
@@ -101,6 +123,77 @@ async def list_block_devices(
     return "\n".join(result)
 
 
+def _validate_path(path: str) -> str:
+    """Validate a given user path"""
+    try:
+        path_obj = Path(path).resolve(strict=True)
+    except (OSError, RuntimeError):
+        raise ToolError(f"Path does not exist or cannot be resolved: {path}")
+
+    if not os.access(path_obj, os.R_OK):
+        raise ToolError(f"Permission denied to read: {path}")
+
+    return str(path_obj)
+
+
+def _sort_results(path: str, lines: str, order_by: OrderBy, top_n: int | None, sort: SortBy) -> list[NodeEntry]:
+    """Sort results based on `py:OrderBy` enum."""
+    nodes = []
+    match order_by:
+        case OrderBy.SIZE:
+            nodes = [
+                NodeEntry(size=int(size), name=Path(dir_path_str).name)
+                for line in lines
+                for size, dir_path_str in [line.split("\t", 1)]
+                if dir_path_str != path
+            ]
+        case OrderBy.NAME:
+            nodes = [NodeEntry(name=line) for line in lines]
+        case OrderBy.MODIFIED:  # pragma: no branch
+            nodes = [
+                NodeEntry(modified=float(timestamp), name=dir_name)
+                for line in lines
+                for timestamp, dir_name in [line.split("\t", 1)]
+            ]
+
+    # Sort by the order_by field
+    nodes.sort(key=lambda x: getattr(x, order_by), reverse=sort == SortBy.DESCENDING)
+
+    if top_n:
+        return nodes[:top_n]
+
+    return nodes
+
+
+def _splitlines(stdout: str) -> list[str]:
+    """Helper function to splitlines from stdout."""
+    return [line.strip() for line in stdout.strip().splitlines() if line]
+
+
+async def _perform_tool_calling(
+    path: str,
+    host: Host | None,
+    order_by: OrderBy,
+    top_n: int | None,
+    sort: SortBy,
+    attributes: dict[OrderBy, ToolExecutionAttributes],
+) -> list[NodeEntry]:
+    """Perform the tool calling given by the list of `py:attributes`"""
+    # For local execution, validate path
+    if not host:
+        path = _validate_path(path)
+
+    try:
+        result = await attributes[order_by].execute(host=host)
+        result = attributes[order_by].parser(result)
+    except KeyError as e:
+        raise ToolError(str(e)) from e
+
+    sorted_results = _sort_results(path, result, order_by, top_n, sort)
+
+    return sorted_results
+
+
 @mcp.tool(
     title="List directories",
     description="List directories under a specified path with various sorting options.",
@@ -108,7 +201,7 @@ async def list_block_devices(
 )
 @log_tool_call
 @disallow_local_execution_in_containers
-async def list_directories(  # noqa: C901
+async def list_directories(
     path: t.Annotated[str, Field(description="The directory path to analyze")],
     order_by: t.Annotated[
         OrderBy, Field(description="Sort order - 'size', 'name', or 'modified' (default: 'name')")
@@ -126,71 +219,68 @@ async def list_directories(  # noqa: C901
     ] = None,
     host: Host | None = None,
 ) -> t.Annotated[
-    list[DirectoryEntry],
+    list[NodeEntry],
     "List of directories with size or modified timestamp",
 ]:
-    # For local execution, validate path
-    if not host:
-        try:
-            path_obj = Path(path).resolve(strict=True)
-        except (OSError, RuntimeError):
-            raise ToolError(f"Path does not exist or cannot be resolved: {path}")
+    attributes = {
+        OrderBy.SIZE: ToolExecutionAttributes(
+            names=[OrderBy.SIZE], command=["du", "-b", "--max-depth=1", path], parser=_splitlines
+        ),
+        OrderBy.NAME: ToolExecutionAttributes(
+            names=[OrderBy.NAME],
+            command=["find", path, "-mindepth", "1", "-maxdepth", "1", "-type", "d", "-printf", "%f\\n"],
+            parser=_splitlines,
+        ),
+        OrderBy.MODIFIED: ToolExecutionAttributes(
+            names=[OrderBy.MODIFIED],
+            command=["find", path, "-mindepth", "1", "-maxdepth", "1", "-type", "d", "-printf", "%T@\\t%f\\n"],
+            parser=_splitlines,
+        ),
+    }
+    return await _perform_tool_calling(path, host, order_by, top_n, sort, attributes)
 
-        if not path_obj.is_dir():
-            raise ToolError(f"Path is not a directory: {path}")
 
-        if not os.access(path_obj, os.R_OK):
-            raise ToolError(f"Permission denied to read directory: {path}")
-
-        path = str(path_obj)
-
-    match order_by:
-        case OrderBy.SIZE:
-            # Use du command to get directory sizes efficiently
-            command = ["du", "-b", "--max-depth=1", path]
-        case OrderBy.NAME:
-            # Use find to list only immediate subdirectories
-            command = ["find", path, "-mindepth", "1", "-maxdepth", "1", "-type", "d", "-printf", "%f\\n"]
-        case OrderBy.MODIFIED:  # pragma: no branch
-            # Use find with modification time
-            command = ["find", path, "-mindepth", "1", "-maxdepth", "1", "-type", "d", "-printf", "%T@\\t%f\\n"]
-
-    returncode, stdout, _ = await execute_command(
-        command,
-        host=host,
-    )
-
-    if returncode != 0 and stdout == "":
-        raise ToolError(
-            f"Error running {command[0]} command: command failed with return code {returncode} and no output was returned"
-        )
-
-    lines = [line.strip() for line in stdout.strip().splitlines() if line]
-
-    match order_by:
-        case OrderBy.SIZE:
-            directories = [
-                DirectoryEntry(size=int(size), name=Path(dir_path_str).name)
-                for line in lines
-                for size, dir_path_str in [line.split("\t", 1)]
-                if dir_path_str != path
-            ]
-        case OrderBy.NAME:
-            directories = [DirectoryEntry(name=line) for line in lines]
-        case OrderBy.MODIFIED:  # pragma: no branch
-            directories = [
-                DirectoryEntry(modified=float(timestamp), name=dir_name)
-                for line in lines
-                for timestamp, dir_name in [line.split("\t", 1)]
-            ]
-
-    # Sort by the order_by field
-    directories.sort(key=lambda x: getattr(x, order_by), reverse=sort == SortBy.DESCENDING)
-
-    if top_n:
-        return directories[:top_n]
-
-    return directories
+@mcp.tool(
+    title="List files",
+    description="List files under a specified path with various sorting options.",
+    annotations=ToolAnnotations(readOnlyHint=True),
+)
+@log_tool_call
+@disallow_local_execution_in_containers
+async def list_files(
+    path: t.Annotated[str, Field(description="The path to analyze")],
+    order_by: t.Annotated[
+        OrderBy, Field(description="Sort order - 'size', 'name', or 'modified' (default: 'name')")
+    ] = OrderBy.NAME,
+    sort: t.Annotated[
+        SortBy, Field(description="Sort direction - 'ascending' or 'descending' (default: 'ascending')")
+    ] = SortBy.ASCENDING,
+    top_n: t.Annotated[
+        int | None,
+        Field(
+            description="Optional limit on number of files to return (1-1000, only used with size ordering)",
+            gt=0,
+            le=1_000,
+        ),
+    ] = None,
+    host: Host | None = None,
+) -> t.Annotated[
+    list[NodeEntry],
+    "List of files with size or modified timestamp",
+]:
+    base_command = ["find", path, "-mindepth", "1", "-maxdepth", "1", "-type", "f", "-printf"]
+    attributes = {
+        OrderBy.SIZE: ToolExecutionAttributes(
+            names=[OrderBy.SIZE], command=base_command + ["%s\\t%f\\n"], parser=_splitlines
+        ),
+        OrderBy.NAME: ToolExecutionAttributes(
+            names=[OrderBy.NAME], command=base_command + ["%f\\n"], parser=_splitlines
+        ),
+        OrderBy.MODIFIED: ToolExecutionAttributes(
+            names=[OrderBy.MODIFIED], command=base_command + ["%T@\\t%f\\n"], parser=_splitlines
+        ),
+    }
+    return await _perform_tool_calling(path, host, order_by, top_n, sort, attributes)
 
 
 @mcp.tool(
@@ -209,26 +299,14 @@ async def read_file(
     """
     # For local execution, validate path
     if not host:
-        try:
-            path_obj = Path(path).resolve(strict=True)
-        except (OSError, RuntimeError):
-            raise ToolError(f"Path does not exist or cannot be resolved: {path}")
+        path = _validate_path(path)
 
-        if not path_obj.is_file():
+        if not os.path.isfile(path):
             raise ToolError(f"Path is not a file: {path}")
 
-        if not os.access(path_obj, os.R_OK):
-            raise ToolError(f"Permission denied to read file: {path}")
+    attributes = [
+        # Use cat to read the file
+        ToolExecutionAttributes(names=[""], command=["cat", path], parser=lambda x: x)
+    ]
 
-        path = str(path_obj)
-
-    # Use cat to read the file
-    command = ["cat", path]
-    returncode, stdout, stderr = await execute_command(command, host=host)
-
-    if returncode != 0:
-        raise ToolError(
-            f"Error reading file: {stderr if stderr else 'command failed with return code ' + str(returncode)}"
-        )
-
-    return stdout
+    return await attributes[0].execute(host)
