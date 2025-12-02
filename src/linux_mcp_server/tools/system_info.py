@@ -18,7 +18,7 @@ from linux_mcp_server.utils.types import Host
 
 
 # Helper function for filter phase
-def apply_list_filter(
+def _apply_list_filter(
     items: list[t.Any],
     filter_key: str,
     filter_values: list[str] | None,
@@ -145,7 +145,7 @@ class DeviceInfo(BaseModel):
     usb_device_count: int = 0
 
 
-async def parse_system_information(raw_outputs: dict[CommandKey, RawCommandOutput]) -> ParsedData:
+async def _parse_system_information(raw_outputs: dict[CommandKey, RawCommandOutput]) -> ParsedData:
     """
     Parse phase: Convert raw command outputs into structured data for system information. Collects:
      - hostname
@@ -217,7 +217,7 @@ async def get_system_information(
         ["uptime", "-p"],
         ["uptime", "-s"],
     ]
-    rummager = DataPipeline(parse_func=parse_system_information)
+    rummager = DataPipeline(parse_func=_parse_system_information)
     filtered_data = await rummager.process(commands, fields=fields, host=host)
 
     # Build SystemInfo object from filtered data
@@ -232,7 +232,7 @@ async def get_system_information(
     )
 
 
-def parse_cpuinfo(output: str) -> ParsedData:
+def _parse_cpuinfo(output: str) -> ParsedData:
     """Parse /proc/cpuinfo output into structured CPU data."""
     parsed: ParsedData = {}
     lines = output.strip().split("\n")
@@ -255,7 +255,7 @@ def parse_cpuinfo(output: str) -> ParsedData:
     return parsed
 
 
-async def parse_cpu_information(raw_outputs: dict[CommandKey, RawCommandOutput]) -> ParsedData:
+async def _parse_cpu_information(raw_outputs: dict[CommandKey, RawCommandOutput]) -> ParsedData:
     """
     Parse phase: Convert raw command outputs into structured CPU data for CPU information.
 
@@ -266,7 +266,7 @@ async def parse_cpu_information(raw_outputs: dict[CommandKey, RawCommandOutput])
     # Parse /proc/cpuinfo (only once for all fields)
     if ("cat", "/proc/cpuinfo") in raw_outputs:
         cpuinfo = raw_outputs[("cat", "/proc/cpuinfo")]
-        parsed.update(parse_cpuinfo(cpuinfo))
+        parsed.update(_parse_cpuinfo(cpuinfo))
 
     # Parse load average
     if ("cat", "/proc/loadavg") in raw_outputs:
@@ -311,7 +311,7 @@ async def get_cpu_information(
         ["cat", "/proc/loadavg"],
         ["top", "-bn1"],
     ]
-    rummager = DataPipeline(parse_func=parse_cpu_information)
+    rummager = DataPipeline(parse_func=_parse_cpu_information)
     filtered_data = await rummager.process(commands, fields=fields, host=host)
 
     # Build CPUInfo object from filtered data
@@ -329,7 +329,7 @@ async def get_cpu_information(
     )
 
 
-async def parse_memory_information(raw_outputs: dict[CommandKey, RawCommandOutput]) -> ParsedData:
+async def _parse_memory_information(raw_outputs: dict[CommandKey, RawCommandOutput]) -> ParsedData:
     """
     Parse phase: Convert raw command outputs into structured memory data for memory information.
 
@@ -404,7 +404,7 @@ async def get_memory_information(
     commands = [
         ["free", "-b"],
     ]
-    rummager = DataPipeline(parse_func=parse_memory_information)
+    rummager = DataPipeline(parse_func=_parse_memory_information)
     filtered_data = await rummager.process(commands, fields=fields, host=host)
 
     # Build MemoryInfo object from filtered data
@@ -417,7 +417,7 @@ async def get_memory_information(
     return MemoryInfo(ram=ram_stats, swap=swap_stats)
 
 
-async def parse_disk_usage(raw_outputs: dict[CommandKey, RawCommandOutput]) -> ParsedData:
+async def _parse_disk_usage(raw_outputs: dict[CommandKey, RawCommandOutput]) -> ParsedData:
     """
     Parse phase: Convert raw command outputs into structured disk usage data for disk usage.
 
@@ -531,13 +531,13 @@ async def get_disk_usage(
         ["df", "-B1"],
         ["cat", "/proc/diskstats"],
     ]
-    rummager = DataPipeline(parse_func=parse_disk_usage)
+    rummager = DataPipeline(parse_func=_parse_disk_usage)
     filtered_data = await rummager.process(commands, fields=fields, host=host)
 
     # Apply mountpoint filter to partitions
     partitions_data = filtered_data.get("partitions", [])
     if mountpoints is not None:
-        partitions_data = apply_list_filter(partitions_data, "mountpoint", mountpoints)
+        partitions_data = _apply_list_filter(partitions_data, "mountpoint", mountpoints)
 
     # Build DiskUsage object from filtered data
     partitions = [DiskPartition(**p) for p in partitions_data]
@@ -548,7 +548,7 @@ async def get_disk_usage(
     return DiskUsage(partitions=partitions, io_stats=io_stats)
 
 
-async def collect_device_information(
+async def _collect_device_information(
     commands: list[list[str]], host: Host | None = None
 ) -> dict[CommandKey, RawCommandOutput]:
     """
@@ -662,7 +662,7 @@ def _parse_usb_device_attrs(device_name: str, output: str) -> USBDevice:
     return device
 
 
-async def parse_device_information(raw_outputs: dict[CommandKey, RawCommandOutput]) -> ParsedData:
+async def _parse_device_information(raw_outputs: dict[CommandKey, RawCommandOutput]) -> ParsedData:
     """
     Parse phase: Convert raw device outputs into structured device data.
 
@@ -686,7 +686,7 @@ async def parse_device_information(raw_outputs: dict[CommandKey, RawCommandOutpu
     }
 
 
-async def filter_device_information(
+async def _filter_device_information(
     parsed_data: ParsedData, device_types: list[str] | None = None, limit: int | None = None
 ) -> ParsedData:
     """
@@ -752,12 +752,12 @@ async def get_device_information(
     # Create a custom filter function that wraps filter_device_information
     # to match the FilterFunc signature
     async def custom_filter(parsed_data: ParsedData, fields: list[str] | None) -> ParsedData:
-        return await filter_device_information(parsed_data, device_types=device_types, limit=limit)
+        return await _filter_device_information(parsed_data, device_types=device_types, limit=limit)
 
     # Use Rummager with custom collect, parse, and filter functions
     rummager = DataPipeline(
-        collect_func=collect_device_information,
-        parse_func=parse_device_information,
+        collect_func=_collect_device_information,
+        parse_func=_parse_device_information,
         filter_func=custom_filter,
     )
 
