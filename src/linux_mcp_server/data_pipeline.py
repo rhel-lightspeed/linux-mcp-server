@@ -92,7 +92,7 @@ class DataPipeline:
         self._parse = parse_func
         self._filter = filter_func
 
-    async def rummage(
+    async def process(
         self, commands: CommandList, fields: list[str] | None = None, host: Host | None = None
     ) -> ParsedData:
         """

@@ -218,7 +218,7 @@ async def get_system_information(
         ["uptime", "-s"],
     ]
     rummager = DataPipeline(parse_func=parse_system_information)
-    filtered_data = await rummager.rummage(commands, fields=fields, host=host)
+    filtered_data = await rummager.process(commands, fields=fields, host=host)
 
     # Build SystemInfo object from filtered data
     return SystemInfo(
@@ -312,7 +312,7 @@ async def get_cpu_information(
         ["top", "-bn1"],
     ]
     rummager = DataPipeline(parse_func=parse_cpu_information)
-    filtered_data = await rummager.rummage(commands, fields=fields, host=host)
+    filtered_data = await rummager.process(commands, fields=fields, host=host)
 
     # Build CPUInfo object from filtered data
     load_avg_data = filtered_data.get("load_average")
@@ -405,7 +405,7 @@ async def get_memory_information(
         ["free", "-b"],
     ]
     rummager = DataPipeline(parse_func=parse_memory_information)
-    filtered_data = await rummager.rummage(commands, fields=fields, host=host)
+    filtered_data = await rummager.process(commands, fields=fields, host=host)
 
     # Build MemoryInfo object from filtered data
     ram_data = filtered_data.get("ram")
@@ -532,7 +532,7 @@ async def get_disk_usage(
         ["cat", "/proc/diskstats"],
     ]
     rummager = DataPipeline(parse_func=parse_disk_usage)
-    filtered_data = await rummager.rummage(commands, fields=fields, host=host)
+    filtered_data = await rummager.process(commands, fields=fields, host=host)
 
     # Apply mountpoint filter to partitions
     partitions_data = filtered_data.get("partitions", [])
@@ -762,7 +762,7 @@ async def get_device_information(
     )
 
     # Commands list is empty since collection is dynamic
-    filtered_data = await rummager.rummage(commands=[], host=host)
+    filtered_data = await rummager.process(commands=[], host=host)
 
     # Build DeviceInfo object from filtered data
     pci_devices = [
