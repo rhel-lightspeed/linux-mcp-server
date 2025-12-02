@@ -4,7 +4,6 @@ import json
 
 from pathlib import Path
 from unittest.mock import AsyncMock
-from unittest.mock import patch
 
 import pytest
 
@@ -25,7 +24,7 @@ from linux_mcp_server.tools.system_info import USBDevice
 class TestSystemInfo:
     """Test system information tools."""
 
-    async def test_get_system_info_contains_key_information(self):
+    async def test_get_system_info_contains_key_information(self, mocker):
         """Test that system info contains essential data."""
         # Mock OS release content for Fedora Linux
         mock_os_release = """NAME="Fedora Linux"
@@ -68,43 +67,39 @@ VARIANT_ID=server"""
                     return (1, "", "Command not found")
 
         # Patch execute_command in data_pipeline module (used by default DataPipeline._collect)
-        with patch(
-            "linux_mcp_server.data_pipeline.execute_command",
-            new=AsyncMock(side_effect=mock_execute_command),
-        ):
-            result = await mcp.call_tool("get_system_information", arguments={})
+        mocker.patch("linux_mcp_server.data_pipeline.execute_command", new=AsyncMock(side_effect=mock_execute_command))
+        result = await mcp.call_tool("get_system_information", arguments={})
 
-            # MCP call_tool returns a tuple of (content, structured_output)
-            assert isinstance(result, tuple)
-            assert len(result) == 2
-            content, structured_output = result
+        # MCP call_tool returns a tuple of (content, structured_output)
+        assert isinstance(result, tuple)
+        assert len(result) == 2
+        content, structured_output = result
 
-            # Content should be a TextContent object array
-            assert isinstance(content, list)
-            assert all(isinstance(item, TextContent) for item in content)
+        # Content should be a TextContent object array
+        assert isinstance(content, list)
+        assert all(isinstance(item, TextContent) for item in content)
 
-            # Extract text from content and verify exact values
-            assert isinstance(content[0], TextContent)
-            text = content[0].text
-            data = json.loads(text)
-            assert data["hostname"] == "test-server"
-            assert data["kernel_version"] == "6.5.6-300.fc39.x86_64"
-            assert data["architecture"] == "x86_64"
-            assert data["operating_system"] == "Fedora Linux 39 (Server Edition)"
-            assert data["os_version"] == "39"
-            assert data["uptime"] == "up 2 days, 5 hours, 30 minutes"
-            assert data["boot_time"] == "2024-11-23 10:15:30"
+        # Extract text from content and verify exact values
+        text = content[0].text
+        data = json.loads(text)
+        assert data["hostname"] == "test-server"
+        assert data["kernel_version"] == "6.5.6-300.fc39.x86_64"
+        assert data["architecture"] == "x86_64"
+        assert data["operating_system"] == "Fedora Linux 39 (Server Edition)"
+        assert data["os_version"] == "39"
+        assert data["uptime"] == "up 2 days, 5 hours, 30 minutes"
+        assert data["boot_time"] == "2024-11-23 10:15:30"
 
-            # Verify structured output
-            assert isinstance(structured_output, dict)
-            system_info = SystemInfo(**structured_output)
-            assert system_info.hostname == "test-server"
-            assert system_info.kernel_version == "6.5.6-300.fc39.x86_64"
-            assert system_info.architecture == "x86_64"
-            assert system_info.operating_system == "Fedora Linux 39 (Server Edition)"
-            assert system_info.os_version == "39"
-            assert system_info.uptime == "up 2 days, 5 hours, 30 minutes"
-            assert system_info.boot_time == "2024-11-23 10:15:30"
+        # Verify structured output
+        assert isinstance(structured_output, dict)
+        system_info = SystemInfo(**structured_output)
+        assert system_info.hostname == "test-server"
+        assert system_info.kernel_version == "6.5.6-300.fc39.x86_64"
+        assert system_info.architecture == "x86_64"
+        assert system_info.operating_system == "Fedora Linux 39 (Server Edition)"
+        assert system_info.os_version == "39"
+        assert system_info.uptime == "up 2 days, 5 hours, 30 minutes"
+        assert system_info.boot_time == "2024-11-23 10:15:30"
 
     @pytest.mark.parametrize(
         "fixture_file,expected_model,expected_logical_cores,expected_physical_sockets,expected_physical_cores_per_processor,expected_frequency,load_avg_values",
@@ -139,6 +134,7 @@ VARIANT_ID=server"""
         expected_physical_cores_per_processor,
         expected_frequency,
         load_avg_values,
+        mocker,
     ):
         """Test CPU info parsing with various cpuinfo fixtures."""
         # Read the fixture file
@@ -162,50 +158,48 @@ VARIANT_ID=server"""
             return (1, "", "Command not found")
 
         # Patch execute_command in data_pipeline module (used by default DataPipeline._collect)
-        with patch("linux_mcp_server.data_pipeline.execute_command", new=AsyncMock(side_effect=mock_execute_command)):
-            result = await mcp.call_tool("get_cpu_information", arguments={})
+        mocker.patch("linux_mcp_server.data_pipeline.execute_command", new=AsyncMock(side_effect=mock_execute_command))
 
-            # Verify result structure
-            assert isinstance(result, tuple)
-            assert len(result) == 2
-            content, structured_output = result
+        result = await mcp.call_tool("get_cpu_information", arguments={})
 
-            # Verify content
-            assert isinstance(content, list)
-            assert all(isinstance(item, TextContent) for item in content)
+        # Verify result structure
+        assert isinstance(result, tuple)
+        assert len(result) == 2
+        content, structured_output = result
 
-            # Verify structured output
-            assert isinstance(structured_output, dict)
-            cpu_info = CPUInfo(**structured_output)
+        # Verify content
+        assert isinstance(content, list)
+        assert all(isinstance(item, TextContent) for item in content)
 
-            # Common assertions
-            assert cpu_info.cpu_model is not None
-            assert expected_model in cpu_info.cpu_model
-            assert cpu_info.logical_cores == expected_logical_cores
-            assert cpu_info.load_average is not None
-            assert cpu_info.load_average.one_min == load_avg_values[0]
-            assert cpu_info.load_average.five_min == load_avg_values[1]
-            assert cpu_info.load_average.fifteen_min == load_avg_values[2]
+        # Verify structured output
+        assert isinstance(structured_output, dict)
+        cpu_info = CPUInfo(**structured_output)
 
-            # Physical cores assertion
-            if expected_physical_sockets > 0:
-                assert cpu_info.physical_sockets is not None
-                assert cpu_info.physical_sockets == expected_physical_sockets
+        # Common assertions
+        assert cpu_info.cpu_model is not None
+        assert expected_model in cpu_info.cpu_model
+        assert cpu_info.logical_cores == expected_logical_cores
+        assert cpu_info.load_average is not None
+        assert cpu_info.load_average.one_min == load_avg_values[0]
+        assert cpu_info.load_average.five_min == load_avg_values[1]
+        assert cpu_info.load_average.fifteen_min == load_avg_values[2]
 
-            # Physical cores per processor assertion
-            if expected_physical_cores_per_processor > 0:
-                assert cpu_info.physical_cores_per_processor is not None
-                assert cpu_info.physical_cores_per_processor == expected_physical_cores_per_processor
+        # Physical cores assertion
+        if expected_physical_sockets > 0:
+            assert cpu_info.physical_sockets == expected_physical_sockets
 
-            # Frequency assertion
-            if expected_frequency > 0:
-                assert cpu_info.frequency_mhz is not None
-                assert cpu_info.frequency_mhz == expected_frequency
-            else:
-                # ARM doesn't have frequency, so it will be 0.0
-                assert cpu_info.frequency_mhz == 0.0
+        # Physical cores per processor assertion
+        if expected_physical_cores_per_processor > 0:
+            assert cpu_info.physical_cores_per_processor == expected_physical_cores_per_processor
 
-    async def test_get_memory_info_contains_memory_data(self):
+        # Frequency assertion
+        if expected_frequency > 0:
+            assert cpu_info.frequency_mhz == expected_frequency
+        else:
+            # ARM doesn't have frequency, so it will be 0.0
+            assert cpu_info.frequency_mhz == 0.0
+
+    async def test_get_memory_info_contains_memory_data(self, mocker):
         """Test that memory info contains RAM and swap information with exact values."""
         # Mock free output
         mock_free_output = """
@@ -227,6 +221,7 @@ Swap:     6182400000           0  6182400000"""
                 "total": 6183096320,
                 "used": 2513342464,
                 "free": 1560502272,
+                "shared": 3973120,
                 "available": 3669753856,
                 "buffers": 2362519552,
                 "percent": 2513342464 / 6183096320 * 100,  # 40.64860603691841
@@ -240,57 +235,52 @@ Swap:     6182400000           0  6182400000"""
         }
 
         # Patch execute_command in data_pipeline module (used by default DataPipeline._collect)
-        with patch(
-            "linux_mcp_server.data_pipeline.execute_command",
-            new=AsyncMock(side_effect=mock_execute_command),
-        ):
-            result = await mcp.call_tool("get_memory_information", arguments={})
+        mocker.patch("linux_mcp_server.data_pipeline.execute_command", new=AsyncMock(side_effect=mock_execute_command))
+        result = await mcp.call_tool("get_memory_information", arguments={})
 
-            # MCP call_tool returns a tuple of (content, structured_output)
-            assert isinstance(result, tuple)
-            assert len(result) == 2
-            content, structured_output = result
+        # MCP call_tool returns a tuple of (content, structured_output)
+        assert isinstance(result, tuple)
+        assert len(result) == 2
+        content, structured_output = result
 
-            # Content should be a TextContent object array
-            assert isinstance(content, list)
-            assert all(isinstance(item, TextContent) for item in content)
+        # Content should be a TextContent object array
+        assert isinstance(content, list)
+        assert all(isinstance(item, TextContent) for item in content)
 
-            # Extract text from content and verify JSON contains exact values
-            assert isinstance(content[0], TextContent)
-            text = content[0].text
-            data = json.loads(text)
+        # Extract text from content and verify JSON contains exact values
+        text = content[0].text
+        data = json.loads(text)
 
-            # Verify RAM information in JSON
-            assert "ram" in data
-            ram = data["ram"]
-            assert ram is not None
-            assert ram["total"] == expected_memory_stats_json["ram"]["total"]
-            assert ram["used"] == expected_memory_stats_json["ram"]["used"]
-            assert ram["free"] == expected_memory_stats_json["ram"]["free"]
-            assert ram["available"] == expected_memory_stats_json["ram"]["available"]
-            assert ram["buffers"] == expected_memory_stats_json["ram"]["buffers"]
-            assert ram["percent"] == pytest.approx(expected_memory_stats_json["ram"]["percent"], rel=1e-2)
+        # Verify RAM information in JSON
+        assert "ram" in data
+        ram = data["ram"]
+        assert ram["total"] == expected_memory_stats_json["ram"]["total"]
+        assert ram["used"] == expected_memory_stats_json["ram"]["used"]
+        assert ram["free"] == expected_memory_stats_json["ram"]["free"]
+        assert ram["shared"] == expected_memory_stats_json["ram"]["shared"]
+        assert ram["available"] == expected_memory_stats_json["ram"]["available"]
+        assert ram["buffers"] == expected_memory_stats_json["ram"]["buffers"]
+        assert ram["percent"] == pytest.approx(expected_memory_stats_json["ram"]["percent"], rel=1e-2)
 
-            # Verify swap information in JSON
-            assert "swap" in data
-            swap = data["swap"]
-            assert swap is not None
-            assert swap["total"] == expected_memory_stats_json["swap"]["total"]
-            assert swap["used"] == expected_memory_stats_json["swap"]["used"]
-            assert swap["free"] == expected_memory_stats_json["swap"]["free"]
-            assert swap["percent"] == expected_memory_stats_json["swap"]["percent"]
+        # Verify swap information in JSON
+        assert "swap" in data
+        swap = data["swap"]
+        assert swap["total"] == expected_memory_stats_json["swap"]["total"]
+        assert swap["used"] == expected_memory_stats_json["swap"]["used"]
+        assert swap["free"] == expected_memory_stats_json["swap"]["free"]
+        assert swap["percent"] == expected_memory_stats_json["swap"]["percent"]
 
-            # Verify structured output with exact values
-            assert isinstance(structured_output, dict)
-            memory_info = MemoryInfo(**structured_output)
+        # Verify structured output with exact values
+        assert isinstance(structured_output, dict)
+        memory_info = MemoryInfo(**structured_output)
 
-            # Verify RAM values in structured output
-            assert memory_info.ram == MemoryStats(**expected_memory_stats_json["ram"])
+        # Verify RAM values in structured output
+        assert memory_info.ram == MemoryStats(**expected_memory_stats_json["ram"])
 
-            # Verify Swap values in structured output
-            assert memory_info.swap == MemoryStats(**expected_memory_stats_json["swap"])
+        # Verify Swap values in structured output
+        assert memory_info.swap == MemoryStats(**expected_memory_stats_json["swap"])
 
-    async def test_get_disk_usage_contains_filesystem_data(self):
+    async def test_get_disk_usage_contains_filesystem_data(self, mocker):
         """Test that disk usage contains filesystem information."""
         # Mock df output
         mock_df_output = """Filesystem     1B-blocks        Used   Available Use% Mounted on
@@ -366,91 +356,78 @@ tmpfs            1048576           0     1048576   0% /run/credentials/serial-ge
         }
 
         # Patch execute_command in data_pipeline module (used by default DataPipeline._collect)
-        with patch(
-            "linux_mcp_server.data_pipeline.execute_command",
-            new=AsyncMock(side_effect=mock_execute_command),
-        ):
-            result = await mcp.call_tool("get_disk_usage", arguments={})
+        mocker.patch("linux_mcp_server.data_pipeline.execute_command", new=AsyncMock(side_effect=mock_execute_command))
+        result = await mcp.call_tool("get_disk_usage", arguments={})
 
-            # MCP call_tool returns a tuple of (content, structured_output)
-            assert isinstance(result, tuple)
-            assert len(result) == 2
-            content, structured_output = result
+        # MCP call_tool returns a tuple of (content, structured_output)
+        assert isinstance(result, tuple)
+        assert len(result) == 2
+        content, structured_output = result
 
-            # Content should be a TextContent object array
-            assert isinstance(content, list)
-            assert all(isinstance(item, TextContent) for item in content)
+        # Content should be a TextContent object array
+        assert isinstance(content, list)
+        assert all(isinstance(item, TextContent) for item in content)
 
-            # Extract text from content
-            assert isinstance(content[0], TextContent)
-            text = content[0].text
-            data = json.loads(text)
+        # Extract text from content
+        text = content[0].text
+        data = json.loads(text)
 
-            # Should contain partitions
-            assert "partitions" in data
-            partitions = data["partitions"]
-            assert isinstance(partitions, list)
+        # Should contain partitions
+        assert "partitions" in data
+        partitions = data["partitions"]
+        assert isinstance(partitions, list)
 
-            # Should have expected number of partitions
-            assert len(partitions) == len(expected_partitions)
+        # Should have expected number of partitions
+        assert len(partitions) == len(expected_partitions)
 
-            # Verify each partition
-            for i, partition in enumerate(partitions):
-                expected = expected_partitions[i]
-                assert partition["device"] == expected["device"]
-                assert partition["mountpoint"] == expected["mountpoint"]
-                assert partition["size"] == expected["size"]
-                assert partition["used"] == expected["used"]
-                assert partition["free"] == expected["free"]
-                assert partition["percent"] == expected["percent"]
+        # Verify each partition
+        for i, partition in enumerate(partitions):
+            expected = expected_partitions[i]
+            assert partition["device"] == expected["device"]
+            assert partition["mountpoint"] == expected["mountpoint"]
+            assert partition["size"] == expected["size"]
+            assert partition["used"] == expected["used"]
+            assert partition["free"] == expected["free"]
+            assert partition["percent"] == expected["percent"]
 
-            # Should have root filesystem
-            has_root = any(p["mountpoint"] == "/" for p in partitions)
-            assert has_root
+        # Should have root filesystem
+        has_root = any(p["mountpoint"] == "/" for p in partitions)
+        assert has_root
 
-            # Verify I/O stats
-            assert "io_stats" in data
-            io_stats = data["io_stats"]
-            assert io_stats is not None
-            assert io_stats["read_bytes"] == expected_io_stats["read_bytes"]
-            assert io_stats["write_bytes"] == expected_io_stats["write_bytes"]
-            assert io_stats["read_count"] == expected_io_stats["read_count"]
-            assert io_stats["write_count"] == expected_io_stats["write_count"]
+        # Verify I/O stats
+        assert "io_stats" in data
+        io_stats = data["io_stats"]
+        assert io_stats["read_bytes"] == expected_io_stats["read_bytes"]
+        assert io_stats["write_bytes"] == expected_io_stats["write_bytes"]
+        assert io_stats["read_count"] == expected_io_stats["read_count"]
+        assert io_stats["write_count"] == expected_io_stats["write_count"]
 
-            # Verify structured output
-            assert isinstance(structured_output, dict)
-            disk_usage = DiskUsage(**structured_output)
-            assert len(disk_usage.partitions) == len(expected_partitions)
+        # Verify structured output
+        assert isinstance(structured_output, dict)
+        disk_usage = DiskUsage(**structured_output)
+        assert len(disk_usage.partitions) == len(expected_partitions)
 
-            # Verify first partition in structured output
-            first_partition_model = disk_usage.partitions[0]
-            assert first_partition_model.device == expected_partitions[0]["device"]
-            assert first_partition_model.mountpoint == expected_partitions[0]["mountpoint"]
-            assert first_partition_model.size == expected_partitions[0]["size"]
-            assert first_partition_model.used == expected_partitions[0]["used"]
-            assert first_partition_model.free == expected_partitions[0]["free"]
-            assert first_partition_model.percent == expected_partitions[0]["percent"]
+        # Verify first partition in structured output
+        first_partition_model = disk_usage.partitions[0]
+        assert first_partition_model.device == expected_partitions[0]["device"]
+        assert first_partition_model.mountpoint == expected_partitions[0]["mountpoint"]
+        assert first_partition_model.size == expected_partitions[0]["size"]
+        assert first_partition_model.used == expected_partitions[0]["used"]
+        assert first_partition_model.free == expected_partitions[0]["free"]
+        assert first_partition_model.percent == expected_partitions[0]["percent"]
 
-            # Verify I/O stats in structured output
-            assert disk_usage.io_stats is not None
-            assert disk_usage.io_stats.read_bytes == expected_io_stats["read_bytes"]
-            assert disk_usage.io_stats.write_bytes == expected_io_stats["write_bytes"]
-            assert disk_usage.io_stats.read_count == expected_io_stats["read_count"]
-            assert disk_usage.io_stats.write_count == expected_io_stats["write_count"]
+        # Verify I/O stats in structured output
+        assert disk_usage.io_stats.read_bytes == expected_io_stats["read_bytes"]
+        assert disk_usage.io_stats.write_bytes == expected_io_stats["write_bytes"]
+        assert disk_usage.io_stats.read_count == expected_io_stats["read_count"]
+        assert disk_usage.io_stats.write_count == expected_io_stats["write_count"]
 
-    async def test_get_device_info_contains_device_data(self):
-        """Test that get_device_information returns a DeviceInfo model with PCI and USB devices."""
+    async def test_get_device_info_contains_pci_data(self, mocker):
+        """Test that get_device_information returns PCI device information."""
         # Mock sysfs output for PCI devices
         mock_pci_find_output = """/sys/bus/pci/devices/0000:00:00.0
 /sys/bus/pci/devices/0000:00:1f.2
 /sys/bus/pci/devices/0000:00:1f.3"""
-
-        # Mock sysfs output for USB devices
-        mock_usb_find_output = """/sys/bus/usb/devices/usb1
-/sys/bus/usb/devices/1-1
-/sys/bus/usb/devices/1-1.1
-/sys/bus/usb/devices/usb2
-/sys/bus/usb/devices/2-1"""
 
         async def mock_execute_command(command, host=None, username=None):
             """Mock execute_command to return sysfs fixture data."""
@@ -464,22 +441,11 @@ tmpfs            1048576           0     1048576   0% /run/credentials/serial-ge
                 case ["sh", "-c", cmd] if "/sys/bus/pci/devices/0000:00:1f.3" in cmd:
                     return (0, "vendor:0x8086\ndevice:0x2930\nclass:0x0c0500\nlabel:cable\n", "")
                 case ["find", "/sys/bus/usb/devices", "-maxdepth", "1", "-type", "l"]:
-                    return (0, mock_usb_find_output, "")
-                # Check for 1-1.1 before 1-1 to avoid substring matching issues
-                case ["sh", "-c", cmd] if "/sys/bus/usb/devices/1-1.1" in cmd:
-                    return (0, "idVendor:0bda\nidProduct:5411\nproduct:4-Port USB 2.0 Hub\nmanufacturer:Generic\n", "")
-                case ["sh", "-c", cmd] if "/sys/bus/usb/devices/1-1" in cmd:
-                    return (0, "idVendor:046d\nidProduct:c52b\nproduct:USB Receiver\nmanufacturer:Logitech\n", "")
-                case ["sh", "-c", cmd] if "/sys/bus/usb/devices/2-1" in cmd:
-                    return (
-                        0,
-                        "idVendor:8087\nidProduct:0024\nproduct:Integrated Camera\nmanufacturer:Chicony Electronics\n",
-                        "",
-                    )
+                    return (0, "", "")  # Empty USB devices
                 case _:
                     return (1, "", "Command not found")
 
-        # Expected device data
+        # Expected PCI device data
         expected_pci_devices = [
             {
                 "address": "0000:00:00.0",
@@ -504,6 +470,73 @@ tmpfs            1048576           0     1048576   0% /run/credentials/serial-ge
             },
         ]
 
+        # Patch execute_command in system_info module (used by custom collect_device_information)
+        mocker.patch("linux_mcp_server.data_pipeline.execute_command", new=AsyncMock(side_effect=mock_execute_command))
+        result = await mcp.call_tool("get_device_information", arguments={})
+
+        # MCP call_tool returns a tuple of (content, structured_output)
+        assert isinstance(result, tuple)
+        assert len(result) == 2
+        content, structured_output = result
+
+        # Content should be a TextContent object array
+        assert isinstance(content, list)
+        assert all(isinstance(item, TextContent) for item in content)
+
+        # Extract text from content
+        text = content[0].text
+        data = json.loads(text)
+
+        # Verify PCI devices in JSON
+        assert "pci_devices" in data
+        pci_devices = data["pci_devices"]
+        assert isinstance(pci_devices, list)
+        assert len(pci_devices) == data["pci_device_count"]
+
+        for i, pci_device in enumerate(pci_devices):
+            assert pci_device == expected_pci_devices[i]
+
+        # Verify structured output
+        assert isinstance(structured_output, dict)
+        device_info = DeviceInfo(**structured_output)
+
+        # Verify PCI devices in structured output
+        assert len(device_info.pci_devices) == device_info.pci_device_count
+        for i, pci_device in enumerate(device_info.pci_devices):
+            assert isinstance(pci_device, PCIDevice)
+            assert pci_device == PCIDevice(**expected_pci_devices[i])
+
+    async def test_get_device_info_contains_usb_data(self, mocker):
+        """Test that get_device_information returns USB device information."""
+        # Mock sysfs output for USB devices
+        mock_usb_find_output = """/sys/bus/usb/devices/usb1
+/sys/bus/usb/devices/1-1
+/sys/bus/usb/devices/1-1.1
+/sys/bus/usb/devices/usb2
+/sys/bus/usb/devices/2-1"""
+
+        async def mock_execute_command(command, host=None, username=None):
+            """Mock execute_command to return sysfs fixture data."""
+            match command:
+                case ["find", "/sys/bus/pci/devices", "-maxdepth", "1", "-type", "l"]:
+                    return (0, "", "")  # Empty PCI devices
+                case ["find", "/sys/bus/usb/devices", "-maxdepth", "1", "-type", "l"]:
+                    return (0, mock_usb_find_output, "")
+                # Check for 1-1.1 before 1-1 to avoid substring matching issues
+                case ["sh", "-c", cmd] if "/sys/bus/usb/devices/1-1.1" in cmd:
+                    return (0, "idVendor:0bda\nidProduct:5411\nproduct:4-Port USB 2.0 Hub\nmanufacturer:Generic\n", "")
+                case ["sh", "-c", cmd] if "/sys/bus/usb/devices/1-1" in cmd:
+                    return (0, "idVendor:046d\nidProduct:c52b\nproduct:USB Receiver\nmanufacturer:Logitech\n", "")
+                case ["sh", "-c", cmd] if "/sys/bus/usb/devices/2-1" in cmd:
+                    return (
+                        0,
+                        "idVendor:8087\nidProduct:0024\nproduct:Integrated Camera\nmanufacturer:Chicony Electronics\n",
+                        "",
+                    )
+                case _:
+                    return (1, "", "Command not found")
+
+        # Expected USB device data
         expected_usb_devices = [
             {
                 "bus": "1",
@@ -532,59 +565,40 @@ tmpfs            1048576           0     1048576   0% /run/credentials/serial-ge
         ]
 
         # Patch execute_command in system_info module (used by custom collect_device_information)
-        with patch(
-            "linux_mcp_server.tools.system_info.execute_command",
-            new=AsyncMock(side_effect=mock_execute_command),
-        ):
-            result = await mcp.call_tool("get_device_information", arguments={})
+        mocker.patch("linux_mcp_server.data_pipeline.execute_command", new=AsyncMock(side_effect=mock_execute_command))
+        result = await mcp.call_tool("get_device_information", arguments={})
 
-            # MCP call_tool returns a tuple of (content, structured_output)
-            assert isinstance(result, tuple)
-            assert len(result) == 2
-            content, structured_output = result
+        # MCP call_tool returns a tuple of (content, structured_output)
+        assert isinstance(result, tuple)
+        assert len(result) == 2
+        content, structured_output = result
 
-            # Content should be a TextContent object array
-            assert isinstance(content, list)
-            assert all(isinstance(item, TextContent) for item in content)
+        # Content should be a TextContent object array
+        assert isinstance(content, list)
+        assert all(isinstance(item, TextContent) for item in content)
 
-            # Extract text from content
-            assert isinstance(content[0], TextContent)
-            text = content[0].text
-            data = json.loads(text)
+        # Extract text from content
+        text = content[0].text
+        data = json.loads(text)
 
-            # Verify PCI devices in JSON
-            assert "pci_devices" in data
-            pci_devices = data["pci_devices"]
-            assert isinstance(pci_devices, list)
-            assert len(pci_devices) == data["pci_device_count"]
+        # Verify USB devices in JSON
+        assert "usb_devices" in data
+        usb_devices = data["usb_devices"]
+        assert isinstance(usb_devices, list)
+        assert len(usb_devices) == data["usb_device_count"]
 
-            for i, pci_device in enumerate(pci_devices):
-                assert pci_device == expected_pci_devices[i]
+        for i, usb_device in enumerate(usb_devices):
+            assert usb_device == expected_usb_devices[i]
 
-            # Verify USB devices in JSON
-            assert "usb_devices" in data
-            usb_devices = data["usb_devices"]
-            assert isinstance(usb_devices, list)
-            assert len(usb_devices) == data["usb_device_count"]
+        # Verify structured output
+        assert isinstance(structured_output, dict)
+        device_info = DeviceInfo(**structured_output)
 
-            for i, usb_device in enumerate(usb_devices):
-                assert usb_device == expected_usb_devices[i]
-
-            # Verify structured output
-            assert isinstance(structured_output, dict)
-            device_info = DeviceInfo(**structured_output)
-
-            # Verify PCI devices in structured output
-            assert len(device_info.pci_devices) == device_info.pci_device_count
-            for i, pci_device in enumerate(device_info.pci_devices):
-                assert isinstance(pci_device, PCIDevice)
-                assert pci_device == PCIDevice(**expected_pci_devices[i])
-
-            # Verify USB devices in structured output
-            assert len(device_info.usb_devices) == device_info.usb_device_count
-            for i, usb_device in enumerate(device_info.usb_devices):
-                assert isinstance(usb_device, USBDevice)
-                assert usb_device == USBDevice(**expected_usb_devices[i])
+        # Verify USB devices in structured output
+        assert len(device_info.usb_devices) == device_info.usb_device_count
+        for i, usb_device in enumerate(device_info.usb_devices):
+            assert isinstance(usb_device, USBDevice)
+            assert usb_device == USBDevice(**expected_usb_devices[i])
 
     async def test_error_handling(self, mocker):
         """Test that errors are properly raised as ToolError."""
