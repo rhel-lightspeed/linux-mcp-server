@@ -98,6 +98,10 @@ data_file = "coverage/.data"
 source = [
     "src",
     "tests",
+    "src/linux_mcp_server/_vendor/__init__.py",
+]
+omit = [
+    "src/linux_mcp_server/_vendor/*/*",
 ]
 
 [tool.coverage.report]
@@ -133,6 +137,9 @@ tag-only = [
 include = [
     "src",
     "tests",
+]
+ignore = [
+    "src/linux_mcp_server/_vendor/*/*"
 ]
 pythonVersion = "3.10"
 
