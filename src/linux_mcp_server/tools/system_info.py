@@ -146,7 +146,14 @@ class DeviceInfo(BaseModel):
 
 async def parse_system_information(raw_outputs: dict[CommandKey, RawCommandOutput]) -> ParsedData:
     """
-    Parse phase: Convert raw command outputs into structured data for system information.
+    Parse phase: Convert raw command outputs into structured data for system information. Collects:
+     - hostname
+     - operating system
+     - os version
+     - kernel version
+     - architecture
+     - uptime
+     - boot time
 
     Returns a dictionary with system information fields.
     """
