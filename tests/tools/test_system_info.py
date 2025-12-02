@@ -586,19 +586,10 @@ tmpfs            1048576           0     1048576   0% /run/credentials/serial-ge
                 assert isinstance(usb_device, USBDevice)
                 assert usb_device == USBDevice(**expected_usb_devices[i])
 
-    async def test_error_handling(self):
+    async def test_error_handling(self, mocker):
         """Test that errors are properly raised as ToolError."""
-        # Test with invalid host to trigger an error
-        # Note: This test may not always trigger an error depending on the system
-        # but it demonstrates how to test error handling
-        try:
-            result = await mcp.call_tool(
-                "get_system_information", arguments={"host": "invalid-host-that-does-not-exist-12345.local"}
-            )
-            # If it succeeds, check the result structure
-            content, structured_output = result
-            # We either get an error or success, both are acceptable for this test
-            assert isinstance(result, tuple)
-        except Exception as e:
-            # If an exception is raised, it should be a valid exception type
-            assert isinstance(e, (ToolError, Exception))
+        mocker.patch(
+            "linux_mcp_server.connection.ssh.asyncssh.connect", side_effect=OSError("Name or service not known")
+        )
+        with pytest.raises(ToolError):
+            await mcp.call_tool("get_system_information", arguments={"host": "invalid-host"})
