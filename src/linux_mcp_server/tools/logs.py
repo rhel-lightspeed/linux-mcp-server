@@ -189,7 +189,7 @@ async def read_log_file(  # noqa: C901
             if not is_allowed:
                 return (
                     f"Access to log file '{log_path}' is not allowed.\n"
-                    f"Allowed log files: {{', '.join(allowed_paths)}}"
+                    f"Allowed log files: {', '.join(allowed_paths)}"
                 )  # nofmt
 
             # Check if file exists
