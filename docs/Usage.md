@@ -7,7 +7,7 @@ This guide provides detailed instructions on how to use the Linux MCP Server for
 ### Prerequisites
 
 Before using the MCP server, you need to either install it or have the necessary tools to run it on-demand (uvx).
-See **[INSTALL.md](INSTALL.md)** for complete installation instructions.
+See [Installation](Install.md) for complete installation instructions.
 
 **Quick install with pip:**
 ```bash
@@ -32,7 +32,7 @@ pip install linux-mcp-server
 For the best experience, integrate the MCP server with an AI Agent of your preference.
 
 #### For Claude Desktop
-See the [Claude Desktop Integration](INSTALL.md#claude-desktop-integration) section in INSTALL.md for configuration instructions.
+See [Claude Desktop Integration](Install.md#claude-desktop-integration).
 
 ## Available Tools
 
@@ -209,7 +209,7 @@ Lists immediate subdirectories under a specified path with flexible sorting opti
 
 ## Configuration
 
-For configuration details including environment variables and AI agent integration, see **[INSTALL.md](INSTALL.md)**.
+See the [Installation Guide](Install.md#configuration-file-location) for configuration details including environment variables and AI agent integration.
 
 ## Example Troubleshooting Sessions
 
@@ -267,7 +267,7 @@ Run the MCP server with the minimum required privileges. Consider:
 
 ## Troubleshooting
 
-For detailed troubleshooting, security considerations, and permission setup, see **[INSTALL.md - Troubleshooting](INSTALL.md#troubleshooting)**.
+See [Troubleshooting](Install.md#troubleshooting) for detailed troubleshooting, security considerations, and permission setup.
 
 ## Best Practices
 
