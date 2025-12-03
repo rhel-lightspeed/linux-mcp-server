@@ -304,7 +304,7 @@ pytest tests/ -k "system_info" -v
 2. Install the package: `pip install linux-mcp-server`
 3. If using virtual environment, make sure it's activated
 
-#### "Permission denied" when reading logs
+#### "Permission denied" when reading system logs
 
 **Cause:** The user running the MCP server doesn't have permission to read system logs.
 
@@ -316,6 +316,20 @@ pytest tests/ -k "system_info" -v
    ```
 2. Log out and log back in for group changes to take effect
 3. Only whitelist log files that the user can read in `LINUX_MCP_ALLOWED_LOG_PATHS`
+
+#### "Permission denied" when reading a local application log file
+
+**Cause:** If the server throws an error when starting (e.g., PermissionError: [Errno 13] Permission denied: '.../server.log'), it's usually because the log file or its parent directory is owned by a different user (often root due to a previous sudo run).
+
+**Solutions:**
+1. Verify the current user is the owner of the log directory:
+   ```bash
+   ls -ld /home/$USER/.local/share/linux-mcp-server/logs
+   ```
+2. If the owner is not $USER (e.g., if it shows root or a different User ID), reclaim the folder ownership:
+   ```bash
+   sudo chown -R $USER:$USER /home/$USER/.local/share/linux-mcp-server/logs
+   ```
 
 #### Claude Desktop doesn't show the MCP server
 
