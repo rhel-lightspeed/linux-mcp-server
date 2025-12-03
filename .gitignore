@@ -20,6 +20,10 @@ wheels/
 .installed.cfg
 *.egg
 
+# Vendored packages
+src/linux_mcp_server/_vendor/*
+!src/linux_mcp_server/_vendor/__init__.py
+
 # Virtual environments
 .venv/
 venv/
