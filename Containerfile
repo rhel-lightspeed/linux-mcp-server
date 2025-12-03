@@ -70,6 +70,7 @@ LABEL vendor="Red Hat, Inc."
 LABEL version=${VERSION}
 
 ADD licenses/ /licenses/
+ADD LICENSE /licenses/Apache-2.0.txt
 
 RUN microdnf -y --nodocs --setopt=install_weak_deps=0 install \
         git \
