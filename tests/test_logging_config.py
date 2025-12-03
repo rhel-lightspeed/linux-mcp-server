@@ -65,14 +65,14 @@ class TestSetupLogging:
         monkeypatch.setenv("LINUX_MCP_LOG_DIR", str(tmp_path))
 
         # Reload config module to pick up the environment variables
-        import linux_mcp_server.config
+        from linux_mcp_server import config
 
-        importlib.reload(linux_mcp_server.config)
+        importlib.reload(config)
 
         # Reload logging_config to pick up the new CONFIG
-        import linux_mcp_server.logging_config
+        from linux_mcp_server import logging_config
 
-        importlib.reload(linux_mcp_server.logging_config)
+        importlib.reload(logging_config)
 
         # Import setup_logging again to get the reloaded version
         from linux_mcp_server.logging_config import setup_logging
