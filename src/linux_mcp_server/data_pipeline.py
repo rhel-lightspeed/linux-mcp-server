@@ -9,7 +9,7 @@ from linux_mcp_server.utils.types import Host
 
 
 # Type aliases for the collect-parse-filter pattern
-CommandKey = tuple[str, ...]
+CommandKey = t.Hashable
 RawCommandOutput = str
 ParsedData = dict[str, t.Any]
 CommandList = list[list[str]]
