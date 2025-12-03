@@ -11,6 +11,9 @@ import warnings
 This package exists to allow downstream packagers to transparently vendor Python
 packages. It is called very early on to ensure that packages are available.
 
+Packages should be vendored only when necessary. When available, packages from
+the system package manager should be used.
+
 A warning will be displayed in the event that a module from this package is
 already loaded. That should be a rare, if ever, occuerence due to the natue
 of this application.
@@ -20,7 +23,7 @@ take precedent over any other packages.
 
 Install packages here during downstream packaging using a command such as:
 
-    pip install --upgrade --target [path to this directory] pydantic-settings fastmcp
+    pip install --upgrade --target [path to this directory] fastmcp
 """
 
 
