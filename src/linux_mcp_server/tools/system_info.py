@@ -9,7 +9,7 @@ from pydantic import Field
 from linux_mcp_server.audit import log_tool_call
 from linux_mcp_server.connection.ssh import execute_command
 from linux_mcp_server.data_pipeline import CommandKey
-from linux_mcp_server.data_pipeline import DataPipeline
+from linux_mcp_server.data_pipeline import DataParser
 from linux_mcp_server.data_pipeline import ParsedData
 from linux_mcp_server.data_pipeline import RawCommandOutput
 from linux_mcp_server.server import mcp
@@ -217,7 +217,7 @@ async def get_system_information(
         ["uptime", "-p"],
         ["uptime", "-s"],
     ]
-    rummager = DataPipeline(parse_func=_parse_system_information)
+    rummager = DataParser(parse_func=_parse_system_information)
     filtered_data = await rummager.process(commands, fields=fields, host=host)
 
     # Build SystemInfo object from filtered data
@@ -311,7 +311,7 @@ async def get_cpu_information(
         ["cat", "/proc/loadavg"],
         ["top", "-bn1"],
     ]
-    rummager = DataPipeline(parse_func=_parse_cpu_information)
+    rummager = DataParser(parse_func=_parse_cpu_information)
     filtered_data = await rummager.process(commands, fields=fields, host=host)
 
     # Build CPUInfo object from filtered data
@@ -404,7 +404,7 @@ async def get_memory_information(
     commands = [
         ["free", "-b"],
     ]
-    rummager = DataPipeline(parse_func=_parse_memory_information)
+    rummager = DataParser(parse_func=_parse_memory_information)
     filtered_data = await rummager.process(commands, fields=fields, host=host)
 
     # Build MemoryInfo object from filtered data
@@ -531,7 +531,7 @@ async def get_disk_usage(
         ["df", "-B1"],
         ["cat", "/proc/diskstats"],
     ]
-    rummager = DataPipeline(parse_func=_parse_disk_usage)
+    rummager = DataParser(parse_func=_parse_disk_usage)
     filtered_data = await rummager.process(commands, fields=fields, host=host)
 
     # Apply mountpoint filter to partitions
@@ -755,7 +755,7 @@ async def get_device_information(
         return await _filter_device_information(parsed_data, device_types=device_types, limit=limit)
 
     # Use Rummager with custom collect, parse, and filter functions
-    rummager = DataPipeline(
+    rummager = DataParser(
         collect_func=_collect_device_information,
         parse_func=_parse_device_information,
         filter_func=custom_filter,

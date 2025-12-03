@@ -81,7 +81,7 @@ async def _default_filter(parsed_data: ParsedData, fields: list[str] | None) -> 
     return filtered
 
 
-class DataPipeline:
+class DataParser:
     def __init__(
         self,
         collect_func: CollectFunc = _default_collect,
