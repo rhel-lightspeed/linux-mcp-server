@@ -5,9 +5,8 @@ This guide provides comprehensive installation instructions for both end users a
 ## Table of Contents
 
 - [For End Users](#for-end-users)
-- [For Developers](#for-developers)
 - [Claude Desktop Integration](#claude-desktop-integration)
-- [Platform-Specific Notes](#platform-specific-notes)
+- [Platform Specific Notes](#platform-specific-notes)
 - [Troubleshooting](#troubleshooting)
 
 ---
@@ -18,7 +17,7 @@ If you just want to use the Linux MCP Server with Claude Desktop or other MCP cl
 
 ### Prerequisites
 
-- **Python 3.10 or higher** - See [Platform-Specific Notes](#platform-specific-notes) for installation instructions
+- **Python 3.10 or higher** - See [Platform Specific Notes](#platform-specific-notes) for installation instructions
 - **pip** (usually included with Python)
 
 ### Method 1: Install with pip (Recommended)
@@ -404,9 +403,10 @@ This section explains issues that may be present when using the MCP server to in
 
 ## Additional Resources
 
-- **Usage Guide:** [USAGE.md](USAGE.md) - Detailed guide on using all available tools
-- **Contributing:** [CONTRIBUTING.md](CONTRIBUTING.md) - Development workflow and guidelines
-- **Main README:** [README.md](README.md) - Project overview and architecture
-- **MCP Documentation:** https://modelcontextprotocol.io/
-- **MCP Inspector:** https://github.com/modelcontextprotocol/inspector
+- **[Usage Guide](Usage.md):** Detailed guide on using all available tools
+- **[Contributing](CONTRIBUTING.md):** Development workflow and guidelines
+- **[Debugging](Debugging.md):** Information for debugging and fixing common problems
+- **Main [README](../README.md):** Project overview and architecture
+- **[MCP Documentation](https://modelcontextprotocol.io/)**
+- **[MCP Inspector](https://github.com/modelcontextprotocol/inspector)**
 
