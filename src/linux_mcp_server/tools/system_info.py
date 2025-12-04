@@ -1,5 +1,6 @@
 """System information tools."""
 
+import re
 import typing as t
 
 from mcp.types import ToolAnnotations
@@ -7,7 +8,6 @@ from pydantic import BaseModel
 from pydantic import Field
 
 from linux_mcp_server.audit import log_tool_call
-from linux_mcp_server.connection.ssh import execute_command
 from linux_mcp_server.data_pipeline import CommandKey
 from linux_mcp_server.data_pipeline import DataParser
 from linux_mcp_server.data_pipeline import ParsedData
@@ -122,24 +122,25 @@ class DiskUsage(BaseModel):
 
 
 class PCIDevice(BaseModel):
-    """PCI device information."""
+    """PCI device information from lspci -vmm output."""
 
-    address: str
-    vendor_id: str | None = None
-    device_id: str | None = None
-    class_id: str | None = None
-    description: str | None = None
+    slot: str
+    class_name: str | None = None
+    vendor: str | None = None
+    device: str | None = None
+    subsystem_vendor: str | None = None
+    subsystem_device: str | None = None
+    revision: str | None = None
 
 
 class USBDevice(BaseModel):
-    """USB device information."""
+    """USB device information from lsusb output."""
 
     bus: str
     device: str
     vendor_id: str | None = None
     product_id: str | None = None
     description: str | None = None
-    manufacturer: str | None = None
 
 
 class DeviceInfo(BaseModel):
@@ -554,137 +555,107 @@ async def get_disk_usage(
     return DiskUsage(partitions=partitions, io_stats=io_stats)
 
 
-async def _collect_device_information(
-    commands: list[list[str]], host: Host | None = None
-) -> dict[CommandKey, RawCommandOutput]:
+def _parse_lspci_vmm(output: str) -> list[PCIDevice]:
     """
-    Custom collect function for device information.
+    Parse lspci -vmm output into a list of PCIDevice objects.
 
-    This function dynamically discovers devices and reads their attributes.
-    It doesn't use the commands parameter since device paths are discovered at runtime.
+    lspci -vmm produces machine-readable output with blocks separated by blank lines:
+    Slot:	00:00.0
+    Class:	Host bridge
+    Vendor:	Intel Corporation
+    Device:	8th Gen Core Processor Host Bridge/DRAM Registers
+    SVendor:	Lenovo
+    SDevice:	ThinkPad X1 Carbon 6th Gen
+    Rev:	08
     """
-    cache: dict[CommandKey, RawCommandOutput] = {}
-
-    # Collect PCI devices
-    pci_find_key = ("find", "/sys/bus/pci/devices", "-maxdepth", "1", "-type", "l")
-    returncode, stdout, _ = await execute_command(list(pci_find_key[1:]), host=host)
-
-    if returncode == 0 and stdout:
-        cache[pci_find_key] = stdout
-        device_paths = [
-            path.strip() for path in stdout.strip().split("\n") if path.strip() and path != "/sys/bus/pci/devices"
-        ]
-
-        for device_path in device_paths:
-            address = device_path.split("/")[-1]
-            attrs = ["vendor", "device", "class", "label"]
-            results = []
-            for attr in attrs:
-                file_path = f"{device_path}/{attr}"
-                returncode, stdout, _ = await execute_command(["cat", file_path], host=host)
-                # Handle both success and failure (file may not exist)
-                value = stdout.strip() if returncode == 0 and stdout else ""
-                results.append(f"{attr}:{value}")
-
-            # Combine into single cache entry
-            combined_output = "\n".join(results)
-            cache[("pci_attrs", address)] = combined_output
-
-    # Collect USB devices
-    usb_find_key = ("find", "/sys/bus/usb/devices", "-maxdepth", "1", "-type", "l")
-    returncode, stdout, _ = await execute_command(list(usb_find_key[1:]), host=host)
-
-    if returncode == 0 and stdout:
-        cache[usb_find_key] = stdout
-        device_paths = [
-            path.strip() for path in stdout.strip().split("\n") if path.strip() and path != "/sys/bus/usb/devices"
-        ]
-
-        for device_path in device_paths:
-            device_name = device_path.split("/")[-1]
-            # Skip root hubs (like usb1, usb2)
-            if "-" not in device_name:
-                continue
-
-            attrs = ["idVendor", "idProduct", "product", "manufacturer"]
-            results = []
-            for attr in attrs:
-                file_path = f"{device_path}/{attr}"
-                returncode, stdout, _ = await execute_command(["cat", file_path], host=host)
-                # Handle both success and failure (file may not exist)
-                value = stdout.strip() if returncode == 0 and stdout else ""
-                results.append(f"{attr}:{value}")
-
-            # Combine into single cache entry
-            combined_output = "\n".join(results)
-            cache[("usb_attrs", device_name)] = combined_output
-
-    return cache
-
-
-def _parse_pci_device_attrs(address: str, output: str) -> PCIDevice:
-    """Parse PCI device attributes from raw output."""
-    device = PCIDevice(address=address)
+    devices = []
+    current_device: dict[str, str] = {}
 
     for line in output.strip().split("\n"):
-        if ":" in line:
-            key, value = line.split(":", 1)
-            value = value.strip()
-            if value:
-                match key:
-                    case "vendor":
-                        device.vendor_id = value
-                    case "device":
-                        device.device_id = value
-                    case "class":
-                        device.class_id = value
-                    case "label":
-                        device.description = value
+        line = line.strip()
+        if not line:
+            # End of device block
+            if current_device and "Slot" in current_device:
+                devices.append(
+                    PCIDevice(
+                        slot=current_device["Slot"],
+                        class_name=current_device.get("Class"),
+                        vendor=current_device.get("Vendor"),
+                        device=current_device.get("Device"),
+                        subsystem_vendor=current_device.get("SVendor"),
+                        subsystem_device=current_device.get("SDevice"),
+                        revision=current_device.get("Rev"),
+                    )
+                )
+            current_device = {}
+        elif ":\t" in line:
+            key, value = line.split(":\t", 1)
+            current_device[key] = value
 
-    return device
+    # Handle last device if no trailing newline
+    if current_device and "Slot" in current_device:
+        devices.append(
+            PCIDevice(
+                slot=current_device["Slot"],
+                class_name=current_device.get("Class"),
+                vendor=current_device.get("Vendor"),
+                device=current_device.get("Device"),
+                subsystem_vendor=current_device.get("SVendor"),
+                subsystem_device=current_device.get("SDevice"),
+                revision=current_device.get("Rev"),
+            )
+        )
+
+    return devices
 
 
-def _parse_usb_device_attrs(device_name: str, output: str) -> USBDevice:
-    """Parse USB device attributes from raw output."""
-    parts = device_name.split("-")
-    bus = parts[0]
-    device = USBDevice(bus=bus, device=device_name)
+def _parse_lsusb(output: str) -> list[USBDevice]:
+    """
+    Parse lsusb output into a list of USBDevice objects.
+
+    lsusb produces output in the format:
+    Bus 001 Device 003: ID 04f2:b604 Chicony Electronics Co., Ltd Integrated Camera
+    Bus 001 Device 002: ID 8087:0a2b Intel Corp. Bluetooth wireless interface
+    """
+    devices = []
+    # Pattern: Bus XXX Device YYY: ID vendor:product Description
+    pattern = re.compile(r"Bus\s+(\d+)\s+Device\s+(\d+):\s+ID\s+([0-9a-fA-F]+):([0-9a-fA-F]+)\s*(.*)")
 
     for line in output.strip().split("\n"):
-        if ":" in line:
-            key, value = line.split(":", 1)
-            value = value.strip()
-            if value:
-                match key:
-                    case "idVendor":
-                        device.vendor_id = value
-                    case "idProduct":
-                        device.product_id = value
-                    case "product":
-                        device.description = value
-                    case "manufacturer":
-                        device.manufacturer = value
+        line = line.strip()
+        if not line:
+            continue
 
-    return device
+        match = pattern.match(line)
+        if match:
+            bus, device_num, vendor_id, product_id, description = match.groups()
+            devices.append(
+                USBDevice(
+                    bus=bus,
+                    device=device_num,
+                    vendor_id=vendor_id,
+                    product_id=product_id,
+                    description=description.strip() if description else None,
+                )
+            )
+
+    return devices
 
 
 async def _parse_device_information(raw_outputs: dict[CommandKey, RawCommandOutput]) -> ParsedData:
     """
-    Parse phase: Convert raw device outputs into structured device data.
+    Parse phase: Convert lspci and lsusb outputs into structured device data.
 
     Returns a dictionary with pci_devices and usb_devices lists.
     """
-    pci_devices = []
-    usb_devices = []
+    pci_devices: list[PCIDevice] = []
+    usb_devices: list[USBDevice] = []
 
-    # Parse PCI and USB devices
     for command_key, output in raw_outputs.items():
-        if command_key[0] == "pci_attrs" and len(command_key) == 2:
-            address = command_key[1]
-            pci_devices.append(_parse_pci_device_attrs(address, output))
-        elif command_key[0] == "usb_attrs" and len(command_key) == 2:
-            device_name = command_key[1]
-            usb_devices.append(_parse_usb_device_attrs(device_name, output))
+        if command_key == ("lspci", "-vmm"):
+            pci_devices = _parse_lspci_vmm(output)
+        elif command_key == ("lsusb",):
+            usb_devices = _parse_lsusb(output)
 
     return {
         "pci_devices": pci_devices,
@@ -692,44 +663,9 @@ async def _parse_device_information(raw_outputs: dict[CommandKey, RawCommandOutp
     }
 
 
-async def _filter_device_information(
-    parsed_data: ParsedData, device_types: list[str] | None = None, limit: int | None = None
-) -> ParsedData:
-    """
-    Filter phase: Apply device type and limit filters to device data.
-
-    Args:
-        parsed_data: The parsed device data containing pci_devices and usb_devices
-        device_types: List of device types to include ('pci', 'usb'), or None for all
-        limit: Maximum number of devices to return per type, or None for all
-
-    Returns:
-        Filtered device data
-    """
-    filtered = {}
-
-    # Apply device type filter
-    should_include_pci = device_types is None or "pci" in device_types
-    should_include_usb = device_types is None or "usb" in device_types
-
-    if should_include_pci and "pci_devices" in parsed_data:
-        pci_devices = parsed_data["pci_devices"]
-        if limit is not None:
-            pci_devices = pci_devices[:limit]
-        filtered["pci_devices"] = pci_devices
-
-    if should_include_usb and "usb_devices" in parsed_data:
-        usb_devices = parsed_data["usb_devices"]
-        if limit is not None:
-            usb_devices = usb_devices[:limit]
-        filtered["usb_devices"] = usb_devices
-
-    return filtered
-
-
 @mcp.tool(
     title="Get device information",
-    description="Get hardware device information including PCI and USB devices. Reads directly from sysfs without requiring lspci or lsusb utilities.",
+    description="Get hardware device information for PCI and USB devices.",
     annotations=ToolAnnotations(readOnlyHint=True),
 )
 @log_tool_call
@@ -750,34 +686,35 @@ async def get_device_information(
     """
     Get device information for PCI and USB devices.
 
-    This tool reads device information directly from the Linux sysfs filesystem
-    (/sys/bus/pci/devices/ and /sys/bus/usb/devices/) and does not rely on
-    external utilities like lspci or lsusb which may not be installed.
+    This tool uses the lspci and lsusb utilities to gather device information.
+    These utilities must be installed on the target system.
     """
-
-    # Create a custom filter function that wraps filter_device_information
-    # to match the FilterFunc signature
-    async def custom_filter(parsed_data: ParsedData, fields: list[str] | None) -> ParsedData:
-        return await _filter_device_information(parsed_data, device_types=device_types, limit=limit)
-
-    data_parser = DataParser(
-        collect_func=_collect_device_information,
-        parse_func=_parse_device_information,
-        filter_func=custom_filter,
-    )
-
-    # Commands list is empty since collection is dynamic
-    filtered_data = await data_parser.process(commands=[], host=host)
-
-    # Build DeviceInfo object from filtered data
-    pci_devices = [
-        device if isinstance(device, PCIDevice) else PCIDevice(**device)
-        for device in filtered_data.get("pci_devices", [])
+    commands = [
+        ["lspci", "-vmm"],
+        ["lsusb"],
     ]
-    usb_devices = [
-        device if isinstance(device, USBDevice) else USBDevice(**device)
-        for device in filtered_data.get("usb_devices", [])
-    ]
+
+    data_parser = DataParser(parse_func=_parse_device_information)
+    parsed_data = await data_parser.process(commands=commands, host=host)
+
+    # Apply device type filter and limit
+    should_include_pci = device_types is None or DeviceClass.PCI in device_types
+    should_include_usb = device_types is None or DeviceClass.USB in device_types
+
+    pci_devices: list[PCIDevice] = []
+    usb_devices: list[USBDevice] = []
+
+    if should_include_pci:
+        pci_list = parsed_data.get("pci_devices", [])
+        if limit is not None:
+            pci_list = pci_list[:limit]
+        pci_devices = [device if isinstance(device, PCIDevice) else PCIDevice(**device) for device in pci_list]
+
+    if should_include_usb:
+        usb_list = parsed_data.get("usb_devices", [])
+        if limit is not None:
+            usb_list = usb_list[:limit]
+        usb_devices = [device if isinstance(device, USBDevice) else USBDevice(**device) for device in usb_list]
 
     return DeviceInfo(
         pci_devices=pci_devices,

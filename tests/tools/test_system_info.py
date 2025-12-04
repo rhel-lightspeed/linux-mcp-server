@@ -424,23 +424,36 @@ tmpfs            1048576           0     1048576   0% /run/credentials/serial-ge
 
     async def test_get_device_info_contains_pci_data(self, mocker):
         """Test that get_device_information returns PCI device information."""
-        # Mock sysfs output for PCI devices
-        mock_pci_find_output = """/sys/bus/pci/devices/0000:00:00.0
-/sys/bus/pci/devices/0000:00:1f.2
-/sys/bus/pci/devices/0000:00:1f.3"""
+        # Mock lspci -vmm output for PCI devices
+        mock_lspci_output = """Slot:\t00:00.0
+Class:\tHost bridge
+Vendor:\tIntel Corporation
+Device:\t8th Gen Core Processor Host Bridge/DRAM Registers
+SVendor:\tLenovo
+SDevice:\tThinkPad X1 Carbon 6th Gen
+Rev:\t08
+
+Slot:\t00:1f.2
+Class:\tSATA controller
+Vendor:\tIntel Corporation
+Device:\t8 Series/C220 Series Chipset Family 6-port SATA Controller
+SVendor:\tDell
+SDevice:\tSATA Controller
+Rev:\t05
+
+Slot:\t00:1f.3
+Class:\tSMBus
+Vendor:\tIntel Corporation
+Device:\t8 Series/C220 Series Chipset Family SMBus Controller
+Rev:\t05
+"""
 
         async def mock_execute_command(command, host=None, username=None):
-            """Mock execute_command to return sysfs fixture data."""
+            """Mock execute_command to return lspci/lsusb fixture data."""
             match command:
-                case ["find", "/sys/bus/pci/devices", "-maxdepth", "1", "-type", "l"]:
-                    return (0, mock_pci_find_output, "")
-                case ["sh", "-c", cmd] if "/sys/bus/pci/devices/0000:00:00.0" in cmd:
-                    return (0, "vendor:0x8086\ndevice:0x1234\nclass:0x060000\nlabel:disk\n", "")
-                case ["sh", "-c", cmd] if "/sys/bus/pci/devices/0000:00:1f.2" in cmd:
-                    return (0, "vendor:0x8086\ndevice:0x2922\nclass:0x010601\nlabel:dock\n", "")
-                case ["sh", "-c", cmd] if "/sys/bus/pci/devices/0000:00:1f.3" in cmd:
-                    return (0, "vendor:0x8086\ndevice:0x2930\nclass:0x0c0500\nlabel:cable\n", "")
-                case ["find", "/sys/bus/usb/devices", "-maxdepth", "1", "-type", "l"]:
+                case ["lspci", "-vmm"]:
+                    return (0, mock_lspci_output, "")
+                case ["lsusb"]:
                     return (0, "", "")  # Empty USB devices
                 case _:
                     return (1, "", "Command not found")
@@ -448,29 +461,35 @@ tmpfs            1048576           0     1048576   0% /run/credentials/serial-ge
         # Expected PCI device data
         expected_pci_devices = [
             {
-                "address": "0000:00:00.0",
-                "vendor_id": "0x8086",
-                "device_id": "0x1234",
-                "class_id": "0x060000",
-                "description": "disk",
+                "slot": "00:00.0",
+                "class_name": "Host bridge",
+                "vendor": "Intel Corporation",
+                "device": "8th Gen Core Processor Host Bridge/DRAM Registers",
+                "subsystem_vendor": "Lenovo",
+                "subsystem_device": "ThinkPad X1 Carbon 6th Gen",
+                "revision": "08",
             },
             {
-                "address": "0000:00:1f.2",
-                "vendor_id": "0x8086",
-                "device_id": "0x2922",
-                "class_id": "0x010601",
-                "description": "dock",
+                "slot": "00:1f.2",
+                "class_name": "SATA controller",
+                "vendor": "Intel Corporation",
+                "device": "8 Series/C220 Series Chipset Family 6-port SATA Controller",
+                "subsystem_vendor": "Dell",
+                "subsystem_device": "SATA Controller",
+                "revision": "05",
             },
             {
-                "address": "0000:00:1f.3",
-                "vendor_id": "0x8086",
-                "device_id": "0x2930",
-                "class_id": "0x0c0500",
-                "description": "cable",
+                "slot": "00:1f.3",
+                "class_name": "SMBus",
+                "vendor": "Intel Corporation",
+                "device": "8 Series/C220 Series Chipset Family SMBus Controller",
+                "subsystem_vendor": None,
+                "subsystem_device": None,
+                "revision": "05",
             },
         ]
 
-        # Patch execute_command in system_info module (used by custom collect_device_information)
+        # Patch execute_command in data_pipeline module
         mocker.patch("linux_mcp_server.data_pipeline.execute_command", new=AsyncMock(side_effect=mock_execute_command))
         result = await mcp.call_tool("get_device_information", arguments={})
 
@@ -508,63 +527,48 @@ tmpfs            1048576           0     1048576   0% /run/credentials/serial-ge
 
     async def test_get_device_info_contains_usb_data(self, mocker):
         """Test that get_device_information returns USB device information."""
-        # Mock sysfs output for USB devices
-        mock_usb_find_output = """/sys/bus/usb/devices/usb1
-/sys/bus/usb/devices/1-1
-/sys/bus/usb/devices/1-1.1
-/sys/bus/usb/devices/usb2
-/sys/bus/usb/devices/2-1"""
+        # Mock lsusb output for USB devices
+        mock_lsusb_output = """Bus 001 Device 003: ID 046d:c52b Logitech, Inc. Unifying Receiver
+Bus 001 Device 004: ID 0bda:5411 Realtek Semiconductor Corp. 4-Port USB 2.0 Hub
+Bus 002 Device 002: ID 04f2:b604 Chicony Electronics Co., Ltd Integrated Camera
+"""
 
         async def mock_execute_command(command, host=None, username=None):
-            """Mock execute_command to return sysfs fixture data."""
+            """Mock execute_command to return lspci/lsusb fixture data."""
             match command:
-                case ["find", "/sys/bus/pci/devices", "-maxdepth", "1", "-type", "l"]:
+                case ["lspci", "-vmm"]:
                     return (0, "", "")  # Empty PCI devices
-                case ["find", "/sys/bus/usb/devices", "-maxdepth", "1", "-type", "l"]:
-                    return (0, mock_usb_find_output, "")
-                # Check for 1-1.1 before 1-1 to avoid substring matching issues
-                case ["sh", "-c", cmd] if "/sys/bus/usb/devices/1-1.1" in cmd:
-                    return (0, "idVendor:0bda\nidProduct:5411\nproduct:4-Port USB 2.0 Hub\nmanufacturer:Generic\n", "")
-                case ["sh", "-c", cmd] if "/sys/bus/usb/devices/1-1" in cmd:
-                    return (0, "idVendor:046d\nidProduct:c52b\nproduct:USB Receiver\nmanufacturer:Logitech\n", "")
-                case ["sh", "-c", cmd] if "/sys/bus/usb/devices/2-1" in cmd:
-                    return (
-                        0,
-                        "idVendor:8087\nidProduct:0024\nproduct:Integrated Camera\nmanufacturer:Chicony Electronics\n",
-                        "",
-                    )
+                case ["lsusb"]:
+                    return (0, mock_lsusb_output, "")
                 case _:
                     return (1, "", "Command not found")
 
         # Expected USB device data
         expected_usb_devices = [
             {
-                "bus": "1",
-                "device": "1-1",
+                "bus": "001",
+                "device": "003",
                 "vendor_id": "046d",
                 "product_id": "c52b",
-                "description": "USB Receiver",
-                "manufacturer": "Logitech",
+                "description": "Logitech, Inc. Unifying Receiver",
             },
             {
-                "bus": "1",
-                "device": "1-1.1",
+                "bus": "001",
+                "device": "004",
                 "vendor_id": "0bda",
                 "product_id": "5411",
-                "description": "4-Port USB 2.0 Hub",
-                "manufacturer": "Generic",
+                "description": "Realtek Semiconductor Corp. 4-Port USB 2.0 Hub",
             },
             {
-                "bus": "2",
-                "device": "2-1",
-                "vendor_id": "8087",
-                "product_id": "0024",
-                "description": "Integrated Camera",
-                "manufacturer": "Chicony Electronics",
+                "bus": "002",
+                "device": "002",
+                "vendor_id": "04f2",
+                "product_id": "b604",
+                "description": "Chicony Electronics Co., Ltd Integrated Camera",
             },
         ]
 
-        # Patch execute_command in system_info module (used by custom collect_device_information)
+        # Patch execute_command in data_pipeline module
         mocker.patch("linux_mcp_server.data_pipeline.execute_command", new=AsyncMock(side_effect=mock_execute_command))
         result = await mcp.call_tool("get_device_information", arguments={})
 
