@@ -234,8 +234,8 @@ async def get_system_information(
         ["uptime", "-p"],
         ["uptime", "-s"],
     ]
-    rummager = DataParser(parse_func=_parse_system_information)
-    filtered_data = await rummager.process(commands, fields=fields, host=host)
+    processor = DataParser(parse_func=_parse_system_information)
+    filtered_data = await processor.process(commands, fields=fields, host=host)
 
     # Build SystemInfo object from filtered data
     return SystemInfo(
@@ -331,8 +331,8 @@ async def get_cpu_information(
         ["cat", "/proc/loadavg"],
         ["top", "-bn1"],
     ]
-    rummager = DataParser(parse_func=_parse_cpu_information)
-    filtered_data = await rummager.process(commands, fields=fields, host=host)
+    processor = DataParser(parse_func=_parse_cpu_information)
+    filtered_data = await processor.process(commands, fields=fields, host=host)
 
     # Build CPUInfo object from filtered data
     load_avg_data = filtered_data.get("load_average")
@@ -425,8 +425,8 @@ async def get_memory_information(
     commands = [
         ["free", "-b"],
     ]
-    rummager = DataParser(parse_func=_parse_memory_information)
-    filtered_data = await rummager.process(commands, fields=fields, host=host)
+    processor = DataParser(parse_func=_parse_memory_information)
+    filtered_data = await processor.process(commands, fields=fields, host=host)
 
     # Build MemoryInfo object from filtered data
     ram_data = filtered_data.get("ram")
@@ -554,8 +554,8 @@ async def get_disk_usage(
         ["df", "-B1"],
         ["cat", "/proc/diskstats"],
     ]
-    rummager = DataParser(parse_func=_parse_disk_usage)
-    filtered_data = await rummager.process(commands, fields=fields, host=host)
+    processor = DataParser(parse_func=_parse_disk_usage)
+    filtered_data = await processor.process(commands, fields=fields, host=host)
 
     # Apply mountpoint filter to partitions
     partitions_data = filtered_data.get("partitions", [])
