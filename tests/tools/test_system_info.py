@@ -11,6 +11,7 @@ from mcp.server.fastmcp.exceptions import ToolError
 from mcp.types import TextContent
 
 from linux_mcp_server.server import mcp
+from linux_mcp_server.tools.system_info import _apply_list_filter
 from linux_mcp_server.tools.system_info import CPUInfo
 from linux_mcp_server.tools.system_info import DeviceInfo
 from linux_mcp_server.tools.system_info import DiskUsage
@@ -23,6 +24,12 @@ from linux_mcp_server.tools.system_info import USBDevice
 
 class TestSystemInfo:
     """Test system information tools."""
+
+    def test_apply_list_filter_returns_all_when_filter_is_none(self):
+        """Test that _apply_list_filter returns all items when filter_values is None."""
+        items = [{"key": "a"}, {"key": "b"}, {"key": "c"}]
+        result = _apply_list_filter(items, "key", None)
+        assert result == items
 
     async def test_get_system_info_contains_key_information(self, mocker):
         """Test that system info contains essential data."""
@@ -303,26 +310,8 @@ tmpfs            1048576           0     1048576   0% /run/credentials/serial-ge
                 return (0, mock_diskstats_output, "")
             return (1, "", "Command not found")
 
-        # Expected values from mock data
+        # Expected values from mock data (filtered to "/" mountpoint only)
         expected_partitions = [
-            {
-                "device": "devtmpfs",
-                "mountpoint": "/dev",
-                "size": 4096000,
-                "used": 0,
-                "free": 4096000,
-                "percent": 0.0,
-                "filesystem": None,
-            },
-            {
-                "device": "tmpfs",
-                "mountpoint": "/dev/shm",
-                "size": 8192000,
-                "used": 204800,
-                "free": 7987200,
-                "percent": 3.0,
-                "filesystem": None,
-            },
             {
                 "device": "/dev/vda1",
                 "mountpoint": "/",
@@ -330,15 +319,6 @@ tmpfs            1048576           0     1048576   0% /run/credentials/serial-ge
                 "used": 53687091200,
                 "free": 48150528000,
                 "percent": 53.0,
-                "filesystem": None,
-            },
-            {
-                "device": "tmpfs",
-                "mountpoint": "/run/credentials/serial-getty@hvc0.service",
-                "size": 1048576,
-                "used": 0,
-                "free": 1048576,
-                "percent": 0.0,
                 "filesystem": None,
             },
         ]
@@ -357,7 +337,7 @@ tmpfs            1048576           0     1048576   0% /run/credentials/serial-ge
 
         # Patch execute_command in data_pipeline module (used by default DataPipeline._collect)
         mocker.patch("linux_mcp_server.data_pipeline.execute_command", new=AsyncMock(side_effect=mock_execute_command))
-        result = await mcp.call_tool("get_disk_usage", arguments={})
+        result = await mcp.call_tool("get_disk_usage", arguments={"mountpoints": ["/"]})
 
         # MCP call_tool returns a tuple of (content, structured_output)
         assert isinstance(result, tuple)
@@ -458,7 +438,7 @@ Rev:\t05
                 case _:
                     return (1, "", "Command not found")
 
-        # Expected PCI device data
+        # Expected PCI device data (only first 2 due to limit=2)
         expected_pci_devices = [
             {
                 "slot": "00:00.0",
@@ -478,20 +458,12 @@ Rev:\t05
                 "subsystem_device": "SATA Controller",
                 "revision": "05",
             },
-            {
-                "slot": "00:1f.3",
-                "class_name": "SMBus",
-                "vendor": "Intel Corporation",
-                "device": "8 Series/C220 Series Chipset Family SMBus Controller",
-                "subsystem_vendor": None,
-                "subsystem_device": None,
-                "revision": "05",
-            },
         ]
 
         # Patch execute_command in data_pipeline module
         mocker.patch("linux_mcp_server.data_pipeline.execute_command", new=AsyncMock(side_effect=mock_execute_command))
-        result = await mcp.call_tool("get_device_information", arguments={})
+        # Use limit=2 and device_types=["pci"] to test filtering and limiting
+        result = await mcp.call_tool("get_device_information", arguments={"limit": 2, "device_types": ["pci"]})
 
         # MCP call_tool returns a tuple of (content, structured_output)
         assert isinstance(result, tuple)
@@ -506,28 +478,37 @@ Rev:\t05
         text = content[0].text
         data = json.loads(text)
 
-        # Verify PCI devices in JSON
+        # Verify PCI devices in JSON (limited to 2, USB filtered out)
         assert "pci_devices" in data
         pci_devices = data["pci_devices"]
         assert isinstance(pci_devices, list)
+        assert len(pci_devices) == 2  # Limited to 2
 
         for i, pci_device in enumerate(pci_devices):
             assert pci_device == expected_pci_devices[i]
+
+        # Verify USB devices are empty due to device_types filter
+        assert data["usb_devices"] == []
 
         # Verify structured output
         assert isinstance(structured_output, dict)
         device_info = DeviceInfo(**structured_output)
 
-        # Verify PCI devices in structured output
-        assert len(device_info.pci_devices) == device_info.pci_device_count
+        # Verify PCI devices in structured output (limited to 2)
+        assert len(device_info.pci_devices) == 2
+        assert device_info.pci_device_count == 2
         for i, pci_device in enumerate(device_info.pci_devices):
             assert isinstance(pci_device, PCIDevice)
             assert pci_device == PCIDevice(**expected_pci_devices[i])
 
+        # Verify USB devices are empty
+        assert device_info.usb_device_count == 0
+
     async def test_get_device_info_contains_usb_data(self, mocker):
         """Test that get_device_information returns USB device information."""
-        # Mock lsusb output for USB devices
+        # Mock lsusb output for USB devices (includes empty line to test _parse_lsusb continue branch)
         mock_lsusb_output = """Bus 001 Device 003: ID 046d:c52b Logitech, Inc. Unifying Receiver
+
 Bus 001 Device 004: ID 0bda:5411 Realtek Semiconductor Corp. 4-Port USB 2.0 Hub
 Bus 002 Device 002: ID 04f2:b604 Chicony Electronics Co., Ltd Integrated Camera
 """
@@ -542,7 +523,7 @@ Bus 002 Device 002: ID 04f2:b604 Chicony Electronics Co., Ltd Integrated Camera
                 case _:
                     return (1, "", "Command not found")
 
-        # Expected USB device data
+        # Expected USB device data (only first 2 due to limit=2)
         expected_usb_devices = [
             {
                 "bus": "001",
@@ -558,18 +539,12 @@ Bus 002 Device 002: ID 04f2:b604 Chicony Electronics Co., Ltd Integrated Camera
                 "product_id": "5411",
                 "description": "Realtek Semiconductor Corp. 4-Port USB 2.0 Hub",
             },
-            {
-                "bus": "002",
-                "device": "002",
-                "vendor_id": "04f2",
-                "product_id": "b604",
-                "description": "Chicony Electronics Co., Ltd Integrated Camera",
-            },
         ]
 
         # Patch execute_command in data_pipeline module
         mocker.patch("linux_mcp_server.data_pipeline.execute_command", new=AsyncMock(side_effect=mock_execute_command))
-        result = await mcp.call_tool("get_device_information", arguments={})
+        # Use limit=2 and device_types=["usb"] to test filtering and limiting
+        result = await mcp.call_tool("get_device_information", arguments={"limit": 2, "device_types": ["usb"]})
 
         # MCP call_tool returns a tuple of (content, structured_output)
         assert isinstance(result, tuple)
@@ -584,23 +559,31 @@ Bus 002 Device 002: ID 04f2:b604 Chicony Electronics Co., Ltd Integrated Camera
         text = content[0].text
         data = json.loads(text)
 
-        # Verify USB devices in JSON
+        # Verify USB devices in JSON (limited to 2, PCI filtered out)
         assert "usb_devices" in data
         usb_devices = data["usb_devices"]
         assert isinstance(usb_devices, list)
+        assert len(usb_devices) == 2  # Limited to 2
 
         for i, usb_device in enumerate(usb_devices):
             assert usb_device == expected_usb_devices[i]
+
+        # Verify PCI devices are empty due to device_types filter
+        assert data["pci_devices"] == []
 
         # Verify structured output
         assert isinstance(structured_output, dict)
         device_info = DeviceInfo(**structured_output)
 
-        # Verify USB devices in structured output
-        assert len(device_info.usb_devices) == device_info.usb_device_count
+        # Verify USB devices in structured output (limited to 2)
+        assert len(device_info.usb_devices) == 2
+        assert device_info.usb_device_count == 2
         for i, usb_device in enumerate(device_info.usb_devices):
             assert isinstance(usb_device, USBDevice)
             assert usb_device == USBDevice(**expected_usb_devices[i])
+
+        # Verify PCI devices are empty
+        assert device_info.pci_device_count == 0
 
     async def test_error_handling(self, mocker):
         """Test that errors are properly raised as ToolError."""
