@@ -2,7 +2,7 @@
 
 import pytest
 
-from mcp.server.fastmcp.exceptions import ToolError
+from fastmcp.exceptions import ToolError
 
 from linux_mcp_server.utils.decorators import disallow_local_execution_in_containers
 

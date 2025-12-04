@@ -7,7 +7,7 @@ from pathlib import Path
 
 import psutil
 
-from mcp.server.fastmcp.exceptions import ToolError
+from fastmcp.exceptions import ToolError
 from mcp.types import ToolAnnotations
 from pydantic import BaseModel
 from pydantic import Field
