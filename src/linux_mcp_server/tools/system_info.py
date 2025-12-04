@@ -13,6 +13,7 @@ from linux_mcp_server.data_pipeline import DataParser
 from linux_mcp_server.data_pipeline import ParsedData
 from linux_mcp_server.data_pipeline import RawCommandOutput
 from linux_mcp_server.server import mcp
+from linux_mcp_server.utils import StrEnum
 from linux_mcp_server.utils.decorators import disallow_local_execution_in_containers
 from linux_mcp_server.utils.types import Host
 
@@ -32,6 +33,11 @@ def _apply_list_filter(
         return items
 
     return [item for item in items if isinstance(item, dict) and item.get(filter_key) in filter_values]
+
+
+class DeviceClass(StrEnum):
+    PCI = "pci"
+    USB = "usb"
 
 
 # Pydantic Models for structured output
@@ -730,7 +736,7 @@ async def _filter_device_information(
 async def get_device_information(
     host: Host | None = None,
     device_types: t.Annotated[
-        list[str],
+        list[DeviceClass],
         Field(
             description="List of device types to include. If None, all types are included. Valid types: 'pci', 'usb'"
         ),
