@@ -1,20 +1,211 @@
 """System information tools."""
 
-import os
-import platform
-
-from datetime import datetime
-
-import psutil
+import re
+import typing as t
 
 from mcp.types import ToolAnnotations
+from pydantic import BaseModel
+from pydantic import Field
 
 from linux_mcp_server.audit import log_tool_call
-from linux_mcp_server.connection.ssh import execute_command
+from linux_mcp_server.data_pipeline import CommandKey
+from linux_mcp_server.data_pipeline import DataParser
+from linux_mcp_server.data_pipeline import ParsedData
+from linux_mcp_server.data_pipeline import RawCommandOutput
 from linux_mcp_server.server import mcp
-from linux_mcp_server.utils import format_bytes
+from linux_mcp_server.utils import StrEnum
 from linux_mcp_server.utils.decorators import disallow_local_execution_in_containers
 from linux_mcp_server.utils.types import Host
+
+
+# Helper function for filter phase
+def _apply_list_filter(
+    items: list[t.Any],
+    filter_key: str,
+    filter_values: list[str] | None,
+) -> list[t.Any]:
+    """
+    Helper to filter a list of dictionaries by a specific key.
+
+    If filter_values is None, return all items.
+    """
+    if filter_values is None:
+        return items
+
+    return [item for item in items if isinstance(item, dict) and item.get(filter_key) in filter_values]
+
+
+class DeviceClass(StrEnum):
+    PCI = "pci"
+    USB = "usb"
+
+
+# Pydantic Models for structured output
+class SystemInfo(BaseModel):
+    """System information model."""
+
+    hostname: str | None = None
+    operating_system: str | None = None
+    os_version: str | None = None
+    kernel_version: str | None = None
+    architecture: str | None = None
+    uptime: str | None = None
+    boot_time: str | None = None
+
+
+class LoadAverage(BaseModel):
+    """Load average information."""
+
+    one_min: float = 0.0
+    five_min: float = 0.0
+    fifteen_min: float = 0.0
+
+
+class CPUInfo(BaseModel):
+    """CPU information model."""
+
+    cpu_model: str | None = None
+    logical_cores: int | None = None
+    physical_sockets: int | None = None
+    physical_cores_per_processor: int | None = None
+    frequency_mhz: float | None = None
+    load_average: LoadAverage | None = None
+    cpu_usage: str | None = None
+
+
+class MemoryStats(BaseModel):
+    """Memory statistics model."""
+
+    total: int = 0
+    used: int = 0
+    free: int = 0
+    shared: int = 0
+    percent: float = 0.0
+    available: int | None = None
+    buffers: int | None = None
+    cached: int | None = None
+
+
+class MemoryInfo(BaseModel):
+    """Memory information model."""
+
+    ram: MemoryStats
+    swap: MemoryStats
+
+
+class DiskPartition(BaseModel):
+    """Disk partition information."""
+
+    device: str
+    mountpoint: str
+    size: int
+    used: int
+    free: int
+    percent: float
+    filesystem: str | None = None
+
+
+class DiskIOStats(BaseModel):
+    """Disk I/O statistics."""
+
+    read_bytes: int = 0
+    write_bytes: int = 0
+    read_count: int = 0
+    write_count: int = 0
+
+
+class DiskUsage(BaseModel):
+    """Disk usage information model."""
+
+    partitions: list[DiskPartition]
+    io_stats: DiskIOStats
+
+
+class PCIDevice(BaseModel):
+    """PCI device information from lspci -vmm output."""
+
+    slot: str
+    class_name: str | None = None
+    vendor: str | None = None
+    device: str | None = None
+    subsystem_vendor: str | None = None
+    subsystem_device: str | None = None
+    revision: str | None = None
+
+
+class USBDevice(BaseModel):
+    """USB device information from lsusb output."""
+
+    bus: str
+    device: str
+    vendor_id: str | None = None
+    product_id: str | None = None
+    description: str | None = None
+
+
+class DeviceInfo(BaseModel):
+    """Device information model for PCI and USB devices."""
+
+    pci_devices: list[PCIDevice] = Field(default_factory=list)
+    usb_devices: list[USBDevice] = Field(default_factory=list)
+
+    @property
+    def pci_device_count(self) -> int:
+        return len(self.pci_devices)
+
+    @property
+    def usb_device_count(self) -> int:
+        return len(self.usb_devices)
+
+
+async def _parse_system_information(raw_outputs: dict[CommandKey, RawCommandOutput]) -> ParsedData:
+    """
+    Parse phase: Convert raw command outputs into structured data for system information. Collects:
+     - hostname
+     - operating system
+     - os version
+     - kernel version
+     - architecture
+     - uptime
+     - boot time
+
+    Returns a dictionary with system information fields.
+    """
+    parsed: ParsedData = {}
+
+    # Pre-create CommandKey objects for matching
+    hostname_key = CommandKey(["hostname"])
+    os_release_key = CommandKey(["cat", "/etc/os-release"])
+    uname_key = CommandKey(["uname", "-r", "-m"])
+    uptime_p_key = CommandKey(["uptime", "-p"])
+    uptime_s_key = CommandKey(["uptime", "-s"])
+
+    for command_key, output in raw_outputs.items():
+        if command_key == hostname_key:
+            # Parse hostname
+            parsed["hostname"] = output.strip()
+        elif command_key == os_release_key:
+            # Parse os-release file
+            os_release_data = {}
+            for line in output.split("\n"):
+                if "=" in line:
+                    key, value = line.strip().split("=", 1)
+                    os_release_data[key] = value.strip('"')
+            parsed["operating_system"] = os_release_data.get("PRETTY_NAME")
+            parsed["os_version"] = os_release_data.get("VERSION_ID")
+        elif command_key == uname_key:
+            # Parse uname output
+            parts = output.strip().split(None, 1)
+            parsed["kernel_version"] = parts[0] if len(parts) > 0 else None
+            parsed["architecture"] = parts[1] if len(parts) > 1 else None
+        elif command_key == uptime_p_key:
+            # Parse uptime
+            parsed["uptime"] = output.strip()
+        elif command_key == uptime_s_key:
+            # Parse boot time
+            parsed["boot_time"] = output.strip()
+
+    return parsed
 
 
 @mcp.tool(
@@ -24,115 +215,96 @@ from linux_mcp_server.utils.types import Host
 )
 @log_tool_call
 @disallow_local_execution_in_containers
-async def get_system_information(  # noqa: C901
+async def get_system_information(
     host: Host | None = None,
-) -> str:
+    fields: t.Annotated[
+        list[str],
+        Field(
+            description="List of fields to include. If None, all fields are included. Valid fields: hostname, operating_system, os_version, kernel_version, architecture, uptime, boot_time"
+        ),
+    ]
+    | None = None,
+) -> SystemInfo:
+    """Get basic system information."""
+
+    commands = [
+        ["hostname"],
+        ["cat", "/etc/os-release"],
+        ["uname", "-r", "-m"],
+        ["uptime", "-p"],
+        ["uptime", "-s"],
+    ]
+    processor = DataParser(parse_func=_parse_system_information)
+    filtered_data = await processor.process(commands, fields=fields, host=host)
+
+    # Build SystemInfo object from filtered data
+    return SystemInfo(
+        hostname=filtered_data.get("hostname"),
+        operating_system=filtered_data.get("operating_system"),
+        os_version=filtered_data.get("os_version"),
+        kernel_version=filtered_data.get("kernel_version"),
+        architecture=filtered_data.get("architecture"),
+        uptime=filtered_data.get("uptime"),
+        boot_time=filtered_data.get("boot_time"),
+    )
+
+
+def _parse_cpuinfo(output: str) -> ParsedData:
+    """Parse /proc/cpuinfo output into structured CPU data."""
+    parsed: ParsedData = {}
+    lines = output.strip().split("\n")
+
+    # Extract cpu_model
+    parsed["cpu_model"] = next((line.split(":", 1)[1].strip() for line in lines if line.startswith("model name")), None)
+    # Count logical cores
+    parsed["logical_cores"] = sum(1 for line in lines if line.startswith("processor"))
+    # Count physical sockets
+    parsed["physical_sockets"] = len(set(line for line in lines if line.startswith("physical id")))
+    # Get physical cores per processor
+    parsed["physical_cores_per_processor"] = next(
+        (int(line.split(":", 1)[1].strip()) for line in lines if line.startswith("cpu cores")), None
+    )
+    # Get CPU frequency
+    parsed["frequency_mhz"] = next(
+        (float(line.split(":", 1)[1].strip()) for line in lines if line.startswith("cpu MHz")), 0.0
+    )
+
+    return parsed
+
+
+async def _parse_cpu_information(raw_outputs: dict[CommandKey, RawCommandOutput]) -> ParsedData:
     """
-    Get basic system information.
+    Parse phase: Convert raw command outputs into structured CPU data for CPU information.
+
+    Returns a dictionary with CPU information fields.
     """
-    info = []
+    parsed: ParsedData = {}
 
-    try:
-        if host:
-            # Remote execution - use Linux commands
-            # Hostname
-            returncode, stdout, _ = await execute_command(
-                ["hostname"],
-                host=host,
-            )
-            if returncode == 0 and stdout:
-                info.append(f"Hostname: {stdout.strip()}")
+    # Parse /proc/cpuinfo (only once for all fields)
+    cpuinfo_key = CommandKey(["cat", "/proc/cpuinfo"])
+    if cpuinfo_key in raw_outputs:
+        cpuinfo = raw_outputs[cpuinfo_key]
+        parsed.update(_parse_cpuinfo(cpuinfo))
 
-            # OS Information from /etc/os-release
-            returncode, stdout, _ = await execute_command(
-                ["cat", "/etc/os-release"],
-                host=host,
-            )
-            if returncode == 0 and stdout:
-                os_info = {}
-                for line in stdout.split("\n"):
-                    line = line.strip()
-                    if "=" in line:
-                        key, value = line.split("=", 1)
-                        os_info[key] = value.strip('"')
+    # Parse load average
+    loadavg_key = CommandKey(["cat", "/proc/loadavg"])
+    if loadavg_key in raw_outputs:
+        parts = raw_outputs[loadavg_key].strip().split()
+        if len(parts) >= 3:
+            parsed["load_average"] = {
+                "one_min": float(parts[0]),
+                "five_min": float(parts[1]),
+                "fifteen_min": float(parts[2]),
+            }
 
-                info.append(f"Operating System: {os_info.get('PRETTY_NAME', 'Unknown')}")
-                if "VERSION_ID" in os_info:
-                    info.append(f"OS Version: {os_info['VERSION_ID']}")
+    # Parse CPU usage from top
+    top_key = CommandKey(["top", "-bn1"])
+    if top_key in raw_outputs:
+        top_output = raw_outputs[top_key]
+        if "Cpu(s):" in top_output or "%Cpu" in top_output:
+            parsed["cpu_usage"] = top_output.strip()
 
-            # Kernel version
-            returncode, stdout, _ = await execute_command(
-                ["uname", "-r"],
-                host=host,
-            )
-            if returncode == 0 and stdout:
-                info.append(f"Kernel Version: {stdout.strip()}")
-
-            # Architecture
-            returncode, stdout, _ = await execute_command(
-                ["uname", "-m"],
-                host=host,
-            )
-            if returncode == 0 and stdout:
-                info.append(f"Architecture: {stdout.strip()}")
-
-            # Uptime
-            returncode, stdout, _ = await execute_command(
-                ["uptime", "-p"],
-                host=host,
-            )
-            if returncode == 0 and stdout:
-                info.append(f"Uptime: {stdout.strip()}")
-
-            # Boot time
-            returncode, stdout, _ = await execute_command(
-                ["uptime", "-s"],
-                host=host,
-            )
-            if returncode == 0 and stdout:
-                info.append(f"Boot Time: {stdout.strip()}")
-        else:
-            # Local execution - use psutil and platform
-            # Hostname
-            hostname = platform.node()
-            info.append(f"Hostname: {hostname}")
-
-            # OS Information
-            if os.path.exists("/etc/os-release"):
-                os_info = {}
-                with open("/etc/os-release") as f:
-                    for line in f:
-                        line = line.strip()
-                        if "=" in line:
-                            key, value = line.split("=", 1)
-                            os_info[key] = value.strip('"')
-
-                info.append(f"Operating System: {os_info.get('PRETTY_NAME', 'Unknown')}")
-                if "VERSION_ID" in os_info:
-                    info.append(f"OS Version: {os_info['VERSION_ID']}")
-            else:
-                info.append(f"Operating System: {platform.system()} {platform.release()}")
-
-            # Kernel version
-            kernel = platform.release()
-            info.append(f"Kernel Version: {kernel}")
-
-            # Architecture
-            arch = platform.machine()
-            info.append(f"Architecture: {arch}")
-
-            # Uptime
-            boot_time = datetime.fromtimestamp(psutil.boot_time())
-            uptime = datetime.now() - boot_time
-            days = uptime.days
-            hours, remainder = divmod(uptime.seconds, 3600)
-            minutes, seconds = divmod(remainder, 60)
-            info.append(f"Uptime: {days}d {hours}h {minutes}m {seconds}s")
-            info.append(f"Boot Time: {boot_time.strftime('%Y-%m-%d %H:%M:%S')}")
-
-        return "\n".join(info)
-    except Exception as e:
-        return f"Error gathering system information: {str(e)}"
+    return parsed
 
 
 @mcp.tool(
@@ -142,120 +314,92 @@ async def get_system_information(  # noqa: C901
 )
 @log_tool_call
 @disallow_local_execution_in_containers
-async def get_cpu_information(  # noqa: C901
+async def get_cpu_information(
     host: Host | None = None,
-) -> str:
+    fields: t.Annotated[
+        list[str],
+        Field(
+            description="List of fields to include. If None, all fields are included. Valid fields: cpu_model, logical_cores, physical_sockets, physical_cores_per_processor, frequency_mhz, load_average, cpu_usage"
+        ),
+    ]
+    | None = None,
+) -> CPUInfo:
+    """Get CPU information."""
+
+    commands = [
+        ["cat", "/proc/cpuinfo"],
+        ["cat", "/proc/loadavg"],
+        ["top", "-bn1"],
+    ]
+    processor = DataParser(parse_func=_parse_cpu_information)
+    filtered_data = await processor.process(commands, fields=fields, host=host)
+
+    # Build CPUInfo object from filtered data
+    load_avg_data = filtered_data.get("load_average")
+    load_average = LoadAverage(**load_avg_data) if load_avg_data else LoadAverage()
+
+    return CPUInfo(
+        cpu_model=filtered_data.get("cpu_model"),
+        logical_cores=filtered_data.get("logical_cores"),
+        physical_sockets=filtered_data.get("physical_sockets"),
+        physical_cores_per_processor=filtered_data.get("physical_cores_per_processor"),
+        frequency_mhz=filtered_data.get("frequency_mhz"),
+        load_average=load_average,
+        cpu_usage=filtered_data.get("cpu_usage"),
+    )
+
+
+async def _parse_memory_information(raw_outputs: dict[CommandKey, RawCommandOutput]) -> ParsedData:
     """
-    Get CPU information.
+    Parse phase: Convert raw command outputs into structured memory data for memory information.
+
+    Returns a dictionary with memory information fields.
     """
-    info = []
+    parsed: ParsedData = {}
 
-    try:
-        if host:
-            # Remote execution - use Linux commands
-            # Get CPU model from /proc/cpuinfo
-            returncode, stdout, _ = await execute_command(
-                ["grep", "-m", "1", "model name", "/proc/cpuinfo"],
-                host=host,
-            )
-            if returncode == 0 and stdout:
-                cpu_model = stdout.split(":", 1)[1].strip() if ":" in stdout else stdout.strip()
-                info.append(f"CPU Model: {cpu_model}")
+    # Parse free output
+    free_key = CommandKey(["free", "-b"])
+    if free_key in raw_outputs:
+        lines = raw_outputs[free_key].strip().split("\n")
 
-            # Get CPU core counts from /proc/cpuinfo
-            returncode, stdout, _ = await execute_command(
-                ["grep", "-c", "^processor", "/proc/cpuinfo"],
-                host=host,
-            )
-            if returncode == 0 and stdout:
-                logical_cores = int(stdout.strip())
-                info.append(f"CPU Logical Cores (threads): {logical_cores}")
+        for line in lines:
+            if line.startswith("Mem:"):
+                parts = line.split()
+                if len(parts) >= 7:
+                    total = int(parts[1])
+                    used = int(parts[2])
+                    free = int(parts[3])
+                    shared = int(parts[4])
+                    buff_cache = int(parts[5]) if len(parts) > 5 else 0
+                    available = int(parts[6]) if len(parts) > 6 else free
+                    percent = (used / total * 100) if total > 0 else 0
 
-            # Get physical cores (using core id uniqueness)
-            returncode, stdout, _ = await execute_command(
-                ["grep", "^core id", "/proc/cpuinfo"],
-                host=host,
-            )
-            if returncode == 0 and stdout:
-                core_ids = {line.split(":", 1)[1].strip() for line in stdout.strip().split("\n") if ":" in line}
-                physical_cores = len(core_ids)
-                info.append(f"CPU Physical Cores: {physical_cores}")
+                    parsed["ram"] = {
+                        "total": total,
+                        "used": used,
+                        "free": free,
+                        "shared": shared,
+                        "available": available,
+                        "percent": percent,
+                        "buffers": buff_cache,
+                    }
 
-            # Get CPU frequency from /proc/cpuinfo
-            returncode, stdout, _ = await execute_command(
-                ["grep", "-m", "1", "cpu MHz", "/proc/cpuinfo"],
-                host=host,
-            )
-            if returncode == 0 and stdout and ":" in stdout:
-                cpu_mhz = stdout.split(":", 1)[1].strip()
-                info.append(f"CPU Frequency: Current={cpu_mhz}MHz")
+            elif line.startswith("Swap:"):
+                parts = line.split()
+                if len(parts) >= 4:
+                    total = int(parts[1])
+                    used = int(parts[2])
+                    free = int(parts[3])
+                    percent = (used / total * 100) if total > 0 else 0
 
-            # Get load average
-            returncode, stdout, _ = await execute_command(
-                ["cat", "/proc/loadavg"],
-                host=host,
-            )
-            if returncode == 0 and stdout:
-                load_parts = stdout.strip().split()
-                if len(load_parts) >= 3:
-                    info.append(f"\nLoad Average (1m, 5m, 15m): {load_parts[0]}, {load_parts[1]}, {load_parts[2]}")
+                    parsed["swap"] = {
+                        "total": total,
+                        "used": used,
+                        "free": free,
+                        "percent": percent,
+                    }
 
-            # Get CPU usage using top (one iteration)
-            returncode, stdout, _ = await execute_command(
-                ["top", "-bn1"],
-                host=host,
-            )
-            if returncode == 0 and stdout:
-                for line in stdout.split("\n"):
-                    if "Cpu(s):" in line or "%Cpu" in line:
-                        info.append(f"\n{line.strip()}")
-                        break
-        else:
-            # Local execution - use psutil
-            # CPU count
-            physical_cores = psutil.cpu_count(logical=False)
-            logical_cores = psutil.cpu_count(logical=True)
-            info.append(f"CPU Physical Cores: {physical_cores}")
-            info.append(f"CPU Logical Cores (threads): {logical_cores}")
-
-            # CPU frequency
-            try:
-                cpu_freq = psutil.cpu_freq()
-                if cpu_freq:
-                    info.append(
-                        f"CPU Frequency: Current={cpu_freq.current:.2f}MHz, Min={cpu_freq.min:.2f}MHz, Max={cpu_freq.max:.2f}MHz"
-                    )
-            except Exception:
-                pass  # CPU frequency might not be available
-
-            # CPU usage per core
-            cpu_percent = psutil.cpu_percent(interval=0.1, percpu=True)
-            info.append("\nCPU Usage per Core:")
-            for i, percent in enumerate(cpu_percent):
-                info.append(f"  Core {i}: {percent}%")
-
-            # Overall CPU usage
-            overall_cpu = psutil.cpu_percent(interval=0.1)
-            info.append(f"\nOverall CPU Usage: {overall_cpu}%")
-
-            # Load average
-            load_avg = os.getloadavg()
-            info.append(f"\nLoad Average (1m, 5m, 15m): {load_avg[0]:.2f}, {load_avg[1]:.2f}, {load_avg[2]:.2f}")
-
-            # Try to get CPU model info from /proc/cpuinfo
-            try:
-                with open("/proc/cpuinfo") as f:
-                    for line in f:
-                        if line.startswith("model name"):
-                            cpu_model = line.split(":")[1].strip()
-                            info.insert(0, f"CPU Model: {cpu_model}")
-                            break
-            except Exception:
-                pass
-
-        return "\n".join(info)
-    except Exception as e:
-        return f"Error gathering CPU information: {str(e)}"
+    return parsed
 
 
 @mcp.tool(
@@ -264,81 +408,121 @@ async def get_cpu_information(  # noqa: C901
     annotations=ToolAnnotations(readOnlyHint=True),
 )
 @log_tool_call
-@disallow_local_execution_in_containers
 async def get_memory_information(
     host: Host | None = None,
-) -> str:
+    fields: t.Annotated[
+        list[str],
+        Field(
+            description="List of fields to include. If None, all fields are included. Valid fields: ram, swap (and nested fields like ram.total, ram.used, etc.)"
+        ),
+    ]
+    | None = None,
+) -> MemoryInfo:
     """
     Get memory information.
     """
-    info = []
+    # Collect phase: Execute command
+    commands = [
+        ["free", "-b"],
+    ]
+    processor = DataParser(parse_func=_parse_memory_information)
+    filtered_data = await processor.process(commands, fields=fields, host=host)
 
-    try:
-        if host:
-            # Remote execution - use free command
-            returncode, stdout, _ = await execute_command(
-                ["free", "-b"],
-                host=host,
-            )
+    # Build MemoryInfo object from filtered data
+    ram_data = filtered_data.get("ram")
+    swap_data = filtered_data.get("swap")
 
-            if returncode == 0 and stdout:
-                lines = stdout.strip().split("\n")
+    ram_stats = MemoryStats(**ram_data) if ram_data else MemoryStats()
+    swap_stats = MemoryStats(**swap_data) if swap_data else MemoryStats()
 
-                # Parse memory line
-                for line in lines:
-                    if line.startswith("Mem:"):
-                        parts = line.split()
-                        if len(parts) >= 7:
-                            total = int(parts[1])
-                            used = int(parts[2])
-                            free = int(parts[3])
-                            available = int(parts[6]) if len(parts) > 6 else free
-                            percent = (used / total * 100) if total > 0 else 0
+    return MemoryInfo(ram=ram_stats, swap=swap_stats)
 
-                            info.append("=== RAM Information ===")
-                            info.append(f"Total: {format_bytes(total)}")
-                            info.append(f"Available: {format_bytes(available)}")
-                            info.append(f"Used: {format_bytes(used)} ({percent:.1f}%)")
-                            info.append(f"Free: {format_bytes(free)}")
 
-                    elif line.startswith("Swap:"):
-                        parts = line.split()
-                        if len(parts) >= 4:
-                            total = int(parts[1])
-                            used = int(parts[2])
-                            free = int(parts[3])
-                            percent = (used / total * 100) if total > 0 else 0
+async def _parse_disk_usage(raw_outputs: dict[CommandKey, RawCommandOutput]) -> ParsedData:
+    """
+    Parse phase: Convert raw command outputs into structured disk usage data for disk usage.
 
-                            info.append("\n=== Swap Information ===")
-                            info.append(f"Total: {format_bytes(total)}")
-                            info.append(f"Used: {format_bytes(used)} ({percent:.1f}%)")
-                            info.append(f"Free: {format_bytes(free)}")
-        else:
-            # Local execution - use psutil
-            # Virtual memory (RAM)
-            mem = psutil.virtual_memory()
-            info.append("=== RAM Information ===")
-            info.append(f"Total: {format_bytes(mem.total)}")
-            info.append(f"Available: {format_bytes(mem.available)}")
-            info.append(f"Used: {format_bytes(mem.used)} ({mem.percent}%)")
-            info.append(f"Free: {format_bytes(mem.free)}")
+    Returns a dictionary with disk usage information fields.
+    """
+    parsed: ParsedData = {}
 
-            if buffers := getattr(mem, "buffers", None):
-                info.append(f"Buffers: {format_bytes(buffers)}")
+    # Parse df output
+    df_key = CommandKey(["df", "-B1"])
+    if df_key in raw_outputs:
+        lines = raw_outputs[df_key].strip().split("\n")
+        partitions = []
 
-            if cached := getattr(mem, "cached", None):
-                info.append(f"Cached: {format_bytes(cached)}")
+        # Skip header line
+        for line in lines[1:]:
+            parts = line.split()
+            if len(parts) >= 6:
+                device = parts[0]
+                size = int(parts[1])
+                used = int(parts[2])
+                free = int(parts[3])
+                percent_str = parts[4].rstrip("%")
+                percent = float(percent_str) if percent_str else 0.0
+                mountpoint = parts[5]
 
-            # Swap memory
-            swap = psutil.swap_memory()
-            info.append("\n=== Swap Information ===")
-            info.append(f"Total: {format_bytes(swap.total)}")
-            info.append(f"Used: {format_bytes(swap.used)} ({swap.percent}%)")
-            info.append(f"Free: {format_bytes(swap.free)}")
+                partitions.append(
+                    {
+                        "device": device,
+                        "mountpoint": mountpoint,
+                        "size": size,
+                        "used": used,
+                        "free": free,
+                        "percent": percent,
+                    }
+                )
 
-        return "\n".join(info)
-    except Exception as e:
-        return f"Error gathering memory information: {str(e)}"
+            parsed["partitions"] = partitions
+
+    # Parse diskstats
+    diskstats_key = CommandKey(["cat", "/proc/diskstats"])
+    if diskstats_key in raw_outputs:
+        output = raw_outputs[diskstats_key]
+
+        # Initialize counters for total read and write bytes and counts
+        total_read_bytes = 0
+        total_write_bytes = 0
+        total_read_count = 0
+        total_write_count = 0
+
+        for line in output.strip().split("\n"):
+            parts = line.split()
+
+            # Each line is prefixed with the major and minor device numbers and the device name
+            if len(parts) >= 14:
+                device_name = parts[2]
+
+                # Only count physical disks (e.g., sda, nvme0n1), skip partitions
+                # Skip loop devices, ram devices, etc.
+                if (
+                    device_name.startswith(("loop", "ram", "sr"))
+                    or any(c.isdigit() for c in device_name[-1])
+                    and not device_name.startswith("nvme")
+                ):
+                    continue
+
+                reads_completed = int(parts[3])
+                sectors_read = int(parts[5])
+                writes_completed = int(parts[7])
+                sectors_written = int(parts[9])
+
+                total_read_count += reads_completed
+                total_read_bytes += sectors_read * 512
+                total_write_count += writes_completed
+                total_write_bytes += sectors_written * 512
+
+        if total_read_bytes or total_write_bytes or total_read_count or total_write_count:
+            parsed["io_stats"] = {
+                "read_bytes": total_read_bytes,
+                "write_bytes": total_write_bytes,
+                "read_count": total_read_count,
+                "write_count": total_write_count,
+            }
+
+    return parsed
 
 
 @mcp.tool(
@@ -350,156 +534,208 @@ async def get_memory_information(
 @disallow_local_execution_in_containers
 async def get_disk_usage(
     host: Host | None = None,
-) -> str:
+    mountpoints: t.Annotated[
+        list[str], Field(description="List of mountpoints to include. If None, all mountpoints are included.")
+    ]
+    | None = None,
+    fields: t.Annotated[
+        list[str],
+        Field(
+            description="List of fields to include. If None, all fields are included. Valid fields: partitions, io_stats"
+        ),
+    ]
+    | None = None,
+) -> DiskUsage:
     """
     Get disk usage information.
     """
-    info = []
+    # Collect phase: Execute commands
+    commands = [
+        ["df", "-B1"],
+        ["cat", "/proc/diskstats"],
+    ]
+    processor = DataParser(parse_func=_parse_disk_usage)
+    filtered_data = await processor.process(commands, fields=fields, host=host)
 
-    try:
-        if host:
-            # Remote execution - use df command
-            returncode, stdout, _ = await execute_command(
-                ["df", "-h", "--output=source,size,used,avail,pcent,target"],
-                host=host,
+    # Apply mountpoint filter to partitions
+    partitions_data = filtered_data.get("partitions", [])
+    if mountpoints is not None:
+        partitions_data = _apply_list_filter(partitions_data, "mountpoint", mountpoints)
+
+    # Build DiskUsage object from filtered data
+    partitions = [DiskPartition(**p) for p in partitions_data]
+
+    io_stats_data = filtered_data.get("io_stats")
+    io_stats = DiskIOStats(**io_stats_data) if io_stats_data else DiskIOStats()
+
+    return DiskUsage(partitions=partitions, io_stats=io_stats)
+
+
+def _parse_lspci_vmm(output: str) -> list[PCIDevice]:
+    """
+    Parse lspci -vmm output into a list of PCIDevice objects.
+
+    lspci -vmm produces machine-readable output with blocks separated by blank lines:
+    Slot:	00:00.0
+    Class:	Host bridge
+    Vendor:	Intel Corporation
+    Device:	8th Gen Core Processor Host Bridge/DRAM Registers
+    SVendor:	Lenovo
+    SDevice:	ThinkPad X1 Carbon 6th Gen
+    Rev:	08
+    """
+    devices = []
+    current_device: dict[str, str] = {}
+
+    for line in output.strip().split("\n"):
+        line = line.strip()
+        if not line:
+            # End of device block
+            if current_device and "Slot" in current_device:
+                devices.append(
+                    PCIDevice(
+                        slot=current_device["Slot"],
+                        class_name=current_device.get("Class"),
+                        vendor=current_device.get("Vendor"),
+                        device=current_device.get("Device"),
+                        subsystem_vendor=current_device.get("SVendor"),
+                        subsystem_device=current_device.get("SDevice"),
+                        revision=current_device.get("Rev"),
+                    )
+                )
+            current_device = {}
+        elif ":\t" in line:
+            key, value = line.split(":\t", 1)
+            current_device[key] = value
+
+    # Handle last device if no trailing newline
+    if current_device and "Slot" in current_device:
+        devices.append(
+            PCIDevice(
+                slot=current_device["Slot"],
+                class_name=current_device.get("Class"),
+                vendor=current_device.get("Vendor"),
+                device=current_device.get("Device"),
+                subsystem_vendor=current_device.get("SVendor"),
+                subsystem_device=current_device.get("SDevice"),
+                revision=current_device.get("Rev"),
+            )
+        )
+
+    return devices
+
+
+def _parse_lsusb(output: str) -> list[USBDevice]:
+    """
+    Parse lsusb output into a list of USBDevice objects.
+
+    lsusb produces output in the format:
+    Bus 001 Device 003: ID 04f2:b604 Chicony Electronics Co., Ltd Integrated Camera
+    Bus 001 Device 002: ID 8087:0a2b Intel Corp. Bluetooth wireless interface
+    """
+    devices = []
+    # Pattern: Bus XXX Device YYY: ID vendor:product Description
+    pattern = re.compile(r"Bus\s+(\d+)\s+Device\s+(\d+):\s+ID\s+([0-9a-fA-F]+):([0-9a-fA-F]+)\s*(.*)")
+
+    for line in output.strip().split("\n"):
+        line = line.strip()
+        if not line:
+            continue
+
+        match = pattern.match(line)
+        if match:
+            bus, device_num, vendor_id, product_id, description = match.groups()
+            devices.append(
+                USBDevice(
+                    bus=bus,
+                    device=device_num,
+                    vendor_id=vendor_id,
+                    product_id=product_id,
+                    description=description.strip() if description else None,
+                )
             )
 
-            if returncode == 0 and stdout:
-                info.append("=== Filesystem Usage ===\n")
-                info.append(stdout)
-            else:
-                # Fallback to basic df command
-                returncode, stdout, _ = await execute_command(
-                    ["df", "-h"],
-                    host=host,
-                )
-                if returncode == 0 and stdout:
-                    info.append("=== Filesystem Usage ===\n")
-                    info.append(stdout)
-        else:
-            # Local execution - use psutil
-            info.append("=== Filesystem Usage ===\n")
-            info.append(f"{'Filesystem':<30} {'Size':<10} {'Used':<10} {'Avail':<10} {'Use%':<6} {'Mounted on'}")
-            info.append("-" * 90)
+    return devices
 
-            # Get all disk partitions
-            partitions = psutil.disk_partitions(all=False)
 
-            for partition in partitions:
-                try:
-                    usage = psutil.disk_usage(partition.mountpoint)
-                    info.append(
-                        f"{partition.device:<30} "
-                        f"{format_bytes(usage.total):<10} "
-                        f"{format_bytes(usage.used):<10} "
-                        f"{format_bytes(usage.free):<10} "
-                        f"{usage.percent:<6.1f} "
-                        f"{partition.mountpoint}"
-                    )
-                except PermissionError:
-                    # Skip partitions we can't access
-                    continue
-                except Exception as e:
-                    info.append(f"{partition.device:<30} Error: {str(e)}")
+async def _parse_device_information(raw_outputs: dict[CommandKey, RawCommandOutput]) -> ParsedData:
+    """
+    Parse phase: Convert lspci and lsusb outputs into structured device data.
 
-            # Disk I/O statistics
-            try:
-                disk_io = psutil.disk_io_counters()
-                if disk_io:
-                    info.append("\n=== Disk I/O Statistics (since boot) ===")
-                    info.append(f"Read: {format_bytes(disk_io.read_bytes)}")
-                    info.append(f"Write: {format_bytes(disk_io.write_bytes)}")
-                    info.append(f"Read Count: {disk_io.read_count}")
-                    info.append(f"Write Count: {disk_io.write_count}")
-            except Exception:
-                pass  # Disk I/O might not be available
+    Returns a dictionary with pci_devices and usb_devices lists.
+    """
+    pci_devices: list[PCIDevice] = []
+    usb_devices: list[USBDevice] = []
 
-        return "\n".join(info)
-    except Exception as e:
-        return f"Error gathering disk usage information: {str(e)}"
+    lspci_key = CommandKey(["lspci", "-vmm"])
+    lsusb_key = CommandKey(["lsusb"])
+
+    for command_key, output in raw_outputs.items():
+        if command_key == lspci_key:
+            pci_devices = _parse_lspci_vmm(output)
+        elif command_key == lsusb_key:
+            usb_devices = _parse_lsusb(output)
+
+    return {
+        "pci_devices": pci_devices,
+        "usb_devices": usb_devices,
+    }
 
 
 @mcp.tool(
-    title="Get hardware information",
-    description="Get hardware information such as CPU details, PCI devices, USB devices, and hardware information from DMI.",
+    title="Get device information",
+    description="Get hardware device information for PCI and USB devices.",
     annotations=ToolAnnotations(readOnlyHint=True),
 )
 @log_tool_call
-@disallow_local_execution_in_containers
-async def get_hardware_information(  # noqa: C901
+async def get_device_information(
     host: Host | None = None,
-) -> str:
+    device_types: t.Annotated[
+        list[DeviceClass],
+        Field(
+            description="List of device types to include. If None, all types are included. Valid types: 'pci', 'usb'"
+        ),
+    ]
+    | None = None,
+    limit: t.Annotated[
+        int, Field(description="Maximum number of devices to return per type. If None, all devices are returned.")
+    ]
+    | None = None,
+) -> DeviceInfo:
     """
-    Get hardware information.
+    Get device information for PCI and USB devices.
+
+    This tool uses the lspci and lsusb utilities to gather device information.
+    These utilities must be installed on the target system.
     """
-    try:
-        info = []
-        info.append("=== Hardware Information ===\n")
+    commands = [
+        ["lspci", "-vmm"],
+        ["lsusb"],
+    ]
 
-        # Try lscpu for CPU info
-        try:
-            returncode, stdout, stderr = await execute_command(
-                ["lscpu"],
-                host=host,
-            )
+    data_parser = DataParser(parse_func=_parse_device_information)
+    parsed_data = await data_parser.process(commands=commands, host=host)
 
-            if returncode == 0:
-                info.append("=== CPU Architecture (lscpu) ===")
-                info.append(stdout)
-        except FileNotFoundError:
-            info.append("CPU info: lscpu command not available")
+    # Apply device type filter and limit
+    should_include_pci = device_types is None or DeviceClass.PCI in device_types
+    should_include_usb = device_types is None or DeviceClass.USB in device_types
 
-        # Try lspci for PCI devices
-        try:
-            returncode, stdout, stderr = await execute_command(
-                ["lspci"],
-                host=host,
-            )
+    pci_devices: list[PCIDevice] = []
+    usb_devices: list[USBDevice] = []
 
-            if returncode == 0:
-                pci_lines = stdout.strip().split("\n")
+    if should_include_pci:
+        pci_list = parsed_data.get("pci_devices", [])
+        if limit is not None:
+            pci_list = pci_list[:limit]
+        pci_devices = [device if isinstance(device, PCIDevice) else PCIDevice(**device) for device in pci_list]
 
-                info.append("\n=== PCI Devices ===")
-                # Show first 50 devices to avoid overwhelming output
-                for line in pci_lines[:50]:
-                    info.append(line)
+    if should_include_usb:
+        usb_list = parsed_data.get("usb_devices", [])
+        if limit is not None:
+            usb_list = usb_list[:limit]
+        usb_devices = [device if isinstance(device, USBDevice) else USBDevice(**device) for device in usb_list]
 
-                if len(pci_lines) > 50:
-                    info.append(f"\n... and {len(pci_lines) - 50} more PCI devices")
-        except FileNotFoundError:
-            info.append("\nPCI devices: lspci command not available")
-
-        # Try lsusb for USB devices
-        try:
-            returncode, stdout, stderr = await execute_command(
-                ["lsusb"],
-                host=host,
-            )
-
-            if returncode == 0:
-                info.append("\n\n=== USB Devices ===")
-                info.append(stdout)
-        except FileNotFoundError:
-            info.append("\nUSB devices: lsusb command not available")
-
-        # Memory hardware info from dmidecode (requires root)
-        try:
-            returncode, stdout, stderr = await execute_command(
-                ["dmidecode", "-t", "memory"],
-                host=host,
-            )
-
-            if returncode == 0:
-                info.append("\n\n=== Memory Hardware (dmidecode) ===")
-                info.append(stdout)
-            elif "Permission denied" in stderr:
-                info.append("\n\nMemory hardware info: Requires root privileges (dmidecode)")
-        except FileNotFoundError:
-            info.append("\nMemory hardware info: dmidecode command not available")
-
-        if len(info) == 1:  # Only the header
-            info.append("No hardware information tools available.")
-
-        return "\n".join(info)
-    except Exception as e:
-        return f"Error getting hardware information: {str(e)}"
+    return DeviceInfo(
+        pci_devices=pci_devices,
+        usb_devices=usb_devices,
+    )

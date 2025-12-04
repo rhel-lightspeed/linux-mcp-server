@@ -24,8 +24,8 @@ from linux_mcp_server.tools.storage import read_file
 
 # system_info
 from linux_mcp_server.tools.system_info import get_cpu_information
+from linux_mcp_server.tools.system_info import get_device_information
 from linux_mcp_server.tools.system_info import get_disk_usage
-from linux_mcp_server.tools.system_info import get_hardware_information
 from linux_mcp_server.tools.system_info import get_memory_information
 from linux_mcp_server.tools.system_info import get_system_information
 
@@ -33,8 +33,8 @@ from linux_mcp_server.tools.system_info import get_system_information
 __all__ = [
     "get_audit_logs",
     "get_cpu_information",
+    "get_device_information",
     "get_disk_usage",
-    "get_hardware_information",
     "get_journal_logs",
     "get_listening_ports",
     "get_memory_information",
