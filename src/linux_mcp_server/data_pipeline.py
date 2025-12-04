@@ -1,6 +1,5 @@
 """Classes and functions for ingesting and processing data."""
 
-import shutil
 import typing as t
 
 from mcp.server.fastmcp.exceptions import ToolError
@@ -17,23 +16,21 @@ class CommandKey(BaseModel):
     model_config = ConfigDict(frozen=True)
 
     command: str
-    args: tuple[str, ...]
+    args: tuple[str, ...] = ()
 
-    @classmethod
-    def create(cls, cmd: t.Sequence[str]) -> "CommandKey":
+    def __init__(self, cmd: t.Sequence[str] | None = None, **kwargs):
         """Create a CommandKey from a command sequence.
 
         Args:
             cmd: A sequence where the first element is the command name
                  and remaining elements are arguments.
-
-        Returns:
-            A CommandKey with the resolved command path and arguments.
         """
-        resolved = shutil.which(cmd[0])
-        if resolved is None:
-            resolved = cmd[0]  # Fallback if command not found
-        return cls(command=resolved, args=tuple(cmd[1:]))
+        if cmd is not None:
+            kwargs["command"] = cmd[0]
+            kwargs["args"] = tuple(cmd[1:])
+        super().__init__(**kwargs)
+
+
 RawCommandOutput = str
 ParsedData = dict[str, t.Any]
 CommandList = list[list[str]]
@@ -52,7 +49,7 @@ async def _default_collect(commands: CommandList, host: Host | None = None) -> d
     cache: dict[CommandKey, RawCommandOutput] = {}
 
     for command in commands:
-        command_key = CommandKey.create(command)
+        command_key = CommandKey(command)
         if command_key in cache:
             continue
 
