@@ -1,15 +1,39 @@
 """Classes and functions for ingesting and processing data."""
 
+import shutil
 import typing as t
 
 from mcp.server.fastmcp.exceptions import ToolError
+from pydantic import BaseModel
+from pydantic import ConfigDict
 
 from linux_mcp_server.connection.ssh import execute_command
 from linux_mcp_server.utils.types import Host
 
 
-# Type aliases for the collect-parse-filter pattern
-CommandKey = t.Hashable
+class CommandKey(BaseModel):
+    """A hashable key representing a command and its arguments."""
+
+    model_config = ConfigDict(frozen=True)
+
+    command: str
+    args: tuple[str, ...]
+
+    @classmethod
+    def create(cls, cmd: t.Sequence[str]) -> "CommandKey":
+        """Create a CommandKey from a command sequence.
+
+        Args:
+            cmd: A sequence where the first element is the command name
+                 and remaining elements are arguments.
+
+        Returns:
+            A CommandKey with the resolved command path and arguments.
+        """
+        resolved = shutil.which(cmd[0])
+        if resolved is None:
+            resolved = cmd[0]  # Fallback if command not found
+        return cls(command=resolved, args=tuple(cmd[1:]))
 RawCommandOutput = str
 ParsedData = dict[str, t.Any]
 CommandList = list[list[str]]
@@ -28,7 +52,7 @@ async def _default_collect(commands: CommandList, host: Host | None = None) -> d
     cache: dict[CommandKey, RawCommandOutput] = {}
 
     for command in commands:
-        command_key = tuple(command)
+        command_key = CommandKey.create(command)
         if command_key in cache:
             continue
 

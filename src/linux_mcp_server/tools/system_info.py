@@ -167,33 +167,37 @@ async def _parse_system_information(raw_outputs: dict[CommandKey, RawCommandOutp
     """
     parsed: ParsedData = {}
 
-    for command, output in raw_outputs.items():
-        match command:
-            case ("hostname",):
-                # Parse hostname
-                parsed["hostname"] = output.strip()
-            case ("cat", "/etc/os-release"):
-                # Parse os-release file
-                os_release_data = {}
-                for line in output.split("\n"):
-                    if "=" in line:
-                        key, value = line.strip().split("=", 1)
-                        os_release_data[key] = value.strip('"')
-                parsed["operating_system"] = os_release_data.get("PRETTY_NAME")
-                parsed["os_version"] = os_release_data.get("VERSION_ID")
-            case ("uname", "-r", "-m"):
-                # Parse uname output
-                parts = output.strip().split(None, 1)
-                parsed["kernel_version"] = parts[0] if len(parts) > 0 else None
-                parsed["architecture"] = parts[1] if len(parts) > 1 else None
-            case ("uptime", "-p"):
-                # Parse uptime
-                parsed["uptime"] = output.strip()
-            case ("uptime", "-s"):
-                # Parse boot time
-                parsed["boot_time"] = output.strip()
-            case _:
-                continue
+    # Pre-create CommandKey objects for matching
+    hostname_key = CommandKey.create(["hostname"])
+    os_release_key = CommandKey.create(["cat", "/etc/os-release"])
+    uname_key = CommandKey.create(["uname", "-r", "-m"])
+    uptime_p_key = CommandKey.create(["uptime", "-p"])
+    uptime_s_key = CommandKey.create(["uptime", "-s"])
+
+    for command_key, output in raw_outputs.items():
+        if command_key == hostname_key:
+            # Parse hostname
+            parsed["hostname"] = output.strip()
+        elif command_key == os_release_key:
+            # Parse os-release file
+            os_release_data = {}
+            for line in output.split("\n"):
+                if "=" in line:
+                    key, value = line.strip().split("=", 1)
+                    os_release_data[key] = value.strip('"')
+            parsed["operating_system"] = os_release_data.get("PRETTY_NAME")
+            parsed["os_version"] = os_release_data.get("VERSION_ID")
+        elif command_key == uname_key:
+            # Parse uname output
+            parts = output.strip().split(None, 1)
+            parsed["kernel_version"] = parts[0] if len(parts) > 0 else None
+            parsed["architecture"] = parts[1] if len(parts) > 1 else None
+        elif command_key == uptime_p_key:
+            # Parse uptime
+            parsed["uptime"] = output.strip()
+        elif command_key == uptime_s_key:
+            # Parse boot time
+            parsed["boot_time"] = output.strip()
 
     return parsed
 
@@ -271,13 +275,15 @@ async def _parse_cpu_information(raw_outputs: dict[CommandKey, RawCommandOutput]
     parsed: ParsedData = {}
 
     # Parse /proc/cpuinfo (only once for all fields)
-    if ("cat", "/proc/cpuinfo") in raw_outputs:
-        cpuinfo = raw_outputs[("cat", "/proc/cpuinfo")]
+    cpuinfo_key = CommandKey.create(["cat", "/proc/cpuinfo"])
+    if cpuinfo_key in raw_outputs:
+        cpuinfo = raw_outputs[cpuinfo_key]
         parsed.update(_parse_cpuinfo(cpuinfo))
 
     # Parse load average
-    if ("cat", "/proc/loadavg") in raw_outputs:
-        parts = raw_outputs[("cat", "/proc/loadavg")].strip().split()
+    loadavg_key = CommandKey.create(["cat", "/proc/loadavg"])
+    if loadavg_key in raw_outputs:
+        parts = raw_outputs[loadavg_key].strip().split()
         if len(parts) >= 3:
             parsed["load_average"] = {
                 "one_min": float(parts[0]),
@@ -286,8 +292,9 @@ async def _parse_cpu_information(raw_outputs: dict[CommandKey, RawCommandOutput]
             }
 
     # Parse CPU usage from top
-    if ("top", "-bn1") in raw_outputs:
-        top_output = raw_outputs[("top", "-bn1")]
+    top_key = CommandKey.create(["top", "-bn1"])
+    if top_key in raw_outputs:
+        top_output = raw_outputs[top_key]
         if "Cpu(s):" in top_output or "%Cpu" in top_output:
             parsed["cpu_usage"] = top_output.strip()
 
@@ -345,8 +352,9 @@ async def _parse_memory_information(raw_outputs: dict[CommandKey, RawCommandOutp
     parsed: ParsedData = {}
 
     # Parse free output
-    if ("free", "-b") in raw_outputs:
-        lines = raw_outputs[("free", "-b")].strip().split("\n")
+    free_key = CommandKey.create(["free", "-b"])
+    if free_key in raw_outputs:
+        lines = raw_outputs[free_key].strip().split("\n")
 
         for line in lines:
             if line.startswith("Mem:"):
@@ -433,8 +441,9 @@ async def _parse_disk_usage(raw_outputs: dict[CommandKey, RawCommandOutput]) -> 
     parsed: ParsedData = {}
 
     # Parse df output
-    if ("df", "-B1") in raw_outputs:
-        lines = raw_outputs[("df", "-B1")].strip().split("\n")
+    df_key = CommandKey.create(["df", "-B1"])
+    if df_key in raw_outputs:
+        lines = raw_outputs[df_key].strip().split("\n")
         partitions = []
 
         # Skip header line
@@ -463,8 +472,9 @@ async def _parse_disk_usage(raw_outputs: dict[CommandKey, RawCommandOutput]) -> 
             parsed["partitions"] = partitions
 
     # Parse diskstats
-    if ("cat", "/proc/diskstats") in raw_outputs:
-        output = raw_outputs[("cat", "/proc/diskstats")]
+    diskstats_key = CommandKey.create(["cat", "/proc/diskstats"])
+    if diskstats_key in raw_outputs:
+        output = raw_outputs[diskstats_key]
 
         # Initialize counters for total read and write bytes and counts
         total_read_bytes = 0
@@ -651,10 +661,13 @@ async def _parse_device_information(raw_outputs: dict[CommandKey, RawCommandOutp
     pci_devices: list[PCIDevice] = []
     usb_devices: list[USBDevice] = []
 
+    lspci_key = CommandKey.create(["lspci", "-vmm"])
+    lsusb_key = CommandKey.create(["lsusb"])
+
     for command_key, output in raw_outputs.items():
-        if command_key == ("lspci", "-vmm"):
+        if command_key == lspci_key:
             pci_devices = _parse_lspci_vmm(output)
-        elif command_key == ("lsusb",):
+        elif command_key == lsusb_key:
             usb_devices = _parse_lsusb(output)
 
     return {
