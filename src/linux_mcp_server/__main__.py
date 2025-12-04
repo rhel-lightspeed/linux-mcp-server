@@ -13,7 +13,7 @@ def cli():
     setup_logging()
 
     logger = logging.getLogger("linux-mcp-server")
-    logger.info(f"Starting Linux MCP Server {__version__}")
+    logger.info(f"Running Linux MCP Server {__version__}. Press Ctrl+C, Enter to stop the server.")
 
     try:
         # FastMCP.run() creates its own event loop, don't use asyncio.run()
