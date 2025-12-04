@@ -147,9 +147,15 @@ class DeviceInfo(BaseModel):
     """Device information model for PCI and USB devices."""
 
     pci_devices: list[PCIDevice] = Field(default_factory=list)
-    pci_device_count: int = 0
     usb_devices: list[USBDevice] = Field(default_factory=list)
-    usb_device_count: int = 0
+
+    @property
+    def pci_device_count(self) -> int:
+        return len(self.pci_devices)
+
+    @property
+    def usb_device_count(self) -> int:
+        return len(self.usb_devices)
 
 
 async def _parse_system_information(raw_outputs: dict[CommandKey, RawCommandOutput]) -> ParsedData:
@@ -731,7 +737,5 @@ async def get_device_information(
 
     return DeviceInfo(
         pci_devices=pci_devices,
-        pci_device_count=len(pci_devices),
         usb_devices=usb_devices,
-        usb_device_count=len(usb_devices),
     )

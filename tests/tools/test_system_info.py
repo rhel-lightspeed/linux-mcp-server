@@ -510,7 +510,6 @@ Rev:\t05
         assert "pci_devices" in data
         pci_devices = data["pci_devices"]
         assert isinstance(pci_devices, list)
-        assert len(pci_devices) == data["pci_device_count"]
 
         for i, pci_device in enumerate(pci_devices):
             assert pci_device == expected_pci_devices[i]
@@ -589,7 +588,6 @@ Bus 002 Device 002: ID 04f2:b604 Chicony Electronics Co., Ltd Integrated Camera
         assert "usb_devices" in data
         usb_devices = data["usb_devices"]
         assert isinstance(usb_devices, list)
-        assert len(usb_devices) == data["usb_device_count"]
 
         for i, usb_device in enumerate(usb_devices):
             assert usb_device == expected_usb_devices[i]
