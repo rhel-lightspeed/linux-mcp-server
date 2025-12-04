@@ -760,15 +760,14 @@ async def get_device_information(
     async def custom_filter(parsed_data: ParsedData, fields: list[str] | None) -> ParsedData:
         return await _filter_device_information(parsed_data, device_types=device_types, limit=limit)
 
-    # Use Rummager with custom collect, parse, and filter functions
-    rummager = DataParser(
+    data_parser = DataParser(
         collect_func=_collect_device_information,
         parse_func=_parse_device_information,
         filter_func=custom_filter,
     )
 
     # Commands list is empty since collection is dynamic
-    filtered_data = await rummager.process(commands=[], host=host)
+    filtered_data = await data_parser.process(commands=[], host=host)
 
     # Build DeviceInfo object from filtered data
     pci_devices = [
