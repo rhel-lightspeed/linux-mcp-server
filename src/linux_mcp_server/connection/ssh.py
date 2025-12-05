@@ -17,6 +17,8 @@ from typing import Optional
 
 import asyncssh
 
+from mcp.server.fastmcp.exceptions import ToolError
+
 from linux_mcp_server.audit import Event
 from linux_mcp_server.audit import log_ssh_command
 from linux_mcp_server.audit import log_ssh_connect
@@ -292,6 +294,7 @@ async def execute_command(
     Raises:
         ValueError: If host is provided without username
         ConnectionError: If remote connection fails
+        ToolError: If the command is missing
 
     Examples:
         # Local execution
@@ -305,6 +308,15 @@ async def execute_command(
         ... )
     """
     cmd_str = " ".join(command)
+    bin = command[0]
+    if not Path(bin).is_absolute():
+        try:
+            if host:
+                command[0] = await get_remote_bin_path(bin, host, _connection_manager)
+            else:
+                command[0] = get_bin_path(bin)
+        except ValueError as ve:
+            raise ToolError(ve.args)
 
     # Route to remote execution if host is provided
     if host:
@@ -316,16 +328,16 @@ async def execute_command(
     return await _execute_local(command)
 
 
-async def get_remote_bin_path(command: str, hostname: Host) -> str:
+async def get_remote_bin_path(command: str, hostname: Host, connection: SSHConnectionManager) -> str:
     """Get the full path to an executable on a remote system.
 
     Raises VauleError if not found.
     """
-    rc, out, err = await execute_command(["command", "-v", command], hostname)
+    rc, out, err = await connection.execute_remote(["command", "-v", command], hostname)
     if rc == 0:
         return out.strip()
 
-    raise ValueError(f"Unable to find '{command}' on {hostname}")
+    raise ValueError(f"Unable to find command '{command}' on host {hostname}")
 
 
 def get_bin_path(command: str) -> str:
