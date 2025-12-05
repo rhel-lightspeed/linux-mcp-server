@@ -12,7 +12,7 @@ from pydantic import Field
 
 from linux_mcp_server.audit import log_tool_call
 from linux_mcp_server.connection.ssh import execute_command
-from linux_mcp_server.connection.ssh import get_bin_path
+from linux_mcp_server.connection.ssh import get_remote_bin_path
 from linux_mcp_server.server import mcp
 from linux_mcp_server.utils import format_bytes
 from linux_mcp_server.utils import is_ipv6_link_local
@@ -34,14 +34,13 @@ async def list_processes(
     try:
         if host:
             command = "ps"
-            bin_path = await get_bin_path(command, host)
+            try:
+                bin_path = await get_remote_bin_path(command, host)
+            except ValueError as ve:
+                raise ToolError(ve.args)
 
             # Remote execution - use ps command
-            if bin_path:
-                returncode, stdout, _ = await execute_command([bin_path, "aux", "--sort=-%cpu"], host=host)
-            else:
-                raise ToolError(f"Unable to find required command '{command}' on {host}.")
-
+            returncode, stdout, _ = await execute_command([bin_path, "aux", "--sort=-%cpu"], host=host)
             if returncode == 0 and stdout:
                 info = []
                 info.append("=== Running Processes ===\n")

@@ -8,6 +8,7 @@ either local or remote execution based on the provided parameters.
 import asyncio
 import logging
 import shlex
+import shutil
 import subprocess
 import time
 
@@ -319,18 +320,26 @@ async def execute_command(
     return await _execute_local(command)
 
 
-async def get_bin_path(command: str, hostname: Host, required: bool = False) -> str | None:
+async def get_remote_bin_path(command: str, hostname: Host) -> str:
     """Get the full path to an executable on a remote system.
 
-    Raises VauleError if not found and required is True.
+    Raises VauleError if not found.
     """
-    bin_path = None
     rc, out, err = await execute_command(["command", "-v", command], hostname)
     if rc == 0:
         return out.strip()
 
-    if required:
-        raise ValueError(f"Unable to find '{command}' on {hostname}")
+    raise ValueError(f"Unable to find '{command}' on {hostname}")
+
+
+def get_bin_path(command: str) -> str:
+    """Get the full path to an executable.
+
+    Raises VauleError if not found.
+    """
+    bin_path = shutil.which(command)
+    if bin_path is None:
+        raise ValueError(f"Unable to find '{command}'")
 
     return bin_path
 

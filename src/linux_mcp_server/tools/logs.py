@@ -1,7 +1,6 @@
 """Log and audit tools."""
 
 import os
-import shutil
 import typing as t
 
 from pathlib import Path
@@ -14,6 +13,7 @@ from linux_mcp_server.audit import log_tool_call
 from linux_mcp_server.config import CONFIG
 from linux_mcp_server.connection.ssh import execute_command
 from linux_mcp_server.connection.ssh import get_bin_path
+from linux_mcp_server.connection.ssh import get_remote_bin_path
 from linux_mcp_server.server import mcp
 from linux_mcp_server.utils.decorators import disallow_local_execution_in_containers
 from linux_mcp_server.utils.types import Host
@@ -156,6 +156,19 @@ async def read_log_file(  # noqa: C901
     """
     Read a specific log file.
     """
+    command = "tail"
+    if host:
+        try:
+            bin_path = await get_remote_bin_path(command, host)
+        except ValueError as ve:
+            raise ToolError(ve.args)
+
+    else:
+        try:
+            bin_path = get_bin_path(command)
+        except ValueError as ve:
+            raise ToolError(ve.args)
+
     try:
         # Validate lines parameter (accepts floats from LLMs)
         lines, _ = validate_line_count(lines, default=100)
@@ -173,7 +186,6 @@ async def read_log_file(  # noqa: C901
 
         # For local execution, validate path
         if not host:
-            bin_path = shutil.which("tail")
             try:
                 requested_path = Path(log_path).resolve()
             except Exception:
@@ -205,7 +217,6 @@ async def read_log_file(  # noqa: C901
 
             log_path_str = str(requested_path)
         else:
-            bin_path = await get_bin_path("tail", host)
             # For remote execution, just check against whitelist without resolving
             if log_path not in allowed_paths:
                 return (
@@ -213,9 +224,6 @@ async def read_log_file(  # noqa: C901
                     f"Allowed log files: {', '.join(allowed_paths)}"
                 )  # nofmt
             log_path_str = log_path
-
-        if not bin_path:
-            raise ToolError("Unable to locate tail command")
 
         # Read the file using tail
         returncode, stdout, stderr = await execute_command(
