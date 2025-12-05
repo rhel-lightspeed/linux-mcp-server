@@ -12,7 +12,6 @@ from pydantic import Field
 
 from linux_mcp_server.audit import log_tool_call
 from linux_mcp_server.connection.ssh import execute_command
-from linux_mcp_server.connection.ssh import get_remote_bin_path
 from linux_mcp_server.server import mcp
 from linux_mcp_server.utils import format_bytes
 from linux_mcp_server.utils.decorators import disallow_local_execution_in_containers
@@ -32,14 +31,8 @@ async def list_processes(
 ) -> str:
     try:
         if host:
-            command = "ps"
-            try:
-                bin_path = await get_remote_bin_path(command, host)
-            except ValueError as ve:
-                raise ToolError(ve.args)
-
             # Remote execution - use ps command
-            returncode, stdout, _ = await execute_command([bin_path, "aux", "--sort=-%cpu"], host=host)
+            returncode, stdout, _ = await execute_command(["ps", "aux", "--sort=-%cpu"], host=host)
             if returncode == 0 and stdout:
                 info = []
                 info.append("=== Running Processes ===\n")
@@ -107,6 +100,8 @@ async def list_processes(
             info.append("Showing: Top 100 by CPU usage")
 
             return "\n".join(info)
+    except ToolError:
+        raise
     except Exception as e:
         return f"Error listing processes: {str(e)}"
 

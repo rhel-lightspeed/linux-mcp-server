@@ -12,8 +12,6 @@ from pydantic import Field
 from linux_mcp_server.audit import log_tool_call
 from linux_mcp_server.config import CONFIG
 from linux_mcp_server.connection.ssh import execute_command
-from linux_mcp_server.connection.ssh import get_bin_path
-from linux_mcp_server.connection.ssh import get_remote_bin_path
 from linux_mcp_server.server import mcp
 from linux_mcp_server.utils.decorators import disallow_local_execution_in_containers
 from linux_mcp_server.utils.types import Host
@@ -156,19 +154,6 @@ async def read_log_file(  # noqa: C901
     """
     Read a specific log file.
     """
-    command = "tail"
-    if host:
-        try:
-            bin_path = await get_remote_bin_path(command, host)
-        except ValueError as ve:
-            raise ToolError(ve.args)
-
-    else:
-        try:
-            bin_path = get_bin_path(command)
-        except ValueError as ve:
-            raise ToolError(ve.args)
-
     try:
         # Validate lines parameter (accepts floats from LLMs)
         lines, _ = validate_line_count(lines, default=100)
@@ -227,7 +212,7 @@ async def read_log_file(  # noqa: C901
 
         # Read the file using tail
         returncode, stdout, stderr = await execute_command(
-            [bin_path, "-n", str(lines), log_path_str],
+            ["tail", "-n", str(lines), log_path_str],
             host=host,
         )
 
@@ -243,6 +228,8 @@ async def read_log_file(  # noqa: C901
         result.append(stdout)
 
         return "\n".join(result)
+    except ToolError:
+        raise
     except FileNotFoundError:
         return "Error: tail command not found."
     except Exception as e:
