@@ -94,7 +94,7 @@ class SSHConnectionManager:
             cls._instance._ssh_key = discover_ssh_key()
         return cls._instance
 
-    async def get_connection(self, host: str, username: str) -> asyncssh.SSHClientConnection:
+    async def get_connection(self, host: str) -> asyncssh.SSHClientConnection:
         """
         Get or create an SSH connection to a host.
 
@@ -108,7 +108,7 @@ class SSHConnectionManager:
         Raises:
             ConnectionError: If connection fails
         """
-        key = f"{username}@{host}"
+        key = f"{host}"
 
         # Return existing connection if available
         if key in self._connections:
@@ -117,7 +117,7 @@ class SSHConnectionManager:
                 # DEBUG level: Log connection reuse and pool state
                 logger.debug(f"SSH_REUSE: {key} | pool_size={len(self._connections)}")
                 # Use audit log with connection reuse info
-                log_ssh_connect(host, username, status=Status.success, reused=True, key_path=self._ssh_key)
+                log_ssh_connect(host, status=Status.success, reused=True, key_path=self._ssh_key)
                 return conn
             else:
                 # Connection was closed, remove it
@@ -131,7 +131,6 @@ class SSHConnectionManager:
         try:
             connect_kwargs = {
                 "host": host,
-                "username": username,
                 "known_hosts": None,  # Don't verify host keys for now
                 "passphrase": CONFIG.key_passphrase,
             }
@@ -143,7 +142,7 @@ class SSHConnectionManager:
             self._connections[key] = conn
 
             # Log successful connection using audit function
-            log_ssh_connect(host, username, status=Status.success, reused=False, key_path=self._ssh_key)
+            log_ssh_connect(host, status=Status.success, reused=False, key_path=self._ssh_key)
 
             # DEBUG level: Log pool state
             logger.debug(f"SSH_POOL: add_connection | connections={len(self._connections)}")
@@ -153,19 +152,18 @@ class SSHConnectionManager:
         except asyncssh.PermissionDenied as e:
             # Use audit log for authentication failure
             error_msg = str(e)
-            log_ssh_connect(host, username, status="failed", error=f"Permission denied: {error_msg}")
-            raise ConnectionError(f"Authentication failed for {username}@{host}") from e
+            log_ssh_connect(host, status="failed", error=f"Permission denied: {error_msg}")
+            raise ConnectionError(f"Authentication failed for {host}") from e
         except asyncssh.Error as e:
             # Use audit log for connection failure
             error_msg = str(e)
-            log_ssh_connect(host, username, status="failed", error=error_msg)
-            raise ConnectionError(f"Failed to connect to {username}@{host}: {e}") from e
+            log_ssh_connect(host, status="failed", error=error_msg)
+            raise ConnectionError(f"Failed to connect to {host}: {e}") from e
 
     async def execute_remote(
         self,
         command: list[str],
         host: str,
-        username: str,
     ) -> tuple[int, str, str]:
         """
         Execute a command on a remote host via SSH.
@@ -181,7 +179,7 @@ class SSHConnectionManager:
         Raises:
             ConnectionError: If SSH connection fails
         """
-        conn = await self.get_connection(host, username)
+        conn = await self.get_connection(host)
 
         # Build command string with proper shell escaping
         # Use shlex.quote() to ensure special characters (like \n in printf format) are preserved
@@ -212,7 +210,7 @@ class SSHConnectionManager:
         except asyncssh.Error as e:
             duration = time.time() - start_time
             logger.error(
-                f"Error executing command on {username}@{host}: {e}",
+                f"Error executing command on {host}: {e}",
                 extra={
                     "event": Event.REMOTE_EXEC_ERROR,
                     "command": cmd_str,
@@ -221,7 +219,7 @@ class SSHConnectionManager:
                     "error": str(e),
                 },
             )
-            raise ConnectionError(f"Failed to execute command on {username}@{host}: {e}") from e
+            raise ConnectionError(f"Failed to execute command on {host}: {e}") from e
 
     async def close_all(self):
         """Close all SSH connections."""
@@ -247,7 +245,6 @@ _connection_manager = SSHConnectionManager()
 async def execute_command(
     command: list[str],
     host: str | None = None,
-    username: str = CONFIG.user,
     **kwargs,
 ) -> tuple[int, str, str]:
     """
@@ -260,7 +257,6 @@ async def execute_command(
     Args:
         command: Command and arguments to execute
         host: Optional remote host address
-        username: Optional SSH username (required if host is provided)
         **kwargs: Additional arguments (reserved for future use)
 
     Returns:
@@ -285,8 +281,8 @@ async def execute_command(
 
     # Route to remote execution if host is provided
     if host:
-        logger.debug(f"Routing to remote execution: {username}@{host} | command={cmd_str}")
-        return await _connection_manager.execute_remote(command, host, username)
+        logger.debug(f"Routing to remote execution: {host} | command={cmd_str}")
+        return await _connection_manager.execute_remote(command, host)
 
     # Local execution
     logger.debug(f"LOCAL_EXEC: {cmd_str}")
