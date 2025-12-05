@@ -21,6 +21,7 @@ from linux_mcp_server.audit import log_ssh_command
 from linux_mcp_server.audit import log_ssh_connect
 from linux_mcp_server.audit import Status
 from linux_mcp_server.config import CONFIG
+from linux_mcp_server.utils.types import Host
 
 
 logger = logging.getLogger("linux-mcp-server")
@@ -316,6 +317,22 @@ async def execute_command(
     # Local execution
     logger.debug(f"LOCAL_EXEC: {cmd_str}")
     return await _execute_local(command)
+
+
+async def get_bin_path(command: str, hostname: Host, required: bool = False) -> str | None:
+    """Get the full path to an executable on a remote system.
+
+    Raises VauleError if not found and required is True.
+    """
+    bin_path = None
+    rc, out, err = await execute_command(["command", "-v", command], hostname)
+    if rc == 0:
+        return out.strip()
+
+    if required:
+        raise ValueError(f"Unable to find '{command}' on {hostname}")
+
+    return bin_path
 
 
 async def _execute_local(command: list[str]) -> tuple[int, str, str]:
