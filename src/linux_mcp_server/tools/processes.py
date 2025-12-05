@@ -6,6 +6,7 @@ from datetime import datetime
 
 import psutil
 
+from mcp.server.fastmcp.exceptions import ToolError
 from mcp.types import ToolAnnotations
 from pydantic import Field
 
@@ -32,7 +33,6 @@ async def list_processes(
         if host:
             # Remote execution - use ps command
             returncode, stdout, _ = await execute_command(["ps", "aux", "--sort=-%cpu"], host=host)
-
             if returncode == 0 and stdout:
                 info = []
                 info.append("=== Running Processes ===\n")
@@ -100,6 +100,8 @@ async def list_processes(
             info.append("Showing: Top 100 by CPU usage")
 
             return "\n".join(info)
+    except ToolError:
+        raise
     except Exception as e:
         return f"Error listing processes: {str(e)}"
 

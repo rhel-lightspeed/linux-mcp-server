@@ -5,6 +5,7 @@ import typing as t
 
 from pathlib import Path
 
+from mcp.server.fastmcp.exceptions import ToolError
 from mcp.types import ToolAnnotations
 from pydantic import Field
 
@@ -227,6 +228,8 @@ async def read_log_file(  # noqa: C901
         result.append(stdout)
 
         return "\n".join(result)
+    except ToolError:
+        raise
     except FileNotFoundError:
         return "Error: tail command not found."
     except Exception as e:
