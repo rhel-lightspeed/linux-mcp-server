@@ -7,6 +7,7 @@ either local or remote execution based on the provided parameters.
 
 import asyncio
 import logging
+import os
 import shlex
 import shutil
 import subprocess
@@ -271,6 +272,37 @@ class SSHConnectionManager:
 _connection_manager = SSHConnectionManager()
 
 
+def get_bin_path(command: str) -> str:
+    """Get the full path to an executable.
+
+    Raises VauleError if not found.
+    """
+    sbin_paths = ("/sbin", "/usr/sbin", "/usr/local/sbin")
+    paths = os.getenv("PATH", "").split(os.pathsep)
+    for path in sbin_paths:
+        if path not in paths:
+            paths.append(path)
+
+    path = os.pathsep.join(paths)
+    bin_path = shutil.which(command, path=path)
+    if bin_path is None:
+        raise ValueError(f"Unable to find '{command}'")
+
+    return bin_path
+
+
+async def get_remote_bin_path(command: str, hostname: Host, connection: SSHConnectionManager) -> str:
+    """Get the full path to an executable on a remote system.
+
+    Raises VauleError if not found.
+    """
+    rc, out, err = await connection.execute_remote(["command", "-v", command], hostname)
+    if rc == 0:
+        return out.strip()
+
+    raise ValueError(f"Unable to find command '{command}' on host {hostname}")
+
+
 async def execute_command(
     command: list[str],
     host: str | None = None,
@@ -326,30 +358,6 @@ async def execute_command(
     # Local execution
     logger.debug(f"LOCAL_EXEC: {cmd_str}")
     return await _execute_local(command)
-
-
-async def get_remote_bin_path(command: str, hostname: Host, connection: SSHConnectionManager) -> str:
-    """Get the full path to an executable on a remote system.
-
-    Raises VauleError if not found.
-    """
-    rc, out, err = await connection.execute_remote(["command", "-v", command], hostname)
-    if rc == 0:
-        return out.strip()
-
-    raise ValueError(f"Unable to find command '{command}' on host {hostname}")
-
-
-def get_bin_path(command: str) -> str:
-    """Get the full path to an executable.
-
-    Raises VauleError if not found.
-    """
-    bin_path = shutil.which(command)
-    if bin_path is None:
-        raise ValueError(f"Unable to find '{command}'")
-
-    return bin_path
 
 
 async def _execute_local(command: list[str]) -> tuple[int, str, str]:
