@@ -19,6 +19,7 @@ dependencies = [
     "pydantic>=2.12.4",
 ]
 dynamic = ["version"]
+license-files = ["LICENSE", "licenses/GPL-3.0.txt"]
 classifiers = [
     "Development Status :: 2 - Pre-Alpha",
     "Environment :: Console",
