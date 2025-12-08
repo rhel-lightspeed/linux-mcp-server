@@ -313,11 +313,11 @@ class TestSSHConnectionManager:
         manager = SSHConnectionManager()
         manager._connections.clear()
 
-        mock_conn1 = AsyncMock()
+        mock_conn1 = AsyncMock(asyncssh.SSHClientConnection)
         mock_conn1.is_closed = Mock(return_value=False)
         mock_conn1.wait_closed = AsyncMock()
 
-        mock_conn2 = AsyncMock()
+        mock_conn2 = AsyncMock(asyncssh.SSHClientConnection)
         mock_conn2.is_closed = Mock(return_value=False)
         mock_conn2.wait_closed = AsyncMock()
 
