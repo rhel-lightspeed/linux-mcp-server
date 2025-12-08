@@ -118,7 +118,7 @@ class TestExecuteCommand:
 
         assert returncode == 0
         assert stdout == "output"
-        mock_manager.execute_remote.assert_called_once()
+        assert mock_manager.execute_remote.call_count == 2
 
     async def test_execute_command_remote_requires_host(self):
         """Test that username without host uses local execution."""
@@ -151,7 +151,7 @@ class TestSSHConnectionManager:
         mock_connect.side_effect = async_connect
         mocker.patch("asyncssh.connect", mock_connect)
 
-        conn = await manager.get_connection("host1", "user1")
+        conn = await manager.get_connection("host1")
         assert conn is mock_conn
         mock_connect.assert_called_once()
 
@@ -170,8 +170,8 @@ class TestSSHConnectionManager:
         mock_connect.side_effect = async_connect
         mocker.patch("asyncssh.connect", mock_connect)
 
-        conn1 = await manager.get_connection("host1", "user1")
-        conn2 = await manager.get_connection("host1", "user1")
+        conn1 = await manager.get_connection("host1")
+        conn2 = await manager.get_connection("host1")
 
         assert conn1 is conn2
         assert mock_connect.call_count == 1  # Only connected once
@@ -193,8 +193,8 @@ class TestSSHConnectionManager:
         mock_connect.side_effect = async_connect
         mocker.patch("asyncssh.connect", mock_connect)
 
-        conn1 = await manager.get_connection("host1", "user1")
-        conn2 = await manager.get_connection("host2", "user1")
+        conn1 = await manager.get_connection("host1")
+        conn2 = await manager.get_connection("host2")
 
         assert conn1 is not conn2
 
@@ -220,7 +220,7 @@ class TestSSHConnectionManager:
         mock_connect.side_effect = async_connect
         mocker.patch("asyncssh.connect", mock_connect)
 
-        returncode, stdout, stderr = await manager.execute_remote(["ls", "-la"], "testhost", "testuser")
+        returncode, stdout, stderr = await manager.execute_remote(["ls", "-la"], "testhost")
 
         assert returncode == 0
         assert stdout == "remote output"
@@ -247,7 +247,7 @@ class TestSSHConnectionManager:
         mock_connect = MagicMock()
         mock_connect.side_effect = async_connect
         mocker.patch("asyncssh.connect", mock_connect)
-        returncode, stdout, stderr = await manager.execute_remote(["invalid_command"], "testhost", "testuser")
+        returncode, stdout, stderr = await manager.execute_remote(["invalid_command"], "testhost")
 
         assert returncode == 1
         assert "command not found" in stderr
@@ -265,7 +265,7 @@ class TestSSHConnectionManager:
         mocker.patch("asyncssh.connect", mock_connect)
 
         with pytest.raises(ConnectionError, match="Failed to connect"):
-            await manager.execute_remote(["ls"], "unreachable", "testuser")
+            await manager.execute_remote(["ls"], "unreachable")
 
     async def test_execute_remote_authentication_failure(self, mocker):
         """Test handling of authentication failures."""
@@ -277,7 +277,7 @@ class TestSSHConnectionManager:
         mocker.patch("asyncssh.connect", mock_connect)
 
         with pytest.raises(ConnectionError, match="Authentication failed"):
-            await manager.execute_remote(["ls"], "testhost", "baduser")
+            await manager.execute_remote(["ls"], "testhost")
 
     async def test_execute_remote_uses_discovered_key(self, mocker):
         """Test that remote execution uses discovered SSH key."""
@@ -302,7 +302,7 @@ class TestSSHConnectionManager:
         mock_connect.side_effect = async_connect
         mocker.patch("asyncssh.connect", mock_connect)
 
-        await manager.execute_remote(["ls"], "testhost", "testuser")
+        await manager.execute_remote(["ls"], "testhost")
 
         # Verify connect was called with the key
         call_kwargs = mock_connect.call_args[1]
@@ -328,8 +328,8 @@ class TestSSHConnectionManager:
         mock_connect.side_effect = async_connect
         mocker.patch("asyncssh.connect", mock_connect)
 
-        await manager.get_connection("host1", "user1")
-        await manager.get_connection("host2", "user1")
+        await manager.get_connection("host1")
+        await manager.get_connection("host2")
 
         await manager.close_all()
 
