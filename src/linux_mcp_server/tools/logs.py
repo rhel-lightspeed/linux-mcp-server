@@ -85,6 +85,8 @@ async def get_journal_logs(
         result.append(stdout)
 
         return "\n".join(result)
+    except ToolError:
+        raise
     except FileNotFoundError:
         return "Error: journalctl command not found. This tool requires systemd."
     except Exception as e:
@@ -133,6 +135,8 @@ async def get_audit_logs(
         result.append(stdout)
 
         return "\n".join(result)
+    except ToolError:
+        raise
     except FileNotFoundError:
         return "Error: tail command not found."
     except Exception as e:

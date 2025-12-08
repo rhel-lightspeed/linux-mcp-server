@@ -276,6 +276,8 @@ async def get_process_info(  # noqa: C901
                 pass
 
             return "\n".join(info)
+    except ToolError:
+        raise
     except psutil.NoSuchProcess:
         return f"Process with PID {validated_pid} does not exist."
     except psutil.AccessDenied:

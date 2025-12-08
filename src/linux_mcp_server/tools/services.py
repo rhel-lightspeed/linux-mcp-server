@@ -2,6 +2,7 @@
 
 import typing as t
 
+from mcp.server.fastmcp.exceptions import ToolError
 from mcp.types import ToolAnnotations
 from pydantic import Field
 
@@ -51,6 +52,8 @@ async def list_services(
             result.append(f"\n\nSummary: {running_count} services currently running")
 
         return "\n".join(result)
+    except ToolError:
+        raise
     except FileNotFoundError:
         return "Error: systemctl command not found. This tool requires systemd."
     except Exception as e:
@@ -93,6 +96,8 @@ async def get_service_status(
         result.append(stdout)
 
         return "\n".join(result)
+    except ToolError:
+        raise
     except FileNotFoundError:
         return "Error: systemctl command not found. This tool requires systemd."
     except Exception as e:
@@ -140,6 +145,8 @@ async def get_service_logs(
         result.append(stdout)
 
         return "\n".join(result)
+    except ToolError:
+        raise
     except FileNotFoundError:
         return "Error: journalctl command not found. This tool requires systemd."
     except Exception as e:
