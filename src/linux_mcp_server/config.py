@@ -1,7 +1,5 @@
 """Settings for linux-mcp-server"""
 
-import getpass
-
 from pathlib import Path
 
 from pydantic_settings import BaseSettings
@@ -15,7 +13,7 @@ class Config(BaseSettings):
     # interpret the prefix as `LINUX_MCPLOG_DIR`, instead of `LINUX_MCP_LOG_DIR`
     model_config = SettingsConfigDict(env_prefix="LINUX_MCP_", env_ignore_empty=True)
 
-    user: str = getpass.getuser()
+    user: str = ""
 
     # Logging configuration
     log_dir: Path | None = None

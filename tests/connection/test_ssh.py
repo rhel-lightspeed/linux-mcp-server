@@ -160,13 +160,13 @@ class TestSSHConnectionManager:
         manager = SSHConnectionManager()
         manager._connections.clear()  # Clear any existing connections
 
-        mock_conn = AsyncMock()
+        mock_conn = AsyncMock(asyncssh.SSHClientConnection, _username="someuser")
         mock_conn.is_closed = Mock(return_value=False)
 
         async def async_connect(*args, **kwargs):
             return mock_conn
 
-        mock_connect = MagicMock()
+        mock_connect = MagicMock(asyncssh.SSHClientConnection, _username="someuser")
         mock_connect.side_effect = async_connect
         mocker.patch("asyncssh.connect", mock_connect)
 
@@ -313,11 +313,11 @@ class TestSSHConnectionManager:
         manager = SSHConnectionManager()
         manager._connections.clear()
 
-        mock_conn1 = AsyncMock(asyncssh.SSHClientConnection)
+        mock_conn1 = AsyncMock(asyncssh.SSHClientConnection, _host="host1", _username="someuser")
         mock_conn1.is_closed = Mock(return_value=False)
         mock_conn1.wait_closed = AsyncMock()
 
-        mock_conn2 = AsyncMock(asyncssh.SSHClientConnection)
+        mock_conn2 = AsyncMock(asyncssh.SSHClientConnection, _host="host1", _username="someuser")
         mock_conn2.is_closed = Mock(return_value=False)
         mock_conn2.wait_closed = AsyncMock()
 

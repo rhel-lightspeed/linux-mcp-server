@@ -54,6 +54,7 @@ class ExecutionMode(StrEnum):
 class Status(StrEnum):
     success = "success"
     error = "error"
+    failed = "failed"
 
 
 def sanitize_parameters(params: dict[str, t.Any]) -> dict[str, t.Any]:
@@ -233,6 +234,7 @@ def log_tool_call(func: t.Callable) -> Function:
 def log_ssh_connect(
     host: str,
     status: str,
+    username: str = "",
     reused: bool = False,
     key_path: str | None = None,
     error: str | None = None,
@@ -246,6 +248,7 @@ def log_ssh_connect(
 
     Args:
         host: Remote host
+        username: SSH username
         status: Connection status ("success" or "failed")
         reused: Whether connection was reused (shown at DEBUG level)
         key_path: Path to SSH key used (shown at DEBUG level)
@@ -256,11 +259,12 @@ def log_ssh_connect(
     if status == Status.success:
         extra = {
             "host": host,
+            "username": username,
             "status": status,
         }
 
         # At INFO level, just log basic success
-        message = f"{Event.SSH_CONNECT}: {host}"
+        message = f"{Event.SSH_CONNECT}: {host}@{username}"
 
         # At DEBUG level, add more details
         if logger.isEnabledFor(logging.DEBUG):
@@ -275,13 +279,14 @@ def log_ssh_connect(
         # Connection failed
         extra = {
             "host": host,
+            "username": username,
             "status": "failed",
         }
 
         if error:
             extra["reason"] = error
 
-        message = f"{Event.SSH_AUTH_FAILED}: {host}"
+        message = f"{Event.SSH_AUTH_FAILED}: {host}@{username}"
         if error:
             message += f" | reason: {error}"
 

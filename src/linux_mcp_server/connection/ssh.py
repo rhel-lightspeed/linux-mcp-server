@@ -120,7 +120,9 @@ class SSHConnectionManager:
                 # DEBUG level: Log connection reuse and pool state
                 logger.debug(f"SSH_REUSE: {key} | pool_size={len(self._connections)}")
                 # Use audit log with connection reuse info
-                log_ssh_connect(host, status=Status.success, reused=True, key_path=self._ssh_key)
+                log_ssh_connect(
+                    host, username=conn._username, status=Status.success, reused=True, key_path=self._ssh_key
+                )
                 return conn
             else:
                 # Connection was closed, remove it
@@ -148,11 +150,14 @@ class SSHConnectionManager:
             if self._ssh_key:
                 connect_kwargs["client_keys"] = [self._ssh_key]
 
+            if CONFIG.user:
+                connect_kwargs["username"] = CONFIG.user
+
             conn = await asyncssh.connect(**connect_kwargs)
             self._connections[key] = conn
 
             # Log successful connection using audit function
-            log_ssh_connect(host, status=Status.success, reused=False, key_path=self._ssh_key)
+            log_ssh_connect(host, username=conn._username, status=Status.success, reused=False, key_path=self._ssh_key)
 
             # DEBUG level: Log pool state
             logger.debug(f"SSH_POOL: add_connection | connections={len(self._connections)}")
@@ -162,12 +167,12 @@ class SSHConnectionManager:
         except asyncssh.PermissionDenied as e:
             # Use audit log for authentication failure
             error_msg = str(e)
-            log_ssh_connect(host, status="failed", error=f"Permission denied: {error_msg}")
+            log_ssh_connect(host, status=Status.failed, error=f"Permission denied: {error_msg}")
             raise ConnectionError(f"Authentication failed for {host}") from e
         except asyncssh.Error as e:
             # Use audit log for connection failure
             error_msg = str(e)
-            log_ssh_connect(host, status="failed", error=error_msg)
+            log_ssh_connect(host, status=Status.failed, error=error_msg)
             raise ConnectionError(f"Failed to connect to {host}: {e}") from e
 
     async def execute_remote(
