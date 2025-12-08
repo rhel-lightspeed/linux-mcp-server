@@ -251,7 +251,7 @@ async def get_process_info(  # noqa: C901
 
             # Connections
             try:
-                connections = proc.connections()
+                connections = proc.net_connections()
                 if connections:
                     info.append(f"\n=== Network Connections ({len(connections)}) ===")
                     for _, conn in enumerate(connections[:10]):  # Show first 10
