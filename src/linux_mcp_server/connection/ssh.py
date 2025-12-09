@@ -164,20 +164,26 @@ class SSHConnectionManager:
         command: list[str],
         host: str,
         username: str,
+        timeout: int = CONFIG.command_timeout,
     ) -> tuple[int, str, str]:
         """
         Execute a command on a remote host via SSH.
+
+        Commands are subject to a timeout to prevent indefinite hangs. The timeout
+        can be specified per-call or defaults to CONFIG.command_timeout (30s).
 
         Args:
             command: Command and arguments to execute
             host: Remote host address
             username: SSH username
+            timeout: Command timeout in seconds. Defaults to CONFIG.command_timeout.
+                Use for commands that need longer execution time.
 
         Returns:
             Tuple of (return_code, stdout, stderr)
 
         Raises:
-            ConnectionError: If SSH connection fails
+            ConnectionError: If SSH connection fails or command times out
         """
         conn = await self.get_connection(host, username)
 
@@ -189,7 +195,21 @@ class SSHConnectionManager:
         start_time = time.time()
 
         try:
-            result = await conn.run(cmd_str, check=False)
+            try:
+                result = await conn.run(cmd_str, check=False, timeout=timeout)
+            except asyncssh.TimeoutError:
+                duration = time.time() - start_time
+                logger.error(
+                    f"Command timed out after {timeout}s",
+                    extra={
+                        "event": Event.REMOTE_EXEC_ERROR,
+                        "command": cmd_str,
+                        "host": host,
+                        "duration": f"{duration:.3f}s",
+                        "error": "timeout",
+                    },
+                )
+                raise ConnectionError(f"Command timed out after {timeout}s on {username}@{host}: {cmd_str}") from None
 
             return_code = result.exit_status if result.exit_status is not None else 0
 
