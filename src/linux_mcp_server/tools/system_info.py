@@ -408,6 +408,7 @@ async def _parse_memory_information(raw_outputs: dict[CommandKey, RawCommandOutp
     annotations=ToolAnnotations(readOnlyHint=True),
 )
 @log_tool_call
+@disallow_local_execution_in_containers
 async def get_memory_information(
     host: Host | None = None,
     fields: t.Annotated[
@@ -688,6 +689,7 @@ async def _parse_device_information(raw_outputs: dict[CommandKey, RawCommandOutp
     annotations=ToolAnnotations(readOnlyHint=True),
 )
 @log_tool_call
+@disallow_local_execution_in_containers
 async def get_device_information(
     host: Host | None = None,
     device_types: t.Annotated[
