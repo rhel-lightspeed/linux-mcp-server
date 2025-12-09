@@ -13,6 +13,7 @@ from linux_mcp_server.audit import log_tool_call
 from linux_mcp_server.connection.ssh import execute_command
 from linux_mcp_server.server import mcp
 from linux_mcp_server.utils import format_bytes
+from linux_mcp_server.utils import is_ipv6_link_local
 from linux_mcp_server.utils.decorators import disallow_local_execution_in_containers
 from linux_mcp_server.utils.types import Host
 from linux_mcp_server.utils.validation import validate_pid
@@ -252,14 +253,23 @@ async def get_process_info(  # noqa: C901
             # Connections
             try:
                 connections = proc.net_connections()
-                if connections:
-                    info.append(f"\n=== Network Connections ({len(connections)}) ===")
-                    for _, conn in enumerate(connections[:10]):  # Show first 10
+                # Filter out link-local connections
+                filtered_conns = [
+                    c
+                    for c in connections
+                    if not (c.laddr and is_ipv6_link_local(c.laddr.ip))
+                    and not (c.raddr and is_ipv6_link_local(c.raddr.ip))
+                ]
+                if filtered_conns:
+                    info.append(f"\n=== Network Connections ({len(filtered_conns)}) ===")
+                    for conn in filtered_conns[:10]:  # Show first 10
+                        local_addr = f"{conn.laddr.ip}:{conn.laddr.port}" if conn.laddr else "N/A"
+                        remote_addr = f"{conn.raddr.ip}:{conn.raddr.port}" if conn.raddr else "N/A"
                         info.append(
-                            f"  {conn.type.name}: {conn.laddr} -> {conn.raddr if conn.raddr else 'N/A'} [{conn.status}]",
+                            f"  {conn.type.name}: {local_addr} -> {remote_addr} [{conn.status}]",
                         )
-                    if len(connections) > 10:
-                        info.append(f"  ... and {len(connections) - 10} more")
+                    if len(filtered_conns) > 10:
+                        info.append(f"  ... and {len(filtered_conns) - 10} more")
             except (psutil.NoSuchProcess, psutil.AccessDenied):
                 pass
 

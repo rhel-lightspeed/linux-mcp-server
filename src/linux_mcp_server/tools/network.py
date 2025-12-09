@@ -10,8 +10,28 @@ from linux_mcp_server.audit import log_tool_call
 from linux_mcp_server.connection.ssh import execute_command
 from linux_mcp_server.server import mcp
 from linux_mcp_server.utils import format_bytes
+from linux_mcp_server.utils import is_ipv6_link_local
 from linux_mcp_server.utils.decorators import disallow_local_execution_in_containers
 from linux_mcp_server.utils.types import Host
+
+
+def _get_pid_info(pid: int | None) -> str:
+    """Get process name for a PID, returning 'N/A' or 'pid/name' format."""
+    if not pid:
+        return "N/A"
+    try:
+        proc = psutil.Process(pid)
+        return f"{pid}/{proc.name()}"
+    except (psutil.NoSuchProcess, psutil.AccessDenied):
+        return str(pid)
+
+
+def _format_filtered_total(label: str, displayed: int, total: int) -> str:
+    """Format total count with optional filtered count message."""
+    filtered = total - displayed
+    if filtered > 0:
+        return f"\n\nTotal {label}: {displayed} (filtered {filtered} link-local)"
+    return f"\n\nTotal {label}: {displayed}"
 
 
 @mcp.tool(
@@ -92,6 +112,9 @@ async def get_network_interfaces(  # noqa: C901
                         if addr.broadcast:
                             info.append(f"    Broadcast: {addr.broadcast}")
                     elif addr.family == socket.AF_INET6:
+                        # Skip link-local addresses (fe80::/10)
+                        if is_ipv6_link_local(addr.address):
+                            continue
                         info.append(f"  IPv6 Address: {addr.address}")
                         if addr.netmask:
                             info.append(f"    Netmask: {addr.netmask}")
@@ -170,26 +193,26 @@ async def get_network_connections(
 
             # Get all network connections
             connections = psutil.net_connections(kind="inet")
+            total_count = len(connections)
+            displayed_count = 0
 
             for conn in connections:
                 proto = "TCP" if conn.type == socket.SOCK_STREAM else "UDP"
+
+                # Skip connections using link-local addresses
+                if conn.laddr and is_ipv6_link_local(conn.laddr.ip):
+                    continue
+                if conn.raddr and is_ipv6_link_local(conn.raddr.ip):
+                    continue
 
                 local_addr = f"{conn.laddr.ip}:{conn.laddr.port}" if conn.laddr else "N/A"
                 remote_addr = f"{conn.raddr.ip}:{conn.raddr.port}" if conn.raddr else "N/A"
                 status = conn.status if conn.status else "N/A"
 
-                # Try to get process info
-                pid_info = str(conn.pid) if conn.pid else "N/A"
-                if conn.pid:
-                    try:
-                        proc = psutil.Process(conn.pid)
-                        pid_info = f"{conn.pid}/{proc.name()}"
-                    except (psutil.NoSuchProcess, psutil.AccessDenied):
-                        pass
+                info.append(f"{proto:<8} {local_addr:<30} {remote_addr:<30} {status:<15} {_get_pid_info(conn.pid)}")
+                displayed_count += 1
 
-                info.append(f"{proto:<8} {local_addr:<30} {remote_addr:<30} {status:<15} {pid_info}")
-
-            info.append(f"\n\nTotal connections: {len(connections)}")
+            info.append(_format_filtered_total("connections", displayed_count, total_count))
 
             return "\n".join(info)
     except psutil.AccessDenied:
@@ -254,25 +277,22 @@ async def get_listening_ports(
             # Get connections in LISTEN state
             connections = psutil.net_connections(kind="inet")
             listening = [c for c in connections if c.status == "LISTEN" or c.type == socket.SOCK_DGRAM]
+            total_count = len(listening)
+            displayed_count = 0
 
             for conn in listening:
-                proto = "TCP" if conn.type == socket.SOCK_STREAM else "UDP"
+                # Skip listening on link-local addresses
+                if conn.laddr and is_ipv6_link_local(conn.laddr.ip):
+                    continue
 
+                proto = "TCP" if conn.type == socket.SOCK_STREAM else "UDP"
                 local_addr = f"{conn.laddr.ip}:{conn.laddr.port}" if conn.laddr else "N/A"
                 status = conn.status if conn.status else "LISTENING"
 
-                # Try to get process info
-                pid_info = str(conn.pid) if conn.pid else "N/A"
-                if conn.pid:
-                    try:
-                        proc = psutil.Process(conn.pid)
-                        pid_info = f"{conn.pid}/{proc.name()}"
-                    except (psutil.NoSuchProcess, psutil.AccessDenied):
-                        pass
+                info.append(f"{proto:<8} {local_addr:<30} {status:<15} {_get_pid_info(conn.pid)}")
+                displayed_count += 1
 
-                info.append(f"{proto:<8} {local_addr:<30} {status:<15} {pid_info}")
-
-            info.append(f"\n\nTotal listening ports: {len(listening)}")
+            info.append(_format_filtered_total("listening ports", displayed_count, total_count))
 
             return "\n".join(info)
     except psutil.AccessDenied:
