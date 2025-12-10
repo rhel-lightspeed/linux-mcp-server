@@ -201,6 +201,12 @@ class SSHConnectionManager:
             ConnectionError: If SSH connection fails or command times out
         """
         conn = await self.get_connection(host)
+        bin = command[0]
+        if not Path(bin).is_absolute():
+            try:
+                command[0] = await get_remote_bin_path(bin, host, conn)
+            except ValueError as ve:
+                raise ToolError(ve.args)
 
         # Build command string with proper shell escaping
         # Use shlex.quote() to ensure special characters (like \n in printf format) are preserved
@@ -295,16 +301,29 @@ def get_bin_path(command: str) -> str:
     return bin_path
 
 
-async def get_remote_bin_path(command: str, hostname: Host, connection: SSHConnectionManager) -> str:
+async def get_remote_bin_path(
+    command: str,
+    hostname: Host,
+    connection: asyncssh.SSHClientConnection,
+    timeout: int = CONFIG.command_timeout,
+) -> str:
     """Get the full path to an executable on a remote system.
 
     Raises VauleError if not found.
     """
-    rc, out, err = await connection.execute_remote(["command", "-v", command], hostname)
-    if rc == 0:
-        return out.strip()
+    logger.debug(f"Getting path for {command} on {hostname}")
+    try:
+        result = await connection.run(shlex.join(["command", "-v", command]), timeout=timeout)
+    except asyncssh.Error as err:
+        raise ConnectionError(
+            f"Error when trying to locate command '{command}' on {connection._username}@{hostname}: {err}"
+        )
 
-    raise ValueError(f"Unable to find command '{command}' on host {hostname}")
+    if result.exit_status == 0 and result.stdout:
+        stdout = result.stdout.decode() if isinstance(result.stdout, bytes) else result.stdout
+        return stdout.strip()
+
+    raise ValueError(f"Unable to find command '{command}' on {connection._username}@{hostname}")
 
 
 async def execute_command(
@@ -320,7 +339,8 @@ async def execute_command(
     whether host/username parameters are provided.
 
     Args:
-        command: Command and arguments to execute
+        command: Command and arguments to execute. If the command is not an absolute path
+                 it will be resolved to the full path before exeuction.
         host: Optional remote host address
         **kwargs: Additional arguments (reserved for future use)
 
@@ -344,22 +364,11 @@ async def execute_command(
         ... )
     """
     cmd_str = " ".join(command)
-    bin = command[0]
-    if not Path(bin).is_absolute():
-        try:
-            if host:
-                command[0] = await get_remote_bin_path(bin, host, _connection_manager)
-            else:
-                command[0] = get_bin_path(bin)
-        except ValueError as ve:
-            raise ToolError(ve.args)
 
-    # Route to remote execution if host is provided
     if host:
         logger.debug(f"Routing to remote execution: {host} | command={cmd_str}")
         return await _connection_manager.execute_remote(command, host)
 
-    # Local execution
     logger.debug(f"LOCAL_EXEC: {cmd_str}")
     return await _execute_local(command)
 
@@ -376,6 +385,12 @@ async def _execute_local(command: list[str]) -> tuple[int, str, str]:
     """
     cmd_str = " ".join(command)
     start_time = time.time()
+    bin = command[0]
+    if not Path(bin).is_absolute():
+        try:
+            command[0] = get_bin_path(bin)
+        except ValueError as ve:
+            raise ToolError(ve.args)
 
     try:
         proc = await asyncio.create_subprocess_exec(*command, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
