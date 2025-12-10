@@ -206,7 +206,7 @@ class SSHConnectionManager:
             try:
                 command[0] = await get_remote_bin_path(bin, host, conn)
             except ValueError as ve:
-                raise ToolError(ve.args)
+                raise ToolError(*ve.args)
 
         # Build command string with proper shell escaping
         # Use shlex.quote() to ensure special characters (like \n in printf format) are preserved
@@ -390,7 +390,7 @@ async def _execute_local(command: list[str]) -> tuple[int, str, str]:
         try:
             command[0] = get_bin_path(bin)
         except ValueError as ve:
-            raise ToolError(ve.args)
+            raise ToolError(*ve.args)
 
     try:
         proc = await asyncio.create_subprocess_exec(*command, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
