@@ -309,7 +309,7 @@ async def get_remote_bin_path(
 ) -> str:
     """Get the full path to an executable on a remote system.
 
-    Raises VauleError if not found.
+    Raises ValueError if not found.
     """
     logger.debug(f"Getting path for {command} on {hostname}")
     try:
