@@ -5,12 +5,21 @@ import socket
 from unittest.mock import MagicMock
 
 import psutil
+import pytest
 
 from linux_mcp_server.server import mcp
+from tests.conftest import GLOBAL_IPV6
+from tests.conftest import IPV4_ADDR
+from tests.conftest import LINK_LOCAL_FILTER_CASES_NETWORK
+from tests.conftest import LINK_LOCAL_IPV6
+from tests.conftest import make_mixed_connections_network
+from tests.conftest import make_mixed_listening_ports
+from tests.conftest import MockAddr
+from tests.conftest import MockConnection
 
 
 class MockAddress:
-    """Mock network address object."""
+    """Mock network address object (for interface addresses)."""
 
     def __init__(self, family, address, netmask=None, broadcast=None):
         self.family = family
@@ -42,32 +51,6 @@ class MockNetIOCounters:
         self.dropout = 1
 
 
-class MockConnection:
-    """Mock network connection."""
-
-    def __init__(
-        self,
-        type_=socket.SOCK_STREAM,
-        laddr=None,
-        raddr=None,
-        status: str | None = "ESTABLISHED",
-        pid: int | None = 1234,
-    ):
-        self.type = type_
-        self.laddr = laddr
-        self.raddr = raddr
-        self.status = status
-        self.pid = pid
-
-
-class MockAddr:
-    """Mock address for connection."""
-
-    def __init__(self, ip, port):
-        self.ip = ip
-        self.port = port
-
-
 class TestGetNetworkInterfaces:
     """Test get_network_interfaces function."""
 
@@ -77,7 +60,9 @@ class TestGetNetworkInterfaces:
         mock_net_if_addrs = {
             "eth0": [
                 MockAddress(socket.AF_INET, "192.168.1.100", "255.255.255.0", "192.168.1.255"),
-                MockAddress(socket.AF_INET6, "fe80::1", "ffff:ffff:ffff:ffff::"),
+                MockAddress(socket.AF_INET6, "2001:db8::1", "ffff:ffff:ffff:ffff::"),
+                # Link-local address should be filtered out
+                MockAddress(socket.AF_INET6, "fe80::1%eth0", "ffff:ffff:ffff:ffff::"),
                 MockAddress(psutil.AF_LINK, "00:11:22:33:44:55"),
             ],
             "lo": [
@@ -108,7 +93,8 @@ class TestGetNetworkInterfaces:
         assert "lo" in output
         assert "192.168.1.100" in output
         assert "127.0.0.1" in output
-        assert "fe80::1" in output
+        assert "2001:db8::1" in output  # Global IPv6 should be shown
+        assert "fe80::" not in output  # Link-local should be filtered out
         assert "00:11:22:33:44:55" in output
         assert "Status: UP" in output
         assert "Speed: 1000 Mbps" in output
@@ -529,6 +515,51 @@ tcp        0      0 192.168.1.100:22        192.168.1.1:54321      ESTABLISHED""
         assert isinstance(output, str)
         assert "Error: Neither ss nor netstat command available" in output
 
+    @pytest.mark.parametrize("laddr_ip,raddr_ip,expectation", LINK_LOCAL_FILTER_CASES_NETWORK)
+    async def test_get_network_connections_filters_link_local(self, mocker, laddr_ip, raddr_ip, expectation):
+        """Test that connections with link-local addresses are filtered."""
+        mock_connections = [
+            MockConnection(
+                type_=socket.SOCK_STREAM,
+                laddr=MockAddr(laddr_ip, 8080),
+                raddr=MockAddr(raddr_ip, 54321),
+                status="ESTABLISHED",
+                pid=1234,
+            ),
+        ]
+
+        mock_process = MagicMock()
+        mock_process.name.return_value = "python3"
+
+        mocker.patch("linux_mcp_server.tools.network.psutil.net_connections", return_value=mock_connections)
+        mocker.patch("linux_mcp_server.tools.network.psutil.Process", return_value=mock_process)
+
+        result = await mcp.call_tool("get_network_connections", {})
+        assert isinstance(result, tuple)
+        assert len(result) == 2
+        assert isinstance(result[0], list)
+        output = result[0][0].text  # noqa: F841 - used in eval
+
+        assert eval(expectation)
+
+    async def test_get_network_connections_mixed_link_local_filtering(self, mocker):
+        """Test filtering with mix of link-local and regular connections."""
+        mock_process = MagicMock()
+        mock_process.name.return_value = "test"
+        mocker.patch(
+            "linux_mcp_server.tools.network.psutil.net_connections", return_value=make_mixed_connections_network()
+        )
+        mocker.patch("linux_mcp_server.tools.network.psutil.Process", return_value=mock_process)
+
+        result = await mcp.call_tool("get_network_connections", {})
+        assert isinstance(result, tuple)
+        assert len(result) == 2
+        assert isinstance(result[0], list)
+        output = result[0][0].text
+
+        assert "Total connections: 1 (filtered 2 link-local)" in output
+        assert f"{IPV4_ADDR}:80" in output  # The non-filtered connection
+
 
 class TestGetListeningPorts:
     """Test get_listening_ports function."""
@@ -826,3 +857,60 @@ tcp        0      0 0.0.0.0:80              0.0.0.0:*               LISTEN"""
 
         assert isinstance(output, str)
         assert "Error: Neither ss nor netstat command available" in output
+
+    @pytest.mark.parametrize(
+        "laddr_ip,should_be_filtered",
+        [
+            (LINK_LOCAL_IPV6, True),  # Link-local should be filtered
+            (IPV4_ADDR, False),  # IPv4 should be shown
+            (GLOBAL_IPV6, False),  # Global IPv6 should be shown
+        ],
+        ids=["link-local-filtered", "ipv4-shown", "global-ipv6-shown"],
+    )
+    async def test_get_listening_ports_filters_link_local(self, mocker, laddr_ip, should_be_filtered):
+        """Test that listening ports with link-local addresses are filtered."""
+        mock_connections = [
+            MockConnection(
+                type_=socket.SOCK_STREAM,
+                laddr=MockAddr(laddr_ip, 80),
+                raddr=None,
+                status="LISTEN",
+                pid=1234,
+            ),
+        ]
+
+        mock_process = MagicMock()
+        mock_process.name.return_value = "nginx"
+
+        mocker.patch("linux_mcp_server.tools.network.psutil.net_connections", return_value=mock_connections)
+        mocker.patch("linux_mcp_server.tools.network.psutil.Process", return_value=mock_process)
+
+        result = await mcp.call_tool("get_listening_ports", {})
+        assert isinstance(result, tuple)
+        assert len(result) == 2
+        assert isinstance(result[0], list)
+        output = result[0][0].text
+
+        if should_be_filtered:
+            assert "filtered 1 link-local" in output
+            assert "Total listening ports: 0" in output
+        else:
+            assert "filtered" not in output
+            assert "Total listening ports: 1" in output
+
+    async def test_get_listening_ports_mixed_link_local_filtering(self, mocker):
+        """Test filtering with mix of link-local and regular listening ports."""
+        mock_process = MagicMock()
+        mock_process.name.return_value = "test"
+        mocker.patch("linux_mcp_server.tools.network.psutil.net_connections", return_value=make_mixed_listening_ports())
+        mocker.patch("linux_mcp_server.tools.network.psutil.Process", return_value=mock_process)
+
+        result = await mcp.call_tool("get_listening_ports", {})
+        assert isinstance(result, tuple)
+        assert len(result) == 2
+        assert isinstance(result[0], list)
+        output = result[0][0].text
+
+        assert "Total listening ports: 2 (filtered 1 link-local)" in output
+        assert f"{IPV4_ADDR}:80" in output
+        assert f"{GLOBAL_IPV6}:53" in output
