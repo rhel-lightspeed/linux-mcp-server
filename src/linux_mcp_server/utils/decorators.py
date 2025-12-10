@@ -4,7 +4,7 @@ import functools
 import inspect
 import os
 
-from mcp.server.fastmcp.exceptions import ToolError
+from fastmcp.exceptions import ToolError
 
 
 CONTAINER_ENV_VARS = [
