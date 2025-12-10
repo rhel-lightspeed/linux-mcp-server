@@ -12,6 +12,7 @@ from linux_mcp_server.tools import services
 class TestServices:
     """Test service management tools."""
 
+    @pytest.mark.skipif(sys.platform != "linux", reason="Only passes no Linux")
     async def test_list_services_returns_string(self):
         """Test that list_services returns a string."""
         result = await services.list_services()
@@ -43,6 +44,7 @@ class TestServices:
             or "not found" in result.lower()
         )
 
+    @pytest.mark.skipif(sys.platform != "linux", reason="Only passes no Linux")
     async def test_get_service_status_with_nonexistent_service(self):
         """Test getting status of a non-existent service."""
         result = await services.get_service_status("nonexistent-service-xyz123")
@@ -51,18 +53,21 @@ class TestServices:
         # Should handle gracefully
         assert "not found" in result.lower() or "could not" in result.lower() or "error" in result.lower()
 
+    @pytest.mark.skipif(sys.platform != "linux", reason="Only passes no Linux")
     async def test_get_service_logs_returns_string(self):
         """Test that get_service_logs returns a string."""
         result = await services.get_service_logs("sshd.service", lines=10)
         assert isinstance(result, str)
         assert len(result) > 0
 
+    @pytest.mark.skipif(sys.platform != "linux", reason="Only passes no Linux")
     async def test_get_service_logs_respects_line_limit(self):
         """Test that get_service_logs respects the lines parameter."""
         # This is a basic test - we just verify it runs without error
         result = await services.get_service_logs("sshd.service", lines=5)
         assert isinstance(result, str)
 
+    @pytest.mark.skipif(sys.platform != "linux", reason="Only passes no Linux")
     async def test_get_service_logs_with_nonexistent_service(self):
         """Test getting logs of a non-existent service."""
         result = await services.get_service_logs("nonexistent-service-xyz123", lines=10)

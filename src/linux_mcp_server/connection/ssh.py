@@ -224,7 +224,9 @@ class SSHConnectionManager:
                         "error": "timeout",
                     },
                 )
-                raise ConnectionError(f"Command timed out after {timeout}s on {username}@{host}: {cmd_str}") from None
+                raise ConnectionError(
+                    f"Command timed out after {timeout}s on {conn._username}@{host}: {cmd_str}"
+                ) from None
 
             return_code = result.exit_status if result.exit_status is not None else 0
 

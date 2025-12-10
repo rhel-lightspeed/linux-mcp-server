@@ -371,9 +371,10 @@ class TestSSHTimeouts:
     @pytest.fixture
     def mock_ssh_connection(self, mocker):
         """Provide a mock SSH connection with asyncssh.connect patched."""
-        mock_connect = AsyncMock(spec=asyncssh.connect)
-        mock_conn = AsyncMock(spec=SSHClientConnection)
+        mock_conn = Mock(spec=SSHClientConnection, _username="testuser")
         mock_conn.is_closed.return_value = False
+
+        mock_connect = AsyncMock(spec=asyncssh.connect)
         mock_connect.return_value = mock_conn
 
         mocker.patch("asyncssh.connect", mock_connect)
@@ -418,12 +419,11 @@ class TestSSHTimeouts:
             if per_cmd_timeout is not None:
                 kwargs["timeout"] = per_cmd_timeout
 
-            returncode, stdout, _ = await ssh_manager.execute_remote(["cmd"], "host", "user", **kwargs)
+            returncode, stdout, _ = await ssh_manager.execute_remote(["cmd"], "host", **kwargs)
+            call_kwargs = mock_ssh_connection.run.call_args.kwargs
+
             assert returncode == 0
             assert stdout == "ok"
-
-            # Verify timeout was passed correctly to asyncssh
-            call_kwargs = mock_ssh_connection.run.call_args[1]
             assert call_kwargs["timeout"] == expected_timeout
 
     async def test_timeout_error_contains_context(self, mocker, ssh_manager, mock_ssh_connection):
@@ -432,10 +432,11 @@ class TestSSHTimeouts:
         mock_ssh_connection.run = _make_timeout_mock()
 
         with pytest.raises(ConnectionError) as exc_info:
-            await ssh_manager.execute_remote(["mycommand", "arg1"], "myhost.example.com", "myuser", timeout=5)
+            await ssh_manager.execute_remote(["mycommand", "arg1"], "myhost.example.com", timeout=5)
 
         error_msg = str(exc_info.value)
-        assert "myuser@myhost.example.com" in error_msg
+
+        assert "testuser@myhost.example.com" in error_msg
         assert "mycommand" in error_msg
         assert "5s" in error_msg
 
@@ -502,7 +503,7 @@ class TestSSHHostKeyVerification:
         mocker.patch("pathlib.Path.home", return_value=tmp_path)
 
         with caplog.at_level("WARNING"):
-            await ssh_manager.get_connection("testhost", "testuser")
+            await ssh_manager.get_connection("testhost")
 
         if expect_none:
             assert mock_asyncssh_connect["known_hosts"] is None
