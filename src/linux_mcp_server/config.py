@@ -30,5 +30,8 @@ class Config(BaseSettings):
     key_passphrase: str | None = None
     search_for_ssh_key: bool = False
 
+    # Command execution timeout (applies to remote SSH commands)
+    command_timeout: int = 30  # Timeout in seconds; prevents hung SSH operations
+
 
 CONFIG = Config()
