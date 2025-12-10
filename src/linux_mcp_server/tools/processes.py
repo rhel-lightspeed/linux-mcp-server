@@ -19,6 +19,41 @@ from linux_mcp_server.utils.types import Host
 from linux_mcp_server.utils.validation import validate_pid
 
 
+def _truncate(value: str | None, max_len: int, suffix: str = "...") -> str:
+    """Truncate a string to max length with suffix.
+
+    Args:
+        value: The string value to truncate (or None)
+        max_len: Maximum length including suffix
+        suffix: Suffix to append when truncated (default "...")
+
+    Returns:
+        Truncated string, original if short enough, or "N/A" if None
+    """
+    if value is None:
+        return "N/A"
+    if len(value) <= max_len:
+        return value
+    return value[: max_len - len(suffix)] + suffix
+
+
+def _format_cmdline(cmdline: list[str] | None, fallback: str, max_len: int = 40) -> str:
+    """Format command line with fallback and truncation.
+
+    Args:
+        cmdline: List of command line arguments (should be pre-sanitized!)
+        fallback: Fallback value if cmdline is empty/None (typically process name)
+        max_len: Maximum length for the formatted command
+
+    Returns:
+        Formatted, truncated command string
+    """
+    if cmdline:
+        cmd = " ".join(cmdline)
+        return _truncate(cmd, max_len)
+    return fallback
+
+
 @mcp.tool(
     title="List processes",
     description="List running processes",
@@ -74,24 +109,12 @@ async def list_processes(
             # Show top processes (limit to reasonable number)
             for proc_info in processes[:100]:  # Show top 100 processes
                 pid = proc_info.get("pid", "N/A")
-                username_val = proc_info.get("username", "N/A")
-                if username_val and len(username_val) > 12:
-                    username_val = username_val[:9] + "..."
-
+                username_val = _truncate(proc_info.get("username"), 12)
                 cpu = proc_info.get("cpu_percent", 0) or 0
                 mem = proc_info.get("memory_percent", 0) or 0
                 status = proc_info.get("status", "N/A")
-                name = proc_info.get("name", "N/A")
-                if name and len(name) > 30:
-                    name = name[:27] + "..."
-
-                cmdline = proc_info.get("cmdline", [])
-                if cmdline:
-                    cmd = " ".join(cmdline)
-                    if len(cmd) > 40:
-                        cmd = cmd[:37] + "..."
-                else:
-                    cmd = name
+                name = _truncate(proc_info.get("name"), 30)
+                cmd = _format_cmdline(proc_info.get("cmdline"), name, 40)
 
                 info.append(f"{pid:<8} {username_val:<12} {cpu:<8.1f} {mem:<10.1f} {status:<12} {name:<30} {cmd}")
 

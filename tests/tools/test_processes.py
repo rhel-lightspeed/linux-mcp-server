@@ -16,6 +16,53 @@ from tests.conftest import MockAddr
 from tests.conftest import MockConnection
 
 
+class TestTruncateHelpers:
+    """Test string truncation helpers."""
+
+    @pytest.mark.parametrize(
+        "value,max_len,expected",
+        [
+            (None, 10, "N/A"),
+            ("short", 10, "short"),
+            ("exactly10!", 10, "exactly10!"),
+            ("this is too long", 10, "this is..."),
+            ("", 10, ""),
+        ],
+    )
+    def test_truncate(self, value, max_len, expected):
+        from linux_mcp_server.tools.processes import _truncate
+
+        assert _truncate(value, max_len) == expected
+
+    def test_truncate_custom_suffix(self):
+        from linux_mcp_server.tools.processes import _truncate
+
+        assert _truncate("toolong", 5, "~") == "tool~"
+
+    @pytest.mark.parametrize(
+        "cmdline,fallback,expected",
+        [
+            (None, "fallback", "fallback"),
+            ([], "fallback", "fallback"),
+            (["cmd"], "fallback", "cmd"),
+            (["cmd", "arg1", "arg2"], "fallback", "cmd arg1 arg2"),
+        ],
+    )
+    def test_format_cmdline(self, cmdline, fallback, expected):
+        from linux_mcp_server.tools.processes import _format_cmdline
+
+        assert _format_cmdline(cmdline, fallback) == expected
+
+    def test_format_cmdline_truncates_long_commands(self):
+        """Test that long command lines are truncated."""
+        from linux_mcp_server.tools.processes import _format_cmdline
+
+        long_cmdline = ["cmd", "arg1", "arg2", "arg3", "arg4", "arg5", "arg6"]
+        result = _format_cmdline(long_cmdline, "fallback", max_len=20)
+        assert len(result) == 20
+        assert result.endswith("...")
+
+
 class TestProcesses:
     """Test process management tools."""
 
