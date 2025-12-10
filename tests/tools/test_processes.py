@@ -112,7 +112,6 @@ class TestGetProcessInfoLinkLocalFiltering:
         ]
 
         mock_proc = create_mock_process(connections)
-        mocker.patch.object(processes.psutil, "pid_exists", return_value=True)
         mocker.patch.object(processes.psutil, "Process", return_value=mock_proc)
 
         result = await processes.get_process_info(12345)  # noqa: F841 - used in eval
@@ -160,7 +159,6 @@ class TestGetProcessInfoLinkLocalFiltering:
         )
 
         mock_proc = create_mock_process(connections)
-        mocker.patch.object(processes.psutil, "pid_exists", return_value=True)
         mocker.patch.object(processes.psutil, "Process", return_value=mock_proc)
 
         result = await processes.get_process_info(12345)
@@ -185,7 +183,6 @@ class TestGetProcessInfoLinkLocalFiltering:
         ]
 
         mock_proc = create_mock_process(connections)
-        mocker.patch.object(processes.psutil, "pid_exists", return_value=True)
         mocker.patch.object(processes.psutil, "Process", return_value=mock_proc)
 
         result = await processes.get_process_info(12345)

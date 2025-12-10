@@ -169,11 +169,13 @@ async def get_process_info(  # noqa: C901
                 return f"Process with PID {validated_pid} does not exist on remote host."
         else:
             # Local execution - use psutil
-            # Check if process exists
-            if not psutil.pid_exists(validated_pid):
+            # Get process safely and avoid a TOCTOU race condition where the state of a
+            # resource changes between checking it and using it.
+            try:
+                proc = psutil.Process(validated_pid)
+            except psutil.NoSuchProcess:
                 return f"Process with PID {validated_pid} does not exist."
 
-            proc = psutil.Process(validated_pid)
             info = []
 
             info.append(f"=== Process Information for PID {validated_pid} ===\n")
