@@ -188,6 +188,28 @@ class TestConfigSingleton:
         assert CONFIG.user == current_user
 
 
+class TestEffectiveKnownHostsPath:
+    """Test cases for the effective_known_hosts_path property."""
+
+    def test_returns_custom_path_when_set(self, mocker):
+        """Test that effective_known_hosts_path returns the custom path when configured."""
+        mocker.patch("getpass.getuser", return_value="testuser")
+        custom_path = Path("/custom/known_hosts")
+
+        config = Config(known_hosts_path=custom_path)
+
+        assert config.effective_known_hosts_path == custom_path
+
+    def test_returns_default_when_not_set(self, mocker):
+        """Test that effective_known_hosts_path returns ~/.ssh/known_hosts when not configured."""
+        mocker.patch("getpass.getuser", return_value="testuser")
+        mocker.patch("pathlib.Path.home", return_value=Path("/home/testuser"))
+
+        config = Config(known_hosts_path=None)
+
+        assert config.effective_known_hosts_path == Path("/home/testuser/.ssh/known_hosts")
+
+
 class TestConfigEdgeCases:
     """Test edge cases and error conditions"""
 

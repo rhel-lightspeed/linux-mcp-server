@@ -30,8 +30,17 @@ class Config(BaseSettings):
     key_passphrase: str | None = None
     search_for_ssh_key: bool = False
 
+    # SSH host key verification (security)
+    verify_host_keys: bool = False  # NOTE(major): Switch to true later for production!
+    known_hosts_path: Path | None = None  # Custom path to known_hosts file
+
     # Command execution timeout (applies to remote SSH commands)
     command_timeout: int = 30  # Timeout in seconds; prevents hung SSH operations
+
+    @property
+    def effective_known_hosts_path(self) -> Path:
+        """Return the known_hosts path, using default ~/.ssh/known_hosts if not configured."""
+        return self.known_hosts_path or Path.home() / ".ssh" / "known_hosts"
 
 
 CONFIG = Config()

@@ -127,10 +127,17 @@ class SSHConnectionManager:
         logger.debug(f"{Event.SSH_CONNECTING}: {key} | key={self._ssh_key or 'none'}")
 
         try:
+            # Determine host key verification settings
+            if CONFIG.verify_host_keys:
+                known_hosts = str(CONFIG.effective_known_hosts_path)
+            else:
+                logger.warning("SSH host key verification disabled - vulnerable to MITM attacks")
+                known_hosts = None
+
             connect_kwargs = {
                 "host": host,
                 "username": username,
-                "known_hosts": None,  # Don't verify host keys for now
+                "known_hosts": known_hosts,
                 "passphrase": CONFIG.key_passphrase,
             }
 
