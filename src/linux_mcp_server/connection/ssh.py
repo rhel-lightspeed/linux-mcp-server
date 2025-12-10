@@ -285,12 +285,9 @@ def get_bin_path(command: str) -> str:
     Raises VauleError if not found.
     """
     sbin_paths = ("/sbin", "/usr/sbin", "/usr/local/sbin")
-    paths = os.getenv("PATH", "").split(os.pathsep)
-    for path in sbin_paths:
-        if path not in paths:
-            paths.append(path)
-
-    path = os.pathsep.join(paths)
+    path = os.getenv("PATH", "").split(os.pathsep)
+    path.extend(new_path for new_path in sbin_paths if new_path not in path)
+    path = os.pathsep.join(path)
     bin_path = shutil.which(command, path=path)
     if bin_path is None:
         raise ValueError(f"Unable to find '{command}'")
