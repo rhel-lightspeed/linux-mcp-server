@@ -8,6 +8,7 @@ import psutil
 import pytest
 
 from linux_mcp_server.server import mcp
+from linux_mcp_server.tools.network import _get_remote_ss_or_netstat
 from tests.conftest import GLOBAL_IPV6
 from tests.conftest import IPV4_ADDR
 from tests.conftest import LINK_LOCAL_FILTER_CASES_NETWORK
@@ -49,6 +50,105 @@ class MockNetIOCounters:
         self.errout = 3
         self.dropin = 2
         self.dropout = 1
+
+
+class TestGetRemoteSsOrNetstat:
+    """Test _get_remote_ss_or_netstat helper function."""
+
+    @pytest.fixture
+    def mock_execute(self, mocker):
+        """Fixture for mocking execute_command."""
+        return mocker.patch("linux_mcp_server.tools.network.execute_command")
+
+    @pytest.mark.parametrize(
+        ("ss_response", "netstat_response", "expected_success", "expected_output", "expected_calls"),
+        [
+            pytest.param(
+                (0, "tcp ESTAB 0 0 127.0.0.1:80 127.0.0.1:8080", ""),
+                None,
+                True,
+                "tcp ESTAB 0 0 127.0.0.1:80 127.0.0.1:8080",
+                1,
+                id="ss_success",
+            ),
+            pytest.param(
+                (1, "", "ss not found"),
+                (0, "tcp 0 0 127.0.0.1:80 127.0.0.1:8080 ESTABLISHED", ""),
+                True,
+                "tcp 0 0 127.0.0.1:80 127.0.0.1:8080 ESTABLISHED",
+                2,
+                id="netstat_fallback_ss_fails",
+            ),
+            pytest.param(
+                (0, None, ""),
+                (0, "tcp 0 0 127.0.0.1:80 127.0.0.1:8080 ESTABLISHED", ""),
+                True,
+                "tcp 0 0 127.0.0.1:80 127.0.0.1:8080 ESTABLISHED",
+                2,
+                id="netstat_fallback_ss_none",
+            ),
+            pytest.param(
+                (0, "", ""),
+                (0, "tcp 0 0 127.0.0.1:80 127.0.0.1:8080 ESTABLISHED", ""),
+                True,
+                "tcp 0 0 127.0.0.1:80 127.0.0.1:8080 ESTABLISHED",
+                2,
+                id="netstat_fallback_ss_empty",
+            ),
+            pytest.param(
+                (1, "", "ss not found"),
+                (1, "", "netstat not found"),
+                False,
+                "",
+                2,
+                id="both_fail_exit_codes",
+            ),
+            pytest.param(
+                (0, None, ""),
+                (0, "", ""),
+                False,
+                "",
+                2,
+                id="both_fail_empty_output",
+            ),
+        ],
+    )
+    async def test_ss_netstat_fallback(
+        self,
+        mock_execute,
+        ss_response,
+        netstat_response,
+        expected_success,
+        expected_output,
+        expected_calls,
+    ):
+        """Test ss/netstat execution with various success/failure scenarios."""
+        if netstat_response is None:
+            mock_execute.return_value = ss_response
+        else:
+            mock_execute.side_effect = [ss_response, netstat_response]
+
+        success, output = await _get_remote_ss_or_netstat(
+            host="remote.example.com",
+            ss_args=["-tunap"],
+            netstat_args=["-tunap"],
+        )
+
+        assert success is expected_success
+        assert output == expected_output
+        assert mock_execute.call_count == expected_calls
+
+    async def test_correct_args_passed(self, mock_execute):
+        """Test that correct arguments are passed to ss command."""
+        mock_execute.return_value = (0, "output", "")
+
+        await _get_remote_ss_or_netstat(
+            host="remote.example.com",
+            ss_args=["-tulnp"],
+            netstat_args=["-tulnp"],
+        )
+
+        mock_execute.assert_called_once_with(["ss", "-tulnp"], host="remote.example.com")
 
 
 class TestGetNetworkInterfaces:
