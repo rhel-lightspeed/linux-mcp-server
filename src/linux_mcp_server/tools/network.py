@@ -34,6 +34,65 @@ def _format_filtered_total(label: str, displayed: int, total: int) -> str:
     return f"\n\nTotal {label}: {displayed}"
 
 
+def _should_filter_connection(conn) -> bool:
+    """
+    Check if connection should be filtered (link-local addresses).
+
+    Args:
+        conn: psutil connection object (sconn namedtuple) with laddr/raddr attributes
+
+    Returns:
+        True if connection uses link-local addresses and should be filtered
+    """
+    if conn.laddr and is_ipv6_link_local(conn.laddr.ip):
+        return True
+    if conn.raddr and is_ipv6_link_local(conn.raddr.ip):
+        return True
+    return False
+
+
+def _build_connection_table_header(include_remote: bool = True) -> list[str]:
+    """
+    Build table header for connections/listening ports.
+
+    Args:
+        include_remote: Whether to include Remote Address column
+
+    Returns:
+        List of header lines (header row and separator)
+    """
+    if include_remote:
+        header = f"{'Proto':<8} {'Local Address':<30} {'Remote Address':<30} {'Status':<15} {'PID/Program'}"
+        separator = "-" * 110
+    else:
+        header = f"{'Proto':<8} {'Local Address':<30} {'Status':<15} {'PID/Program'}"
+        separator = "-" * 80
+    return [header, separator]
+
+
+def _format_connection_line(conn, include_remote: bool = True) -> str:
+    """
+    Format a single connection line with consistent column widths.
+
+    Args:
+        conn: psutil connection object (sconn namedtuple)
+        include_remote: Whether to include Remote Address column
+
+    Returns:
+        Formatted string for one connection line
+    """
+    proto = "TCP" if conn.type == socket.SOCK_STREAM else "UDP"
+    local_addr = f"{conn.laddr.ip}:{conn.laddr.port}" if conn.laddr else "N/A"
+    status = conn.status if conn.status else ("N/A" if include_remote else "LISTENING")
+    pid_info = _get_pid_info(conn.pid)
+
+    if include_remote:
+        remote_addr = f"{conn.raddr.ip}:{conn.raddr.port}" if conn.raddr else "N/A"
+        return f"{proto:<8} {local_addr:<30} {remote_addr:<30} {status:<15} {pid_info}"
+    else:
+        return f"{proto:<8} {local_addr:<30} {status:<15} {pid_info}"
+
+
 @mcp.tool(
     title="Get network interfaces",
     description="Get detailed information about network interfaces including address and traffic statistics.",
@@ -188,8 +247,7 @@ async def get_network_connections(
             # Local execution - use psutil
             info = []
             info.append("=== Active Network Connections ===\n")
-            info.append(f"{'Proto':<8} {'Local Address':<30} {'Remote Address':<30} {'Status':<15} {'PID/Program'}")
-            info.append("-" * 110)
+            info.extend(_build_connection_table_header(include_remote=True))
 
             # Get all network connections
             connections = psutil.net_connections(kind="inet")
@@ -197,19 +255,11 @@ async def get_network_connections(
             displayed_count = 0
 
             for conn in connections:
-                proto = "TCP" if conn.type == socket.SOCK_STREAM else "UDP"
-
                 # Skip connections using link-local addresses
-                if conn.laddr and is_ipv6_link_local(conn.laddr.ip):
-                    continue
-                if conn.raddr and is_ipv6_link_local(conn.raddr.ip):
+                if _should_filter_connection(conn):
                     continue
 
-                local_addr = f"{conn.laddr.ip}:{conn.laddr.port}" if conn.laddr else "N/A"
-                remote_addr = f"{conn.raddr.ip}:{conn.raddr.port}" if conn.raddr else "N/A"
-                status = conn.status if conn.status else "N/A"
-
-                info.append(f"{proto:<8} {local_addr:<30} {remote_addr:<30} {status:<15} {_get_pid_info(conn.pid)}")
+                info.append(_format_connection_line(conn, include_remote=True))
                 displayed_count += 1
 
             info.append(_format_filtered_total("connections", displayed_count, total_count))
@@ -271,8 +321,7 @@ async def get_listening_ports(
             # Local execution - use psutil
             info = []
             info.append("=== Listening Ports ===\n")
-            info.append(f"{'Proto':<8} {'Local Address':<30} {'Status':<15} {'PID/Program'}")
-            info.append("-" * 80)
+            info.extend(_build_connection_table_header(include_remote=False))
 
             # Get connections in LISTEN state
             connections = psutil.net_connections(kind="inet")
@@ -281,15 +330,11 @@ async def get_listening_ports(
             displayed_count = 0
 
             for conn in listening:
-                # Skip listening on link-local addresses
+                # Skip listening on link-local addresses (only check laddr for listening ports)
                 if conn.laddr and is_ipv6_link_local(conn.laddr.ip):
                     continue
 
-                proto = "TCP" if conn.type == socket.SOCK_STREAM else "UDP"
-                local_addr = f"{conn.laddr.ip}:{conn.laddr.port}" if conn.laddr else "N/A"
-                status = conn.status if conn.status else "LISTENING"
-
-                info.append(f"{proto:<8} {local_addr:<30} {status:<15} {_get_pid_info(conn.pid)}")
+                info.append(_format_connection_line(conn, include_remote=False))
                 displayed_count += 1
 
             info.append(_format_filtered_total("listening ports", displayed_count, total_count))

@@ -177,6 +177,28 @@ def make_mixed_connections_process():
     ]
 
 
+# =============================================================================
+# Fixtures for network/connection testing
+# =============================================================================
+@pytest.fixture
+def mock_network_process(mocker):
+    """Create a mock psutil.Process that returns a configurable name.
+
+    Usage:
+        def test_something(mock_network_process):
+            mock_network_process("nginx")  # Set the process name
+            # Now psutil.Process(...).name() will return "nginx"
+    """
+    mock_process = mocker.MagicMock()
+
+    def setup_process(name: str = "test"):
+        mock_process.name.return_value = name
+        mocker.patch("linux_mcp_server.tools.network.psutil.Process", return_value=mock_process)
+        return mock_process
+
+    return setup_process
+
+
 @pytest.fixture
 def decorated():
     @log_tool_call
