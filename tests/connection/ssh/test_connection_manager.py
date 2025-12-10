@@ -5,6 +5,8 @@ from unittest.mock import Mock
 import asyncssh
 import pytest
 
+from mcp.server.fastmcp.exceptions import ToolError
+
 from linux_mcp_server.connection.ssh import SSHConnectionManager
 
 
@@ -107,7 +109,7 @@ async def test_execute_remote_success(mocker):
     assert returncode == 0
     assert stdout == "remote output"
     assert stderr == ""
-    mock_conn.run.assert_called_once()
+    assert mock_conn.run.call_count == 2
 
 
 async def test_execute_remote_command_failure(mocker):
@@ -115,25 +117,12 @@ async def test_execute_remote_command_failure(mocker):
     manager = SSHConnectionManager()
     manager._connections.clear()
 
-    mock_result = Mock()
-    mock_result.exit_status = 1
-    mock_result.stdout = ""
-    mock_result.stderr = "command not found"
+    mock_conn = AsyncMock(asyncssh.SSHClientConnection)
+    mocker.patch("linux_mcp_server.connection.ssh.get_remote_bin_path", side_effect=ValueError("Raised intentionally"))
+    mocker.patch.object(manager, "get_connection", mock_conn)
 
-    mock_conn = AsyncMock()
-    mock_conn.is_closed = Mock(return_value=False)
-    mock_conn.run = AsyncMock(return_value=mock_result)
-
-    async def async_connect(*args, **kwargs):
-        return mock_conn
-
-    mock_connect = MagicMock()
-    mock_connect.side_effect = async_connect
-    mocker.patch("asyncssh.connect", mock_connect)
-    returncode, stdout, stderr = await manager.execute_remote(["invalid_command"], "testhost")
-
-    assert returncode == 1
-    assert "command not found" in stderr
+    with pytest.raises(ToolError, match="Raised intentionally"):
+        await manager.execute_remote(["invalid_command"], "testhost")
 
 
 async def test_execute_remote_connection_failure(mocker):

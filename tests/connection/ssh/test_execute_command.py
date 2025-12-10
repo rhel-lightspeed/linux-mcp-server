@@ -28,8 +28,8 @@ async def test_execute_command_remote_routes_to_ssh(mocker):
     """Test that remote execution routes through SSH."""
     mock_manager = mocker.AsyncMock()
     mock_manager.execute_remote = mocker.AsyncMock(return_value=(0, "output", ""))
-
     mocker.patch("linux_mcp_server.connection.ssh._connection_manager", mock_manager)
+
     returncode, stdout, stderr = await execute_command(
         ["ls", "-la"],
         host="remote.example.com",
@@ -38,7 +38,7 @@ async def test_execute_command_remote_routes_to_ssh(mocker):
 
     assert returncode == 0
     assert stdout == "output"
-    assert mock_manager.execute_remote.call_count == 2
+    assert mock_manager.execute_remote.call_count == 1
 
 
 async def test_execute_command_remote_requires_host():
