@@ -3,8 +3,8 @@
 import os
 import sys
 
-from collections.abc import Callable
 from pathlib import Path
+from typing import Literal
 from unittest.mock import AsyncMock
 from unittest.mock import MagicMock
 
@@ -43,84 +43,59 @@ SIZE_WITH_TINY_SPECS = [
 
 
 @pytest.fixture
-def setup_test_directory(tmp_path) -> Callable[[list[tuple[str, int, float]]], tuple[Path, list[NodeEntry]]]:
+def setup_test_nodes(tmp_path):
     """
-    Factory fixture for creating test directories with subdirectories of specific sizes and modification times.
+    Factory fixture for creating test directories or files with specific sizes and modification times.
 
-    Returns a function that accepts a list of (name, size, modified_time) tuples and:
-    - Creates subdirectories with the specified sizes (by adding a file within each)
+    Returns a function that accepts a list of (name, size, modified_time) tuples and a node_type
+    parameter ("directory" or "file") and:
+    - Creates directories or files with the specified sizes
     - Sets their modification times
-    - Returns the directory path and list of expected NodeEntry objects
+    - Returns the parent directory path and list of expected NodeEntry objects
     """
 
-    def _create_directory(dir_specs: list[tuple[str, int, float]]) -> tuple[Path, list[NodeEntry]]:
-        """
-        Create a directory structure with specified subdirectories.
-
-        Args:
-            dir_specs: List of (name, size, modified_time) tuples
-
-        Returns:
-            Tuple of (directory_path, expected_entries)
-        """
+    def _create_nodes(
+        node_specs: list[tuple[str, int, float]],
+        node_type: Literal["directory", "file"],
+    ) -> tuple[Path, list[NodeEntry]]:
         expected_entries = []
 
-        for name, size, modified_time in dir_specs:
-            dir_path = tmp_path / name
-            dir_path.mkdir()
+        for name, size, modified_time in node_specs:
+            if node_type == "directory":
+                node_path = tmp_path / name
+                node_path.mkdir()
+                if size > 0:
+                    (node_path / "content.txt").write_text("x" * size)
+            else:
+                node_path = tmp_path / name
+                node_path.touch()
+                if size > 0:
+                    node_path.write_text("x" * size)
 
-            # Create a file inside the directory to give it size
-            if size > 0:
-                content_file = dir_path / "content.txt"
-                content_file.write_text("x" * size)
-
-            # Set modification time on the directory itself
-            os.utime(dir_path, (modified_time, modified_time))
-
+            os.utime(node_path, (modified_time, modified_time))
             expected_entries.append(NodeEntry(name=name, size=size, modified=modified_time))
 
         return tmp_path, expected_entries
+
+    return _create_nodes
+
+
+@pytest.fixture
+def setup_test_directory(setup_test_nodes):
+    """Legacy fixture - creates test directories. Delegates to setup_test_nodes."""
+
+    def _create_directory(dir_specs: list[tuple[str, int, float]]) -> tuple[Path, list[NodeEntry]]:
+        return setup_test_nodes(dir_specs, "directory")
 
     return _create_directory
 
 
 @pytest.fixture
-def setup_test_files(tmp_path) -> Callable[[list[tuple[str, int, float]]], tuple[Path, list[NodeEntry]]]:
-    """
-    Factory fixture for creating test directories with subdirectories of specific sizes and modification times.
+def setup_test_files(setup_test_nodes):
+    """Legacy fixture - creates test files. Delegates to setup_test_nodes."""
 
-    Returns a function that accepts a list of (name, size, modified_time) tuples and:
-    - Creates subdirectories with the specified sizes (by adding a file within each)
-    - Sets their modification times
-    - Returns the directory path and list of expected NodeEntry objects
-    """
-
-    def _create_files(dir_specs: list[tuple[str, int, float]]) -> tuple[Path, list[NodeEntry]]:
-        """
-        Create a directory structure with specified subdirectories.
-
-        Args:
-            dir_specs: List of (name, size, modified_time) tuples
-
-        Returns:
-            Tuple of (directory_path, expected_entries)
-        """
-        expected_entries = []
-
-        for name, size, modified_time in dir_specs:
-            content_file = tmp_path / name
-            content_file.touch()
-
-            # Create a file inside the directory to give it size
-            if size > 0:
-                content_file.write_text("x" * size)
-
-            # Set modification time on the file itself
-            os.utime(content_file, (modified_time, modified_time))
-
-            expected_entries.append(NodeEntry(name=name, size=size, modified=modified_time))
-
-        return tmp_path, expected_entries
+    def _create_files(file_specs: list[tuple[str, int, float]]) -> tuple[Path, list[NodeEntry]]:
+        return setup_test_nodes(file_specs, "file")
 
     return _create_files
 
