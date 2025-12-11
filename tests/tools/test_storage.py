@@ -453,15 +453,11 @@ class TestListDirectories:
         got = [NodeEntry(**entry) for entry in result[1]["result"]]
         assert got == expected_entries
 
-    async def test_list_directories_invalid_order_by(self, tmp_path):
-        """Test that invalid order_by parameter raises ValueError."""
+    @pytest.mark.parametrize("invalid_param,invalid_value", [("order_by", "invalid"), ("sort", "invalid")])
+    async def test_list_directories_invalid_parameter(self, tmp_path, invalid_param, invalid_value):
+        """Test that invalid order_by/sort parameters raise validation errors."""
         with pytest.raises(ToolError, match="1 validation error"):
-            await mcp.call_tool("list_directories", {"path": str(tmp_path), "order_by": "invalid"})
-
-    async def test_list_directories_invalid_sort(self, tmp_path):
-        """Test that invalid sort parameter raises ValueError."""
-        with pytest.raises(ToolError, match="1 validation error"):
-            await mcp.call_tool("list_directories", {"path": str(tmp_path), "sort": "invalid"})
+            await mcp.call_tool("list_directories", {"path": str(tmp_path), invalid_param: invalid_value})
 
     async def test_list_directories_invalid_path(self, tmp_path):
         """Test with non-existent path raises ToolError."""
@@ -866,15 +862,11 @@ class TestListFiles:
         got = [NodeEntry(**entry) for entry in result[1]["result"]]
         assert got == expected_entries
 
-    async def test_list_files_invalid_order_by(self, tmp_path):
-        """Test that invalid order_by parameter raises ValueError."""
+    @pytest.mark.parametrize("invalid_param,invalid_value", [("order_by", "invalid"), ("sort", "invalid")])
+    async def test_list_files_invalid_parameter(self, tmp_path, invalid_param, invalid_value):
+        """Test that invalid order_by/sort parameters raise validation errors."""
         with pytest.raises(ToolError, match="1 validation error"):
-            await mcp.call_tool("list_files", {"path": str(tmp_path), "order_by": "invalid"})
-
-    async def test_list_files_invalid_sort(self, tmp_path):
-        """Test that invalid sort parameter raises ValueError."""
-        with pytest.raises(ToolError, match="1 validation error"):
-            await mcp.call_tool("list_files", {"path": str(tmp_path), "sort": "invalid"})
+            await mcp.call_tool("list_files", {"path": str(tmp_path), invalid_param: invalid_value})
 
     async def test_list_files_invalid_path(self, tmp_path):
         """Test with non-existent path raises ToolError."""
