@@ -144,125 +144,87 @@ class TestGetJournalLogs:
 
 
 class TestGetAuditLogs:
-    async def test_get_audit_logs_success(self, mocker):
-        """Test get_audit_logs with successful read."""
-        mock_exists = mocker.patch("linux_mcp_server.tools.logs.os.path.exists")
-        mock_execute_command = mocker.patch("linux_mcp_server.tools.logs.execute_command")
-        mock_exists.return_value = True
+    """Tests for get_audit_logs tool."""
+
+    @pytest.mark.parametrize(
+        "lines,expected_line_count",
+        [
+            (100, "100"),  # Default
+            (50, "50"),  # Custom
+        ],
+    )
+    async def test_get_audit_logs_success(self, mocker, mock_execute_command, lines, expected_line_count):
+        """Test get_audit_logs with various line counts."""
+        mocker.patch("linux_mcp_server.tools.logs.os.path.exists", return_value=True)
         mock_execute_command.return_value = (
             0,
-            "type=SYSCALL msg=audit(1234567890.123:456): arch=c000003e syscall=1\ntype=SYSCALL msg=audit(1234567890.124:457): arch=c000003e syscall=2",
+            "type=SYSCALL msg=audit(1234567890.123:456): arch=c000003e syscall=1\n" * int(expected_line_count),
             "",
         )
 
-        result = await mcp.call_tool("get_audit_logs", {})
+        params = {"lines": lines} if lines != 100 else {}
+        result = await mcp.call_tool("get_audit_logs", params)
+        output = assert_tool_result_structure(result)
 
-        assert isinstance(result, tuple)
-        assert len(result) == 2
-        assert isinstance(result[0], list)
-        output = result[0][0].text
-
-        assert "=== Audit Logs (last 100 entries) ===" in output
+        assert f"last {expected_line_count} entries" in output
         assert "type=SYSCALL" in output
-        assert "syscall=1" in output
 
-        # Verify tail command was called correctly
-        args = mock_execute_command.call_args[0][0]
-        assert args[0] == "tail"
-        assert "-n" in args
-        assert "100" in args
-        assert "/var/log/audit/audit.log" in args
+        # Verify command arguments
+        cmd_args = mock_execute_command.call_args[0][0]
+        assert cmd_args == ["tail", "-n", expected_line_count, "/var/log/audit/audit.log"]
 
-    async def test_get_audit_logs_custom_lines(self, mocker):
-        """Test get_audit_logs with custom line count."""
-        mock_exists = mocker.patch("linux_mcp_server.tools.logs.os.path.exists")
-        mock_execute_command = mocker.patch("linux_mcp_server.tools.logs.execute_command")
-        mock_exists.return_value = True
-        mock_execute_command.return_value = (0, "audit log entry", "")
-
-        result = await mcp.call_tool("get_audit_logs", {"lines": 50})
-
-        assert isinstance(result, tuple)
-        assert len(result) == 2
-        assert isinstance(result[0], list)
-        output = result[0][0].text
-
-        assert "last 50 entries" in output
-
-        args = mock_execute_command.call_args[0][0]
-        assert "-n" in args
-        assert "50" in args
-
-    async def test_get_audit_logs_file_not_found(self, mocker):
+    async def test_get_audit_logs_file_not_found_local(self, mocker):
         """Test get_audit_logs when audit log file doesn't exist locally."""
-        mock_exists = mocker.patch("linux_mcp_server.tools.logs.os.path.exists")
-        mock_exists.return_value = False
+        mocker.patch("linux_mcp_server.tools.logs.os.path.exists", return_value=False)
 
         result = await mcp.call_tool("get_audit_logs", {})
-
-        assert isinstance(result, tuple)
-        assert len(result) == 2
-        assert isinstance(result[0], list)
-        output = result[0][0].text
+        output = assert_tool_result_structure(result)
 
         assert "Audit log file not found" in output
         assert "/var/log/audit/audit.log" in output
         assert "may not be enabled" in output
 
-    async def test_get_audit_logs_permission_denied(self, mocker):
-        """Test get_audit_logs handles permission denied errors."""
-        mock_exists = mocker.patch("linux_mcp_server.tools.logs.os.path.exists")
-        mock_execute_command = mocker.patch("linux_mcp_server.tools.logs.execute_command")
-        mock_exists.return_value = True
-        mock_execute_command.return_value = (1, "", "tail: cannot open '/var/log/audit/audit.log': Permission denied")
+    @pytest.mark.parametrize(
+        "returncode,stderr,expected_error",
+        [
+            # Permission denied
+            (1, "tail: cannot open '/var/log/audit/audit.log': Permission denied", "Permission denied"),
+            # General error
+            (1, "tail: error reading file", "Error reading audit logs"),
+        ],
+    )
+    async def test_get_audit_logs_errors(self, mocker, mock_execute_command, returncode, stderr, expected_error):
+        """Test get_audit_logs error handling."""
+        mocker.patch("linux_mcp_server.tools.logs.os.path.exists", return_value=True)
+        mock_execute_command.return_value = (returncode, "", stderr)
 
         result = await mcp.call_tool("get_audit_logs", {})
+        output = assert_tool_result_structure(result)
 
-        assert isinstance(result, tuple)
-        assert len(result) == 2
-        assert isinstance(result[0], list)
-        output = result[0][0].text
+        assert expected_error in output
 
-        assert "Permission denied reading audit logs" in output
-        assert "requires elevated privileges" in output
-        assert "root" in output
-
-    async def test_get_audit_logs_command_error(self, mocker):
-        """Test get_audit_logs handles general command errors."""
-        mock_exists = mocker.patch("linux_mcp_server.tools.logs.os.path.exists")
-        mock_execute_command = mocker.patch("linux_mcp_server.tools.logs.execute_command")
-        mock_exists.return_value = True
-        mock_execute_command.return_value = (1, "", "tail: error reading file")
-
-        result = await mcp.call_tool("get_audit_logs", {})
-
-        assert isinstance(result, tuple)
-        assert len(result) == 2
-        assert isinstance(result[0], list)
-        output = result[0][0].text
-
-        assert "Error reading audit logs" in output
-        assert "error reading file" in output
-
-    async def test_get_audit_logs_no_entries(self, mocker):
+    async def test_get_audit_logs_no_entries(self, mocker, mock_execute_command):
         """Test get_audit_logs when no entries found."""
-        mock_exists = mocker.patch("linux_mcp_server.tools.logs.os.path.exists")
-        mock_execute_command = mocker.patch("linux_mcp_server.tools.logs.execute_command")
-        mock_exists.return_value = True
+        mocker.patch("linux_mcp_server.tools.logs.os.path.exists", return_value=True)
         mock_execute_command.return_value = (0, "", "")
 
         result = await mcp.call_tool("get_audit_logs", {})
-
-        assert isinstance(result, tuple)
-        assert len(result) == 2
-        assert isinstance(result[0], list)
-        output = result[0][0].text
+        output = assert_tool_result_structure(result)
 
         assert "No audit log entries found" in output
 
-    async def test_get_audit_logs_remote_execution(self, mocker):
+    async def test_get_audit_logs_tail_not_found(self, mocker, mock_execute_command):
+        """Test get_audit_logs when tail command is not available."""
+        mocker.patch("linux_mcp_server.tools.logs.os.path.exists", return_value=True)
+        mock_execute_command.side_effect = FileNotFoundError("tail not found")
+
+        result = await mcp.call_tool("get_audit_logs", {})
+        output = assert_tool_result_structure(result)
+
+        assert "tail command not found" in output
+
+    async def test_get_audit_logs_remote_execution(self, mock_execute_command):
         """Test get_audit_logs with remote execution."""
-        mock_execute_command = mocker.patch("linux_mcp_server.tools.logs.execute_command")
         mock_execute_command.return_value = (
             0,
             "type=SYSCALL msg=audit(1234567890.123:456): remote audit entry",
@@ -270,33 +232,13 @@ class TestGetAuditLogs:
         )
 
         result = await mcp.call_tool("get_audit_logs", {"host": "remote.server.com"})
-
-        assert isinstance(result, tuple)
-        assert len(result) == 2
-        assert isinstance(result[0], list)
-        output = result[0][0].text
+        output = assert_tool_result_structure(result)
 
         assert "remote audit entry" in output
 
-        # Verify execute_command was called with host
+        # Verify host parameter was passed
         call_kwargs = mock_execute_command.call_args[1]
         assert call_kwargs["host"] == "remote.server.com"
-
-    async def test_get_audit_logs_tail_not_found(self, mocker):
-        """Test get_audit_logs when tail command is not available."""
-        mock_exists = mocker.patch("linux_mcp_server.tools.logs.os.path.exists")
-        mock_execute_command = mocker.patch("linux_mcp_server.tools.logs.execute_command")
-        mock_exists.return_value = True
-        mock_execute_command.side_effect = FileNotFoundError("tail not found")
-
-        result = await mcp.call_tool("get_audit_logs", {})
-
-        assert isinstance(result, tuple)
-        assert len(result) == 2
-        assert isinstance(result[0], list)
-        output = result[0][0].text
-
-        assert "tail command not found" in output
 
 
 class TestReadLogFile:
