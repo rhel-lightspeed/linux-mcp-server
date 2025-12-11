@@ -1,6 +1,20 @@
 """Tests for log tools."""
 
+from contextlib import nullcontext as does_not_raise
+from unittest.mock import AsyncMock
+
+import pytest
+
+from linux_mcp_server.connection.ssh import execute_command
 from linux_mcp_server.server import mcp
+
+
+def assert_tool_result_structure(result):
+    """Verify common result structure returned by all tools."""
+    assert isinstance(result, tuple)
+    assert len(result) == 2
+    assert isinstance(result[0], list)
+    return result[0][0].text
 
 
 class TestGetJournalLogs:
