@@ -4,7 +4,6 @@ import socket
 
 import psutil
 
-from mcp.server.fastmcp.exceptions import ToolError
 from mcp.types import ToolAnnotations
 
 from linux_mcp_server.audit import log_tool_call
@@ -135,8 +134,6 @@ async def get_network_interfaces(  # noqa: C901
             info.append(f"Drops Out: {net_io.dropout}")
 
             return "\n".join(info)
-    except ToolError:
-        raise
     except Exception as e:
         return f"Error getting network interface information: {str(e)}"
 
@@ -218,8 +215,6 @@ async def get_network_connections(
             info.append(_format_filtered_total("connections", displayed_count, total_count))
 
             return "\n".join(info)
-    except ToolError:
-        raise
     except psutil.AccessDenied:
         return "Permission denied. This tool requires elevated privileges to view all network connections."
     except Exception as e:
@@ -300,8 +295,6 @@ async def get_listening_ports(
             info.append(_format_filtered_total("listening ports", displayed_count, total_count))
 
             return "\n".join(info)
-    except ToolError:
-        raise
     except psutil.AccessDenied:
         return "Permission denied. This tool requires elevated privileges to view all listening ports."
     except Exception as e:

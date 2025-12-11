@@ -27,11 +27,7 @@ class ToolExecutionAttributes(BaseModel):
     parser: t.Callable[[str], t.Any]
 
     async def execute(self, host: Host | None) -> str:
-        try:
-            returncode, stdout, _ = await execute_command(self.command, host=host)
-        except (ValueError, ConnectionError) as e:
-            raise ToolError(f"Error: {str(e)}") from e
-
+        returncode, stdout, _ = await execute_command(self.command, host=host)
         if returncode != 0 and stdout == "":
             # Throw error in case returncode/stdout is not what expected
             raise ToolError(
@@ -79,8 +75,6 @@ async def list_block_devices(
             ["lsblk", "-o", "NAME,SIZE,TYPE,MOUNTPOINT,FSTYPE,MODEL", "--no-pager"],
             host=host,
         )
-    except ToolError:
-        raise
     except FileNotFoundError:
         # If lsblk is not available, use psutil
         result = ["=== Block Devices ===\n"]

@@ -5,7 +5,6 @@ import typing as t
 
 from pathlib import Path
 
-from mcp.server.fastmcp.exceptions import ToolError
 from mcp.types import ToolAnnotations
 from pydantic import Field
 
@@ -85,8 +84,6 @@ async def get_journal_logs(
         result.append(stdout)
 
         return "\n".join(result)
-    except ToolError:
-        raise
     except FileNotFoundError:
         return "Error: journalctl command not found. This tool requires systemd."
     except Exception as e:
@@ -135,8 +132,6 @@ async def get_audit_logs(
         result.append(stdout)
 
         return "\n".join(result)
-    except ToolError:
-        raise
     except FileNotFoundError:
         return "Error: tail command not found."
     except Exception as e:
@@ -232,8 +227,6 @@ async def read_log_file(  # noqa: C901
         result.append(stdout)
 
         return "\n".join(result)
-    except ToolError:
-        raise
     except FileNotFoundError:
         return "Error: tail command not found."
     except Exception as e:

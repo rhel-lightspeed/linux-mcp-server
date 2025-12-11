@@ -7,7 +7,6 @@ from datetime import datetime
 
 import psutil
 
-from mcp.server.fastmcp.exceptions import ToolError
 from mcp.types import ToolAnnotations
 
 from linux_mcp_server.audit import log_tool_call
@@ -132,8 +131,6 @@ async def get_system_information(  # noqa: C901
             info.append(f"Boot Time: {boot_time.strftime('%Y-%m-%d %H:%M:%S')}")
 
         return "\n".join(info)
-    except ToolError:
-        raise
     except Exception as e:
         return f"Error gathering system information: {str(e)}"
 
@@ -257,8 +254,6 @@ async def get_cpu_information(  # noqa: C901
                 pass
 
         return "\n".join(info)
-    except ToolError:
-        raise
     except Exception as e:
         return f"Error gathering CPU information: {str(e)}"
 
@@ -420,8 +415,6 @@ async def get_disk_usage(
                 pass  # Disk I/O might not be available
 
         return "\n".join(info)
-    except ToolError:
-        raise
     except Exception as e:
         return f"Error gathering disk usage information: {str(e)}"
 
@@ -508,7 +501,5 @@ async def get_hardware_information(  # noqa: C901
             info.append("No hardware information tools available.")
 
         return "\n".join(info)
-    except ToolError:
-        raise
     except Exception as e:
         return f"Error getting hardware information: {str(e)}"

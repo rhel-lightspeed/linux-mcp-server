@@ -6,7 +6,6 @@ from datetime import datetime
 
 import psutil
 
-from mcp.server.fastmcp.exceptions import ToolError
 from mcp.types import ToolAnnotations
 from pydantic import Field
 
@@ -101,8 +100,6 @@ async def list_processes(
             info.append("Showing: Top 100 by CPU usage")
 
             return "\n".join(info)
-    except ToolError:
-        raise
     except Exception as e:
         return f"Error listing processes: {str(e)}"
 
@@ -276,8 +273,6 @@ async def get_process_info(  # noqa: C901
                 pass
 
             return "\n".join(info)
-    except ToolError:
-        raise
     except psutil.NoSuchProcess:
         return f"Process with PID {validated_pid} does not exist."
     except psutil.AccessDenied:
