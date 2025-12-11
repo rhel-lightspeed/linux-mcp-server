@@ -1,11 +1,9 @@
 """Tests for log tools."""
 
 from contextlib import nullcontext as does_not_raise
-from unittest.mock import AsyncMock
 
 import pytest
 
-from linux_mcp_server.connection.ssh import execute_command
 from linux_mcp_server.server import mcp
 
 
@@ -15,6 +13,18 @@ def assert_tool_result_structure(result):
     assert len(result) == 2
     assert isinstance(result[0], list)
     return result[0][0].text
+
+
+@pytest.fixture
+def mock_allowed_log_paths(mocker):
+    """Fixture factory to set CONFIG.allowed_log_paths for read_log_file tests."""
+
+    def _set_paths(paths=""):
+        mock_config = mocker.patch("linux_mcp_server.tools.logs.CONFIG")
+        mock_config.allowed_log_paths = paths
+        return mock_config
+
+    return _set_paths
 
 
 class TestGetJournalLogs:
