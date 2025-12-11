@@ -242,245 +242,149 @@ class TestGetAuditLogs:
 
 
 class TestReadLogFile:
-    async def test_read_log_file_success(self, mocker, tmp_path):
-        """Test read_log_file with successful read."""
-        mock_execute_command = mocker.patch("linux_mcp_server.tools.logs.execute_command")
-        # Create a test log file
-        log_file = tmp_path / "test.log"
-        log_content = "Log line 1\nLog line 2\nLog line 3"
-        log_file.write_text(log_content)
+    """Tests for read_log_file tool."""
 
-        # Set allowed paths
-        mocker.patch("linux_mcp_server.tools.logs.CONFIG.allowed_log_paths", str(log_file))
+    @pytest.fixture
+    def setup_log_file(self, tmp_path, mock_allowed_log_paths):
+        """Create a test log file and configure allowed paths."""
 
-        mock_execute_command.return_value = (0, log_content, "")
+        def _setup(content="Test log content\nLine 2\nLine 3"):
+            log_file = tmp_path / "test.log"
+            log_file.write_text(content)
+            mock_allowed_log_paths(str(log_file))
+            return log_file
 
-        result = await mcp.call_tool("read_log_file", {"log_path": str(log_file)})
+        return _setup
 
-        assert isinstance(result, tuple)
-        assert len(result) == 2
-        assert isinstance(result[0], list)
-        output = result[0][0].text
+    @pytest.mark.parametrize(
+        "lines,expected_line_count",
+        [
+            (100, "100"),  # Default
+            (50, "50"),  # Custom
+        ],
+    )
+    async def test_read_log_file_success(self, mock_execute_command, setup_log_file, lines, expected_line_count):
+        """Test read_log_file with various line counts."""
+        log_file = setup_log_file()
+        mock_execute_command.return_value = (0, "Test log content\nLine 2", "")
 
-        assert f"=== Log File: {log_file} (last 100 lines) ===" in output
-        assert "Log line 1" in output
+        params = {"log_path": str(log_file)}
+        if lines != 100:
+            params["lines"] = lines
 
-    async def test_read_log_file_custom_lines(self, mocker, tmp_path):
-        """Test read_log_file with custom line count."""
-        mock_execute_command = mocker.patch("linux_mcp_server.tools.logs.execute_command")
+        result = await mcp.call_tool("read_log_file", params)
+        output = assert_tool_result_structure(result)
 
-        log_file = tmp_path / "test.log"
-        log_file.write_text("Log content")
+        assert f"last {expected_line_count} lines" in output
+        assert "Test log content" in output
 
-        mocker.patch("linux_mcp_server.tools.logs.CONFIG.allowed_log_paths", str(log_file))
+        # Verify command arguments
+        cmd_args = mock_execute_command.call_args[0][0]
+        assert "-n" in cmd_args
+        assert expected_line_count in cmd_args
 
-        mock_execute_command.return_value = (0, "Log content", "")
-
-        result = await mcp.call_tool("read_log_file", {"log_path": str(log_file), "lines": 50})
-
-        assert isinstance(result, tuple)
-        assert len(result) == 2
-        assert isinstance(result[0], list)
-        output = result[0][0].text
-
-        assert "last 50 lines" in output
-
-        args = mock_execute_command.call_args[0][0]
-        assert "-n" in args
-        assert "50" in args
-
-    async def test_read_log_file_no_allowed_paths(self, mocker):
+    async def test_read_log_file_no_allowed_paths(self, mock_allowed_log_paths):
         """Test read_log_file when no allowed paths are configured."""
-        mocker.patch("linux_mcp_server.tools.logs.CONFIG.allowed_log_paths", "")
+        mock_allowed_log_paths("")
 
         result = await mcp.call_tool("read_log_file", {"log_path": "/var/log/test.log"})
-
-        assert isinstance(result, tuple)
-        assert len(result) == 2
-        assert isinstance(result[0], list)
-        output = result[0][0].text
+        output = assert_tool_result_structure(result)
 
         assert "No log files are allowed" in output
         assert "LINUX_MCP_ALLOWED_LOG_PATHS" in output
 
-    async def test_read_log_file_path_not_allowed(self, tmp_path, mocker):
-        """Test read_log_file when path is not in allowed list."""
+    @pytest.mark.parametrize(
+        "test_scenario,path_resolver,expected_error",
+        [
+            # Invalid path
+            ("invalid_path", lambda tp: "\x00invalid", "Invalid log file path"),
+            # Path not in allowed list
+            ("not_allowed", lambda tp: str(tp / "restricted.log"), "not allowed"),
+        ],
+    )
+    async def test_read_log_file_path_validation(
+        self, mock_allowed_log_paths, tmp_path, test_scenario, path_resolver, expected_error
+    ):
+        """Test read_log_file path validation scenarios."""
+        # Setup allowed path
         allowed_file = tmp_path / "allowed.log"
         allowed_file.write_text("allowed")
+        mock_allowed_log_paths(str(allowed_file))
 
-        restricted_file = tmp_path / "restricted.log"
-        restricted_file.write_text("restricted")
+        # Create restricted file for not_allowed scenario
+        if test_scenario == "not_allowed":
+            restricted_file = tmp_path / "restricted.log"
+            restricted_file.write_text("restricted")
 
-        mocker.patch("linux_mcp_server.tools.logs.CONFIG.allowed_log_paths", str(allowed_file))
+        test_path = path_resolver(tmp_path)
+        result = await mcp.call_tool("read_log_file", {"log_path": test_path})
+        output = assert_tool_result_structure(result)
 
-        result = await mcp.call_tool("read_log_file", {"log_path": str(restricted_file)})
+        assert expected_error in output
 
-        assert isinstance(result, tuple)
-        assert len(result) == 2
-        assert isinstance(result[0], list)
-        output = result[0][0].text
+    async def test_read_log_file_nonexistent_but_allowed(self, mock_allowed_log_paths, tmp_path):
+        """Test read_log_file when path is allowed but file doesn't exist."""
+        nonexistent_file = tmp_path / "nonexistent.log"
+        mock_allowed_log_paths(str(nonexistent_file))
 
-        assert "not allowed" in output
-        assert "Allowed log files" in output
-
-    async def test_read_log_file_invalid_path(self, mocker):
-        """Test read_log_file with an invalid path."""
-        mocker.patch("linux_mcp_server.tools.logs.CONFIG.allowed_log_paths", "/valid/path/log.log")
-
-        result = await mcp.call_tool("read_log_file", {"log_path": "\x00invalid"})
-
-        assert isinstance(result, tuple)
-        assert len(result) == 2
-        assert isinstance(result[0], list)
-        output = result[0][0].text
-
-        assert "Invalid log file path" in output
-
-    async def test_read_log_file_does_not_exist(self, tmp_path, mocker):
-        """Test read_log_file when file doesn't exist."""
-        non_existent = tmp_path / "nonexistent.log"
-        mocker.patch("linux_mcp_server.tools.logs.CONFIG.allowed_log_paths", str(non_existent))
-
-        result = await mcp.call_tool("read_log_file", {"log_path": str(non_existent)})
-
-        assert isinstance(result, tuple)
-        assert len(result) == 2
-        assert isinstance(result[0], list)
-        output = result[0][0].text
+        result = await mcp.call_tool("read_log_file", {"log_path": str(nonexistent_file)})
+        output = assert_tool_result_structure(result)
 
         assert "Log file not found" in output
 
-    async def test_read_log_file_path_is_not_file(self, tmp_path, mocker):
+    async def test_read_log_file_path_is_directory(self, mock_allowed_log_paths, tmp_path):
         """Test read_log_file when path is a directory, not a file."""
         log_dir = tmp_path / "logdir"
         log_dir.mkdir()
-        mocker.patch("linux_mcp_server.tools.logs.CONFIG.allowed_log_paths", str(log_dir))
+        mock_allowed_log_paths(str(log_dir))
 
         result = await mcp.call_tool("read_log_file", {"log_path": str(log_dir)})
-
-        assert isinstance(result, tuple)
-        assert len(result) == 2
-        assert isinstance(result[0], list)
-        output = result[0][0].text
+        output = assert_tool_result_structure(result)
 
         assert "Path is not a file" in output
 
-    async def test_read_log_file_permission_denied(self, mocker, tmp_path):
-        """Test read_log_file handles permission denied errors."""
-        mock_execute_command = mocker.patch("linux_mcp_server.tools.logs.execute_command")
-        log_file = tmp_path / "restricted.log"
-        log_file.write_text("content")
-
-        mocker.patch("linux_mcp_server.tools.logs.CONFIG.allowed_log_paths", str(log_file))
-
-        mock_execute_command.return_value = (1, "", "tail: cannot open: Permission denied")
+    @pytest.mark.parametrize(
+        "returncode,stderr,expected_error",
+        [
+            # Permission denied
+            (1, "tail: cannot open: Permission denied", "Permission denied"),
+            # General error
+            (1, "tail: error reading file", "Error reading log file"),
+        ],
+    )
+    async def test_read_log_file_command_errors(
+        self, mock_execute_command, setup_log_file, returncode, stderr, expected_error
+    ):
+        """Test read_log_file command error handling."""
+        log_file = setup_log_file()
+        mock_execute_command.return_value = (returncode, "", stderr)
 
         result = await mcp.call_tool("read_log_file", {"log_path": str(log_file)})
+        output = assert_tool_result_structure(result)
 
-        assert isinstance(result, tuple)
-        assert len(result) == 2
-        assert isinstance(result[0], list)
-        output = result[0][0].text
+        assert expected_error in output
 
-        assert "Permission denied reading log file" in output
-
-    async def test_read_log_file_empty(self, mocker, tmp_path):
+    async def test_read_log_file_empty(self, mock_execute_command, setup_log_file):
         """Test read_log_file with empty log file."""
-        mock_execute_command = mocker.patch("linux_mcp_server.tools.logs.execute_command")
+        log_file = setup_log_file(content="")
         mock_execute_command.return_value = (0, "", "")
 
-        log_file = tmp_path / "empty.log"
-        log_file.write_text("")
-
-        mocker.patch("linux_mcp_server.tools.logs.CONFIG.allowed_log_paths", str(log_file))
-
         result = await mcp.call_tool("read_log_file", {"log_path": str(log_file)})
-
-        assert isinstance(result, tuple)
-        assert len(result) == 2
-        assert isinstance(result[0], list)
-        output = result[0][0].text
+        output = assert_tool_result_structure(result)
 
         assert "Log file is empty" in output
 
-    async def test_read_log_file_remote_execution(self, mocker):
-        """Test read_log_file with remote execution."""
-        log_path = "/var/log/remote.log"
-        mocker.patch("linux_mcp_server.tools.logs.CONFIG.allowed_log_paths", log_path)
-
-        mock_execute_command = mocker.patch("linux_mcp_server.tools.logs.execute_command")
-        mock_execute_command.return_value = (
-            0,
-            "Remote log content\nLine 2",
-            "",
-        )
-
-        result = await mcp.call_tool("read_log_file", {"log_path": log_path, "host": "remote.server.com"})
-
-        assert isinstance(result, tuple)
-        assert len(result) == 2
-        assert isinstance(result[0], list)
-        output = result[0][0].text
-
-        assert "Remote log content" in output
-
-        # Verify execute_command was called with host
-        call_kwargs = mock_execute_command.call_args[1]
-        assert call_kwargs["host"] == "remote.server.com"
-
-    async def test_read_log_file_remote_skips_path_validation(self, mocker):
-        """Test that remote execution skips local path validation."""
-        log_path = "/nonexistent/remote.log"
-        mocker.patch("linux_mcp_server.tools.logs.CONFIG.allowed_log_paths", log_path)
-
-        mock_execute_command = mocker.patch("linux_mcp_server.tools.logs.execute_command")
-        mock_execute_command.return_value = (0, "Remote content", "")
-
-        # This path doesn't exist locally but should not raise an error for remote execution
-        result = await mcp.call_tool("read_log_file", {"log_path": log_path, "host": "remote.server.com"})
-
-        assert isinstance(result, tuple)
-        assert len(result) == 2
-        assert isinstance(result[0], list)
-        # Should succeed even though path doesn't exist locally
-
-    async def test_read_log_file_remote_command_failure(self, mocker):
-        """Test read_log_file handles command failures for remote execution."""
-        log_path = "/var/log/remote.log"
-        mocker.patch("linux_mcp_server.tools.logs.CONFIG.allowed_log_paths", log_path)
-
-        mock_execute_command = mocker.patch("linux_mcp_server.tools.logs.execute_command")
-        mock_execute_command.return_value = (1, "", "tail: cannot open: No such file or directory")
-
-        result = await mcp.call_tool("read_log_file", {"log_path": log_path, "host": "remote.server.com"})
-
-        assert isinstance(result, tuple)
-        assert len(result) == 2
-        assert isinstance(result[0], list)
-        output = result[0][0].text
-
-        assert "Error reading log file" in output
-
-    async def test_read_log_file_tail_not_found(self, mocker, tmp_path):
+    async def test_read_log_file_tail_not_found(self, mock_execute_command, setup_log_file):
         """Test read_log_file when tail command is not available."""
-        log_file = tmp_path / "test.log"
-        log_file.write_text("content")
-
-        mocker.patch("linux_mcp_server.tools.logs.CONFIG.allowed_log_paths", str(log_file))
-
-        mock_execute_command = mocker.patch("linux_mcp_server.tools.logs.execute_command")
+        log_file = setup_log_file()
         mock_execute_command.side_effect = FileNotFoundError("tail not found")
 
         result = await mcp.call_tool("read_log_file", {"log_path": str(log_file)})
-
-        assert isinstance(result, tuple)
-        assert len(result) == 2
-        assert isinstance(result[0], list)
-        output = result[0][0].text
+        output = assert_tool_result_structure(result)
 
         assert "tail command not found" in output
 
-    async def test_read_log_file_multiple_allowed_paths(self, mocker, tmp_path):
+    async def test_read_log_file_multiple_allowed_paths(self, mock_execute_command, mock_allowed_log_paths, tmp_path):
         """Test read_log_file with multiple allowed paths."""
         log_file1 = tmp_path / "log1.log"
         log_file2 = tmp_path / "log2.log"
@@ -488,34 +392,51 @@ class TestReadLogFile:
         log_file2.write_text("content2")
 
         # Set multiple allowed paths
-        mocker.patch("linux_mcp_server.tools.logs.CONFIG.allowed_log_paths", f"{log_file1},{log_file2}")
-
-        mock_execute_command = mocker.patch("linux_mcp_server.tools.logs.execute_command")
+        mock_allowed_log_paths(f"{log_file1},{log_file2}")
         mock_execute_command.return_value = (0, "content2", "")
 
         result = await mcp.call_tool("read_log_file", {"log_path": str(log_file2)})
-
-        assert isinstance(result, tuple)
-        assert len(result) == 2
-        assert isinstance(result[0], list)
-        output = result[0][0].text
+        output = assert_tool_result_structure(result)
 
         assert "content2" in output
 
-    async def test_read_log_file_access_not_allowed_with_host(self, tmp_path, mocker):
-        """Test that a given path is not allowed when using host."""
-        log_path_allowed = tmp_path / "log1.log"
-        log_path_not_allowed = tmp_path / "log2.log"
-        log_path_allowed.write_text("allowed")
-        log_path_not_allowed.write_text("not allowed")
+    async def test_read_log_file_remote_execution(self, mock_execute_command, mock_allowed_log_paths):
+        """Test read_log_file with remote execution."""
+        log_path = "/var/log/remote.log"
+        mock_allowed_log_paths(log_path)
+        mock_execute_command.return_value = (0, "Remote log content\nLine 2", "")
 
-        # Set multiple allowed paths
-        mocker.patch("linux_mcp_server.tools.logs.CONFIG.allowed_log_paths", str(log_path_allowed))
+        result = await mcp.call_tool("read_log_file", {"log_path": log_path, "host": "remote.server.com"})
+        output = assert_tool_result_structure(result)
 
-        result = await mcp.call_tool("read_log_file", {"log_path": str(log_path_not_allowed), "host": "test.test.test"})
+        assert "Remote log content" in output
 
-        assert isinstance(result, tuple)
-        assert len(result) == 2
-        assert isinstance(result[0], list)
-        output = result[0][0].text
-        assert f"Access to log file '{log_path_not_allowed}' is not allowed." in output
+        # Verify host parameter was passed
+        call_kwargs = mock_execute_command.call_args[1]
+        assert call_kwargs["host"] == "remote.server.com"
+
+    async def test_read_log_file_remote_skips_local_validation(self, mock_execute_command, mock_allowed_log_paths):
+        """Test that remote execution skips local path validation."""
+        log_path = "/nonexistent/remote.log"
+        mock_allowed_log_paths(log_path)
+        mock_execute_command.return_value = (0, "Remote content", "")
+
+        # This path doesn't exist locally but should work for remote execution
+        result = await mcp.call_tool("read_log_file", {"log_path": log_path, "host": "remote.server.com"})
+        output = assert_tool_result_structure(result)
+
+        assert "Remote content" in output
+
+    async def test_read_log_file_remote_not_in_allowed_paths(self, mock_allowed_log_paths, tmp_path):
+        """Test that remote execution still checks allowed paths."""
+        allowed_path = tmp_path / "allowed.log"
+        restricted_path = tmp_path / "restricted.log"
+        allowed_path.write_text("allowed")
+        restricted_path.write_text("restricted")
+
+        mock_allowed_log_paths(str(allowed_path))
+
+        result = await mcp.call_tool("read_log_file", {"log_path": str(restricted_path), "host": "remote.server.com"})
+        output = assert_tool_result_structure(result)
+
+        assert "not allowed" in output
