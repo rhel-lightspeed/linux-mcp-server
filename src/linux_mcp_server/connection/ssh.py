@@ -18,8 +18,6 @@ from typing import Optional
 
 import asyncssh
 
-from mcp.server.fastmcp.exceptions import ToolError
-
 from linux_mcp_server.audit import Event
 from linux_mcp_server.audit import log_ssh_command
 from linux_mcp_server.audit import log_ssh_connect
@@ -203,10 +201,7 @@ class SSHConnectionManager:
         conn = await self.get_connection(host)
         bin = command[0]
         if not Path(bin).is_absolute():
-            try:
-                command[0] = await get_remote_bin_path(bin, host, conn)
-            except ValueError as ve:
-                raise ToolError(*ve.args)
+            command[0] = await get_remote_bin_path(bin, host, conn)
 
         # Build command string with proper shell escaping
         # Use shlex.quote() to ensure special characters (like \n in printf format) are preserved
