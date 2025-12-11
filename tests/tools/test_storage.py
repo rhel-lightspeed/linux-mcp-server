@@ -15,6 +15,32 @@ from mcp.server.fastmcp.exceptions import ToolError
 from linux_mcp_server.server import mcp
 from linux_mcp_server.tools.storage import NodeEntry
 
+# Shared test data specs for storage tool tests
+ALPHA_BETA_GAMMA_SPECS = [
+    ("alpha", 100, 1000.0),
+    ("beta", 200, 2000.0),
+    ("gamma", 300, 3000.0),
+]
+
+SIZE_ORDERED_SPECS = [
+    ("small", 100, 1000.0),
+    ("large", 300, 3000.0),
+    ("medium", 200, 2000.0),
+]
+
+TIME_ORDERED_SPECS = [
+    ("newest", 100, 3000.0),
+    ("oldest", 100, 1000.0),
+    ("middle", 100, 2000.0),
+]
+
+SIZE_WITH_TINY_SPECS = [
+    ("small", 100, 1000.0),
+    ("large", 300, 3000.0),
+    ("medium", 200, 2000.0),
+    ("tiny", 50, 500.0),
+]
+
 
 @pytest.fixture
 def setup_test_directory(tmp_path) -> Callable[[list[tuple[str, int, float]]], tuple[Path, list[NodeEntry]]]:
@@ -282,12 +308,7 @@ class TestListBlockDevices:
 class TestListDirectories:
     async def test_list_directories_returns_structured_output(self, setup_test_directory):
         """Test that list_directories returns structured output."""
-        file_specs = [
-            ("alpha", 100, 1000.0),
-            ("beta", 200, 2000.0),
-            ("gamma", 300, 3000.0),
-        ]
-        test_path, _ = setup_test_directory(file_specs)
+        test_path, _ = setup_test_directory(ALPHA_BETA_GAMMA_SPECS)
 
         result = await mcp.call_tool("list_directories", {"path": str(test_path), "order_by": "name"})
 
@@ -300,12 +321,7 @@ class TestListDirectories:
 
     async def test_list_directories_by_name(self, setup_test_directory):
         """Test that list_directories returns structured output sorted by name."""
-        dir_specs = [
-            ("alpha", 100, 1000.0),
-            ("beta", 200, 2000.0),
-            ("gamma", 300, 3000.0),
-        ]
-        test_path, _ = setup_test_directory(dir_specs)
+        test_path, _ = setup_test_directory(ALPHA_BETA_GAMMA_SPECS)
 
         # When ordering by name, only the name field is populated
         expected_entries = [
@@ -325,12 +341,7 @@ class TestListDirectories:
 
     async def test_list_directories_by_size(self, setup_test_directory):
         """Test that list_directories returns structured output sorted by size."""
-        dir_specs = [
-            ("small", 100, 1000.0),
-            ("large", 300, 3000.0),
-            ("medium", 200, 2000.0),
-        ]
-        test_path, _ = setup_test_directory(dir_specs)
+        test_path, _ = setup_test_directory(SIZE_ORDERED_SPECS)
 
         expected_entries = [
             NodeEntry(name="small", size=100, modified=0.0),
@@ -378,12 +389,7 @@ class TestListDirectories:
 
     async def test_list_directories_by_name_with_top_n(self, setup_test_directory):
         """Test that list_directories returns structured output sorted by name with top_n limit."""
-        dir_specs = [
-            ("alpha", 100, 1000.0),
-            ("beta", 200, 2000.0),
-            ("gamma", 300, 3000.0),
-        ]
-        test_path, _ = setup_test_directory(dir_specs)
+        test_path, _ = setup_test_directory(ALPHA_BETA_GAMMA_SPECS)
 
         # When ordering by name, only name field is populated
         expected_entries = [
@@ -400,12 +406,7 @@ class TestListDirectories:
 
     async def test_list_directories_by_name_descending(self, setup_test_directory):
         """Test that list_directories returns structured output sorted by name in descending order."""
-        dir_specs = [
-            ("alpha", 100, 1000.0),
-            ("beta", 200, 2000.0),
-            ("gamma", 300, 3000.0),
-        ]
-        test_path, _ = setup_test_directory(dir_specs)
+        test_path, _ = setup_test_directory(ALPHA_BETA_GAMMA_SPECS)
 
         expected_entries = [
             NodeEntry(name="gamma", size=0, modified=0.0),
@@ -425,12 +426,7 @@ class TestListDirectories:
 
     async def test_list_directories_by_size_descending(self, setup_test_directory):
         """Test that list_directories returns structured output sorted by size in descending order."""
-        dir_specs = [
-            ("small", 100, 1000.0),
-            ("large", 300, 3000.0),
-            ("medium", 200, 2000.0),
-        ]
-        test_path, _ = setup_test_directory(dir_specs)
+        test_path, _ = setup_test_directory(SIZE_ORDERED_SPECS)
 
         expected_entries = [
             NodeEntry(name="large", size=300, modified=0.0),
@@ -450,12 +446,7 @@ class TestListDirectories:
 
     async def test_list_directories_by_modified_descending(self, setup_test_directory):
         """Test that list_directories returns structured output sorted by modified time in descending order."""
-        dir_specs = [
-            ("newest", 100, 3000.0),
-            ("oldest", 100, 1000.0),
-            ("middle", 100, 2000.0),
-        ]
-        test_path, _ = setup_test_directory(dir_specs)
+        test_path, _ = setup_test_directory(TIME_ORDERED_SPECS)
 
         expected_entries = [
             NodeEntry(name="newest", size=0, modified=3000.0),
@@ -547,12 +538,7 @@ class TestListDirectories:
 
     async def test_list_directories_by_modified_with_top_n(self, setup_test_directory):
         """Test that list_directories returns structured output sorted by modified time with top_n limit."""
-        dir_specs = [
-            ("newest", 100, 3000.0),
-            ("oldest", 100, 1000.0),
-            ("middle", 100, 2000.0),
-        ]
-        test_path, _ = setup_test_directory(dir_specs)
+        test_path, _ = setup_test_directory(TIME_ORDERED_SPECS)
 
         expected_entries = [
             NodeEntry(name="oldest", size=0, modified=1000.0),
@@ -571,13 +557,7 @@ class TestListDirectories:
 
     async def test_list_directories_by_size_with_top_n_descending(self, setup_test_directory):
         """Test that list_directories returns structured output sorted by size with top_n limit and descending order."""
-        dir_specs = [
-            ("small", 100, 1000.0),
-            ("large", 300, 3000.0),
-            ("medium", 200, 2000.0),
-            ("tiny", 50, 500.0),
-        ]
-        test_path, _ = setup_test_directory(dir_specs)
+        test_path, _ = setup_test_directory(SIZE_WITH_TINY_SPECS)
 
         expected_entries = [
             NodeEntry(name="large", size=300, modified=0.0),
@@ -771,12 +751,7 @@ class TestListDirectories:
 class TestListFiles:
     async def test_list_files_returns_structured_output(self, setup_test_files):
         """Test that list_files returns structured output."""
-        file_specs = [
-            ("alpha", 100, 1000.0),
-            ("beta", 200, 2000.0),
-            ("gamma", 300, 3000.0),
-        ]
-        test_path, _ = setup_test_files(file_specs)
+        test_path, _ = setup_test_files(ALPHA_BETA_GAMMA_SPECS)
 
         result = await mcp.call_tool("list_files", {"path": str(test_path), "order_by": "name"})
 
@@ -789,12 +764,7 @@ class TestListFiles:
 
     async def test_list_files_by_name(self, setup_test_files):
         """Test that list_files returns structured output sorted by name."""
-        dir_specs = [
-            ("alpha", 100, 1000.0),
-            ("beta", 200, 2000.0),
-            ("gamma", 300, 3000.0),
-        ]
-        test_path, _ = setup_test_files(dir_specs)
+        test_path, _ = setup_test_files(ALPHA_BETA_GAMMA_SPECS)
 
         # When ordering by name, only the name field is populated
         expected_entries = [
@@ -814,12 +784,7 @@ class TestListFiles:
 
     async def test_list_files_by_size(self, setup_test_files):
         """Test that list_files returns structured output sorted by size."""
-        dir_specs = [
-            ("small", 100, 1000.0),
-            ("large", 300, 3000.0),
-            ("medium", 200, 2000.0),
-        ]
-        test_path, _ = setup_test_files(dir_specs)
+        test_path, _ = setup_test_files(SIZE_ORDERED_SPECS)
 
         expected_entries = [
             NodeEntry(name="small", size=100, modified=0.0),
@@ -865,12 +830,7 @@ class TestListFiles:
 
     async def test_list_files_by_name_with_top_n(self, setup_test_files):
         """Test that list_files returns structured output sorted by name with top_n limit."""
-        dir_specs = [
-            ("alpha", 100, 1000.0),
-            ("beta", 200, 2000.0),
-            ("gamma", 300, 3000.0),
-        ]
-        test_path, _ = setup_test_files(dir_specs)
+        test_path, _ = setup_test_files(ALPHA_BETA_GAMMA_SPECS)
 
         # When ordering by name, only name field is populated
         expected_entries = [
@@ -887,12 +847,7 @@ class TestListFiles:
 
     async def test_list_files_by_name_descending(self, setup_test_files):
         """Test that list_files returns structured output sorted by name in descending order."""
-        dir_specs = [
-            ("alpha", 100, 1000.0),
-            ("beta", 200, 2000.0),
-            ("gamma", 300, 3000.0),
-        ]
-        test_path, _ = setup_test_files(dir_specs)
+        test_path, _ = setup_test_files(ALPHA_BETA_GAMMA_SPECS)
 
         expected_entries = [
             NodeEntry(name="gamma", size=0, modified=0.0),
@@ -910,12 +865,7 @@ class TestListFiles:
 
     async def test_list_files_by_size_descending(self, setup_test_files):
         """Test that list_files returns structured output sorted by size in descending order."""
-        dir_specs = [
-            ("small", 100, 1000.0),
-            ("large", 300, 3000.0),
-            ("medium", 200, 2000.0),
-        ]
-        test_path, _ = setup_test_files(dir_specs)
+        test_path, _ = setup_test_files(SIZE_ORDERED_SPECS)
 
         expected_entries = [
             NodeEntry(name="large", size=300, modified=0.0),
@@ -933,12 +883,7 @@ class TestListFiles:
 
     async def test_list_files_by_modified_descending(self, setup_test_files):
         """Test that list_files returns structured output sorted by modified time in descending order."""
-        dir_specs = [
-            ("newest", 100, 3000.0),
-            ("oldest", 100, 1000.0),
-            ("middle", 100, 2000.0),
-        ]
-        test_path, _ = setup_test_files(dir_specs)
+        test_path, _ = setup_test_files(TIME_ORDERED_SPECS)
 
         expected_entries = [
             NodeEntry(name="newest", size=0, modified=3000.0),
@@ -1037,12 +982,7 @@ class TestListFiles:
 
     async def test_list_files_by_modified_with_top_n(self, setup_test_files):
         """Test that list_files returns structured output sorted by modified time with top_n limit."""
-        dir_specs = [
-            ("newest", 100, 3000.0),
-            ("oldest", 100, 1000.0),
-            ("middle", 100, 2000.0),
-        ]
-        test_path, _ = setup_test_files(dir_specs)
+        test_path, _ = setup_test_files(TIME_ORDERED_SPECS)
 
         expected_entries = [
             NodeEntry(name="oldest", size=0, modified=1000.0),
@@ -1061,13 +1001,7 @@ class TestListFiles:
 
     async def test_list_files_by_size_with_top_n_descending(self, setup_test_files):
         """Test that list_files returns structured output sorted by size with top_n limit and descending order."""
-        dir_specs = [
-            ("small", 100, 1000.0),
-            ("large", 300, 3000.0),
-            ("medium", 200, 2000.0),
-            ("tiny", 50, 500.0),
-        ]
-        test_path, _ = setup_test_files(dir_specs)
+        test_path, _ = setup_test_files(SIZE_WITH_TINY_SPECS)
 
         expected_entries = [
             NodeEntry(name="large", size=300, modified=0.0),
