@@ -1,0 +1,22 @@
+FROM quay.io/fedora/fedora:43
+
+ENV UV_LINK_MODE=copy
+ENV UV_COMPILE_BYTECODE=1
+ENV SHELL=/usr/bin/fish
+
+RUN dnf install -y \
+    python3 \
+    python3-pip \
+    git \
+    make \
+    fish \
+    sudo \
+    && dnf clean all
+
+COPY --from=ghcr.io/astral-sh/uv:latest /uv /usr/local/bin/uv
+
+# Create vscode user with sudo access and fish shell
+RUN useradd -m -s /usr/bin/fish vscode && \
+    echo "vscode ALL=(ALL) NOPASSWD:ALL" >> /etc/sudoers.d/vscode
+
+WORKDIR /workspace
