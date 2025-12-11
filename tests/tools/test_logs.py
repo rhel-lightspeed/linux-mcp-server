@@ -28,187 +28,105 @@ def mock_allowed_log_paths(mocker):
 
 
 class TestGetJournalLogs:
-    async def test_get_journal_logs_default(self, mocker):
-        """Test get_journal_logs with default parameters."""
-        mock_execute_command = mocker.patch("linux_mcp_server.tools.logs.execute_command")
+    """Tests for get_journal_logs tool."""
+
+    @pytest.mark.parametrize(
+        "params,expected_args,expected_in_output",
+        [
+            # Default parameters
+            (
+                {},
+                ["-n", "100", "--no-pager"],
+                ["last 100 entries", "no filters"],
+            ),
+            # Unit filter
+            (
+                {"unit": "nginx.service"},
+                ["-u", "nginx.service"],
+                ["unit=nginx.service"],
+            ),
+            # Priority filter
+            (
+                {"priority": "err"},
+                ["-p", "err"],
+                ["priority=err"],
+            ),
+            # Since filter
+            (
+                {"since": "today"},
+                ["--since", "today"],
+                ["since=today"],
+            ),
+            # Custom line count
+            (
+                {"lines": 50},
+                ["-n", "50"],
+                ["last 50 entries"],
+            ),
+            # All filters combined
+            (
+                {"unit": "nginx.service", "priority": "err", "since": "today", "lines": 50},
+                ["-u", "nginx.service", "-p", "err", "--since", "today", "-n", "50"],
+                ["last 50 entries", "unit=nginx.service", "priority=err", "since=today"],
+            ),
+        ],
+    )
+    async def test_get_journal_logs_filters(self, mock_execute_command, params, expected_args, expected_in_output):
+        """Test get_journal_logs with various filter combinations."""
         mock_execute_command.return_value = (
             0,
-            "Jan 01 12:00:00 host systemd[1]: Started some service.\nJan 01 12:01:00 host systemd[1]: Stopped some service.",
+            "Jan 01 12:00:00 host systemd[1]: Test log entry.",
             "",
         )
 
-        result = await mcp.call_tool("get_journal_logs", {})
+        result = await mcp.call_tool("get_journal_logs", params)
+        output = assert_tool_result_structure(result)
 
-        assert isinstance(result, tuple)
-        assert len(result) == 2
-        assert isinstance(result[0], list)
-        output = result[0][0].text
+        # Verify output contains expected strings
+        for expected_str in expected_in_output:
+            assert expected_str in output
 
-        assert "=== Journal Logs (last 100 entries, no filters) ===" in output
-        assert "Started some service" in output
-        assert "Stopped some service" in output
+        assert "Test log entry" in output
 
-        # Verify journalctl was called with correct arguments
+        # Verify command arguments
         mock_execute_command.assert_called_once()
-        args = mock_execute_command.call_args[0][0]
-        assert args[0] == "journalctl"
-        assert "-n" in args
-        assert "100" in args
-        assert "--no-pager" in args
+        cmd_args = mock_execute_command.call_args[0][0]
+        assert cmd_args[0] == "journalctl"
+        for expected_arg in expected_args:
+            assert expected_arg in cmd_args
 
-    async def test_get_journal_logs_with_unit_filter(self, mocker):
-        """Test get_journal_logs with unit filter."""
-        mock_execute_command = mocker.patch("linux_mcp_server.tools.logs.execute_command")
-        mock_execute_command.return_value = (
-            0,
-            "Jan 01 12:00:00 host nginx[123]: Started nginx.",
-            "",
-        )
+    @pytest.mark.parametrize(
+        "returncode,stdout,stderr,expected_error,expectation",
+        [
+            # Empty output
+            (0, "", "", "No journal entries found", does_not_raise()),
+            # Command error
+            (1, "", "journalctl: Failed to access journal", "Error reading journal logs", does_not_raise()),
+        ],
+    )
+    async def test_get_journal_logs_edge_cases(
+        self, mock_execute_command, returncode, stdout, stderr, expected_error, expectation
+    ):
+        """Test get_journal_logs error handling and edge cases."""
+        mock_execute_command.return_value = (returncode, stdout, stderr)
 
-        result = await mcp.call_tool("get_journal_logs", {"unit": "nginx.service"})
+        with expectation:
+            result = await mcp.call_tool("get_journal_logs", {})
+            output = assert_tool_result_structure(result)
+            assert expected_error in output
 
-        assert isinstance(result, tuple)
-        assert len(result) == 2
-        assert isinstance(result[0], list)
-        output = result[0][0].text
-
-        assert "unit=nginx.service" in output
-        assert "Started nginx" in output
-
-        # Verify unit filter was passed
-        args = mock_execute_command.call_args[0][0]
-        assert "-u" in args
-        assert "nginx.service" in args
-
-    async def test_get_journal_logs_with_priority_filter(self, mocker):
-        """Test get_journal_logs with priority filter."""
-        mock_execute_command = mocker.patch("linux_mcp_server.tools.logs.execute_command")
-        mock_execute_command.return_value = (
-            0,
-            "Jan 01 12:00:00 host systemd[1]: Error occurred.",
-            "",
-        )
-
-        result = await mcp.call_tool("get_journal_logs", {"priority": "err"})
-
-        assert isinstance(result, tuple)
-        assert len(result) == 2
-        assert isinstance(result[0], list)
-        output = result[0][0].text
-
-        assert "priority=err" in output
-        assert "Error occurred" in output
-
-        # Verify priority filter was passed
-        args = mock_execute_command.call_args[0][0]
-        assert "-p" in args
-        assert "err" in args
-
-    async def test_get_journal_logs_with_since_filter(self, mocker):
-        """Test get_journal_logs with since filter."""
-        mock_execute_command = mocker.patch("linux_mcp_server.tools.logs.execute_command")
-        mock_execute_command.return_value = (
-            0,
-            "Jan 01 13:00:00 host systemd[1]: Recent log entry.",
-            "",
-        )
-
-        result = await mcp.call_tool("get_journal_logs", {"since": "today"})
-
-        assert isinstance(result, tuple)
-        assert len(result) == 2
-        assert isinstance(result[0], list)
-        output = result[0][0].text
-
-        assert "since=today" in output
-        assert "Recent log entry" in output
-
-        # Verify since filter was passed
-        args = mock_execute_command.call_args[0][0]
-        assert "--since" in args
-        assert "today" in args
-
-    async def test_get_journal_logs_with_all_filters(self, mocker):
-        """Test get_journal_logs with all filters combined."""
-        mock_execute_command = mocker.patch("linux_mcp_server.tools.logs.execute_command")
-        mock_execute_command.return_value = (
-            0,
-            "Jan 01 13:00:00 host nginx[123]: Error in nginx.",
-            "",
-        )
-
-        result = await mcp.call_tool(
-            "get_journal_logs", {"unit": "nginx.service", "priority": "err", "since": "today", "lines": 50}
-        )
-
-        assert isinstance(result, tuple)
-        assert len(result) == 2
-        assert isinstance(result[0], list)
-        output = result[0][0].text
-
-        assert "last 50 entries" in output
-        assert "unit=nginx.service" in output
-        assert "priority=err" in output
-        assert "since=today" in output
-
-        # Verify all filters were passed
-        args = mock_execute_command.call_args[0][0]
-        assert "-u" in args
-        assert "nginx.service" in args
-        assert "-p" in args
-        assert "err" in args
-        assert "--since" in args
-        assert "today" in args
-        assert "-n" in args
-        assert "50" in args
-
-    async def test_get_journal_logs_no_entries_found(self, mocker):
-        """Test get_journal_logs when no entries match criteria."""
-        mock_execute_command = mocker.patch("linux_mcp_server.tools.logs.execute_command")
-        mock_execute_command.return_value = (0, "", "")
-
-        result = await mcp.call_tool("get_journal_logs", {})
-
-        assert isinstance(result, tuple)
-        assert len(result) == 2
-        assert isinstance(result[0], list)
-        output = result[0][0].text
-
-        assert "No journal entries found matching the criteria" in output
-
-    async def test_get_journal_logs_command_error(self, mocker):
-        """Test get_journal_logs handles command errors."""
-        mock_execute_command = mocker.patch("linux_mcp_server.tools.logs.execute_command")
-        mock_execute_command.return_value = (1, "", "journalctl: Failed to access journal")
-
-        result = await mcp.call_tool("get_journal_logs", {})
-
-        assert isinstance(result, tuple)
-        assert len(result) == 2
-        assert isinstance(result[0], list)
-        output = result[0][0].text
-
-        assert "Error reading journal logs" in output
-        assert "Failed to access journal" in output
-
-    async def test_get_journal_logs_journalctl_not_found(self, mocker):
+    async def test_get_journal_logs_journalctl_not_found(self, mock_execute_command):
         """Test get_journal_logs when journalctl is not available."""
-        mock_execute_command = mocker.patch("linux_mcp_server.tools.logs.execute_command")
         mock_execute_command.side_effect = FileNotFoundError("journalctl not found")
 
         result = await mcp.call_tool("get_journal_logs", {})
-
-        assert isinstance(result, tuple)
-        assert len(result) == 2
-        assert isinstance(result[0], list)
-        output = result[0][0].text
+        output = assert_tool_result_structure(result)
 
         assert "journalctl command not found" in output
         assert "requires systemd" in output
 
-    async def test_get_journal_logs_remote_execution(self, mocker):
+    async def test_get_journal_logs_remote_execution(self, mock_execute_command):
         """Test get_journal_logs with remote execution."""
-        mock_execute_command = mocker.patch("linux_mcp_server.tools.logs.execute_command")
         mock_execute_command.return_value = (
             0,
             "Jan 01 12:00:00 remote systemd[1]: Remote log entry.",
@@ -216,15 +134,11 @@ class TestGetJournalLogs:
         )
 
         result = await mcp.call_tool("get_journal_logs", {"host": "remote.server.com"})
-
-        assert isinstance(result, tuple)
-        assert len(result) == 2
-        assert isinstance(result[0], list)
-        output = result[0][0].text
+        output = assert_tool_result_structure(result)
 
         assert "Remote log entry" in output
 
-        # Verify execute_command was called with host
+        # Verify host parameter was passed
         call_kwargs = mock_execute_command.call_args[1]
         assert call_kwargs["host"] == "remote.server.com"
 
