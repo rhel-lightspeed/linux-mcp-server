@@ -288,7 +288,7 @@ _connection_manager = SSHConnectionManager()
 def get_bin_path(command: str) -> str:
     """Get the full path to an executable.
 
-    Raises VauleError if not found.
+    Raises FileNotFoundError if not found.
     """
     sbin_paths = ("/sbin", "/usr/sbin", "/usr/local/sbin")
     path = os.getenv("PATH", "").split(os.pathsep)
@@ -296,7 +296,7 @@ def get_bin_path(command: str) -> str:
     path = os.pathsep.join(path)
     bin_path = shutil.which(command, path=path)
     if bin_path is None:
-        raise ValueError(f"Unable to find '{command}'")
+        raise FileNotFoundError(f"Unable to find '{command}'")
 
     return bin_path
 
@@ -309,7 +309,7 @@ async def get_remote_bin_path(
 ) -> str:
     """Get the full path to an executable on a remote system.
 
-    Raises ValueError if not found.
+    Raises FileNotFoundError if not found.
     """
     logger.debug(f"Getting path for {command} on {hostname}")
     try:
@@ -323,7 +323,7 @@ async def get_remote_bin_path(
         stdout = result.stdout.decode() if isinstance(result.stdout, bytes) else result.stdout
         return stdout.strip()
 
-    raise ValueError(f"Unable to find command '{command}' on {connection._username}@{hostname}")
+    raise FileNotFoundError(f"Unable to find command '{command}' on {connection._username}@{hostname}")
 
 
 async def execute_command(
