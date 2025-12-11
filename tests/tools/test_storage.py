@@ -760,6 +760,12 @@ class TestListDirectories:
             AsyncMock(return_value=(1, "", "find: '/some/path': Permission denied")),
         )
 
+        with pytest.raises(ToolError, match="Error executing tool list_directories"):
+            await mcp.call_tool(
+                "list_directories",
+                {"path": "/some/path", "order_by": "modified", "host": "remote.server.com"},
+            )
+
 
 @pytest.mark.skipif(sys.platform != "linux", reason="requires GNU version of coreutils/findutils")
 class TestListFiles:
