@@ -665,46 +665,18 @@ class TestListDirectories:
         # Should succeed even though path doesn't exist locally
         assert isinstance(result[1], dict)
 
-    async def test_list_directories_du_command_failure(self, mocker):
-        """Test list_directories handles du command failures for size ordering."""
-        # Mock du command to return non-zero returncode
+    @pytest.mark.parametrize("order_by", ["size", "name", "modified"])
+    async def test_list_directories_command_failure(self, mocker, order_by):
+        """Test list_directories handles command failures for all order_by types."""
         mocker.patch(
             "linux_mcp_server.tools.storage.execute_command",
-            AsyncMock(return_value=(1, "", "du: cannot read directory")),
+            AsyncMock(return_value=(1, "", "command: Permission denied")),
         )
 
         with pytest.raises(ToolError, match="Error executing tool list_directories"):
             await mcp.call_tool(
                 "list_directories",
-                {"path": "/some/path", "order_by": "size", "host": "remote.server.com"},
-            )
-
-    async def test_list_directories_find_command_failure_name(self, mocker):
-        """Test list_directories handles find command failures for name ordering."""
-        # Mock find command to return non-zero returncode
-        mocker.patch(
-            "linux_mcp_server.tools.storage.execute_command",
-            AsyncMock(return_value=(1, "", "find: '/some/path': Permission denied")),
-        )
-
-        with pytest.raises(ToolError, match="Error executing tool list_directories"):
-            await mcp.call_tool(
-                "list_directories",
-                {"path": "/some/path", "order_by": "name", "host": "remote.server.com"},
-            )
-
-    async def test_list_directories_find_command_failure_modified(self, mocker):
-        """Test list_directories handles find command failures for modified ordering."""
-        # Mock find command to return non-zero returncode
-        mocker.patch(
-            "linux_mcp_server.tools.storage.execute_command",
-            AsyncMock(return_value=(1, "", "find: '/some/path': Permission denied")),
-        )
-
-        with pytest.raises(ToolError, match="Error executing tool list_directories"):
-            await mcp.call_tool(
-                "list_directories",
-                {"path": "/some/path", "order_by": "modified", "host": "remote.server.com"},
+                {"path": "/some/path", "order_by": order_by, "host": "remote.server.com"},
             )
 
 
