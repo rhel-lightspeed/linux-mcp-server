@@ -111,6 +111,20 @@ def restricted_path(tmp_path):
     restricted_path.chmod(0o755)
 
 
+@pytest.fixture
+def assert_node_entries():
+    """Fixture for asserting NodeEntry results from tool calls."""
+
+    def _assert(result, expected_entries: list[NodeEntry]):
+        assert isinstance(result, tuple)
+        assert len(result) == 2
+        assert isinstance(result[1], dict)
+        got = [NodeEntry(**entry) for entry in result[1]["result"]]
+        assert got == expected_entries
+
+    return _assert
+
+
 class TestListBlockDevices:
     async def test_list_block_devices_lsblk_success(self, mocker):
         """Test list_block_devices with successful lsblk command."""
