@@ -474,35 +474,11 @@ class TestListDirectories:
         with pytest.raises(ToolError, match="Permission denied to read"):
             await mcp.call_tool("list_directories", {"path": str(restricted_path)})
 
-    async def test_list_directories_empty_directory_by_name(self, tmp_path):
-        """Test list_directories with a directory containing no subdirectories (name ordering)."""
-        result = await mcp.call_tool("list_directories", {"path": str(tmp_path), "order_by": "name"})
-
-        assert isinstance(result, tuple)
-        assert len(result) == 2
-        assert isinstance(result[1], dict)
-        got = [NodeEntry(**entry) for entry in result[1]["result"]]
-        assert got == []
-
-    async def test_list_directories_empty_directory_by_size(self, tmp_path):
-        """Test list_directories with a directory containing no subdirectories (size ordering)."""
-        result = await mcp.call_tool("list_directories", {"path": str(tmp_path), "order_by": "size"})
-
-        assert isinstance(result, tuple)
-        assert len(result) == 2
-        assert isinstance(result[1], dict)
-        got = [NodeEntry(**entry) for entry in result[1]["result"]]
-        assert got == []
-
-    async def test_list_directories_empty_directory_by_modified(self, tmp_path):
-        """Test list_directories with a directory containing no subdirectories (modified ordering)."""
-        result = await mcp.call_tool("list_directories", {"path": str(tmp_path), "order_by": "modified"})
-
-        assert isinstance(result, tuple)
-        assert len(result) == 2
-        assert isinstance(result[1], dict)
-        got = [NodeEntry(**entry) for entry in result[1]["result"]]
-        assert got == []
+    @pytest.mark.parametrize("order_by", ["name", "size", "modified"])
+    async def test_list_directories_empty_directory(self, tmp_path, order_by, assert_node_entries):
+        """Test list_directories with an empty directory for all order_by values."""
+        result = await mcp.call_tool("list_directories", {"path": str(tmp_path), "order_by": order_by})
+        assert_node_entries(result, [])
 
     async def test_list_directories_special_characters_in_names(self, tmp_path):
         """Test list_directories handles directory names with special characters."""
@@ -911,35 +887,11 @@ class TestListFiles:
         with pytest.raises(ToolError, match="Permission denied to read"):
             await mcp.call_tool("list_files", {"path": str(restricted_path)})
 
-    async def test_list_files_empty_directory_by_name(self, tmp_path):
-        """Test list_files with a directory containing no subfiles (name ordering)."""
-        result = await mcp.call_tool("list_files", {"path": str(tmp_path), "order_by": "name"})
-
-        assert isinstance(result, tuple)
-        assert len(result) == 2
-        assert isinstance(result[1], dict)
-        got = [NodeEntry(**entry) for entry in result[1]["result"]]
-        assert got == []
-
-    async def test_list_files_empty_directory_by_size(self, tmp_path):
-        """Test list_files with a directory containing no subfiles (size ordering)."""
-        result = await mcp.call_tool("list_files", {"path": str(tmp_path), "order_by": "size"})
-
-        assert isinstance(result, tuple)
-        assert len(result) == 2
-        assert isinstance(result[1], dict)
-        got = [NodeEntry(**entry) for entry in result[1]["result"]]
-        assert got == []
-
-    async def test_list_files_empty_directory_by_modified(self, tmp_path):
-        """Test list_files with a directory containing no subfiles (modified ordering)."""
-        result = await mcp.call_tool("list_files", {"path": str(tmp_path), "order_by": "modified"})
-
-        assert isinstance(result, tuple)
-        assert len(result) == 2
-        assert isinstance(result[1], dict)
-        got = [NodeEntry(**entry) for entry in result[1]["result"]]
-        assert got == []
+    @pytest.mark.parametrize("order_by", ["name", "size", "modified"])
+    async def test_list_files_empty_directory(self, tmp_path, order_by, assert_node_entries):
+        """Test list_files with an empty directory for all order_by values."""
+        result = await mcp.call_tool("list_files", {"path": str(tmp_path), "order_by": order_by})
+        assert_node_entries(result, [])
 
     async def test_list_files_special_characters_in_names(self, tmp_path):
         """Test list_files handles directory names with special characters."""
