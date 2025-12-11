@@ -56,3 +56,4 @@ config.sh
 
 .claude/settings.local.json
 CLAUDE.local.md
+prepare_sources_result*/
