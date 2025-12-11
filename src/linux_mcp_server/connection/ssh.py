@@ -387,10 +387,7 @@ async def _execute_local(command: list[str]) -> tuple[int, str, str]:
     start_time = time.time()
     bin = command[0]
     if not Path(bin).is_absolute():
-        try:
-            command[0] = get_bin_path(bin)
-        except ValueError as ve:
-            raise ToolError(*ve.args)
+        command[0] = get_bin_path(bin)
 
     try:
         proc = await asyncio.create_subprocess_exec(*command, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
