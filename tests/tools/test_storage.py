@@ -15,7 +15,11 @@ from mcp.server.fastmcp.exceptions import ToolError
 from linux_mcp_server.server import mcp
 from linux_mcp_server.tools.storage import NodeEntry
 
-# Shared test data specs for storage tool tests
+
+# =============================================================================
+# Shared test data specs
+# =============================================================================
+
 ALPHA_BETA_GAMMA_SPECS = [
     ("alpha", 100, 1000.0),
     ("beta", 200, 2000.0),
@@ -40,6 +44,11 @@ SIZE_WITH_TINY_SPECS = [
     ("medium", 200, 2000.0),
     ("tiny", 50, 500.0),
 ]
+
+
+# =============================================================================
+# Test fixtures
+# =============================================================================
 
 
 @pytest.fixture
@@ -123,6 +132,11 @@ def assert_node_entries():
         assert got == expected_entries
 
     return _assert
+
+
+# =============================================================================
+# TestListBlockDevices
+# =============================================================================
 
 
 class TestListBlockDevices:
@@ -291,6 +305,11 @@ class TestListBlockDevices:
 
         with pytest.raises(ToolError, match="Raised intentionally"):
             await mcp.call_tool("list_block_devices", {})
+
+
+# =============================================================================
+# TestListDirectories
+# =============================================================================
 
 
 @pytest.mark.skipif(sys.platform != "linux", reason="requires GNU version of coreutils/findutils")
@@ -631,6 +650,11 @@ class TestListDirectories:
                 "list_directories",
                 {"path": "/some/path", "order_by": order_by, "host": "remote.server.com"},
             )
+
+
+# =============================================================================
+# TestListFiles
+# =============================================================================
 
 
 @pytest.mark.skipif(sys.platform != "linux", reason="requires GNU version of coreutils/findutils")
@@ -977,6 +1001,11 @@ class TestListFiles:
                 "list_files",
                 {"path": "/some/path", "order_by": order_by, "host": "remote.server.com"},
             )
+
+
+# =============================================================================
+# TestReadFile
+# =============================================================================
 
 
 class TestReadFile:
