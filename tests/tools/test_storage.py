@@ -308,7 +308,7 @@ class TestListDirectories:
         directories = list[NodeEntry](result[1]["result"])
         assert directories is not None
 
-    async def test_list_directories_by_name(self, setup_test_directory):
+    async def test_list_directories_by_name(self, setup_test_directory, assert_node_entries):
         """Test that list_directories returns structured output sorted by name."""
         test_path, _ = setup_test_directory(ALPHA_BETA_GAMMA_SPECS)
 
@@ -320,15 +320,9 @@ class TestListDirectories:
         ]
 
         result = await mcp.call_tool("list_directories", {"path": str(test_path), "order_by": "name"})
+        assert_node_entries(result, expected_entries)
 
-        # Verify the structured output
-        assert isinstance(result, tuple)
-        assert len(result) == 2
-        assert isinstance(result[1], dict)
-        got = [NodeEntry(**entry) for entry in result[1]["result"]]
-        assert got == expected_entries
-
-    async def test_list_directories_by_size(self, setup_test_directory):
+    async def test_list_directories_by_size(self, setup_test_directory, assert_node_entries):
         """Test that list_directories returns structured output sorted by size."""
         test_path, _ = setup_test_directory(SIZE_ORDERED_SPECS)
 
@@ -341,15 +335,9 @@ class TestListDirectories:
         result = await mcp.call_tool(
             "list_directories", {"path": str(test_path), "order_by": "size", "sort": "ascending"}
         )
+        assert_node_entries(result, expected_entries)
 
-        # Verify the structured output - should be sorted by size (ascending)
-        assert isinstance(result, tuple)
-        assert len(result) == 2
-        assert isinstance(result[1], dict)
-        got = [NodeEntry(**entry) for entry in result[1]["result"]]
-        assert got == expected_entries
-
-    async def test_list_directories_by_modified(self, setup_test_directory):
+    async def test_list_directories_by_modified(self, setup_test_directory, assert_node_entries):
         """Test that list_directories returns structured output sorted by modification time."""
         dir_specs = [
             ("newest", 0, 3000.0),
@@ -368,15 +356,9 @@ class TestListDirectories:
         result = await mcp.call_tool(
             "list_directories", {"path": str(test_path), "order_by": "modified", "sort": "ascending"}
         )
+        assert_node_entries(result, expected_entries)
 
-        # Verify the structured output - should be sorted by modification time (ascending)
-        assert isinstance(result, tuple)
-        assert len(result) == 2
-        assert isinstance(result[1], dict)
-        got = [NodeEntry(**entry) for entry in result[1]["result"]]
-        assert got == expected_entries
-
-    async def test_list_directories_by_name_with_top_n(self, setup_test_directory):
+    async def test_list_directories_by_name_with_top_n(self, setup_test_directory, assert_node_entries):
         """Test that list_directories returns structured output sorted by name with top_n limit."""
         test_path, _ = setup_test_directory(ALPHA_BETA_GAMMA_SPECS)
 
@@ -387,13 +369,9 @@ class TestListDirectories:
         ]
 
         result = await mcp.call_tool("list_directories", {"path": str(test_path), "order_by": "name", "top_n": 2})
-        assert isinstance(result, tuple)
-        assert len(result) == 2
-        assert isinstance(result[1], dict)
-        got = [NodeEntry(**entry) for entry in result[1]["result"]]
-        assert got == expected_entries
+        assert_node_entries(result, expected_entries)
 
-    async def test_list_directories_by_name_descending(self, setup_test_directory):
+    async def test_list_directories_by_name_descending(self, setup_test_directory, assert_node_entries):
         """Test that list_directories returns structured output sorted by name in descending order."""
         test_path, _ = setup_test_directory(ALPHA_BETA_GAMMA_SPECS)
 
@@ -406,14 +384,9 @@ class TestListDirectories:
         result = await mcp.call_tool(
             "list_directories", {"path": str(test_path), "order_by": "name", "sort": "descending"}
         )
+        assert_node_entries(result, expected_entries)
 
-        assert isinstance(result, tuple)
-        assert len(result) == 2
-        assert isinstance(result[1], dict)
-        got = [NodeEntry(**entry) for entry in result[1]["result"]]
-        assert got == expected_entries
-
-    async def test_list_directories_by_size_descending(self, setup_test_directory):
+    async def test_list_directories_by_size_descending(self, setup_test_directory, assert_node_entries):
         """Test that list_directories returns structured output sorted by size in descending order."""
         test_path, _ = setup_test_directory(SIZE_ORDERED_SPECS)
 
@@ -426,14 +399,9 @@ class TestListDirectories:
         result = await mcp.call_tool(
             "list_directories", {"path": str(test_path), "order_by": "size", "sort": "descending"}
         )
+        assert_node_entries(result, expected_entries)
 
-        assert isinstance(result, tuple)
-        assert len(result) == 2
-        assert isinstance(result[1], dict)
-        got = [NodeEntry(**entry) for entry in result[1]["result"]]
-        assert got == expected_entries
-
-    async def test_list_directories_by_modified_descending(self, setup_test_directory):
+    async def test_list_directories_by_modified_descending(self, setup_test_directory, assert_node_entries):
         """Test that list_directories returns structured output sorted by modified time in descending order."""
         test_path, _ = setup_test_directory(TIME_ORDERED_SPECS)
 
@@ -446,12 +414,7 @@ class TestListDirectories:
         result = await mcp.call_tool(
             "list_directories", {"path": str(test_path), "order_by": "modified", "sort": "descending"}
         )
-
-        assert isinstance(result, tuple)
-        assert len(result) == 2
-        assert isinstance(result[1], dict)
-        got = [NodeEntry(**entry) for entry in result[1]["result"]]
-        assert got == expected_entries
+        assert_node_entries(result, expected_entries)
 
     @pytest.mark.parametrize("invalid_param,invalid_value", [("order_by", "invalid"), ("sort", "invalid")])
     async def test_list_directories_invalid_parameter(self, tmp_path, invalid_param, invalid_value):
@@ -497,7 +460,7 @@ class TestListDirectories:
         assert "dir_with_underscores" in names
         assert len(got) == 3
 
-    async def test_list_directories_by_modified_with_top_n(self, setup_test_directory):
+    async def test_list_directories_by_modified_with_top_n(self, setup_test_directory, assert_node_entries):
         """Test that list_directories returns structured output sorted by modified time with top_n limit."""
         test_path, _ = setup_test_directory(TIME_ORDERED_SPECS)
 
@@ -509,14 +472,9 @@ class TestListDirectories:
         result = await mcp.call_tool(
             "list_directories", {"path": str(test_path), "order_by": "modified", "sort": "ascending", "top_n": 2}
         )
+        assert_node_entries(result, expected_entries)
 
-        assert isinstance(result, tuple)
-        assert len(result) == 2
-        assert isinstance(result[1], dict)
-        got = [NodeEntry(**entry) for entry in result[1]["result"]]
-        assert got == expected_entries
-
-    async def test_list_directories_by_size_with_top_n_descending(self, setup_test_directory):
+    async def test_list_directories_by_size_with_top_n_descending(self, setup_test_directory, assert_node_entries):
         """Test that list_directories returns structured output sorted by size with top_n limit and descending order."""
         test_path, _ = setup_test_directory(SIZE_WITH_TINY_SPECS)
 
@@ -528,12 +486,7 @@ class TestListDirectories:
         result = await mcp.call_tool(
             "list_directories", {"path": str(test_path), "order_by": "size", "sort": "descending", "top_n": 2}
         )
-
-        assert isinstance(result, tuple)
-        assert len(result) == 2
-        assert isinstance(result[1], dict)
-        got = [NodeEntry(**entry) for entry in result[1]["result"]]
-        assert got == expected_entries
+        assert_node_entries(result, expected_entries)
 
     async def test_list_directories_remote_execution_by_size(self, mocker):
         """Test list_directories with remote execution for size ordering."""
@@ -695,7 +648,7 @@ class TestListFiles:
         files = list[NodeEntry](result[1]["result"])
         assert files is not None
 
-    async def test_list_files_by_name(self, setup_test_files):
+    async def test_list_files_by_name(self, setup_test_files, assert_node_entries):
         """Test that list_files returns structured output sorted by name."""
         test_path, _ = setup_test_files(ALPHA_BETA_GAMMA_SPECS)
 
@@ -707,15 +660,9 @@ class TestListFiles:
         ]
 
         result = await mcp.call_tool("list_files", {"path": str(test_path), "order_by": "name"})
+        assert_node_entries(result, expected_entries)
 
-        # Verify the structured output
-        assert isinstance(result, tuple)
-        assert len(result) == 2
-        assert isinstance(result[1], dict)
-        got = [NodeEntry(**entry) for entry in result[1]["result"]]
-        assert got == expected_entries
-
-    async def test_list_files_by_size(self, setup_test_files):
+    async def test_list_files_by_size(self, setup_test_files, assert_node_entries):
         """Test that list_files returns structured output sorted by size."""
         test_path, _ = setup_test_files(SIZE_ORDERED_SPECS)
 
@@ -726,15 +673,9 @@ class TestListFiles:
         ]
 
         result = await mcp.call_tool("list_files", {"path": str(test_path), "order_by": "size", "sort": "ascending"})
+        assert_node_entries(result, expected_entries)
 
-        # Verify the structured output - should be sorted by size (ascending)
-        assert isinstance(result, tuple)
-        assert len(result) == 2
-        assert isinstance(result[1], dict)
-        got = [NodeEntry(**entry) for entry in result[1]["result"]]
-        assert got == expected_entries
-
-    async def test_list_files_by_modified(self, setup_test_files):
+    async def test_list_files_by_modified(self, setup_test_files, assert_node_entries):
         """Test that list_files returns structured output sorted by modification time."""
         dir_specs = [
             ("newest", 0, 3000.0),
@@ -753,15 +694,9 @@ class TestListFiles:
         result = await mcp.call_tool(
             "list_files", {"path": str(test_path), "order_by": "modified", "sort": "ascending"}
         )
+        assert_node_entries(result, expected_entries)
 
-        # Verify the structured output - should be sorted by modification time (ascending)
-        assert isinstance(result, tuple)
-        assert len(result) == 2
-        assert isinstance(result[1], dict)
-        got = [NodeEntry(**entry) for entry in result[1]["result"]]
-        assert got == expected_entries
-
-    async def test_list_files_by_name_with_top_n(self, setup_test_files):
+    async def test_list_files_by_name_with_top_n(self, setup_test_files, assert_node_entries):
         """Test that list_files returns structured output sorted by name with top_n limit."""
         test_path, _ = setup_test_files(ALPHA_BETA_GAMMA_SPECS)
 
@@ -772,13 +707,9 @@ class TestListFiles:
         ]
 
         result = await mcp.call_tool("list_files", {"path": str(test_path), "order_by": "name", "top_n": 2})
-        assert isinstance(result, tuple)
-        assert len(result) == 2
-        assert isinstance(result[1], dict)
-        got = [NodeEntry(**entry) for entry in result[1]["result"]]
-        assert got == expected_entries
+        assert_node_entries(result, expected_entries)
 
-    async def test_list_files_by_name_descending(self, setup_test_files):
+    async def test_list_files_by_name_descending(self, setup_test_files, assert_node_entries):
         """Test that list_files returns structured output sorted by name in descending order."""
         test_path, _ = setup_test_files(ALPHA_BETA_GAMMA_SPECS)
 
@@ -789,14 +720,9 @@ class TestListFiles:
         ]
 
         result = await mcp.call_tool("list_files", {"path": str(test_path), "order_by": "name", "sort": "descending"})
+        assert_node_entries(result, expected_entries)
 
-        assert isinstance(result, tuple)
-        assert len(result) == 2
-        assert isinstance(result[1], dict)
-        got = [NodeEntry(**entry) for entry in result[1]["result"]]
-        assert got == expected_entries
-
-    async def test_list_files_by_size_descending(self, setup_test_files):
+    async def test_list_files_by_size_descending(self, setup_test_files, assert_node_entries):
         """Test that list_files returns structured output sorted by size in descending order."""
         test_path, _ = setup_test_files(SIZE_ORDERED_SPECS)
 
@@ -807,14 +733,9 @@ class TestListFiles:
         ]
 
         result = await mcp.call_tool("list_files", {"path": str(test_path), "order_by": "size", "sort": "descending"})
+        assert_node_entries(result, expected_entries)
 
-        assert isinstance(result, tuple)
-        assert len(result) == 2
-        assert isinstance(result[1], dict)
-        got = [NodeEntry(**entry) for entry in result[1]["result"]]
-        assert got == expected_entries
-
-    async def test_list_files_by_modified_descending(self, setup_test_files):
+    async def test_list_files_by_modified_descending(self, setup_test_files, assert_node_entries):
         """Test that list_files returns structured output sorted by modified time in descending order."""
         test_path, _ = setup_test_files(TIME_ORDERED_SPECS)
 
@@ -827,12 +748,7 @@ class TestListFiles:
         result = await mcp.call_tool(
             "list_files", {"path": str(test_path), "order_by": "modified", "sort": "descending"}
         )
-
-        assert isinstance(result, tuple)
-        assert len(result) == 2
-        assert isinstance(result[1], dict)
-        got = [NodeEntry(**entry) for entry in result[1]["result"]]
-        assert got == expected_entries
+        assert_node_entries(result, expected_entries)
 
     @pytest.mark.parametrize("invalid_param,invalid_value", [("order_by", "invalid"), ("sort", "invalid")])
     async def test_list_files_invalid_parameter(self, tmp_path, invalid_param, invalid_value):
@@ -885,7 +801,7 @@ class TestListFiles:
         assert "file_with_underscores" in names
         assert len(got) == 10
 
-    async def test_list_files_by_modified_with_top_n(self, setup_test_files):
+    async def test_list_files_by_modified_with_top_n(self, setup_test_files, assert_node_entries):
         """Test that list_files returns structured output sorted by modified time with top_n limit."""
         test_path, _ = setup_test_files(TIME_ORDERED_SPECS)
 
@@ -897,14 +813,9 @@ class TestListFiles:
         result = await mcp.call_tool(
             "list_files", {"path": str(test_path), "order_by": "modified", "sort": "ascending", "top_n": 2}
         )
+        assert_node_entries(result, expected_entries)
 
-        assert isinstance(result, tuple)
-        assert len(result) == 2
-        assert isinstance(result[1], dict)
-        got = [NodeEntry(**entry) for entry in result[1]["result"]]
-        assert got == expected_entries
-
-    async def test_list_files_by_size_with_top_n_descending(self, setup_test_files):
+    async def test_list_files_by_size_with_top_n_descending(self, setup_test_files, assert_node_entries):
         """Test that list_files returns structured output sorted by size with top_n limit and descending order."""
         test_path, _ = setup_test_files(SIZE_WITH_TINY_SPECS)
 
@@ -916,12 +827,7 @@ class TestListFiles:
         result = await mcp.call_tool(
             "list_files", {"path": str(test_path), "order_by": "size", "sort": "descending", "top_n": 2}
         )
-
-        assert isinstance(result, tuple)
-        assert len(result) == 2
-        assert isinstance(result[1], dict)
-        got = [NodeEntry(**entry) for entry in result[1]["result"]]
-        assert got == expected_entries
+        assert_node_entries(result, expected_entries)
 
     async def test_list_files_remote_execution_by_size(self, mocker):
         """Test list_files with remote execution for size ordering."""
