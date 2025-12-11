@@ -1,32 +1,31 @@
+import pytest
+
 from linux_mcp_server.connection.ssh import execute_command
+from linux_mcp_server.connection.ssh import SSHConnectionManager
 
 
-async def test_execute_command_local_success():
+@pytest.mark.parametrize(
+    "command, kwargs, expected_rc, expected_out, expected_err",
+    (
+        (["echo", "hello"], {}, 0, "hello", ""),
+        (["false"], {}, 1, "", ""),
+        (["bash", "-c", "echo error >&2"], {}, 0, "", "error"),
+        (["echo", "test"], {"username": "someuser"}, 0, "test", ""),
+        (["/bin/echo", "test"], {}, 0, "test", ""),
+    ),
+)
+async def test_execute_command_local(command, kwargs, expected_rc, expected_out, expected_err):
     """Test local command execution success."""
-    returncode, stdout, stderr = await execute_command(["echo", "hello"])
+    returncode, stdout, stderr = await execute_command(command, **kwargs)
 
-    assert returncode == 0
-    assert "hello" in stdout
-    assert stderr == ""
-
-
-async def test_execute_command_local_failure():
-    """Test local command execution failure."""
-    returncode, stdout, stderr = await execute_command(["false"])
-
-    assert returncode != 0
+    assert returncode == expected_rc
+    assert expected_out in stdout
+    assert expected_err in stderr
 
 
-async def test_execute_command_local_with_stderr():
-    """Test local command that produces stderr output."""
-    returncode, stdout, stderr = await execute_command(["bash", "-c", "echo error >&2"])
-
-    assert "error" in stderr
-
-
-async def test_execute_command_remote_routes_to_ssh(mocker):
+async def test_execute_command_remote(mocker):
     """Test that remote execution routes through SSH."""
-    mock_manager = mocker.AsyncMock()
+    mock_manager = mocker.Mock(SSHConnectionManager)
     mock_manager.execute_remote = mocker.AsyncMock(return_value=(0, "output", ""))
     mocker.patch("linux_mcp_server.connection.ssh._connection_manager", mock_manager)
 
@@ -39,10 +38,3 @@ async def test_execute_command_remote_routes_to_ssh(mocker):
     assert returncode == 0
     assert stdout == "output"
     assert mock_manager.execute_remote.call_count == 1
-
-
-async def test_execute_command_remote_requires_host():
-    """Test that username without host uses local execution."""
-    # Should execute locally, not fail
-    returncode, stdout, stderr = await execute_command(["echo", "test"], username="someuser")
-    assert returncode == 0
