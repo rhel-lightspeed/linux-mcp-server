@@ -335,7 +335,7 @@ async def execute_command(
 
     Args:
         command: Command and arguments to execute. If the command is not an absolute path
-                 it will be resolved to the full path before exeuction.
+                 it will be resolved to the full path before execution.
         host: Optional remote host address
         **kwargs: Additional arguments (reserved for future use)
 
