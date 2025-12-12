@@ -555,202 +555,198 @@ class TestListDirectories:
 
 @pytest.mark.skipif(sys.platform != "linux", reason="requires GNU version of coreutils/findutils")
 class TestListFiles:
+    """Test suite for list_files tool."""
+
+    # Test data for sorting tests - (order_by, sort, file_specs, expected_entries)
+    SORT_TEST_CASES = [
+        pytest.param(
+            "name",
+            "ascending",
+            [("alpha", 100, 1000.0), ("beta", 200, 2000.0), ("gamma", 300, 3000.0)],
+            [
+                NodeEntry(name="alpha", size=0, modified=0.0),
+                NodeEntry(name="beta", size=0, modified=0.0),
+                NodeEntry(name="gamma", size=0, modified=0.0),
+            ],
+            id="name_ascending",
+        ),
+        pytest.param(
+            "name",
+            "descending",
+            [("alpha", 100, 1000.0), ("beta", 200, 2000.0), ("gamma", 300, 3000.0)],
+            [
+                NodeEntry(name="gamma", size=0, modified=0.0),
+                NodeEntry(name="beta", size=0, modified=0.0),
+                NodeEntry(name="alpha", size=0, modified=0.0),
+            ],
+            id="name_descending",
+        ),
+        pytest.param(
+            "size",
+            "ascending",
+            [("small", 100, 1000.0), ("large", 300, 3000.0), ("medium", 200, 2000.0)],
+            [
+                NodeEntry(name="small", size=100, modified=0.0),
+                NodeEntry(name="medium", size=200, modified=0.0),
+                NodeEntry(name="large", size=300, modified=0.0),
+            ],
+            id="size_ascending",
+        ),
+        pytest.param(
+            "size",
+            "descending",
+            [("small", 100, 1000.0), ("large", 300, 3000.0), ("medium", 200, 2000.0)],
+            [
+                NodeEntry(name="large", size=300, modified=0.0),
+                NodeEntry(name="medium", size=200, modified=0.0),
+                NodeEntry(name="small", size=100, modified=0.0),
+            ],
+            id="size_descending",
+        ),
+        pytest.param(
+            "modified",
+            "ascending",
+            [("newest", 0, 3000.0), ("oldest", 100, 1000.0), ("middle", 100, 2000.0)],
+            [
+                NodeEntry(name="oldest", size=0, modified=1000.0),
+                NodeEntry(name="middle", size=0, modified=2000.0),
+                NodeEntry(name="newest", size=0, modified=3000.0),
+            ],
+            id="modified_ascending",
+        ),
+        pytest.param(
+            "modified",
+            "descending",
+            [("newest", 100, 3000.0), ("oldest", 100, 1000.0), ("middle", 100, 2000.0)],
+            [
+                NodeEntry(name="newest", size=0, modified=3000.0),
+                NodeEntry(name="middle", size=0, modified=2000.0),
+                NodeEntry(name="oldest", size=0, modified=1000.0),
+            ],
+            id="modified_descending",
+        ),
+    ]
+
+    # Test data for top_n tests - (order_by, sort, top_n, file_specs, expected_entries)
+    TOP_N_TEST_CASES = [
+        pytest.param(
+            "name",
+            "ascending",
+            2,
+            [("alpha", 100, 1000.0), ("beta", 200, 2000.0), ("gamma", 300, 3000.0)],
+            [
+                NodeEntry(name="alpha", size=0, modified=0.0),
+                NodeEntry(name="beta", size=0, modified=0.0),
+            ],
+            id="name_top_n",
+        ),
+        pytest.param(
+            "modified",
+            "ascending",
+            2,
+            [("newest", 100, 3000.0), ("oldest", 100, 1000.0), ("middle", 100, 2000.0)],
+            [
+                NodeEntry(name="oldest", size=0, modified=1000.0),
+                NodeEntry(name="middle", size=0, modified=2000.0),
+            ],
+            id="modified_top_n",
+        ),
+        pytest.param(
+            "size",
+            "descending",
+            2,
+            [("small", 100, 1000.0), ("large", 300, 3000.0), ("medium", 200, 2000.0), ("tiny", 50, 500.0)],
+            [
+                NodeEntry(name="large", size=300, modified=0.0),
+                NodeEntry(name="medium", size=200, modified=0.0),
+            ],
+            id="size_descending_top_n",
+        ),
+    ]
+
+    # Test data for remote execution - (order_by, mock_output, expected_entries)
+    REMOTE_EXECUTION_CASES = [
+        pytest.param(
+            "size",
+            "100\t/remote/path/small\n300\t/remote/path/large\n200\t/remote/path/medium\n500\t/remote/path",
+            [
+                NodeEntry(name="small", size=100, modified=0.0),
+                NodeEntry(name="medium", size=200, modified=0.0),
+                NodeEntry(name="large", size=300, modified=0.0),
+            ],
+            id="remote_size",
+        ),
+        pytest.param(
+            "name",
+            "gamma\nalpha\nbeta",
+            [
+                NodeEntry(name="alpha", size=0, modified=0.0),
+                NodeEntry(name="beta", size=0, modified=0.0),
+                NodeEntry(name="gamma", size=0, modified=0.0),
+            ],
+            id="remote_name",
+        ),
+        pytest.param(
+            "modified",
+            "3000.0\tnewest\n1000.0\toldest\n2000.0\tmiddle",
+            [
+                NodeEntry(name="oldest", size=0, modified=1000.0),
+                NodeEntry(name="middle", size=0, modified=2000.0),
+                NodeEntry(name="newest", size=0, modified=3000.0),
+            ],
+            id="remote_modified",
+        ),
+    ]
+
     async def test_list_files_returns_structured_output(self, setup_test_files):
         """Test that list_files returns structured output."""
-        file_specs = [
-            ("alpha", 100, 1000.0),
-            ("beta", 200, 2000.0),
-            ("gamma", 300, 3000.0),
-        ]
+        test_path, _ = setup_test_files([("alpha", 100, 1000.0)])
+
+        result = await mcp.call_tool("list_files", {"path": str(test_path), "order_by": "name"})
+
+        assert isinstance(result, tuple)
+        assert len(result) == 2
+        assert isinstance(result[1], dict)
+        assert result[1]["result"] is not None
+
+    @pytest.mark.parametrize(("order_by", "sort", "file_specs", "expected_entries"), SORT_TEST_CASES)
+    async def test_list_files_sorting(self, setup_test_files, order_by, sort, file_specs, expected_entries):
+        """Test list_files with various sorting options."""
         test_path, _ = setup_test_files(file_specs)
 
-        result = await mcp.call_tool("list_files", {"path": str(test_path), "order_by": "name"})
+        result = await mcp.call_tool("list_files", {"path": str(test_path), "order_by": order_by, "sort": sort})
 
-        # Verify the entire result structure
-        assert isinstance(result, tuple)
-        assert len(result) == 2
-        assert isinstance(result[1], dict)
-        files = list[NodeEntry](result[1]["result"])
-        assert files is not None
+        verify_node_entries(result, expected_entries)
 
-    async def test_list_files_by_name(self, setup_test_files):
-        """Test that list_files returns structured output sorted by name."""
-        dir_specs = [
-            ("alpha", 100, 1000.0),
-            ("beta", 200, 2000.0),
-            ("gamma", 300, 3000.0),
-        ]
-        test_path, _ = setup_test_files(dir_specs)
-
-        # When ordering by name, only the name field is populated
-        expected_entries = [
-            NodeEntry(name="alpha", size=0, modified=0.0),
-            NodeEntry(name="beta", size=0, modified=0.0),
-            NodeEntry(name="gamma", size=0, modified=0.0),
-        ]
-
-        result = await mcp.call_tool("list_files", {"path": str(test_path), "order_by": "name"})
-
-        # Verify the structured output
-        assert isinstance(result, tuple)
-        assert len(result) == 2
-        assert isinstance(result[1], dict)
-        got = [NodeEntry(**entry) for entry in result[1]["result"]]
-        assert got == expected_entries
-
-    async def test_list_files_by_size(self, setup_test_files):
-        """Test that list_files returns structured output sorted by size."""
-        dir_specs = [
-            ("small", 100, 1000.0),
-            ("large", 300, 3000.0),
-            ("medium", 200, 2000.0),
-        ]
-        test_path, _ = setup_test_files(dir_specs)
-
-        expected_entries = [
-            NodeEntry(name="small", size=100, modified=0.0),
-            NodeEntry(name="medium", size=200, modified=0.0),
-            NodeEntry(name="large", size=300, modified=0.0),
-        ]
-
-        result = await mcp.call_tool("list_files", {"path": str(test_path), "order_by": "size", "sort": "ascending"})
-
-        # Verify the structured output - should be sorted by size (ascending)
-        assert isinstance(result, tuple)
-        assert len(result) == 2
-        assert isinstance(result[1], dict)
-        got = [NodeEntry(**entry) for entry in result[1]["result"]]
-        assert got == expected_entries
-
-    async def test_list_files_by_modified(self, setup_test_files):
-        """Test that list_files returns structured output sorted by modification time."""
-        dir_specs = [
-            ("newest", 0, 3000.0),
-            ("oldest", 100, 1000.0),
-            ("middle", 100, 2000.0),
-        ]
-        test_path, _ = setup_test_files(dir_specs)
-
-        # When ordering by modified, only name and modified fields are populated
-        expected_entries = [
-            NodeEntry(name="oldest", size=0, modified=1000.0),
-            NodeEntry(name="middle", size=0, modified=2000.0),
-            NodeEntry(name="newest", size=0, modified=3000.0),
-        ]
+    @pytest.mark.parametrize(("order_by", "sort", "top_n", "file_specs", "expected_entries"), TOP_N_TEST_CASES)
+    async def test_list_files_with_top_n(self, setup_test_files, order_by, sort, top_n, file_specs, expected_entries):
+        """Test list_files with top_n limit."""
+        test_path, _ = setup_test_files(file_specs)
 
         result = await mcp.call_tool(
-            "list_files", {"path": str(test_path), "order_by": "modified", "sort": "ascending"}
+            "list_files", {"path": str(test_path), "order_by": order_by, "sort": sort, "top_n": top_n}
         )
 
-        # Verify the structured output - should be sorted by modification time (ascending)
-        assert isinstance(result, tuple)
-        assert len(result) == 2
-        assert isinstance(result[1], dict)
-        got = [NodeEntry(**entry) for entry in result[1]["result"]]
-        assert got == expected_entries
+        verify_node_entries(result, expected_entries)
 
-    async def test_list_files_by_name_with_top_n(self, setup_test_files):
-        """Test that list_files returns structured output sorted by name with top_n limit."""
-        dir_specs = [
-            ("alpha", 100, 1000.0),
-            ("beta", 200, 2000.0),
-            ("gamma", 300, 3000.0),
-        ]
-        test_path, _ = setup_test_files(dir_specs)
+    @pytest.mark.parametrize("order_by", ["name", "size", "modified"])
+    async def test_list_files_empty_directory(self, tmp_path, order_by):
+        """Test list_files with empty directory."""
+        result = await mcp.call_tool("list_files", {"path": str(tmp_path), "order_by": order_by})
 
-        # When ordering by name, only name field is populated
-        expected_entries = [
-            NodeEntry(name="alpha", size=0, modified=0.0),
-            NodeEntry(name="beta", size=0, modified=0.0),
-        ]
+        verify_node_entries(result, [])
 
-        result = await mcp.call_tool("list_files", {"path": str(test_path), "order_by": "name", "top_n": 2})
-        assert isinstance(result, tuple)
-        assert len(result) == 2
-        assert isinstance(result[1], dict)
-        got = [NodeEntry(**entry) for entry in result[1]["result"]]
-        assert got == expected_entries
-
-    async def test_list_files_by_name_descending(self, setup_test_files):
-        """Test that list_files returns structured output sorted by name in descending order."""
-        dir_specs = [
-            ("alpha", 100, 1000.0),
-            ("beta", 200, 2000.0),
-            ("gamma", 300, 3000.0),
-        ]
-        test_path, _ = setup_test_files(dir_specs)
-
-        expected_entries = [
-            NodeEntry(name="gamma", size=0, modified=0.0),
-            NodeEntry(name="beta", size=0, modified=0.0),
-            NodeEntry(name="alpha", size=0, modified=0.0),
-        ]
-
-        result = await mcp.call_tool("list_files", {"path": str(test_path), "order_by": "name", "sort": "descending"})
-
-        assert isinstance(result, tuple)
-        assert len(result) == 2
-        assert isinstance(result[1], dict)
-        got = [NodeEntry(**entry) for entry in result[1]["result"]]
-        assert got == expected_entries
-
-    async def test_list_files_by_size_descending(self, setup_test_files):
-        """Test that list_files returns structured output sorted by size in descending order."""
-        dir_specs = [
-            ("small", 100, 1000.0),
-            ("large", 300, 3000.0),
-            ("medium", 200, 2000.0),
-        ]
-        test_path, _ = setup_test_files(dir_specs)
-
-        expected_entries = [
-            NodeEntry(name="large", size=300, modified=0.0),
-            NodeEntry(name="medium", size=200, modified=0.0),
-            NodeEntry(name="small", size=100, modified=0.0),
-        ]
-
-        result = await mcp.call_tool("list_files", {"path": str(test_path), "order_by": "size", "sort": "descending"})
-
-        assert isinstance(result, tuple)
-        assert len(result) == 2
-        assert isinstance(result[1], dict)
-        got = [NodeEntry(**entry) for entry in result[1]["result"]]
-        assert got == expected_entries
-
-    async def test_list_files_by_modified_descending(self, setup_test_files):
-        """Test that list_files returns structured output sorted by modified time in descending order."""
-        dir_specs = [
-            ("newest", 100, 3000.0),
-            ("oldest", 100, 1000.0),
-            ("middle", 100, 2000.0),
-        ]
-        test_path, _ = setup_test_files(dir_specs)
-
-        expected_entries = [
-            NodeEntry(name="newest", size=0, modified=3000.0),
-            NodeEntry(name="middle", size=0, modified=2000.0),
-            NodeEntry(name="oldest", size=0, modified=1000.0),
-        ]
-
-        result = await mcp.call_tool(
-            "list_files", {"path": str(test_path), "order_by": "modified", "sort": "descending"}
-        )
-
-        assert isinstance(result, tuple)
-        assert len(result) == 2
-        assert isinstance(result[1], dict)
-        got = [NodeEntry(**entry) for entry in result[1]["result"]]
-        assert got == expected_entries
-
-    async def test_list_files_invalid_order_by(self, tmp_path):
-        """Test that invalid order_by parameter raises ValueError."""
-        with pytest.raises(ToolError, match="1 validation error"):
-            await mcp.call_tool("list_files", {"path": str(tmp_path), "order_by": "invalid"})
-
-    async def test_list_files_invalid_sort(self, tmp_path):
-        """Test that invalid sort parameter raises ValueError."""
-        with pytest.raises(ToolError, match="1 validation error"):
-            await mcp.call_tool("list_files", {"path": str(tmp_path), "sort": "invalid"})
+    @pytest.mark.parametrize(
+        ("param", "value", "match"),
+        [
+            pytest.param("order_by", "invalid", "1 validation error", id="invalid_order_by"),
+            pytest.param("sort", "invalid", "1 validation error", id="invalid_sort"),
+        ],
+    )
+    async def test_list_files_invalid_params(self, tmp_path, param, value, match):
+        """Test list_files with invalid parameters."""
+        with pytest.raises(ToolError, match=match):
+            await mcp.call_tool("list_files", {"path": str(tmp_path), param: value})
 
     async def test_list_files_invalid_path(self, tmp_path):
         """Test with non-existent path raises ToolError."""
@@ -763,49 +759,11 @@ class TestListFiles:
         with pytest.raises(ToolError, match="Permission denied to read"):
             await mcp.call_tool("list_files", {"path": str(restricted_path)})
 
-    async def test_list_files_empty_directory_by_name(self, tmp_path):
-        """Test list_files with a directory containing no subfiles (name ordering)."""
-        result = await mcp.call_tool("list_files", {"path": str(tmp_path), "order_by": "name"})
-
-        assert isinstance(result, tuple)
-        assert len(result) == 2
-        assert isinstance(result[1], dict)
-        got = [NodeEntry(**entry) for entry in result[1]["result"]]
-        assert got == []
-
-    async def test_list_files_empty_directory_by_size(self, tmp_path):
-        """Test list_files with a directory containing no subfiles (size ordering)."""
-        result = await mcp.call_tool("list_files", {"path": str(tmp_path), "order_by": "size"})
-
-        assert isinstance(result, tuple)
-        assert len(result) == 2
-        assert isinstance(result[1], dict)
-        got = [NodeEntry(**entry) for entry in result[1]["result"]]
-        assert got == []
-
-    async def test_list_files_empty_directory_by_modified(self, tmp_path):
-        """Test list_files with a directory containing no subfiles (modified ordering)."""
-        result = await mcp.call_tool("list_files", {"path": str(tmp_path), "order_by": "modified"})
-
-        assert isinstance(result, tuple)
-        assert len(result) == 2
-        assert isinstance(result[1], dict)
-        got = [NodeEntry(**entry) for entry in result[1]["result"]]
-        assert got == []
-
     async def test_list_files_special_characters_in_names(self, tmp_path):
-        """Test list_files handles directory names with special characters."""
-        # Create files with special characters
-        (tmp_path / "file with spaces").touch()
-        (tmp_path / "file-with-dashes").touch()
-        (tmp_path / "file_with_underscores").touch()
-        (tmp_path / "file_with_@@$!($)@").touch()
-        (tmp_path / "file_with_📁.txt").touch()
-        (tmp_path / "file_with_✨.md").touch()
-        (tmp_path / "file_with_question?.txt").touch()
-        (tmp_path / "file_with_angle<test>.log").touch()
-        (tmp_path / "file_with_pipe|symbol.txt").touch()
-        (tmp_path / "file_with_colon:check.md").touch()
+        """Test list_files handles file names with special characters."""
+        special_files = ["file with spaces", "file-with-dashes", "file_with_underscores"]
+        for name in special_files:
+            (tmp_path / name).touch()
 
         result = await mcp.call_tool("list_files", {"path": str(tmp_path), "order_by": "name"})
 
@@ -813,187 +771,34 @@ class TestListFiles:
         assert len(result) == 2
         assert isinstance(result[1], dict)
         got = [NodeEntry(**entry) for entry in result[1]["result"]]
-
-        # Verify all directory names are correctly parsed
         names = [entry.name for entry in got]
-        assert "file with spaces" in names
-        assert "file-with-dashes" in names
-        assert "file_with_underscores" in names
-        assert len(got) == 10
+        for expected_name in special_files:
+            assert expected_name in names
+        assert len(got) == 3
 
-    async def test_list_files_by_modified_with_top_n(self, setup_test_files):
-        """Test that list_files returns structured output sorted by modified time with top_n limit."""
-        dir_specs = [
-            ("newest", 100, 3000.0),
-            ("oldest", 100, 1000.0),
-            ("middle", 100, 2000.0),
-        ]
-        test_path, _ = setup_test_files(dir_specs)
-
-        expected_entries = [
-            NodeEntry(name="oldest", size=0, modified=1000.0),
-            NodeEntry(name="middle", size=0, modified=2000.0),
-        ]
-
-        result = await mcp.call_tool(
-            "list_files", {"path": str(test_path), "order_by": "modified", "sort": "ascending", "top_n": 2}
-        )
-
-        assert isinstance(result, tuple)
-        assert len(result) == 2
-        assert isinstance(result[1], dict)
-        got = [NodeEntry(**entry) for entry in result[1]["result"]]
-        assert got == expected_entries
-
-    async def test_list_files_by_size_with_top_n_descending(self, setup_test_files):
-        """Test that list_files returns structured output sorted by size with top_n limit and descending order."""
-        dir_specs = [
-            ("small", 100, 1000.0),
-            ("large", 300, 3000.0),
-            ("medium", 200, 2000.0),
-            ("tiny", 50, 500.0),
-        ]
-        test_path, _ = setup_test_files(dir_specs)
-
-        expected_entries = [
-            NodeEntry(name="large", size=300, modified=0.0),
-            NodeEntry(name="medium", size=200, modified=0.0),
-        ]
-
-        result = await mcp.call_tool(
-            "list_files", {"path": str(test_path), "order_by": "size", "sort": "descending", "top_n": 2}
-        )
-
-        assert isinstance(result, tuple)
-        assert len(result) == 2
-        assert isinstance(result[1], dict)
-        got = [NodeEntry(**entry) for entry in result[1]["result"]]
-        assert got == expected_entries
-
-    async def test_list_files_remote_execution_by_size(self, mocker):
-        """Test list_files with remote execution for size ordering."""
-        # Mock du command output
-        mock_execute_command = mocker.patch(
-            "linux_mcp_server.tools.storage.execute_command",
-            AsyncMock(
-                return_value=(
-                    0,
-                    "100\t/remote/path/small\n300\t/remote/path/large\n200\t/remote/path/medium\n500\t/remote/path",
-                    "",
-                )
-            ),
-        )
+    @pytest.mark.parametrize(("order_by", "mock_output", "expected_entries"), REMOTE_EXECUTION_CASES)
+    async def test_list_files_remote_execution(
+        self, mock_storage_execute_command, order_by, mock_output, expected_entries
+    ):
+        """Test list_files with remote execution."""
+        mock_storage_execute_command.return_value = (0, mock_output, "")
 
         result = await mcp.call_tool(
             "list_files",
-            {"path": "/remote/path", "order_by": "size", "host": "remote.server.com"},
+            {"path": "/remote/path", "order_by": order_by, "host": "remote.server.com"},
         )
 
-        assert isinstance(result, tuple)
-        assert len(result) == 2
-        assert isinstance(result[1], dict)
-        got = [NodeEntry(**entry) for entry in result[1]["result"]]
-
-        # Verify results are sorted by size
-        assert len(got) == 3
-        assert got[0].name == "small"
-        assert got[0].size == 100
-        assert got[1].name == "medium"
-        assert got[1].size == 200
-        assert got[2].name == "large"
-        assert got[2].size == 300
+        verify_node_entries(result, expected_entries)
 
         # Verify execute_command was called with host
-        mock_execute_command.assert_called_once()
-        call_kwargs = mock_execute_command.call_args[1]
-        assert call_kwargs["host"] == "remote.server.com"
+        mock_storage_execute_command.assert_called_once()
+        assert mock_storage_execute_command.call_args[1]["host"] == "remote.server.com"
 
-    async def test_list_files_remote_execution_by_name(self, mocker):
-        """Test list_files with remote execution for name ordering."""
-        mock_execute_command = mocker.patch(
-            "linux_mcp_server.tools.storage.execute_command",
-            AsyncMock(
-                return_value=(
-                    0,
-                    "gamma\nalpha\nbeta",
-                    "",
-                )
-            ),
-        )
-
-        result = await mcp.call_tool(
-            "list_files",
-            {"path": "/remote/path", "order_by": "name", "host": "remote.server.com"},
-        )
-
-        assert isinstance(result, tuple)
-        assert len(result) == 2
-        assert isinstance(result[1], dict)
-        got = [NodeEntry(**entry) for entry in result[1]["result"]]
-
-        # Verify results are sorted by name
-        assert len(got) == 3
-        assert got[0].name == "alpha"
-        assert got[1].name == "beta"
-        assert got[2].name == "gamma"
-
-        # Verify execute_command was called with host
-        mock_execute_command.assert_called_once()
-        call_kwargs = mock_execute_command.call_args[1]
-        assert call_kwargs["host"] == "remote.server.com"
-
-    async def test_list_files_remote_execution_by_modified(self, mocker):
-        """Test list_files with remote execution for modified ordering."""
-        mock_execute_command = mocker.patch(
-            "linux_mcp_server.tools.storage.execute_command",
-            AsyncMock(
-                return_value=(
-                    0,
-                    "3000.0\tnewest\n1000.0\toldest\n2000.0\tmiddle",
-                    "",
-                )
-            ),
-        )
-
-        result = await mcp.call_tool(
-            "list_files",
-            {"path": "/remote/path", "order_by": "modified", "host": "remote.server.com"},
-        )
-
-        assert isinstance(result, tuple)
-        assert len(result) == 2
-        assert isinstance(result[1], dict)
-        got = [NodeEntry(**entry) for entry in result[1]["result"]]
-
-        # Verify results are sorted by modified time
-        assert len(got) == 3
-        assert got[0].name == "oldest"
-        assert got[0].modified == 1000.0
-        assert got[1].name == "middle"
-        assert got[1].modified == 2000.0
-        assert got[2].name == "newest"
-        assert got[2].modified == 3000.0
-
-        # Verify execute_command was called with host
-        mock_execute_command.assert_called_once()
-        call_kwargs = mock_execute_command.call_args[1]
-        assert call_kwargs["host"] == "remote.server.com"
-
-    async def test_list_files_remote_skips_path_validation(self, mocker):
+    async def test_list_files_remote_skips_path_validation(self, mock_storage_execute_command):
         """Test that remote execution skips local path validation."""
-        # Mock du command output
-        mocker.patch(
-            "linux_mcp_server.tools.storage.execute_command",
-            AsyncMock(
-                return_value=(
-                    0,
-                    "100\t/nonexistent/path",
-                    "",
-                )
-            ),
-        )
+        mock_storage_execute_command.return_value = (0, "100\t/nonexistent/path", "")
 
-        # This path doesn't e'xist locally but should not raise an error for remote execution
+        # This path doesn't exist locally but should not raise an error for remote execution
         result = await mcp.call_tool(
             "list_files",
             {"path": "/nonexistent/remote/path", "order_by": "size", "host": "remote.server.com"},
@@ -1001,17 +806,12 @@ class TestListFiles:
 
         assert isinstance(result, tuple)
         assert len(result) == 2
-        # Should succeed even though path doesn't exist locally
         assert isinstance(result[1], dict)
 
-    @pytest.mark.parametrize(("order_by"), (("size",), ("name",), ("modified",)))
-    async def test_list_files_find_command_failure_order_by(self, mocker, order_by):
-        """Test list_files handles find command failures for size ordering."""
-        # Mock du command to return non-zero returncode
-        mocker.patch(
-            "linux_mcp_server.tools.storage.execute_command",
-            return_value=(1, "", "find: '/some/path': Permission denied"),
-        )
+    @pytest.mark.parametrize("order_by", ["size", "name", "modified"])
+    async def test_list_files_command_failure(self, mock_storage_execute_command, order_by):
+        """Test list_files handles command failures."""
+        mock_storage_execute_command.return_value = (1, "", "command failed")
 
         with pytest.raises(ToolError, match="Error executing tool list_files"):
             await mcp.call_tool(
