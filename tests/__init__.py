@@ -42,6 +42,13 @@ def verify_node_entries(result, expected: list["NodeEntry"]) -> list["NodeEntry"
     assert isinstance(result[1], dict)
     assert "result" in result[1]
     assert isinstance(result[1]["result"], list)
+
+    # Validate dict structure before constructing NodeEntry objects
+    required_keys = {"name", "size", "modified"}
+    for entry in result[1]["result"]:
+        assert isinstance(entry, dict), f"Expected dict, got {type(entry)}"
+        assert required_keys <= set(entry.keys()), f"Missing required keys in {entry}"
+
     actual = [NodeEntry(**entry) for entry in result[1]["result"]]
     assert actual == expected
     return actual
