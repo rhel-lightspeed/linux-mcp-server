@@ -17,6 +17,8 @@ dependencies = [
     "bcrypt",
     "pydantic-settings>=2.12.0",
     "pydantic>=2.12.4",
+    "ansible-core>=2.15.0,<3.0",
+    "ansible-runner>=2.3.0,<3.0",
 ]
 dynamic = ["version"]
 license-files = ["LICENSE", "licenses/GPL-3.0.txt"]
