@@ -8,12 +8,14 @@ from pathlib import Path
 from unittest.mock import AsyncMock
 from unittest.mock import MagicMock
 
+import psutil
 import pytest
 
 from mcp.server.fastmcp.exceptions import ToolError
 
 from linux_mcp_server.server import mcp
 from linux_mcp_server.tools.storage import NodeEntry
+from tests import verify_result_structure
 
 
 @pytest.fixture
@@ -110,169 +112,175 @@ def restricted_path(tmp_path):
     restricted_path.chmod(0o755)
 
 
+@pytest.fixture
+def mock_disk_io_stats():
+    """Fixture providing mock disk I/O statistics."""
+    mock_stats = MagicMock(spec=psutil._pslinux.sdiskio)
+    mock_stats.read_bytes = 1024 * 1024 * 1024  # 1 GB
+    mock_stats.write_bytes = 512 * 1024 * 1024  # 512 MB
+    mock_stats.read_count = 1000
+    mock_stats.write_count = 500
+    return {"sda": mock_stats}
+
+
+@pytest.fixture
+def mock_storage_execute_command(mock_execute_command_for):
+    """Storage-specific execute_command mock using the shared factory."""
+    return mock_execute_command_for("linux_mcp_server.tools.storage")
+
+
 class TestListBlockDevices:
-    async def test_list_block_devices_lsblk_success(self, mocker):
-        """Test list_block_devices with successful lsblk command."""
-        mock_execute_command = AsyncMock(
-            return_value=(
-                0,
+    """Test suite for list_block_devices tool."""
+
+    @pytest.mark.parametrize(
+        ("lsblk_output", "disk_io_stats", "expected_content", "io_stats_expected"),
+        [
+            pytest.param(
                 "NAME   SIZE TYPE MOUNTPOINT FSTYPE MODEL\nsda    1TB  disk            \nsda1   512G part /          ext4",
+                {},
+                ["=== Block Devices ===", "sda", "sda1"],
+                False,
+                id="lsblk_success_no_io_stats",
+            ),
+            pytest.param(
+                "NAME   SIZE TYPE MOUNTPOINT\nsda    1TB  disk",
+                None,  # Will be replaced with mock_disk_io_stats fixture in test
+                [
+                    "=== Block Devices ===",
+                    "sda",
+                    "=== Disk I/O Statistics (per disk) ===",
+                    "Read Count: 1000",
+                    "Write Count: 500",
+                ],
+                True,
+                id="lsblk_success_with_io_stats",
+            ),
+            pytest.param(
                 "",
-            )
-        )
-        mocker.patch("linux_mcp_server.tools.storage.execute_command", mock_execute_command)
+                {},
+                ["=== Block Devices ==="],
+                False,
+                id="lsblk_success_empty_output",
+            ),
+        ],
+    )
+    async def test_list_block_devices_lsblk_success(
+        self,
+        mocker,
+        lsblk_output,
+        disk_io_stats,
+        expected_content,
+        io_stats_expected,
+        mock_disk_io_stats,
+        mock_storage_execute_command,
+    ):
+        """Test list_block_devices with successful lsblk command and various disk I/O scenarios."""
+        # None in parameterization signals "use the mock_disk_io_stats fixture"
+        # This keeps parameterization clean while reusing shared fixture data
+        if disk_io_stats is None:
+            disk_io_stats = mock_disk_io_stats
+
+        mock_storage_execute_command.return_value = (0, lsblk_output, "")
+        mocker.patch("linux_mcp_server.tools.storage.psutil.disk_io_counters", return_value=disk_io_stats)
 
         result = await mcp.call_tool("list_block_devices", {})
+        output = verify_result_structure(result)
 
-        # Verify result structure
-        assert isinstance(result, tuple)
-        assert len(result) == 2
-        assert isinstance(result[0], list)
-        output = result[0][0].text
+        # Verify expected content
+        for content in expected_content:
+            assert content in output
 
-        assert "=== Block Devices ===" in output
-        assert "sda" in output
-        assert "sda1" in output
+        # Verify I/O stats presence/absence
+        if io_stats_expected:
+            assert "=== Disk I/O Statistics (per disk) ===" in output
+        else:
+            assert "=== Disk I/O Statistics (per disk) ===" not in output
 
         # Verify lsblk was called with correct arguments
-        mock_execute_command.assert_called_once()
-        args = mock_execute_command.call_args[0][0]
+        mock_storage_execute_command.assert_called_once()
+        args = mock_storage_execute_command.call_args[0][0]
         assert args[0] == "lsblk"
         assert "-o" in args
 
-    async def test_list_block_devices_with_disk_io_stats(self, mocker):
-        """Test list_block_devices includes disk I/O statistics for local execution."""
-        mocker.patch(
-            "linux_mcp_server.tools.storage.execute_command",
-            AsyncMock(
-                return_value=(
-                    0,
-                    "NAME   SIZE TYPE MOUNTPOINT\nsda    1TB  disk",
-                    "",
-                )
+    @pytest.mark.parametrize(
+        ("execute_side_effect", "partition_device", "partition_mountpoint", "partition_fstype", "expected_header"),
+        [
+            pytest.param(
+                AsyncMock(return_value=(1, "", "command failed")),
+                "/dev/sda1",
+                "/",
+                "ext4",
+                "=== Block Devices (fallback) ===",
+                id="lsblk_non_zero_returncode",
             ),
-        )
+            pytest.param(
+                FileNotFoundError("lsblk not found"),
+                "/dev/nvme0n1p1",
+                "/boot",
+                "vfat",
+                "=== Block Devices ===",
+                id="lsblk_file_not_found",
+            ),
+        ],
+    )
+    async def test_list_block_devices_psutil_fallback(
+        self,
+        mocker,
+        execute_side_effect,
+        partition_device,
+        partition_mountpoint,
+        partition_fstype,
+        expected_header,
+    ):
+        """Test list_block_devices falls back to psutil when lsblk is unavailable or fails."""
+        # Mock execute_command to fail in different ways
+        mocker.patch("linux_mcp_server.tools.storage.execute_command", side_effect=execute_side_effect)
 
-        # Create mock disk I/O stats
-        mock_stats = MagicMock()
-        mock_stats.read_bytes = 1024 * 1024 * 1024  # 1 GB
-        mock_stats.write_bytes = 512 * 1024 * 1024  # 512 MB
-        mock_stats.read_count = 1000
-        mock_stats.write_count = 500
-
-        mocker.patch("linux_mcp_server.tools.storage.psutil.disk_io_counters", return_value={"sda": mock_stats})
-
-        result = await mcp.call_tool("list_block_devices", {})
-        assert isinstance(result, tuple)
-        assert len(result) == 2
-        assert isinstance(result[0], list)
-        output = result[0][0].text
-
-        assert "=== Disk I/O Statistics (per disk) ===" in output
-        assert "sda:" in output
-        assert "Read:" in output
-        assert "Write:" in output
-        assert "Read Count: 1000" in output
-        assert "Write Count: 500" in output
-
-    async def test_list_block_devices_with_no_disk_io_stats(self, mocker):
-        """Test list_block_devices includes disk I/O statistics for local execution."""
-        mocker.patch("linux_mcp_server.tools.storage.execute_command", return_value=(0, "", ""))
-        mocker.patch("linux_mcp_server.tools.storage.psutil.disk_io_counters", return_value={})
-
-        result = await mcp.call_tool("list_block_devices", {})
-        assert isinstance(result, tuple)
-        assert len(result) == 2
-        assert isinstance(result[0], list)
-        output = result[0][0].text
-
-        assert "=== Disk I/O Statistics (per disk) ===" not in output
-
-    async def test_list_block_devices_lsblk_fallback(self, mocker):
-        """Test list_block_devices falls back to psutil when lsblk fails."""
-        # lsblk returns non-zero
-        mocker.patch(
-            "linux_mcp_server.tools.storage.execute_command", AsyncMock(return_value=(1, "", "command failed"))
-        )
-
-        # Mock partition data
-        mock_partition = MagicMock()
-        mock_partition.device = "/dev/sda1"
-        mock_partition.mountpoint = "/"
-        mock_partition.fstype = "ext4"
+        # Create mock partition with test-specific values
+        # Use spec from an actual partition instance to catch typos while satisfying type checker
+        real_partitions = psutil.disk_partitions()
+        spec_source = real_partitions[0] if real_partitions else None
+        mock_partition = MagicMock(spec=spec_source)
+        mock_partition.device = partition_device
+        mock_partition.mountpoint = partition_mountpoint
+        mock_partition.fstype = partition_fstype
         mock_partition.opts = "rw,relatime"
 
         mocker.patch("linux_mcp_server.tools.storage.psutil.disk_partitions", return_value=[mock_partition])
 
         result = await mcp.call_tool("list_block_devices", {})
-        assert isinstance(result, tuple)
-        assert len(result) == 2
-        assert isinstance(result[0], list)
-        output = result[0][0].text
+        output = verify_result_structure(result)
 
-        assert "=== Block Devices (fallback) ===" in output
-        assert "/dev/sda1" in output
-        assert "Mountpoint: /" in output
-        assert "Filesystem: ext4" in output
+        # Verify fallback behavior
+        assert expected_header in output
+        assert partition_device in output
+        assert f"Mountpoint: {partition_mountpoint}" in output
+        assert f"Filesystem: {partition_fstype}" in output
+        assert "Options: rw,relatime" in output
 
-    async def test_list_block_devices_file_not_found(self, mocker):
-        """Test list_block_devices when lsblk is not available."""
-        # lsblk not found
-        mocker.patch("linux_mcp_server.tools.storage.execute_command", side_effect=FileNotFoundError("lsblk not found"))
-
-        # Mock partition data
-        mock_partition = MagicMock()
-        mock_partition.device = "/dev/nvme0n1p1"
-        mock_partition.mountpoint = "/boot"
-        mock_partition.fstype = "vfat"
-        mock_partition.opts = "rw"
-
-        mocker.patch("linux_mcp_server.tools.storage.psutil.disk_partitions", return_value=[mock_partition])
-
-        result = await mcp.call_tool("list_block_devices", {})
-        assert isinstance(result, tuple)
-        assert len(result) == 2
-        assert isinstance(result[0], list)
-        output = result[0][0].text
-
-        assert "=== Block Devices ===" in output
-        assert "/dev/nvme0n1p1" in output
-        assert "Mountpoint: /boot" in output
-
-    async def test_list_block_devices_remote_execution(self, mocker):
+    async def test_list_block_devices_remote_execution(self, mocker, mock_disk_io_stats, mock_storage_execute_command):
         """Test list_block_devices with remote execution (no disk I/O stats)."""
-        mock_execute_command = AsyncMock(
-            return_value=(
-                0,
-                "NAME   SIZE TYPE\nsda    1TB  disk",
-                "",
-            )
-        )
-        mocker.patch("linux_mcp_server.tools.storage.execute_command", mock_execute_command)
+        mock_storage_execute_command.return_value = (0, "NAME   SIZE TYPE\nsda    1TB  disk", "")
 
-        # Mock disk I/O to ensure it's not called or used
-        mock_stats = MagicMock()
-        mock_stats.read_bytes = 1024
-        mocker.patch("linux_mcp_server.tools.storage.psutil.disk_io_counters", return_value={"sda": mock_stats})
+        # Mock disk I/O counters to verify they're not used for remote execution
+        mocker.patch("linux_mcp_server.tools.storage.psutil.disk_io_counters", return_value=mock_disk_io_stats)
 
         result = await mcp.call_tool("list_block_devices", {"host": "remote.host.com"})
-        assert isinstance(result, tuple)
-        assert len(result) == 2
-        assert isinstance(result[0], list)
-        output = result[0][0].text
+        output = verify_result_structure(result)
 
-        # Should NOT include disk I/O stats for remote execution
-        assert "=== Disk I/O Statistics" not in output
+        # Verify remote execution behavior
         assert "=== Block Devices ===" in output
+        assert "sda" in output
+        assert "=== Disk I/O Statistics" not in output
 
-        # Verify execute_command was called with host
-        mock_execute_command.assert_called_once()
-        call_kwargs = mock_execute_command.call_args[1]
+        # Verify execute_command was called with host parameter
+        mock_storage_execute_command.assert_called_once()
+        call_kwargs = mock_storage_execute_command.call_args[1]
         assert call_kwargs["host"] == "remote.host.com"
 
-    async def test_list_block_devices_exception_handling(self, mocker):
+    async def test_list_block_devices_exception_handling(self, mock_storage_execute_command):
         """Test list_block_devices handles general exceptions."""
-        mocker.patch("linux_mcp_server.tools.storage.execute_command", side_effect=ValueError("Raised intentionally"))
+        mock_storage_execute_command.side_effect = ValueError("Raised intentionally")
 
         with pytest.raises(ToolError, match="Raised intentionally"):
             await mcp.call_tool("list_block_devices", {})
