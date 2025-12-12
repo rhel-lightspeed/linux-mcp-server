@@ -15,6 +15,37 @@ from linux_mcp_server.utils.decorators import disallow_local_execution_in_contai
 from linux_mcp_server.utils.types import Host
 
 
+async def _get_remote_ss_or_netstat(
+    host: Host,
+    ss_args: list[str],
+    netstat_args: list[str],
+) -> tuple[bool, str]:
+    """
+    Try ss first, fallback to netstat for remote command execution.
+
+    Args:
+        host: Remote host to execute on
+        ss_args: Arguments for ss command (modern tool)
+        netstat_args: Arguments for netstat command (fallback)
+
+    Returns:
+        Tuple of (success, output) where success indicates if either command worked
+    """
+    # Try ss first (modern tool)
+    returncode, stdout, _ = await execute_command(["ss"] + ss_args, host=host)
+
+    if returncode == 0 and stdout:
+        return True, stdout
+
+    # Fallback to netstat
+    returncode, stdout, _ = await execute_command(["netstat"] + netstat_args, host=host)
+
+    if returncode == 0 and stdout:
+        return True, stdout
+
+    return False, ""
+
+
 def _get_pid_info(pid: int | None) -> str:
     """Get process name for a PID, returning 'N/A' or 'pid/name' format."""
     if not pid:
@@ -154,13 +185,13 @@ async def get_network_connections(
     try:
         if host:
             # Remote execution - use ss or netstat command
-            # Try ss first (modern tool)
-            returncode, stdout, _ = await execute_command(
-                ["ss", "-tunap"],
+            success, stdout = await _get_remote_ss_or_netstat(
                 host=host,
+                ss_args=["-tunap"],
+                netstat_args=["-tunap"],
             )
 
-            if returncode == 0 and stdout:
+            if success:
                 info = []
                 info.append("=== Active Network Connections ===\n")
                 info.append(stdout)
@@ -171,19 +202,7 @@ async def get_network_connections(
 
                 return "\n".join(info)
             else:
-                # Fallback to netstat
-                returncode, stdout, _ = await execute_command(
-                    ["netstat", "-tunap"],
-                    host=host,
-                )
-
-                if returncode == 0 and stdout:
-                    info = []
-                    info.append("=== Active Network Connections ===\n")
-                    info.append(stdout)
-                    return "\n".join(info)
-                else:
-                    return "Error: Neither ss nor netstat command available on remote host"
+                return "Error: Neither ss nor netstat command available on remote host"
         else:
             # Local execution - use psutil
             info = []
@@ -237,13 +256,13 @@ async def get_listening_ports(
     try:
         if host:
             # Remote execution - use ss or netstat command
-            # Try ss first (modern tool)
-            returncode, stdout, _ = await execute_command(
-                ["ss", "-tulnp"],
+            success, stdout = await _get_remote_ss_or_netstat(
                 host=host,
+                ss_args=["-tulnp"],
+                netstat_args=["-tulnp"],
             )
 
-            if returncode == 0 and stdout:
+            if success:
                 info = []
                 info.append("=== Listening Ports ===\n")
                 info.append(stdout)
@@ -254,19 +273,7 @@ async def get_listening_ports(
 
                 return "\n".join(info)
             else:
-                # Fallback to netstat
-                returncode, stdout, _ = await execute_command(
-                    ["netstat", "-tulnp"],
-                    host=host,
-                )
-
-                if returncode == 0 and stdout:
-                    info = []
-                    info.append("=== Listening Ports ===\n")
-                    info.append(stdout)
-                    return "\n".join(info)
-                else:
-                    return "Error: Neither ss nor netstat command available on remote host"
+                return "Error: Neither ss nor netstat command available on remote host"
         else:
             # Local execution - use psutil
             info = []
