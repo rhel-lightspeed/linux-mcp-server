@@ -56,9 +56,30 @@ Key environment variables:
 - `LINUX_MCP_ALLOWED_LOG_PATHS` - Comma-separated list of log files that can be accessed
 - `LINUX_MCP_LOG_LEVEL` - Logging level (DEBUG, INFO, WARNING, ERROR, CRITICAL)
 - `LINUX_MCP_SSH_KEY_PATH` - Path to SSH private key for remote execution
-- `LINUX_MCP_USER` - Username used for SSH connections
+- `LINUX_MCP_USER` - Username used for SSH connections (optional)
 
 See [Environment Variables](https://github.com/rhel-lightspeed/linux-mcp-server/blob/main/docs/Install.md#environment-variables) for more details.
+
+### SSH Configuration
+
+The SSH configuration can be used to configure per-host connection settings. See [ssh_config][] for details.
+
+If `LINUX_MCP_USER` is set, it will be used for all connections to remote hosts. If per-host connections settings are required, use SSH config.
+
+Here is an example of per-host settings using SSH config:
+
+```
+# ~/.ssh/config
+Host server1
+  HostName 10.0.0.64
+  User millie
+
+Host server2
+  HostName 10.0.0.128
+  User bob
+  Port 2237
+```
+
 
 ### Example Configurations
 
@@ -284,3 +305,4 @@ For complete Claude Desktop integration instructions including platform-specific
 
 [Podman]: https://podman-desktop.io
 [Docker]: https://www.docker.com
+[ssh_config]: https://www.man7.org/linux/man-pages/man5/ssh_config.5.html
