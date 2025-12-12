@@ -4,6 +4,57 @@ Provides validation functions for handling numeric parameters where LLMs often
 pass floats instead of integers.
 """
 
+import re
+
+
+def normalize_remote_path(path: str, allowed_paths: list[str]) -> tuple[str | None, str | None]:
+    """
+    Normalize and validate a remote file path against an allowlist.
+
+    This function sanitizes user-provided paths for remote execution by:
+    - Removing redundant slashes
+    - Resolving . and .. components
+    - Checking against the allowed paths list
+
+    Args:
+        path: The user-provided file path
+        allowed_paths: List of allowed file paths
+
+    Returns:
+        (normalized_path, error_message) tuple. On success: (path, None).
+        On failure: (None, error_msg).
+    """
+    # Remove any null bytes (security measure)
+    if "\x00" in path:
+        return None, "Invalid path: contains null bytes"
+
+    # Normalize multiple slashes to single slash
+    normalized = re.sub(r"/+", "/", path)
+
+    # Handle path traversal by resolving .. components
+    parts = normalized.split("/")
+    resolved = []
+    for part in parts:
+        if part == "..":
+            if resolved and resolved[-1] != "":
+                resolved.pop()
+        elif part != ".":
+            resolved.append(part)
+
+    normalized = "/".join(resolved)
+
+    # Ensure path starts with / for absolute paths
+    if path.startswith("/") and not normalized.startswith("/"):
+        normalized = "/" + normalized
+
+    # Check if normalized path matches any allowed path
+    for allowed in allowed_paths:
+        # Allow if the path matches or is under an allowed directory
+        if normalized == allowed or normalized.startswith(allowed.rstrip("/") + "/"):
+            return normalized, None
+
+    return None, f"Access denied: '{path}' is not in the allowed paths"
+
 
 def validate_positive_int(
     value: int | float,
