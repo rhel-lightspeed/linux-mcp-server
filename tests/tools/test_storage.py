@@ -6,9 +6,7 @@ import sys
 from collections.abc import Callable
 from pathlib import Path
 from unittest.mock import AsyncMock
-from unittest.mock import MagicMock
 
-import psutil
 import pytest
 
 from mcp.server.fastmcp.exceptions import ToolError
@@ -113,17 +111,6 @@ def restricted_path(tmp_path):
 
 
 @pytest.fixture
-def mock_disk_io_stats():
-    """Fixture providing mock disk I/O statistics."""
-    mock_stats = MagicMock(spec=psutil._pslinux.sdiskio)
-    mock_stats.read_bytes = 1024 * 1024 * 1024  # 1 GB
-    mock_stats.write_bytes = 512 * 1024 * 1024  # 512 MB
-    mock_stats.read_count = 1000
-    mock_stats.write_count = 500
-    return {"sda": mock_stats}
-
-
-@pytest.fixture
 def mock_storage_execute_command(mock_execute_command_for):
     """Storage-specific execute_command mock using the shared factory."""
     return mock_execute_command_for("linux_mcp_server.tools.storage")
@@ -133,55 +120,28 @@ class TestListBlockDevices:
     """Test suite for list_block_devices tool."""
 
     @pytest.mark.parametrize(
-        ("lsblk_output", "disk_io_stats", "expected_content", "io_stats_expected"),
+        ("lsblk_output", "expected_content"),
         [
             pytest.param(
                 "NAME   SIZE TYPE MOUNTPOINT FSTYPE MODEL\nsda    1TB  disk            \nsda1   512G part /          ext4",
-                {},
                 ["=== Block Devices ===", "sda", "sda1"],
-                False,
-                id="lsblk_success_no_io_stats",
-            ),
-            pytest.param(
-                "NAME   SIZE TYPE MOUNTPOINT\nsda    1TB  disk",
-                None,  # Will be replaced with mock_disk_io_stats fixture in test
-                [
-                    "=== Block Devices ===",
-                    "sda",
-                    "=== Disk I/O Statistics (per disk) ===",
-                    "Read Count: 1000",
-                    "Write Count: 500",
-                ],
-                True,
-                id="lsblk_success_with_io_stats",
+                id="lsblk_success",
             ),
             pytest.param(
                 "",
-                {},
-                ["=== Block Devices ==="],
-                False,
-                id="lsblk_success_empty_output",
+                ["Error: Unable to list block devices"],
+                id="lsblk_empty_output",
             ),
         ],
     )
     async def test_list_block_devices_lsblk_success(
         self,
-        mocker,
         lsblk_output,
-        disk_io_stats,
         expected_content,
-        io_stats_expected,
-        mock_disk_io_stats,
         mock_storage_execute_command,
     ):
-        """Test list_block_devices with successful lsblk command and various disk I/O scenarios."""
-        # None in parameterization signals "use the mock_disk_io_stats fixture"
-        # This keeps parameterization clean while reusing shared fixture data
-        if disk_io_stats is None:
-            disk_io_stats = mock_disk_io_stats
-
+        """Test list_block_devices with successful lsblk command."""
         mock_storage_execute_command.return_value = (0, lsblk_output, "")
-        mocker.patch("linux_mcp_server.tools.storage.psutil.disk_io_counters", return_value=disk_io_stats)
 
         result = await mcp.call_tool("list_block_devices", {})
         output = verify_result_structure(result)
@@ -189,12 +149,6 @@ class TestListBlockDevices:
         # Verify expected content
         for content in expected_content:
             assert content in output
-
-        # Verify I/O stats presence/absence
-        if io_stats_expected:
-            assert "=== Disk I/O Statistics (per disk) ===" in output
-        else:
-            assert "=== Disk I/O Statistics (per disk) ===" not in output
 
         # Verify lsblk was called with correct arguments
         mock_storage_execute_command.assert_called_once()
@@ -378,6 +332,10 @@ class TestListDirectories:
 
         assert "Error running command: command failed with return code 1" in str(exc_info.value)
 
+
+class TestListDirectoriesRemote:
+    """Test list_directories with mocked remote execution."""
+
     async def test_list_directories_remote(self, mocker):
         """Test list_directories with remote execution."""
         mock_execute = AsyncMock(return_value=(0, "alpha\nbeta\ngamma", ""))
@@ -489,6 +447,10 @@ class TestListFiles:
             await storage.list_files(str(nonexistent))
 
         assert "Error running command: command failed with return code 1" in str(exc_info.value)
+
+
+class TestListFilesRemote:
+    """Test list_files with mocked remote execution."""
 
     async def test_list_files_remote(self, mocker):
         """Test list_files with remote execution."""
