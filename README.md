@@ -248,7 +248,7 @@ For complete Claude Desktop integration instructions including platform-specific
 - `get_cpu_information` - CPU details and load averages
 - `get_memory_information` - RAM usage and swap details
 - `get_disk_usage` - Filesystem usage and mount points
-- `get_hardware_information` - Hardware details (CPU architecture, PCI/USB devices, memory hardware)
+- `get_device_information` - Hardware device information (PCI and USB devices)
 
 ### Service Management
 - `list_services` - List all systemd services with status
