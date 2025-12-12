@@ -1,61 +1,51 @@
-# Installation Guide - Linux MCP Server
+# Installation Guide
 
-This guide provides comprehensive installation instructions for both end users and developers.
+If you want to use the Linux MCP Server with LLM clients, follow these instructions to install the MCP server permanently on your system.
 
-## Table of Contents
+**Table of Contents**
 
-- [For End Users](#for-end-users)
 - [Claude Desktop Integration](#claude-desktop-integration)
 - [Platform Specific Notes](#platform-specific-notes)
 - [Troubleshooting](#troubleshooting)
 
----
+Linux MCP Server can be installed using `pip` or `uv`. Choose the installation that best suites your environment.
 
-## For End Users
-
-If you just want to use the Linux MCP Server with Claude Desktop or other MCP clients, follow these instructions.
+## Installation
 
 ### Prerequisites
 
-- **Python 3.10 or higher** - See [Platform Specific Notes](#platform-specific-notes) for installation instructions
-- **pip** (usually included with Python)
+- Python 3.10 or later - See [Platform Specific Notes](#platform-specific-notes) for installation instructions
 
-### Method 1: Install with pip (Recommended)
-
-This method installs the MCP server permanently on your system.
-
-**Step 1: Install the package from PyPI**
+### Install with pip (Recommended)
 
 ```bash
 pip install --user linux-mcp-server
 ```
 
-**Step 2: Test the server**
+Run the server
 
 ```bash
 ~/.local/bin/linux-mcp-server
 ```
 
-The server should start and display initialization messages. Press `Ctrl+C`, then `Return` to stop it.
+### Install with `uv`
 
-### Method 2: Run with uvx (No Installation)
-
-This method runs the server without permanently installing it - useful for trying it out or occasional use.
-
-**Prerequisites:**
-- Install `uv` first: https://github.com/astral-sh/uv#installation
-
-**Run the server:**
+- [Install `uv` first](https://github.com/astral-sh/uv#installation).
+- Run `uv tool update-shell` or manually add `~/.local/bin/` to `PATH`.
 
 ```bash
-uvx linux-mcp-server
+uv tool install linux-mcp-server
 ```
 
-The first run will download and set up the package automatically.
+Run the server
+```
+linux-mcp-server
+```
 
-### Next Steps
+The server should start and display initialization messages. Press `Ctrl+C`, then `Return` to stop it.
 
-After installation, configure the server for use with Claude Desktop. See [Claude Desktop Integration](#claude-desktop-integration).
+> [!Note]
+> It is not necessary to run `linux-mcp-server` directly for normal use. The LLM client will handle starting and stopping `linux-mcp-server`.
 
 ---
 
@@ -94,8 +84,8 @@ For installion with `uv`:
 {
   "mcpServers": {
     "linux-diagnostics": {
-      "command": "uvx",
-      "args": ["linux-mcp-server"],
+      "command": "~/.local/bin/linux-mcp-server",
+      "args": [""],
       "env": {
         "LINUX_MCP_ALLOWED_LOG_PATHS": "/var/log/messages,/var/log/secure,/var/log/audit/audit.log"
       }
@@ -108,15 +98,19 @@ For installion with `uv`:
 
 Configure these environment variables in the `env` section:
 
-| Variable | Required | Description | Example |
-|----------|----------|-------------|---------|
-| `LINUX_MCP_ALLOWED_LOG_PATHS` | Yes* | Comma-separated list of log files that `read_log_file` can access | `/var/log/messages,/var/log/secure` |
-| `LINUX_MCP_LOG_LEVEL` | No | Logging level for the MCP server | `INFO`, `DEBUG`, `WARNING` |
-| `LINUX_MCP_LOG_DIR` | No | Custom directory for MCP server logs | `/var/log/linux-mcp-server` |
-| `LINUX_MCP_LOG_RETENTION_DAYS` | No | Days to retain log files (default: 10) | `30` |
-| `LINUX_MCP_SSH_KEY_PATH` | No | Path to SSH private key for remote execution | `~/.ssh/id_ed25519` |
-| `LINUX_MCP_KEY_PASSPHRASE` | No | Passphrase used to decrypt the SSH private key, if required | `<secret>` |
-| `LINUX_MCP_USER` | No | User name used when making remote connections over `ssh`. | `tljones` |
+| Variable | Required | Default | Description | Example |
+|----------|----------|---------|-------------|---------|
+| `LINUX_MCP_USER` | No | `None` | User name used when making remote connections over `ssh`. | `tljones` |
+| `LINUX_MCP_LOG_DIR` | No | `~/.local/share/linux-mcp-server/logs` | Custom directory for MCP server logs | `/var/log/linux-mcp-server` |
+| `LINUX_MCP_LOG_LEVEL` | No | INFO | Logging level for the MCP server | `INFO`, `DEBUG`, `WARNING` |
+| `LINUX_MCP_LOG_RETENTION_DAYS` | No | 10 | Days to retain log files (default: 10) | `30` |
+| `LINUX_MCP_ALLOWED_LOG_PATHS` | `None` | Yes* | Comma-separated list of log files that `read_log_file` can access | `/var/log/messages,/var/log/secure` |
+| `LINUX_MCP_SSH_KEY_PATH` | No | `None` | Path to SSH private key for remote execution | `~/.ssh/id_ed25519` |
+| `LINUX_MCP_KEY_PASSPHRASE` | No | `None` | Passphrase used to decrypt the SSH private key, if required | `<secret>` |
+| `LINUX_MCP_SEARCH_FOR_SSH_KEY` | No | `False` | Whether to look in `~/.ssh` for SSH keys | yes |
+| `LINUX_MCP_VERIFY_HOST_KEYS` | No | `False` | Verify identity of remote hosts when connecting over SSH. | yes |
+| `LINUX_MCP_KNOWN_HOSTS_PATH` | No | `None` | Path to SSH known_hosts file | `~/.ssh/other_known_hosts` |
+| `LINUX_MCP_COMMAND_TIMEOUT` | No | 30 | Max timeout for remote SSH commands | 60 |
 
 *Required if you want to use the `read_log_file` tool.
 
