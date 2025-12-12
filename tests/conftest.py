@@ -1,8 +1,11 @@
 import socket
 
+from unittest.mock import AsyncMock
+
 import pytest
 
 from linux_mcp_server.audit import log_tool_call
+from linux_mcp_server.connection.ssh import execute_command
 
 
 # =============================================================================
@@ -211,3 +214,17 @@ async def adecorated_fail():
         raise ValueError("Raised intentionally")
 
     return list_services
+
+
+@pytest.fixture
+def mock_execute_command(mocker):
+    """Mock execute_command for logs module tests.
+
+    Uses spec=execute_command for type safety verification. The execute_command
+    import provides the function signature for the mock spec.
+    """
+    return mocker.patch(
+        "linux_mcp_server.tools.logs.execute_command",
+        spec=execute_command,
+        new_callable=AsyncMock,
+    )
