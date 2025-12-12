@@ -18,7 +18,7 @@ class Config(BaseSettings):
     user: str = getpass.getuser()
 
     # Logging configuration
-    log_dir: Path | None = None
+    log_dir: Path = Path.home() / ".local" / "share" / "linux-mcp-server" / "logs"
     log_level: UpperCase = "INFO"
     log_retention_days: int = 10
 

@@ -4,37 +4,9 @@ import importlib
 import json
 import logging
 
-from linux_mcp_server.logging_config import get_log_directory
 from linux_mcp_server.logging_config import JSONFormatter
 from linux_mcp_server.logging_config import setup_logging
 from linux_mcp_server.logging_config import StructuredFormatter
-
-
-class TestGetLogDirectory:
-    """Test log directory resolution."""
-
-    def test_default_log_directory(self):
-        """Test default log directory is in user's home."""
-        log_dir = get_log_directory()
-        assert log_dir.is_absolute()
-        assert ".local/share/linux-mcp-server/logs" in str(log_dir)
-
-    def test_custom_log_directory(self, mocker, tmp_path):
-        """Test custom log directory from environment variable."""
-        mocker.patch("linux_mcp_server.config.CONFIG.log_dir", tmp_path)
-
-        log_dir = get_log_directory()
-
-        assert log_dir == tmp_path
-
-    def test_log_directory_created(self, mocker, tmp_path):
-        """Test that log directory is created if it doesn't exist."""
-        log_path = tmp_path / "subdir" / "logs"
-
-        mocker.patch("linux_mcp_server.logging_config.CONFIG.log_dir", log_path)
-        log_dir = get_log_directory()
-        assert log_dir.exists()
-        assert log_dir.is_dir()
 
 
 class TestSetupLogging:

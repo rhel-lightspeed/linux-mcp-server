@@ -8,16 +8,7 @@ import json
 import logging
 import logging.handlers
 
-from pathlib import Path
-
 from linux_mcp_server.config import CONFIG
-
-
-def get_log_directory() -> Path:
-    """Get the log directory path, creating it if necessary."""
-    log_dir = CONFIG.log_dir if CONFIG.log_dir else Path.home() / ".local" / "share" / "linux-mcp-server" / "logs"
-    log_dir.mkdir(parents=True, exist_ok=True)
-    return log_dir
 
 
 def get_log_level() -> int:
@@ -128,7 +119,8 @@ class JSONFormatter(logging.Formatter):
 
 def setup_logging():
     """Set up logging with structured formatters and rotation."""
-    log_dir = get_log_directory()
+    log_dir = CONFIG.log_dir
+    log_dir.mkdir(parents=True, exist_ok=True)
     log_level = get_log_level()
     retention_days = get_retention_days()
 
