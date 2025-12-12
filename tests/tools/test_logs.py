@@ -7,6 +7,12 @@ import pytest
 from linux_mcp_server.server import mcp
 
 
+@pytest.fixture
+def mock_execute_command(mock_execute_command_for):
+    """Logs-specific execute_command mock using the shared factory."""
+    return mock_execute_command_for("linux_mcp_server.tools.logs")
+
+
 def assert_tool_result_structure(result):
     """Verify common result structure returned by all tools."""
     assert isinstance(result, tuple)
