@@ -218,13 +218,11 @@ class TestConfigEdgeCases:
         mocker.patch("getpass.getuser", return_value="testuser")
 
         config = Config(
-            log_dir=None,
             allowed_log_paths=None,
             ssh_key_path=None,
             key_passphrase=None,
         )
 
-        assert config.log_dir is None
         assert config.allowed_log_paths is None
         assert config.ssh_key_path is None
         assert config.key_passphrase is None
