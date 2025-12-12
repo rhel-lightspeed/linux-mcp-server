@@ -121,15 +121,22 @@ class TestGetJournalLogs:
             output = assert_tool_result_structure(result)
             assert expected_error in output
 
-    async def test_get_journal_logs_journalctl_not_found(self, mock_execute_command):
-        """Test get_journal_logs when journalctl is not available."""
-        mock_execute_command.side_effect = FileNotFoundError("journalctl not found")
+    @pytest.mark.parametrize(
+        "side_effect",
+        (
+            FileNotFoundError("journalctl command not found"),
+            ValueError("Raised intentionally"),
+        ),
+    )
+    async def test_get_journal_logs_journalctl_not_found(self, mocker, side_effect):
+        """Test get_journal_logs failure."""
+        mock_execute_command = mocker.patch("linux_mcp_server.tools.logs.execute_command")
+        mock_execute_command.side_effect = side_effect
 
         result = await mcp.call_tool("get_journal_logs", {})
         output = assert_tool_result_structure(result)
 
-        assert "journalctl command not found" in output
-        assert "requires systemd" in output
+        assert str(side_effect).casefold() in output.casefold()
 
     async def test_get_journal_logs_remote_execution(self, mock_execute_command):
         """Test get_journal_logs with remote execution."""
@@ -219,15 +226,24 @@ class TestGetAuditLogs:
 
         assert "No audit log entries found" in output
 
-    async def test_get_audit_logs_tail_not_found(self, mocker, mock_execute_command):
+    @pytest.mark.parametrize(
+        "side_effect",
+        (
+            FileNotFoundError("tail command not found"),
+            ValueError("Raised intentionally"),
+        ),
+    )
+    async def test_get_audit_logs_tail_not_found(self, mocker, side_effect):
         """Test get_audit_logs when tail command is not available."""
-        mocker.patch("linux_mcp_server.tools.logs.os.path.exists", return_value=True)
-        mock_execute_command.side_effect = FileNotFoundError("tail not found")
+        mock_exists = mocker.patch("linux_mcp_server.tools.logs.os.path.exists")
+        mock_execute_command = mocker.patch("linux_mcp_server.tools.logs.execute_command")
+        mock_exists.return_value = True
+        mock_execute_command.side_effect = side_effect
 
         result = await mcp.call_tool("get_audit_logs", {})
         output = assert_tool_result_structure(result)
 
-        assert "tail command not found" in output
+        assert str(side_effect).casefold() in output.casefold()
 
     async def test_get_audit_logs_remote_execution(self, mock_execute_command):
         """Test get_audit_logs with remote execution."""

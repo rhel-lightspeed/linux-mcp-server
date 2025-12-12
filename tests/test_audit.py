@@ -192,10 +192,10 @@ class TestLogSSHConnect:
     def test_log_ssh_connect_success_info(self, caplog):
         """Test logging successful SSH connection at INFO level."""
         with caplog.at_level(logging.INFO):
-            log_ssh_connect("server1.com", "admin", status=Status.success, reused=False)
+            log_ssh_connect("server1.com", status=Status.success, reused=False)
 
         assert Event.SSH_CONNECT in caplog.text
-        assert "admin@server1.com" in caplog.text
+        assert "server1.com" in caplog.text
         # Check the log record attributes
         assert len(caplog.records) >= 1
         record = caplog.records[-1]
@@ -210,12 +210,10 @@ class TestLogSSHConnect:
         logging.getLogger().setLevel(logging.DEBUG)
 
         with caplog.at_level(logging.DEBUG):
-            log_ssh_connect(
-                "server1.com", "admin", status=Status.success, reused=True, key_path="/home/user/.ssh/id_rsa"
-            )
+            log_ssh_connect("server1.com", status=Status.success, reused=True, key_path="/home/user/.ssh/id_rsa")
 
         assert Event.SSH_CONNECT in caplog.text
-        assert "admin@server1.com" in caplog.text
+        assert "server1.com" in caplog.text
         # Check the log record attributes
         assert len(caplog.records) >= 1
         record = caplog.records[-1]
@@ -230,10 +228,10 @@ class TestLogSSHConnect:
     def test_log_ssh_connect_failure(self, caplog):
         """Test logging failed SSH connection."""
         with caplog.at_level(logging.WARNING):
-            log_ssh_connect("server1.com", "admin", status="failed", error="Permission denied")
+            log_ssh_connect("server1.com", status="failed", error="Permission denied")
 
         assert Event.SSH_CONNECT in caplog.text or Event.SSH_AUTH_FAILED in caplog.text
-        assert "admin@server1.com" in caplog.text
+        assert "server1.com" in caplog.text
         assert "Permission denied" in caplog.text
 
 

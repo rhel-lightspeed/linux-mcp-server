@@ -54,6 +54,7 @@ class ExecutionMode(StrEnum):
 class Status(StrEnum):
     success = "success"
     error = "error"
+    failed = "failed"
 
 
 def sanitize_parameters(params: dict[str, t.Any]) -> dict[str, t.Any]:
@@ -232,8 +233,8 @@ def log_tool_call(func: t.Callable) -> Function:
 
 def log_ssh_connect(
     host: str,
-    username: str,
     status: str,
+    username: str = "",
     reused: bool = False,
     key_path: str | None = None,
     error: str | None = None,
@@ -255,8 +256,6 @@ def log_ssh_connect(
     """
     logger = logging.getLogger(__name__)
 
-    user_host = f"{username}@{host}"
-
     if status == Status.success:
         extra = {
             "host": host,
@@ -265,7 +264,7 @@ def log_ssh_connect(
         }
 
         # At INFO level, just log basic success
-        message = f"{Event.SSH_CONNECT}: {user_host}"
+        message = f"{Event.SSH_CONNECT}: {host}@{username}"
 
         # At DEBUG level, add more details
         if logger.isEnabledFor(logging.DEBUG):
@@ -287,7 +286,7 @@ def log_ssh_connect(
         if error:
             extra["reason"] = error
 
-        message = f"{Event.SSH_AUTH_FAILED}: {user_host}"
+        message = f"{Event.SSH_AUTH_FAILED}: {host}@{username}"
         if error:
             message += f" | reason: {error}"
 

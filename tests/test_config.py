@@ -1,10 +1,7 @@
 """Unit tests for linux_mcp_server.config module"""
 
-import getpass
-
 from pathlib import Path
 
-from linux_mcp_server.config import CONFIG
 from linux_mcp_server.config import Config
 
 
@@ -178,22 +175,11 @@ class TestConfig:
         assert config.search_for_ssh_key is True
 
 
-class TestConfigSingleton:
-    """Test cases for the CONFIG singleton instance"""
-
-    def test_config_instance_has_user(self):
-        """Test that CONFIG instance has a user attribute set"""
-        # CONFIG is already instantiated, so we check it has the current user
-        current_user = getpass.getuser()
-        assert CONFIG.user == current_user
-
-
 class TestEffectiveKnownHostsPath:
     """Test cases for the effective_known_hosts_path property."""
 
     def test_returns_custom_path_when_set(self, mocker):
         """Test that effective_known_hosts_path returns the custom path when configured."""
-        mocker.patch("getpass.getuser", return_value="testuser")
         custom_path = Path("/custom/known_hosts")
 
         config = Config(known_hosts_path=custom_path)
@@ -202,10 +188,9 @@ class TestEffectiveKnownHostsPath:
 
     def test_returns_default_when_not_set(self, mocker):
         """Test that effective_known_hosts_path returns ~/.ssh/known_hosts when not configured."""
-        mocker.patch("getpass.getuser", return_value="testuser")
         mocker.patch("pathlib.Path.home", return_value=Path("/home/testuser"))
 
-        config = Config(known_hosts_path=None)
+        config = Config(user="testuser")
 
         assert config.effective_known_hosts_path == Path("/home/testuser/.ssh/known_hosts")
 

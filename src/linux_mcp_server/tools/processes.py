@@ -33,7 +33,6 @@ async def list_processes(
         if host:
             # Remote execution - use ps command
             returncode, stdout, _ = await execute_command(["ps", "aux", "--sort=-%cpu"], host=host)
-
             if returncode == 0 and stdout:
                 info = []
                 info.append("=== Running Processes ===\n")
