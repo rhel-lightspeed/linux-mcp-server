@@ -34,6 +34,85 @@ def _format_filtered_total(label: str, displayed: int, total: int) -> str:
     return f"\n\nTotal {label}: {displayed}"
 
 
+def _format_interface_addresses(addrs: list) -> list[str]:
+    """
+    Format interface addresses (IPv4, IPv6, MAC).
+
+    Filters out link-local IPv6 addresses using is_ipv6_link_local().
+
+    Args:
+        addrs: List of address objects with family, address, netmask, and broadcast attributes
+
+    Returns:
+        List of formatted address lines
+    """
+    lines = []
+    for addr in addrs:
+        if addr.family == socket.AF_INET:
+            lines.append(f"  IPv4 Address: {addr.address}")
+            if addr.netmask:
+                lines.append(f"    Netmask: {addr.netmask}")
+            if addr.broadcast:
+                lines.append(f"    Broadcast: {addr.broadcast}")
+        elif addr.family == socket.AF_INET6:
+            # Skip link-local addresses (fe80::/10)
+            if is_ipv6_link_local(addr.address):
+                continue
+            lines.append(f"  IPv6 Address: {addr.address}")
+            if addr.netmask:
+                lines.append(f"    Netmask: {addr.netmask}")
+        elif addr.family == psutil.AF_LINK:
+            lines.append(f"  MAC Address: {addr.address}")
+    return lines
+
+
+def _format_interface_stats(stats) -> list[str]:
+    """
+    Format interface statistics (status UP/DOWN, speed Mbps, MTU).
+
+    Args:
+        stats: psutil interface stats object (or None)
+
+    Returns:
+        List of formatted statistics lines
+    """
+    if not stats:
+        return []
+
+    lines = []
+    status = "UP" if stats.isup else "DOWN"
+    lines.append(f"  Status: {status}")
+    lines.append(f"  Speed: {stats.speed} Mbps")
+    lines.append(f"  MTU: {stats.mtu}")
+    return lines
+
+
+def _format_network_io_stats(net_io) -> list[str]:
+    """
+    Format network I/O statistics.
+
+    Uses format_bytes() from utils for byte formatting.
+
+    Args:
+        net_io: psutil network I/O counters object
+
+    Returns:
+        List of formatted I/O statistics lines
+    """
+    lines = [
+        "=== Network I/O Statistics (total) ===",
+        f"Bytes Sent: {format_bytes(net_io.bytes_sent)}",
+        f"Bytes Received: {format_bytes(net_io.bytes_recv)}",
+        f"Packets Sent: {net_io.packets_sent}",
+        f"Packets Received: {net_io.packets_recv}",
+        f"Errors In: {net_io.errin}",
+        f"Errors Out: {net_io.errout}",
+        f"Drops In: {net_io.dropin}",
+        f"Drops Out: {net_io.dropout}",
+    ]
+    return lines
+
+
 @mcp.tool(
     title="Get network interfaces",
     description="Get detailed information about network interfaces including address and traffic statistics.",
@@ -41,7 +120,7 @@ def _format_filtered_total(label: str, displayed: int, total: int) -> str:
 )
 @log_tool_call
 @disallow_local_execution_in_containers
-async def get_network_interfaces(  # noqa: C901
+async def get_network_interfaces(
     host: Host | None = None,
 ) -> str:
     """
@@ -96,42 +175,16 @@ async def get_network_interfaces(  # noqa: C901
                 info.append(f"\n{interface}:")
 
                 # Get interface stats
-                if interface in net_if_stats:
-                    stats = net_if_stats[interface]
-                    status = "UP" if stats.isup else "DOWN"
-                    info.append(f"  Status: {status}")
-                    info.append(f"  Speed: {stats.speed} Mbps")
-                    info.append(f"  MTU: {stats.mtu}")
+                stats = net_if_stats.get(interface)
+                info.extend(_format_interface_stats(stats))
 
                 # Get addresses
-                for addr in addrs:
-                    if addr.family == socket.AF_INET:
-                        info.append(f"  IPv4 Address: {addr.address}")
-                        if addr.netmask:
-                            info.append(f"    Netmask: {addr.netmask}")
-                        if addr.broadcast:
-                            info.append(f"    Broadcast: {addr.broadcast}")
-                    elif addr.family == socket.AF_INET6:
-                        # Skip link-local addresses (fe80::/10)
-                        if is_ipv6_link_local(addr.address):
-                            continue
-                        info.append(f"  IPv6 Address: {addr.address}")
-                        if addr.netmask:
-                            info.append(f"    Netmask: {addr.netmask}")
-                    elif addr.family == psutil.AF_LINK:
-                        info.append(f"  MAC Address: {addr.address}")
+                info.extend(_format_interface_addresses(addrs))
 
             # Network I/O statistics
             net_io = psutil.net_io_counters()
-            info.append("\n\n=== Network I/O Statistics (total) ===")
-            info.append(f"Bytes Sent: {format_bytes(net_io.bytes_sent)}")
-            info.append(f"Bytes Received: {format_bytes(net_io.bytes_recv)}")
-            info.append(f"Packets Sent: {net_io.packets_sent}")
-            info.append(f"Packets Received: {net_io.packets_recv}")
-            info.append(f"Errors In: {net_io.errin}")
-            info.append(f"Errors Out: {net_io.errout}")
-            info.append(f"Drops In: {net_io.dropin}")
-            info.append(f"Drops Out: {net_io.dropout}")
+            info.append("\n")
+            info.extend(_format_network_io_stats(net_io))
 
             return "\n".join(info)
     except Exception as e:

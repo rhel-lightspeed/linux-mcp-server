@@ -177,6 +177,75 @@ def make_mixed_connections_process():
     ]
 
 
+# =============================================================================
+# Mock classes for interface testing
+# =============================================================================
+class MockAddress:
+    """Mock network address object (for interface addresses)."""
+
+    def __init__(self, family, address, netmask=None, broadcast=None):
+        self.family = family
+        self.address = address
+        self.netmask = netmask
+        self.broadcast = broadcast
+
+
+class MockInterfaceStats:
+    """Mock network interface statistics."""
+
+    def __init__(self, isup=True, speed=1000, mtu=1500):
+        self.isup = isup
+        self.speed = speed
+        self.mtu = mtu
+
+
+class MockNetIOCounters:
+    """Mock network I/O counters."""
+
+    def __init__(
+        self,
+        bytes_sent=1024 * 1024 * 100,  # 100 MB
+        bytes_recv=1024 * 1024 * 200,  # 200 MB
+        packets_sent=50000,
+        packets_recv=75000,
+        errin=5,
+        errout=3,
+        dropin=2,
+        dropout=1,
+    ):
+        self.bytes_sent = bytes_sent
+        self.bytes_recv = bytes_recv
+        self.packets_sent = packets_sent
+        self.packets_recv = packets_recv
+        self.errin = errin
+        self.errout = errout
+        self.dropin = dropin
+        self.dropout = dropout
+
+
+# =============================================================================
+# Fixtures for network tests
+# =============================================================================
+@pytest.fixture
+def mock_net_io():
+    """Standard mock network I/O counters."""
+    return MockNetIOCounters()
+
+
+@pytest.fixture
+def mock_process(mocker):
+    """Mock psutil.Process that returns a configurable name."""
+    from unittest.mock import MagicMock
+
+    mock = MagicMock()
+    mock.name.return_value = "python3"
+    mocker.patch("linux_mcp_server.tools.network.psutil.Process", return_value=mock)
+    return mock
+
+
+# =============================================================================
+# Audit fixtures
+# =============================================================================
 @pytest.fixture
 def decorated():
     @log_tool_call
