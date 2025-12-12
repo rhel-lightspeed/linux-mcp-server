@@ -48,13 +48,13 @@ class TestGetJournalLogs:
             # Unit filter
             (
                 {"unit": "nginx.service"},
-                ["-u", "nginx.service"],
+                ["--unit", "nginx.service"],
                 ["unit=nginx.service"],
             ),
             # Priority filter
             (
                 {"priority": "err"},
-                ["-p", "err"],
+                ["--priority", "err"],
                 ["priority=err"],
             ),
             # Since filter
@@ -72,7 +72,7 @@ class TestGetJournalLogs:
             # All filters combined
             (
                 {"unit": "nginx.service", "priority": "err", "since": "today", "lines": 50},
-                ["-u", "nginx.service", "-p", "err", "--since", "today", "-n", "50"],
+                ["--unit", "nginx.service", "--priority", "err", "--since", "today", "-n", "50"],
                 ["last 50 entries", "unit=nginx.service", "priority=err", "since=today"],
             ),
         ],
