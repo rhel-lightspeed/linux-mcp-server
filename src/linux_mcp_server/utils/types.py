@@ -54,12 +54,12 @@ class NetworkInterface(BaseModel):
 class ProcessInfo(BaseModel):
     """Parsed process information from ps output."""
 
-    pid: str
+    pid: int
     user: str
-    cpu_percent: str
-    mem_percent: str
-    vsz: str
-    rss: str
+    cpu_percent: float
+    mem_percent: float
+    vsz: int
+    rss: int
     tty: str
     stat: str
     start: str

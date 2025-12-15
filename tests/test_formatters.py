@@ -105,12 +105,12 @@ class TestFormatProcessList:
         """Test formatting a single process."""
         processes = [
             ProcessInfo(
-                pid="1",
+                pid=1,
                 user="root",
-                cpu_percent="0.0",
-                mem_percent="0.1",
-                vsz="169436",
-                rss="11892",
+                cpu_percent=0.0,
+                mem_percent=0.1,
+                vsz=169436,
+                rss=11892,
                 tty="?",
                 stat="Ss",
                 start="Dec11",
@@ -127,12 +127,12 @@ class TestFormatProcessList:
         """Test that process list is truncated."""
         processes = [
             ProcessInfo(
-                pid=str(i),
+                pid=i,
                 user="user",
-                cpu_percent="0.0",
-                mem_percent="0.1",
-                vsz="1000",
-                rss="500",
+                cpu_percent=0.0,
+                mem_percent=0.1,
+                vsz=1000,
+                rss=500,
                 tty="?",
                 stat="S",
                 start="Dec11",

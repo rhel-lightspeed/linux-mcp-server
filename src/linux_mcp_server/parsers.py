@@ -134,21 +134,25 @@ def parse_ps_output(stdout: str) -> list[ProcessInfo]:
         if len(parts) < 11:
             continue
 
-        processes.append(
-            ProcessInfo(
-                user=parts[0],
-                pid=parts[1],
-                cpu_percent=parts[2],
-                mem_percent=parts[3],
-                vsz=parts[4],
-                rss=parts[5],
-                tty=parts[6],
-                stat=parts[7],
-                start=parts[8],
-                time=parts[9],
-                command=parts[10] if len(parts) > 10 else "",
+        try:
+            processes.append(
+                ProcessInfo(
+                    user=parts[0],
+                    pid=int(parts[1]),
+                    cpu_percent=float(parts[2]),
+                    mem_percent=float(parts[3]),
+                    vsz=int(parts[4]),
+                    rss=int(parts[5]),
+                    tty=parts[6],
+                    stat=parts[7],
+                    start=parts[8],
+                    time=parts[9],
+                    command=parts[10] if len(parts) > 10 else "",
+                )
             )
-        )
+        except ValueError:
+            # Silently skip invalid process lines
+            continue
 
     return processes
 
