@@ -23,6 +23,7 @@ When to use each:
 """
 
 import pytest
+import pytest_asyncio
 
 from fastmcp import Client
 
@@ -30,12 +31,17 @@ from linux_mcp_server.audit import log_tool_call
 from linux_mcp_server.server import mcp
 
 
-@pytest.fixture
+@pytest_asyncio.fixture(loop_scope="function")
 async def mcp_client():
     """Fixture providing an async FastMCP client for tool testing.
 
     Use this fixture for tests that need to call tools via the MCP protocol
     rather than calling the underlying functions directly.
+
+    Note: loop_scope="function" is required to match the test loop scope.
+    While pyproject.toml sets asyncio_default_fixture_loop_scope="session",
+    individual tests run with function-scoped event loops by default,
+    requiring this override to prevent "Event loop is closed" errors.
     """
     async with Client(mcp) as client:
         yield client
