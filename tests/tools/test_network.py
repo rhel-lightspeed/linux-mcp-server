@@ -1,53 +1,64 @@
 """Tests for network diagnostic tools."""
 
+import pytest
+
 from linux_mcp_server.tools import network
+
+
+@pytest.fixture
+def mock_execute(mocker):
+    """Mock execute_with_fallback for network module."""
+    return mocker.patch.object(network, "execute_with_fallback")
 
 
 class TestGetNetworkInterfaces:
     """Test get_network_interfaces function."""
 
-    async def test_get_network_interfaces_local_success(self, mocker):
-        """Test getting network interfaces locally with success."""
-        mock_execute = mocker.patch.object(network, "execute_with_fallback")
-
-        # Mock responses for different commands
-        mock_execute.side_effect = [
-            (0, "eth0             UP             192.168.1.100/24\nlo               UNKNOWN        127.0.0.1/8", ""),
-            (
-                0,
-                "Inter-|   Receive                                                |  Transmit\n face |bytes    packets\n    lo: 1234567   12345    0    0    0     0          0         0  1234567   12345    0    0    0     0       0          0\n  eth0: 9876543   98765   10    5    0     0          0       100  5432100   54321   20   10    0     0       0          0",
-                "",
+    @pytest.mark.parametrize(
+        ("host", "responses", "expected_interfaces"),
+        [
+            pytest.param(
+                None,
+                [
+                    (
+                        0,
+                        "eth0             UP             192.168.1.100/24\nlo               UNKNOWN        127.0.0.1/8",
+                        "",
+                    ),
+                    (
+                        0,
+                        "Inter-|   Receive                                                |  Transmit\n face |bytes    packets\n    lo: 1234567   12345    0    0    0     0          0         0  1234567   12345    0    0    0     0       0          0\n  eth0: 9876543   98765   10    5    0     0          0       100  5432100   54321   20   10    0     0       0          0",
+                        "",
+                    ),
+                ],
+                ["eth0", "lo"],
+                id="local",
             ),
-        ]
+            pytest.param(
+                "remote.example.com",
+                [
+                    (0, "eth0             UP             192.168.1.100/24", ""),
+                    (0, "eth0: 1024 2048 0 0 0 0 0 0 512 1024 0 0 0 0 0 0", ""),
+                ],
+                ["eth0"],
+                id="remote",
+            ),
+        ],
+    )
+    async def test_get_network_interfaces_success(self, mock_execute, host, responses, expected_interfaces):
+        """Test getting network interfaces with success."""
+        mock_execute.side_effect = responses
 
-        result = await network.get_network_interfaces()
-
-        assert isinstance(result, str)
-        assert "Network Interfaces" in result
-        assert "eth0" in result
-        assert "lo" in result
-        assert mock_execute.call_count == 2
-
-    async def test_get_network_interfaces_remote_success(self, mocker):
-        """Test getting network interfaces remotely with success."""
-        mock_execute = mocker.patch.object(network, "execute_with_fallback")
-
-        mock_execute.side_effect = [
-            (0, "eth0             UP             192.168.1.100/24", ""),
-            (0, "eth0: 1024 2048 0 0 0 0 0 0 512 1024 0 0 0 0 0 0", ""),
-        ]
-
-        result = await network.get_network_interfaces(host="remote.example.com")
+        result = await network.get_network_interfaces(host=host)
 
         assert isinstance(result, str)
         assert "Network Interfaces" in result
-        assert "eth0" in result
+        for iface in expected_interfaces:
+            assert iface in result
         assert mock_execute.call_count == 2
 
-    async def test_get_network_interfaces_partial_failure(self, mocker):
+    async def test_get_network_interfaces_partial_failure(self, mock_execute):
         """Test getting network interfaces with partial failures."""
-        mock_execute = mocker.patch.object(network, "execute_with_fallback")
-
         mock_execute.side_effect = [
             (0, "eth0             UP             192.168.1.100/24", ""),
             (1, "", "Command failed"),
@@ -59,9 +70,8 @@ class TestGetNetworkInterfaces:
         assert "Network Interfaces" in result
         assert "eth0" in result
 
-    async def test_get_network_interfaces_error(self, mocker):
+    async def test_get_network_interfaces_error(self, mock_execute):
         """Test getting network interfaces with error."""
-        mock_execute = mocker.patch.object(network, "execute_with_fallback")
         mock_execute.side_effect = Exception("Network error")
 
         result = await network.get_network_interfaces()
