@@ -9,7 +9,7 @@ from unittest.mock import AsyncMock
 
 import pytest
 
-from mcp.server.fastmcp.exceptions import ToolError
+from fastmcp.exceptions import ToolError
 
 from linux_mcp_server.server import mcp
 from linux_mcp_server.tools import storage
