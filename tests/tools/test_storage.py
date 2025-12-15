@@ -217,7 +217,7 @@ class TestListDirectories:
         ]
         test_path, expected_names = setup_test_directory(dir_specs)
 
-        result = await storage.list_directories(str(test_path), order_by="name")
+        result = await storage.list_directories.fn(str(test_path), order_by="name")
 
         assert isinstance(result, str)
         assert "=== Directories in" in result
@@ -233,7 +233,7 @@ class TestListDirectories:
         ]
         test_path, _ = setup_test_directory(dir_specs)
 
-        result = await storage.list_directories(str(test_path), order_by="name")
+        result = await storage.list_directories.fn(str(test_path), order_by="name")
 
         assert isinstance(result, str)
         # Verify all directories are present
@@ -255,7 +255,7 @@ class TestListDirectories:
         ]
         test_path, _ = setup_test_directory(dir_specs)
 
-        result = await storage.list_directories(str(test_path), order_by="size")
+        result = await storage.list_directories.fn(str(test_path), order_by="size")
 
         assert isinstance(result, str)
         # All directories should be present
@@ -290,7 +290,7 @@ class TestListDirectories:
         """Test that list_directories can sort descending by name, size, or modified time."""
         test_path, _ = setup_test_directory(dir_specs)
 
-        result = await storage.list_directories(str(test_path), order_by=order_by, sort="descending")
+        result = await storage.list_directories.fn(str(test_path), order_by=order_by, sort="descending")
 
         assert isinstance(result, str)
         # Verify descending order
@@ -306,7 +306,7 @@ class TestListDirectories:
         ]
         test_path, _ = setup_test_directory(dir_specs)
 
-        result = await storage.list_directories(str(test_path), order_by="name", top_n=2)
+        result = await storage.list_directories.fn(str(test_path), order_by="name", top_n=2)
 
         assert isinstance(result, str)
         assert "Total directories: 2" in result
@@ -316,14 +316,14 @@ class TestListDirectories:
         nonexistent = tmp_path / "nonexistent"
 
         with pytest.raises(ToolError) as exc_info:
-            await storage.list_directories(str(nonexistent))
+            await storage.list_directories.fn(str(nonexistent))
 
         assert "Error running command: command failed with return code 1" in str(exc_info.value)
 
     async def test_list_directories_restricted_path(self, restricted_path):
         """Test list_directories with restricted path raises ToolError."""
         with pytest.raises(ToolError) as exc_info:
-            await storage.list_directories(str(restricted_path))
+            await storage.list_directories.fn(str(restricted_path))
 
         assert "Error running command: command failed with return code 1" in str(exc_info.value)
 
@@ -336,7 +336,7 @@ class TestListDirectoriesRemote:
         mock_execute = AsyncMock(return_value=(0, "alpha\nbeta\ngamma", ""))
         mocker.patch("linux_mcp_server.tools.storage.execute_command", mock_execute)
 
-        result = await storage.list_directories("/remote/path", host="remote.host")
+        result = await storage.list_directories.fn("/remote/path", host="remote.host")
 
         assert isinstance(result, str)
         assert "alpha" in result
@@ -360,7 +360,7 @@ class TestListFiles:
         ]
         test_path, expected_names = setup_test_files(file_specs)
 
-        result = await storage.list_files(str(test_path), order_by="name")
+        result = await storage.list_files.fn(str(test_path), order_by="name")
 
         assert isinstance(result, str)
         assert "=== Files in" in result
@@ -376,7 +376,7 @@ class TestListFiles:
         ]
         test_path, _ = setup_test_files(file_specs)
 
-        result = await storage.list_files(str(test_path), order_by="name")
+        result = await storage.list_files.fn(str(test_path), order_by="name")
 
         assert isinstance(result, str)
         # Verify sorted order
@@ -394,7 +394,7 @@ class TestListFiles:
         ]
         test_path, _ = setup_test_files(file_specs)
 
-        result = await storage.list_files(str(test_path), order_by="size")
+        result = await storage.list_files.fn(str(test_path), order_by="size")
 
         assert isinstance(result, str)
         # All files should be present
@@ -411,7 +411,7 @@ class TestListFiles:
         ]
         test_path, _ = setup_test_files(file_specs)
 
-        result = await storage.list_files(str(test_path), order_by="name", sort="descending")
+        result = await storage.list_files.fn(str(test_path), order_by="name", sort="descending")
 
         assert isinstance(result, str)
         # Verify descending order
@@ -429,7 +429,7 @@ class TestListFiles:
         ]
         test_path, _ = setup_test_files(file_specs)
 
-        result = await storage.list_files(str(test_path), order_by="name", top_n=2)
+        result = await storage.list_files.fn(str(test_path), order_by="name", top_n=2)
 
         assert isinstance(result, str)
         assert "Total files: 2" in result
@@ -439,7 +439,7 @@ class TestListFiles:
         nonexistent = tmp_path / "nonexistent"
 
         with pytest.raises(ToolError) as exc_info:
-            await storage.list_files(str(nonexistent))
+            await storage.list_files.fn(str(nonexistent))
 
         assert "Error running command: command failed with return code 1" in str(exc_info.value)
 
@@ -452,7 +452,7 @@ class TestListFilesRemote:
         mock_execute = AsyncMock(return_value=(0, "file1.txt\nfile2.txt\nfile3.txt", ""))
         mocker.patch("linux_mcp_server.tools.storage.execute_command", mock_execute)
 
-        result = await storage.list_files("/remote/path", host="remote.host")
+        result = await storage.list_files.fn("/remote/path", host="remote.host")
 
         assert isinstance(result, str)
         assert "file1.txt" in result
@@ -471,7 +471,7 @@ class TestReadFile:
         test_file = tmp_path / "test.txt"
         test_file.write_text("Hello, World!")
 
-        result = await storage.read_file(str(test_file))
+        result = await storage.read_file.fn(str(test_file))
 
         assert result == "Hello, World!"
 
@@ -480,14 +480,14 @@ class TestReadFile:
         nonexistent = tmp_path / "nonexistent.txt"
 
         with pytest.raises(ToolError) as exc_info:
-            await storage.read_file(str(nonexistent))
+            await storage.read_file.fn(str(nonexistent))
 
         assert f"Path is not a file: {nonexistent}" == str(exc_info.value)
 
     async def test_read_file_is_directory(self, tmp_path):
         """Test reading a directory raises ToolError."""
         with pytest.raises(ToolError) as exc_info:
-            await storage.read_file(str(tmp_path))
+            await storage.read_file.fn(str(tmp_path))
 
         assert "not a file" in str(exc_info.value)
 
@@ -496,7 +496,7 @@ class TestReadFile:
         mock_execute = AsyncMock(return_value=(0, "Remote file content", ""))
         mocker.patch("linux_mcp_server.tools.storage.execute_command", mock_execute)
 
-        result = await storage.read_file("/remote/path/file.txt", host="remote.host")
+        result = await storage.read_file.fn("/remote/path/file.txt", host="remote.host")
 
         assert result == "Remote file content"
 
@@ -511,6 +511,6 @@ class TestReadFile:
         mocker.patch("linux_mcp_server.tools.storage.execute_command", mock_execute)
 
         with pytest.raises(ToolError) as exc_info:
-            await storage.read_file("/remote/path/file.txt", host="remote.host")
+            await storage.read_file.fn("/remote/path/file.txt", host="remote.host")
 
         assert "Error running command: command failed with return code 1" in str(exc_info.value)

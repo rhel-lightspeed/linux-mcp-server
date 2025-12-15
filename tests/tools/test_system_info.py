@@ -13,13 +13,13 @@ class TestSystemInfo:
 
     async def test_get_system_info_returns_string(self):
         """Test that get_system_information returns a string."""
-        result = await system_info.get_system_information()
+        result = await system_info.get_system_information.fn()
         assert isinstance(result, str)
         assert len(result) > 0
 
     async def test_get_system_info_contains_key_information(self):
         """Test that system info contains essential data."""
-        result = await system_info.get_system_information()
+        result = await system_info.get_system_information.fn()
 
         # Should contain key system information
         assert "Hostname" in result or "hostname" in result.lower()
@@ -29,13 +29,13 @@ class TestSystemInfo:
 
     async def test_get_cpu_info_returns_string(self):
         """Test that get_cpu_information returns a string."""
-        result = await system_info.get_cpu_information()
+        result = await system_info.get_cpu_information.fn()
         assert isinstance(result, str)
         assert len(result) > 0
 
     async def test_get_cpu_info_contains_cpu_data(self):
         """Test that CPU info contains relevant data."""
-        result = await system_info.get_cpu_information()
+        result = await system_info.get_cpu_information.fn()
 
         # Should contain CPU information
         assert "CPU" in result or "cpu" in result.lower() or "processor" in result.lower()
@@ -43,13 +43,13 @@ class TestSystemInfo:
 
     async def test_get_memory_info_returns_string(self):
         """Test that get_memory_information returns a string."""
-        result = await system_info.get_memory_information()
+        result = await system_info.get_memory_information.fn()
         assert isinstance(result, str)
         assert len(result) > 0
 
     async def test_get_memory_info_contains_memory_data(self):
         """Test that memory info contains RAM and swap information."""
-        result = await system_info.get_memory_information()
+        result = await system_info.get_memory_information.fn()
 
         # Should contain memory information
         assert "memory" in result.lower() or "ram" in result.lower()
@@ -58,13 +58,13 @@ class TestSystemInfo:
 
     async def test_get_disk_usage_returns_string(self):
         """Test that get_disk_usage returns a string."""
-        result = await system_info.get_disk_usage()
+        result = await system_info.get_disk_usage.fn()
         assert isinstance(result, str)
         assert len(result) > 0
 
     async def test_get_disk_usage_contains_filesystem_data(self):
         """Test that disk usage contains filesystem information."""
-        result = await system_info.get_disk_usage()
+        result = await system_info.get_disk_usage.fn()
 
         # Should contain disk usage information
         assert "filesystem" in result.lower() or "device" in result.lower() or "mounted" in result.lower()
@@ -73,6 +73,6 @@ class TestSystemInfo:
     @pytest.mark.skipif(sys.platform != "linux", reason="Only passes no Linux")
     async def test_get_hardware_info_returns_string(self):
         """Test that get_hardware_information returns a string."""
-        result = await system_info.get_hardware_information()
+        result = await system_info.get_hardware_information.fn()
         assert isinstance(result, str)
         assert len(result) > 0

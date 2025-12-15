@@ -49,7 +49,7 @@ class TestGetNetworkInterfaces:
         """Test getting network interfaces with success."""
         mock_execute.side_effect = responses
 
-        result = await network.get_network_interfaces(host=host)
+        result = await network.get_network_interfaces.fn(host=host)
 
         assert isinstance(result, str)
         assert "Network Interfaces" in result
@@ -64,7 +64,7 @@ class TestGetNetworkInterfaces:
             (1, "", "Command failed"),
         ]
 
-        result = await network.get_network_interfaces()
+        result = await network.get_network_interfaces.fn()
 
         assert isinstance(result, str)
         assert "Network Interfaces" in result
@@ -74,7 +74,7 @@ class TestGetNetworkInterfaces:
         """Test getting network interfaces with error."""
         mock_execute.side_effect = Exception("Network error")
 
-        result = await network.get_network_interfaces()
+        result = await network.get_network_interfaces.fn()
 
         assert isinstance(result, str)
         assert "Error getting network interface information" in result
@@ -108,7 +108,7 @@ tcp    ESTAB      0      0      10.0.0.5:443         10.0.0.1:12345""",
         """Test getting network connections with success."""
         mock_execute.return_value = (0, mock_output, "")
 
-        result = await network.get_network_connections(host=host)
+        result = await network.get_network_connections.fn(host=host)
 
         assert isinstance(result, str)
         assert "Active Network Connections" in result
@@ -126,7 +126,7 @@ tcp    ESTAB      0      0      10.0.0.5:443         10.0.0.1:12345""",
         """Test getting network connections when command fails or returns empty."""
         mock_execute.return_value = return_value
 
-        result = await network.get_network_connections()
+        result = await network.get_network_connections.fn()
 
         assert isinstance(result, str)
         assert "Error" in result or "Neither ss nor netstat" in result
@@ -135,7 +135,7 @@ tcp    ESTAB      0      0      10.0.0.5:443         10.0.0.1:12345""",
         """Test getting network connections with general error."""
         mock_execute.side_effect = Exception("Network error")
 
-        result = await network.get_network_connections()
+        result = await network.get_network_connections.fn()
 
         assert isinstance(result, str)
         assert "Error getting network connections" in result
@@ -169,7 +169,7 @@ tcp    LISTEN     0      128    0.0.0.0:22           0.0.0.0:*""",
         """Test getting listening ports with success."""
         mock_execute.return_value = (0, mock_output, "")
 
-        result = await network.get_listening_ports(host=host)
+        result = await network.get_listening_ports.fn(host=host)
 
         assert isinstance(result, str)
         assert "Listening Ports" in result
@@ -187,7 +187,7 @@ tcp    LISTEN     0      128    0.0.0.0:22           0.0.0.0:*""",
         """Test getting listening ports when command fails or returns empty."""
         mock_execute.return_value = return_value
 
-        result = await network.get_listening_ports()
+        result = await network.get_listening_ports.fn()
 
         assert isinstance(result, str)
         assert "Error" in result or "Neither ss nor netstat" in result
@@ -196,7 +196,7 @@ tcp    LISTEN     0      128    0.0.0.0:22           0.0.0.0:*""",
         """Test getting listening ports with general error."""
         mock_execute.side_effect = Exception("Network error")
 
-        result = await network.get_listening_ports()
+        result = await network.get_listening_ports.fn()
 
         assert isinstance(result, str)
         assert "Error getting listening ports" in result

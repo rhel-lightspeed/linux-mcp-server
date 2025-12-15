@@ -14,13 +14,13 @@ class TestProcesses:
 
     async def test_list_processes_returns_string(self):
         """Test that list_processes returns a string."""
-        result = await processes.list_processes()
+        result = await processes.list_processes.fn()
         assert isinstance(result, str)
         assert len(result) > 0
 
     async def test_list_processes_contains_process_info(self):
         """Test that list_processes contains process information."""
-        result = await processes.list_processes()
+        result = await processes.list_processes.fn()
 
         # Should contain process-related keywords
         assert "pid" in result.lower() or "process" in result.lower()
@@ -30,7 +30,7 @@ class TestProcesses:
     async def test_get_process_info_with_current_process(self):
         """Test getting info about the current process."""
         current_pid = os.getpid()
-        result = await processes.get_process_info(current_pid)
+        result = await processes.get_process_info.fn(current_pid)
         assert isinstance(result, str)
         assert len(result) > 0
         # Should contain the PID
@@ -38,7 +38,7 @@ class TestProcesses:
 
     async def test_get_process_info_with_init_process(self):
         """Test getting info about init process (PID 1)."""
-        result = await processes.get_process_info(1)
+        result = await processes.get_process_info.fn(1)
         assert isinstance(result, str)
         assert len(result) > 0
         # Should contain process information
@@ -47,7 +47,7 @@ class TestProcesses:
     async def test_get_process_info_with_nonexistent_process(self):
         """Test getting info about a non-existent process."""
         # Use a very high PID that likely doesn't exist
-        result = await processes.get_process_info(999999)
+        result = await processes.get_process_info.fn(999999)
         assert isinstance(result, str)
         assert len(result) > 0
         # Should handle gracefully
@@ -56,7 +56,7 @@ class TestProcesses:
     async def test_list_processes_with_host(self, mocker):
         mocker.patch.object(processes, "execute_command", return_value=(0, "some process", ""))
 
-        result = await processes.list_processes(host="starship.command")
+        result = await processes.list_processes.fn(host="starship.command")
 
         assert "Running Processes" in result
 
@@ -74,7 +74,7 @@ class TestProcesses:
             ],
         )
 
-        result = await processes.get_process_info(1, host="starship.command")
+        result = await processes.get_process_info.fn(1, host="starship.command")
 
         assert "Process Information for PID 1" in result
         assert "init" in result.lower()
@@ -96,7 +96,7 @@ nobody     100  1.5  2.0  50000 20000 ?        S    Dec11   5:00 /usr/bin/app"""
 
         mock_execute.return_value = (0, ps_output, "")
 
-        result = await processes.list_processes(host="remote.host")
+        result = await processes.list_processes.fn(host="remote.host")
 
         assert "Running Processes" in result
         assert "Total processes: 2" in result
@@ -105,7 +105,7 @@ nobody     100  1.5  2.0  50000 20000 ?        S    Dec11   5:00 /usr/bin/app"""
         """Test that list_processes handles command failure gracefully."""
         mock_execute.return_value = (1, "", "Command not found")
 
-        result = await processes.list_processes(host="remote.host")
+        result = await processes.list_processes.fn(host="remote.host")
 
         assert "Error" in result
 
@@ -113,7 +113,7 @@ nobody     100  1.5  2.0  50000 20000 ?        S    Dec11   5:00 /usr/bin/app"""
         """Test that get_process_info handles non-existent process."""
         mock_execute.return_value = (1, "", "")
 
-        result = await processes.get_process_info(99999, host="remote.host")
+        result = await processes.get_process_info.fn(99999, host="remote.host")
 
         assert "does not exist" in result.lower()
 
@@ -132,7 +132,7 @@ VmRSS:	    11892 kB"""
             (0, proc_status, ""),  # /proc/PID/status
         ]
 
-        result = await processes.get_process_info(1, host="remote.host")
+        result = await processes.get_process_info.fn(1, host="remote.host")
 
         assert "Process Information for PID 1" in result
         assert "Detailed Status" in result
@@ -148,7 +148,7 @@ VmRSS:	    11892 kB"""
             (1, "", "Permission denied"),  # /proc/PID/status fails
         ]
 
-        result = await processes.get_process_info(1, host="remote.host")
+        result = await processes.get_process_info.fn(1, host="remote.host")
 
         # Should still return ps info
         assert "Process Information for PID 1" in result

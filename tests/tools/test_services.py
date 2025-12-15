@@ -15,14 +15,14 @@ class TestServices:
     @pytest.mark.skipif(sys.platform != "linux", reason="Only passes no Linux")
     async def test_list_services_returns_string(self):
         """Test that list_services returns a string."""
-        result = await services.list_services()
+        result = await services.list_services.fn()
         assert isinstance(result, str)
         assert len(result) > 0
 
     @pytest.mark.skipif(sys.platform != "linux", reason="Only passes no Linux")
     async def test_list_services_contains_service_info(self):
         """Test that list_services contains service information."""
-        result = await services.list_services()
+        result = await services.list_services.fn()
 
         # Should contain service-related keywords
         assert "service" in result.lower() or "unit" in result.lower()
@@ -33,7 +33,7 @@ class TestServices:
     async def test_get_service_status_with_common_service(self):
         """Test getting status of a common service."""
         # Test with a service that should exist on most systems
-        result = await services.get_service_status("sshd.service")
+        result = await services.get_service_status.fn("sshd.service")
         assert isinstance(result, str)
         assert len(result) > 0
         # Should contain status information
@@ -47,7 +47,7 @@ class TestServices:
     @pytest.mark.skipif(sys.platform != "linux", reason="Only passes no Linux")
     async def test_get_service_status_with_nonexistent_service(self):
         """Test getting status of a non-existent service."""
-        result = await services.get_service_status("nonexistent-service-xyz123")
+        result = await services.get_service_status.fn("nonexistent-service-xyz123")
         assert isinstance(result, str)
         assert len(result) > 0
         # Should handle gracefully
@@ -56,7 +56,7 @@ class TestServices:
     @pytest.mark.skipif(sys.platform != "linux", reason="Only passes no Linux")
     async def test_get_service_logs_returns_string(self):
         """Test that get_service_logs returns a string."""
-        result = await services.get_service_logs("sshd.service", lines=10)
+        result = await services.get_service_logs.fn("sshd.service", lines=10)
         assert isinstance(result, str)
         assert len(result) > 0
 
@@ -64,13 +64,13 @@ class TestServices:
     async def test_get_service_logs_respects_line_limit(self):
         """Test that get_service_logs respects the lines parameter."""
         # This is a basic test - we just verify it runs without error
-        result = await services.get_service_logs("sshd.service", lines=5)
+        result = await services.get_service_logs.fn("sshd.service", lines=5)
         assert isinstance(result, str)
 
     @pytest.mark.skipif(sys.platform != "linux", reason="Only passes no Linux")
     async def test_get_service_logs_with_nonexistent_service(self):
         """Test getting logs of a non-existent service."""
-        result = await services.get_service_logs("nonexistent-service-xyz123", lines=10)
+        result = await services.get_service_logs.fn("nonexistent-service-xyz123", lines=10)
         assert isinstance(result, str)
         assert len(result) > 0
         # Should handle gracefully
@@ -88,7 +88,7 @@ class TestRemoteServices:
         mock_exec.return_value = (0, mock_output, "")
         mocker.patch("linux_mcp_server.tools.services.execute_command", mock_exec)
 
-        result = await services.list_services(host="remote.example.com")
+        result = await services.list_services.fn(host="remote.example.com")
 
         assert "nginx.service" in result
         assert "System Services" in result
@@ -102,7 +102,7 @@ class TestRemoteServices:
         mock_exec.return_value = (0, mock_output, "")
         mocker.patch("linux_mcp_server.tools.services.execute_command", mock_exec)
 
-        result = await services.get_service_status("nginx", host="remote.example.com")
+        result = await services.get_service_status.fn("nginx", host="remote.example.com")
 
         assert "nginx.service" in result
         assert "active" in result.lower()
@@ -116,7 +116,7 @@ class TestRemoteServices:
         mock_exec.return_value = (0, mock_output, "")
         mocker.patch("linux_mcp_server.tools.services.execute_command", mock_exec)
 
-        result = await services.get_service_logs("nginx", lines=50, host="remote.example.com")
+        result = await services.get_service_logs.fn("nginx", lines=50, host="remote.example.com")
 
         assert "nginx" in result.lower()
         assert "Starting" in result

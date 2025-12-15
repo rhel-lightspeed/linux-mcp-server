@@ -1,3 +1,27 @@
+"""Shared pytest fixtures for Linux MCP Server tests.
+
+Testing Strategy
+----------------
+This test suite uses two complementary approaches for testing MCP tools:
+
+1. **Protocol Testing** (via `mcp_client` fixture):
+   Use `await mcp_client.call_tool("tool_name", params)` to test the full MCP
+   protocol stack, including serialization, validation, and the FastMCP framework.
+   This is integration-style testing that verifies tools work correctly when
+   called by real MCP clients.
+
+2. **Direct Function Testing** (via `.fn()` attribute):
+   Use `await tool_function.fn(param=value)` to call the underlying function
+   directly, bypassing the MCP protocol layer. This is unit-style testing that
+   allows faster execution and more granular control over inputs.
+
+When to use each:
+- Use `mcp_client` for testing tool registration, parameter validation, and
+  end-to-end behavior as MCP clients would experience it.
+- Use `.fn()` for testing edge cases, error handling, and scenarios where
+  you need to bypass MCP's parameter processing.
+"""
+
 import pytest
 
 from linux_mcp_server.audit import log_tool_call
