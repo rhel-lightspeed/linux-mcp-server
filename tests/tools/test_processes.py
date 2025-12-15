@@ -1,21 +1,14 @@
 """Tests for process management tools."""
 
 import os
-
-from unittest.mock import MagicMock
+import sys
 
 import pytest
 
 from linux_mcp_server.tools import processes
-from tests.conftest import GLOBAL_IPV6
-from tests.conftest import IPV4_ADDR
-from tests.conftest import LINK_LOCAL_FILTER_CASES_PROCESS
-from tests.conftest import LINK_LOCAL_IPV6
-from tests.conftest import make_mixed_connections_process
-from tests.conftest import MockAddr
-from tests.conftest import MockConnection
 
 
+@pytest.mark.skipif(sys.platform != "linux", reason="requires Linux ps command")
 class TestProcesses:
     """Test process management tools."""
 
@@ -67,129 +60,97 @@ class TestProcesses:
 
         assert "Running Processes" in result
 
+    async def test_get_process_info_with_host(self, mocker):
+        """Test getting process info from a remote host."""
+        ps_output = "  PID USER     STAT %CPU %MEM    VSZ   RSS TTY  TIME COMMAND ARGS\n    1 root     Ss   0.0  0.1 169436 11892 ?    0:01 init /sbin/init"
+        proc_status = "Name:\tinit\nState:\tS (sleeping)\nPid:\t1\nPPid:\t0\nThreads:\t1"
 
-@pytest.fixture
-def create_mock_process():
-    """Factory fixture to create a mock process with configurable network connections."""
-
-    def _create(connections):
-        mock_proc = MagicMock()
-        mock_proc.name.return_value = "test_process"
-        mock_proc.exe.return_value = "/usr/bin/test"
-        mock_proc.cmdline.return_value = ["test", "--arg"]
-        mock_proc.status.return_value = "running"
-        mock_proc.username.return_value = "testuser"
-        mock_proc.pid = 12345
-        mock_proc.ppid.return_value = 1
-        mock_proc.cpu_percent.return_value = 1.5
-        mock_proc.memory_percent.return_value = 2.0
-        mock_proc.memory_info.return_value = MagicMock(rss=1024 * 1024, vms=2048 * 1024)
-        mock_proc.create_time.return_value = 1700000000.0
-        mock_proc.cpu_times.return_value = MagicMock(user=10.0, system=5.0)
-        mock_proc.num_threads.return_value = 4
-        mock_proc.num_fds.return_value = 10
-        mock_proc.net_connections.return_value = connections
-        return mock_proc
-
-    return _create
-
-
-class TestGetProcessInfoLinkLocalFiltering:
-    """Test get_process_info filters link-local connections."""
-
-    @pytest.mark.parametrize("laddr_ip,raddr_ip,expectation", LINK_LOCAL_FILTER_CASES_PROCESS)
-    async def test_get_process_info_filters_link_local_connections(
-        self, mocker, create_mock_process, laddr_ip, raddr_ip, expectation
-    ):
-        """Test that process connections with link-local addresses are filtered."""
-        connections = [
-            MockConnection(
-                type_name="SOCK_STREAM",
-                laddr=MockAddr(laddr_ip, 8080),
-                raddr=MockAddr(raddr_ip, 54321),
-                status="ESTABLISHED",
-            ),
-        ]
-
-        mock_proc = create_mock_process(connections)
-        mocker.patch.object(processes.psutil, "pid_exists", return_value=True)
-        mocker.patch.object(processes.psutil, "Process", return_value=mock_proc)
-
-        result = await processes.get_process_info(12345)  # noqa: F841 - used in eval
-
-        assert eval(expectation)
-
-    async def test_get_process_info_mixed_connections_filtering(self, mocker, create_mock_process):
-        """Test filtering with mix of link-local and regular connections."""
-        mock_proc = create_mock_process(make_mixed_connections_process())
-        mocker.patch.object(processes.psutil, "pid_exists", return_value=True)
-        mocker.patch.object(processes.psutil, "Process", return_value=mock_proc)
-
-        result = await processes.get_process_info(12345)
-
-        # Should only show 1 connection (the IPv4 -> global IPv6 one)
-        assert "Network Connections (1)" in result
-        assert f"{IPV4_ADDR}:80" in result
-        assert f"{GLOBAL_IPV6}:12345" in result
-        # Link-local addresses should not appear
-        assert LINK_LOCAL_IPV6 not in result
-
-    async def test_get_process_info_shows_more_than_10_connections_message(self, mocker, create_mock_process):
-        """Test that 'and X more' message shows correct count after filtering."""
-        # Create 15 regular connections (should show "and 5 more")
-        connections = [
-            MockConnection(
-                type_name="SOCK_STREAM",
-                laddr=MockAddr(IPV4_ADDR, 8000 + i),
-                raddr=MockAddr(GLOBAL_IPV6, 50000 + i),
-                status="ESTABLISHED",
-            )
-            for i in range(15)
-        ]
-        # Add 5 link-local connections that should be filtered out
-        connections.extend(
-            [
-                MockConnection(
-                    type_name="SOCK_STREAM",
-                    laddr=MockAddr(LINK_LOCAL_IPV6, 9000 + i),
-                    raddr=MockAddr(IPV4_ADDR, 60000 + i),
-                    status="ESTABLISHED",
-                )
-                for i in range(5)
-            ]
+        mocker.patch.object(
+            processes,
+            "execute_command",
+            side_effect=[
+                (0, ps_output, ""),  # ps_detail
+                (0, proc_status, ""),  # proc_status
+            ],
         )
 
-        mock_proc = create_mock_process(connections)
-        mocker.patch.object(processes.psutil, "pid_exists", return_value=True)
-        mocker.patch.object(processes.psutil, "Process", return_value=mock_proc)
+        result = await processes.get_process_info(1, host="starship.command")
 
-        result = await processes.get_process_info(12345)
+        assert "Process Information for PID 1" in result
+        assert "init" in result.lower()
 
-        # Should show 15 filtered connections, first 10 displayed, "and 5 more"
-        assert "Network Connections (15)" in result
-        assert "... and 5 more" in result
 
-    @pytest.mark.parametrize(
-        "laddr,raddr,expected_local,expected_remote",
-        [
-            pytest.param(MockAddr(IPV4_ADDR, 80), None, f"{IPV4_ADDR}:80", "N/A", id="no-raddr"),
-            pytest.param(None, MockAddr(IPV4_ADDR, 80), "N/A", f"{IPV4_ADDR}:80", id="no-laddr"),
-        ],
-    )
-    async def test_get_process_info_connection_missing_address(
-        self, mocker, create_mock_process, laddr, raddr, expected_local, expected_remote
-    ):
-        """Test connections with missing local or remote address."""
-        connections = [
-            MockConnection(type_name="SOCK_STREAM", laddr=laddr, raddr=raddr, status="ESTABLISHED"),
+class TestProcessesRemoteMocked:
+    """Test process tools with mocked remote execution."""
+
+    @pytest.fixture
+    def mock_execute(self, mocker):
+        """Fixture to mock execute_command."""
+        return mocker.patch.object(processes, "execute_command")
+
+    async def test_list_processes_parses_ps_output(self, mock_execute):
+        """Test that list_processes correctly parses ps aux output."""
+        ps_output = """USER       PID %CPU %MEM    VSZ   RSS TTY      STAT START   TIME COMMAND
+root         1  0.0  0.1 169436 11892 ?        Ss   Dec11   0:01 /sbin/init
+nobody     100  1.5  2.0  50000 20000 ?        S    Dec11   5:00 /usr/bin/app"""
+
+        mock_execute.return_value = (0, ps_output, "")
+
+        result = await processes.list_processes(host="remote.host")
+
+        assert "Running Processes" in result
+        assert "Total processes: 2" in result
+
+    async def test_list_processes_handles_command_failure(self, mock_execute):
+        """Test that list_processes handles command failure gracefully."""
+        mock_execute.return_value = (1, "", "Command not found")
+
+        result = await processes.list_processes(host="remote.host")
+
+        assert "Error" in result
+
+    async def test_get_process_info_handles_nonexistent_process(self, mock_execute):
+        """Test that get_process_info handles non-existent process."""
+        mock_execute.return_value = (1, "", "")
+
+        result = await processes.get_process_info(99999, host="remote.host")
+
+        assert "does not exist" in result.lower()
+
+    async def test_get_process_info_includes_proc_status(self, mock_execute):
+        """Test that get_process_info includes /proc status when available."""
+        ps_output = "  PID USER     STAT\n    1 root     Ss"
+        proc_status = """Name:	systemd
+State:	S (sleeping)
+Pid:	1
+PPid:	0
+Threads:	1
+VmRSS:	    11892 kB"""
+
+        mock_execute.side_effect = [
+            (0, ps_output, ""),  # ps command
+            (0, proc_status, ""),  # /proc/PID/status
         ]
 
-        mock_proc = create_mock_process(connections)
-        mocker.patch.object(processes.psutil, "pid_exists", return_value=True)
-        mocker.patch.object(processes.psutil, "Process", return_value=mock_proc)
+        result = await processes.get_process_info(1, host="remote.host")
 
-        result = await processes.get_process_info(12345)
+        assert "Process Information for PID 1" in result
+        assert "Detailed Status" in result
+        assert "systemd" in result
+        assert "VmRSS" in result
 
-        assert "Network Connections (1)" in result
-        assert expected_local in result
-        assert expected_remote in result
+    async def test_get_process_info_handles_proc_status_failure(self, mock_execute):
+        """Test that get_process_info works even if /proc status fails."""
+        ps_output = "  PID USER     STAT\n    1 root     Ss"
+
+        mock_execute.side_effect = [
+            (0, ps_output, ""),  # ps command succeeds
+            (1, "", "Permission denied"),  # /proc/PID/status fails
+        ]
+
+        result = await processes.get_process_info(1, host="remote.host")
+
+        # Should still return ps info
+        assert "Process Information for PID 1" in result
+        # Should not have detailed status section
+        assert "Detailed Status" not in result

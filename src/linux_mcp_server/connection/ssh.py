@@ -368,6 +368,47 @@ async def execute_command(
     return await _execute_local(command)
 
 
+async def execute_with_fallback(
+    args: list[str],
+    fallback: list[str] | None = None,
+    host: str | None = None,
+    **kwargs,
+) -> tuple[int, str, str]:
+    """
+    Execute a command with optional fallback if primary command fails.
+
+    This function attempts to execute the primary command. If it fails
+    (non-zero return code) and a fallback command is provided, it will
+    attempt the fallback command.
+
+    Args:
+        args: Primary command and arguments to execute
+        fallback: Optional fallback command if primary fails
+        host: Optional remote host address
+        username: Optional SSH username (required if host is provided)
+        **kwargs: Additional arguments passed to execute_command
+
+    Returns:
+        Tuple of (return_code, stdout, stderr)
+
+    Examples:
+        # Try ss, fall back to netstat
+        >>> returncode, stdout, stderr = await execute_with_fallback(
+        ...     ["ss", "-tunap"],
+        ...     fallback=["netstat", "-tunap"],
+        ...     host="server.example.com"
+        ... )
+    """
+    returncode, stdout, stderr = await execute_command(args, host=host, **kwargs)
+
+    # If primary command failed and we have a fallback, try it
+    if returncode != 0 and fallback:
+        logger.debug(f"Primary command failed (exit={returncode}), trying fallback: {' '.join(fallback)}")
+        returncode, stdout, stderr = await execute_command(fallback, host=host, **kwargs)
+
+    return returncode, stdout, stderr
+
+
 async def _execute_local(command: list[str]) -> tuple[int, str, str]:
     """
     Execute a command locally using subprocess.

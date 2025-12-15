@@ -7,6 +7,7 @@ import pytest
 from linux_mcp_server.tools import system_info
 
 
+@pytest.mark.skipif(sys.platform != "linux", reason="requires Linux commands")
 class TestSystemInfo:
     """Test system information tools."""
 

@@ -9,8 +9,15 @@ from mcp.types import ToolAnnotations
 from pydantic import Field
 
 from linux_mcp_server.audit import log_tool_call
+from linux_mcp_server.commands import build_journal_command
+from linux_mcp_server.commands import COMMANDS
+from linux_mcp_server.commands import CommandSpec
+from linux_mcp_server.commands import substitute_command_args
 from linux_mcp_server.config import CONFIG
 from linux_mcp_server.connection.ssh import execute_command
+from linux_mcp_server.formatters import format_audit_logs
+from linux_mcp_server.formatters import format_journal_logs
+from linux_mcp_server.formatters import format_log_file
 from linux_mcp_server.server import mcp
 from linux_mcp_server.utils.decorators import disallow_local_execution_in_containers
 from linux_mcp_server.utils.types import Host
@@ -50,16 +57,8 @@ async def get_journal_logs(
         # Validate lines parameter (accepts floats from LLMs)
         lines, _ = validate_line_count(lines, default=100)
 
-        cmd = ["journalctl", "-n", str(lines), "--no-pager"]
-
-        if unit:
-            cmd.extend(["-u", unit])
-
-        if priority:
-            cmd.extend(["-p", priority])
-
-        if since:
-            cmd.extend(["--since", since])
+        # Build command with optional filters
+        cmd = build_journal_command(lines, unit=unit, priority=priority, since=since)
 
         returncode, stdout, stderr = await execute_command(cmd, host=host)
 
@@ -69,21 +68,7 @@ async def get_journal_logs(
         if not stdout or stdout.strip() == "":
             return "No journal entries found matching the criteria."
 
-        # Build filter description
-        filters = []
-        if unit:
-            filters.append(f"unit={unit}")
-        if priority:
-            filters.append(f"priority={priority}")
-        if since:
-            filters.append(f"since={since}")
-
-        filter_desc = ", ".join(filters) if filters else "no filters"
-
-        result = [f"=== Journal Logs (last {lines} entries, {filter_desc}) ===\n"]
-        result.append(stdout)
-
-        return "\n".join(result)
+        return format_journal_logs(stdout, lines, unit, priority, since)
     except FileNotFoundError:
         return "Error: journalctl command not found. This tool requires systemd."
     except Exception as e:
@@ -114,11 +99,13 @@ async def get_audit_logs(
         if not host and not os.path.exists(audit_log_path):
             return f"Audit log file not found at {audit_log_path}. Audit logging may not be enabled."
 
-        # Use tail to read last N lines
-        returncode, stdout, stderr = await execute_command(
-            ["tail", "-n", str(lines), audit_log_path],
-            host=host,
-        )
+        # Get command from registry and format with parameters
+        cmd = COMMANDS["audit_logs"]
+        if not isinstance(cmd, CommandSpec):
+            raise TypeError(f"Expected CommandSpec for 'audit_logs', got {type(cmd).__name__}")
+        args = substitute_command_args(cmd.args, lines=lines)
+
+        returncode, stdout, stderr = await execute_command(args, host=host)
 
         if returncode != 0:
             if "Permission denied" in stderr:
@@ -128,10 +115,7 @@ async def get_audit_logs(
         if not stdout or stdout.strip() == "":
             return "No audit log entries found."
 
-        result = [f"=== Audit Logs (last {lines} entries) ===\n"]
-        result.append(stdout)
-
-        return "\n".join(result)
+        return format_audit_logs(stdout, lines)
     except FileNotFoundError:
         return "Error: tail command not found."
     except Exception as e:
@@ -209,11 +193,12 @@ async def read_log_file(  # noqa: C901
                 )  # nofmt
             log_path_str = log_path
 
-        # Read the file using tail
-        returncode, stdout, stderr = await execute_command(
-            ["tail", "-n", str(lines), log_path_str],
-            host=host,
-        )
+        cmd = COMMANDS["read_log_file"]
+        if not isinstance(cmd, CommandSpec):
+            raise TypeError(f"Expected CommandSpec for 'read_log_file', got {type(cmd).__name__}")
+        args = substitute_command_args(cmd.args, lines=lines, log_path=log_path_str)
+
+        returncode, stdout, stderr = await execute_command(args, host=host)
 
         if returncode != 0:
             if "Permission denied" in stderr:
@@ -223,10 +208,7 @@ async def read_log_file(  # noqa: C901
         if not stdout or stdout.strip() == "":
             return f"Log file is empty: {log_path}"
 
-        result = [f"=== Log File: {log_path} (last {lines} lines) ===\n"]
-        result.append(stdout)
-
-        return "\n".join(result)
+        return format_log_file(stdout, log_path, lines)
     except FileNotFoundError:
         return "Error: tail command not found."
     except Exception as e:
