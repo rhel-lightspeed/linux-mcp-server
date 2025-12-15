@@ -36,77 +36,68 @@ class TestServices:
 
         assert any(n in result_text for n in expected), "Did not find any expected values"
 
-    async def test_get_service_status_with_nonexistent_service(self, mcp_client):
+    @pytest.mark.parametrize(
+        "service_name, lines, expected",
+        (
+            ("sshd.service", 5, None),  # Just check line count
+            ("nonexistent-service-xyz123", 10, ("not found", "no entries", "error")),
+        ),
+    )
+    async def test_get_service_logs(self, mcp_client, service_name, lines, expected):
         result = await mcp_client.call_tool(
-            "get_service_status", arguments={"service_name": "nonexistent-service-xyz123"}
+            "get_service_logs", arguments={"service_name": service_name, "lines": lines}
         )
-        result_text = result.content[0].text.casefold()
-        expected = (
-            "not found",
-            "could not",
-            "error",
-        )
-        assert any(n in result_text for n in expected), "Did not find any expected values"
+        result_text = result.content[0].text
 
-    async def test_get_service_logs(self, mcp_client):
-        result = await mcp_client.call_tool("get_service_logs", arguments={"service_name": "sshd.service", "lines": 5})
-        result_lines = [line for line in result.content[0].text.split("\n") if line and not line.startswith("=")]
-
-        assert len(result_lines) < 6, "Got more lines than expected"
-
-    async def test_get_service_logs_with_nonexistent_service(self, mcp_client):
-        result = await mcp_client.call_tool(
-            "get_service_logs", arguments={"service_name": "nonexistent-service-xyz123", "lines": 10}
-        )
-        result_text = result.content[0].text.casefold()
-        expected = (
-            "not found",
-            "no entries",
-            "error",
-        )
-
-        assert any(n in result_text for n in expected), "Did not find any expected values"
+        if expected is None:
+            # Filter out header lines (starting with "=") and boot markers (starting with "--")
+            result_lines = [
+                line
+                for line in result_text.split("\n")
+                if line and not line.startswith("=") and not line.startswith("--")
+            ]
+            assert 1 <= len(result_lines) <= lines, f"Expected 1-{lines} log lines, got {len(result_lines)}"
+        else:
+            # For invalid services, check error messages
+            assert any(n in result_text.casefold() for n in expected), "Did not find any expected values"
 
 
 class TestRemoteServices:
-    """Test remote service management."""
-
-    async def test_list_services_remote(self, mock_execute_with_fallback, mcp_client):
-        """Test listing services on a remote host."""
-        mock_output = "UNIT                     LOAD   ACTIVE SUB     DESCRIPTION\nnginx.service           loaded active running Nginx server\n"
+    @pytest.mark.parametrize(
+        ("tool_name", "arguments", "mock_output", "expected_content"),
+        [
+            pytest.param(
+                "list_services",
+                {"host": "remote.example.com"},
+                "UNIT                     LOAD   ACTIVE SUB     DESCRIPTION\nnginx.service           loaded active running Nginx server\n",
+                ["nginx.service", "system services"],
+                id="list-services",
+            ),
+            pytest.param(
+                "get_service_status",
+                {"service_name": "nginx", "host": "remote.example.com"},
+                "● nginx.service - Nginx HTTP Server\n   Loaded: loaded\n   Active: active (running)",
+                ["nginx.service", "active"],
+                id="get-status",
+            ),
+            pytest.param(
+                "get_service_logs",
+                {"service_name": "nginx", "host": "remote.example.com", "lines": 50},
+                "Jan 01 12:00:00 host nginx[1234]: Starting Nginx\nJan 01 12:00:01 host nginx[1234]: Started",
+                ["nginx", "starting"],
+                id="get-logs",
+            ),
+        ],
+    )
+    async def test_remote_service_operations(
+        self, mock_execute_with_fallback, mcp_client, tool_name, arguments, mock_output, expected_content
+    ):
+        """Test remote service operations."""
         mock_execute_with_fallback.return_value = (0, mock_output, "")
 
-        result = await mcp_client.call_tool("list_services", arguments={"host": "remote.example.com"})
+        result = await mcp_client.call_tool(tool_name, arguments=arguments)
         result_text = result.content[0].text.casefold()
 
-        assert "nginx.service" in result_text
-        assert "system services" in result_text
-        mock_execute_with_fallback.assert_called()
-
-    async def test_get_service_status_remote(self, mock_execute_with_fallback, mcp_client):
-        """Test getting service status on a remote host."""
-        mock_output = "● nginx.service - Nginx HTTP Server\n   Loaded: loaded\n   Active: active (running)"
-        mock_execute_with_fallback.return_value = (0, mock_output, "")
-
-        result = await mcp_client.call_tool(
-            "get_service_status", arguments={"service_name": "nginx", "host": "remote.example.com"}
-        )
-        result_text = result.content[0].text.casefold()
-
-        assert "nginx.service" in result_text
-        assert "active" in result_text
-        mock_execute_with_fallback.assert_called()
-
-    async def test_get_service_logs_remote(self, mock_execute_with_fallback, mcp_client):
-        """Test getting service logs on a remote host."""
-        mock_output = "Jan 01 12:00:00 host nginx[1234]: Starting Nginx\nJan 01 12:00:01 host nginx[1234]: Started"
-        mock_execute_with_fallback.return_value = (0, mock_output, "")
-
-        result = await mcp_client.call_tool(
-            "get_service_logs", arguments={"service_name": "nginx", "host": "remote.example.com", "lines": 50}
-        )
-        result_text = result.content[0].text.casefold()
-
-        assert "nginx" in result_text
-        assert "starting" in result_text
+        for content in expected_content:
+            assert content in result_text
         mock_execute_with_fallback.assert_called()
