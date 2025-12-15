@@ -5,6 +5,7 @@ import typing as t
 
 from pathlib import Path
 
+# Core MCP types remain in mcp package (FastMCP is built on top of MCP)
 from mcp.types import ToolAnnotations
 from pydantic import Field
 

@@ -5,7 +5,7 @@ import typing as t
 
 from pathlib import Path
 
-from mcp.server.fastmcp.exceptions import ToolError
+from fastmcp.exceptions import ToolError
 from mcp.types import ToolAnnotations
 from pydantic import Field
 
