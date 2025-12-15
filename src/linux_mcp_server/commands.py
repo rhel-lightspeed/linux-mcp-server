@@ -158,11 +158,25 @@ def substitute_command_args(args: list[str], **kwargs) -> list[str]:
     Returns:
         List of command arguments with placeholders replaced.
 
+    Raises:
+        ValueError: If any placeholders are missing from kwargs or remain
+            unsubstituted after replacement.
+
     Example:
         >>> substitute_command_args(["ps", "-p", "{pid}"], pid=1234)
         ["ps", "-p", "1234"]
     """
-    return [arg.format(**kwargs) for arg in args]
+    try:
+        result = [arg.format(**kwargs) for arg in args]
+    except KeyError as e:
+        raise ValueError(f"Missing required placeholder: {e}") from e
+
+    # Validate all placeholders were replaced (catches edge cases like nested braces)
+    for arg in result:
+        if "{" in arg and "}" in arg:
+            raise ValueError(f"Unsubstituted placeholder in command argument: {arg}")
+
+    return result
 
 
 def build_journal_command(
