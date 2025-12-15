@@ -8,6 +8,12 @@ import pytest
 from linux_mcp_server.tools import processes
 
 
+@pytest.fixture
+def mock_execute(mock_execute_command_for):
+    """Mock execute_command for processes module."""
+    return mock_execute_command_for("linux_mcp_server.tools.processes")
+
+
 @pytest.mark.skipif(sys.platform != "linux", reason="requires Linux ps command")
 class TestProcesses:
     """Test process management tools."""
@@ -53,53 +59,37 @@ class TestProcesses:
         # Should handle gracefully
         assert "not found" in result.lower() or "does not exist" in result.lower() or "error" in result.lower()
 
-    async def test_list_processes_with_host(self, mocker):
-        mocker.patch.object(processes, "execute_command", return_value=(0, "some process", ""))
 
-        result = await processes.list_processes(host="starship.command")
+class TestProcessesMocked:
+    """Test process tools with mocked execution."""
 
-        assert "Running Processes" in result
-
-    async def test_get_process_info_with_host(self, mocker):
-        """Test getting process info from a remote host."""
-        ps_output = "  PID USER     STAT %CPU %MEM    VSZ   RSS TTY  TIME COMMAND ARGS\n    1 root     Ss   0.0  0.1 169436 11892 ?    0:01 init /sbin/init"
-        proc_status = "Name:\tinit\nState:\tS (sleeping)\nPid:\t1\nPPid:\t0\nThreads:\t1"
-
-        mocker.patch.object(
-            processes,
-            "execute_command",
-            side_effect=[
-                (0, ps_output, ""),  # ps_detail
-                (0, proc_status, ""),  # proc_status
-            ],
-        )
-
-        result = await processes.get_process_info(1, host="starship.command")
-
-        assert "Process Information for PID 1" in result
-        assert "init" in result.lower()
-
-
-class TestProcessesRemoteMocked:
-    """Test process tools with mocked remote execution."""
-
-    @pytest.fixture
-    def mock_execute(self, mocker):
-        """Fixture to mock execute_command."""
-        return mocker.patch.object(processes, "execute_command")
-
-    async def test_list_processes_parses_ps_output(self, mock_execute):
-        """Test that list_processes correctly parses ps aux output."""
-        ps_output = """USER       PID %CPU %MEM    VSZ   RSS TTY      STAT START   TIME COMMAND
+    @pytest.mark.parametrize(
+        ("host", "ps_output", "expected_content"),
+        [
+            pytest.param(
+                "starship.command",
+                "some process",
+                ["Running Processes"],
+                id="simple_output",
+            ),
+            pytest.param(
+                "remote.host",
+                """USER       PID %CPU %MEM    VSZ   RSS TTY      STAT START   TIME COMMAND
 root         1  0.0  0.1 169436 11892 ?        Ss   Dec11   0:01 /sbin/init
-nobody     100  1.5  2.0  50000 20000 ?        S    Dec11   5:00 /usr/bin/app"""
-
+nobody     100  1.5  2.0  50000 20000 ?        S    Dec11   5:00 /usr/bin/app""",
+                ["Running Processes", "Total processes: 2"],
+                id="detailed_output",
+            ),
+        ],
+    )
+    async def test_list_processes_success(self, mock_execute, host, ps_output, expected_content):
+        """Test list_processes with mocked successful execution."""
         mock_execute.return_value = (0, ps_output, "")
 
-        result = await processes.list_processes(host="remote.host")
+        result = await processes.list_processes(host=host)
 
-        assert "Running Processes" in result
-        assert "Total processes: 2" in result
+        for content in expected_content:
+            assert content in result
 
     async def test_list_processes_handles_command_failure(self, mock_execute):
         """Test that list_processes handles command failure gracefully."""
@@ -109,24 +99,30 @@ nobody     100  1.5  2.0  50000 20000 ?        S    Dec11   5:00 /usr/bin/app"""
 
         assert "Error" in result
 
-    async def test_get_process_info_handles_nonexistent_process(self, mock_execute):
-        """Test that get_process_info handles non-existent process."""
-        mock_execute.return_value = (1, "", "")
-
-        result = await processes.get_process_info(99999, host="remote.host")
-
-        assert "does not exist" in result.lower()
-
-    async def test_get_process_info_includes_proc_status(self, mock_execute):
-        """Test that get_process_info includes /proc status when available."""
-        ps_output = "  PID USER     STAT\n    1 root     Ss"
-        proc_status = """Name:	systemd
-State:	S (sleeping)
-Pid:	1
-PPid:	0
-Threads:	1
-VmRSS:	    11892 kB"""
-
+    @pytest.mark.parametrize(
+        ("ps_output", "proc_status", "expected_content"),
+        [
+            pytest.param(
+                "  PID USER     STAT %CPU %MEM    VSZ   RSS TTY  TIME COMMAND ARGS\n    1 root     Ss   0.0  0.1 169436 11892 ?    0:01 init /sbin/init",
+                "Name:\tinit\nState:\tS (sleeping)\nPid:\t1\nPPid:\t0\nThreads:\t1",
+                ["Process Information for PID 1", "init"],
+                id="basic_info",
+            ),
+            pytest.param(
+                "  PID USER     STAT\n    1 root     Ss",
+                """Name:\tsystemd
+State:\tS (sleeping)
+Pid:\t1
+PPid:\t0
+Threads:\t1
+VmRSS:\t    11892 kB""",
+                ["Process Information for PID 1", "Detailed Status", "systemd", "VmRSS"],
+                id="with_proc_status",
+            ),
+        ],
+    )
+    async def test_get_process_info_success(self, mock_execute, ps_output, proc_status, expected_content):
+        """Test get_process_info with mocked successful execution."""
         mock_execute.side_effect = [
             (0, ps_output, ""),  # ps command
             (0, proc_status, ""),  # /proc/PID/status
@@ -134,10 +130,16 @@ VmRSS:	    11892 kB"""
 
         result = await processes.get_process_info(1, host="remote.host")
 
-        assert "Process Information for PID 1" in result
-        assert "Detailed Status" in result
-        assert "systemd" in result
-        assert "VmRSS" in result
+        for content in expected_content:
+            assert content in result
+
+    async def test_get_process_info_handles_nonexistent_process(self, mock_execute):
+        """Test that get_process_info handles non-existent process."""
+        mock_execute.return_value = (1, "", "")
+
+        result = await processes.get_process_info(99999, host="remote.host")
+
+        assert "does not exist" in result.lower()
 
     async def test_get_process_info_handles_proc_status_failure(self, mock_execute):
         """Test that get_process_info works even if /proc status fails."""
