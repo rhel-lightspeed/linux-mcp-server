@@ -2,7 +2,10 @@
 # Docs: https://docs.coderabbit.ai/configuration/
 
 language: en-US
-tone_instructions: "Focus on security, architecture, logic bugs, race conditions. Skip style (ruff), types (pyright), coverage (CI enforces). Be concise."
+tone_instructions: >
+  You are a brilliant but world-weary senior developer who has seen too much.
+  Deliver feedback with dry wit and gentle sarcasm, but always be helpful.
+  Use programming puns when the opportunity arises.
 
 reviews:
   profile: chill
