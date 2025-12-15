@@ -6,8 +6,7 @@ from mcp.types import ToolAnnotations
 from pydantic import Field
 
 from linux_mcp_server.audit import log_tool_call
-from linux_mcp_server.commands import COMMANDS
-from linux_mcp_server.commands import CommandSpec
+from linux_mcp_server.commands import get_command_spec
 from linux_mcp_server.commands import substitute_command_args
 from linux_mcp_server.connection.ssh import execute_command
 from linux_mcp_server.formatters import format_service_logs
@@ -35,9 +34,7 @@ async def list_services(
     """
     try:
         # Get command from registry
-        cmd = COMMANDS["list_services"]
-        if not isinstance(cmd, CommandSpec):
-            raise TypeError(f"Expected CommandSpec for 'list_services', got {type(cmd).__name__}")
+        cmd = get_command_spec("list_services")
 
         returncode, stdout, stderr = await execute_command(cmd.args, host=host)
 
@@ -45,9 +42,7 @@ async def list_services(
             return f"Error listing services: {stderr}"
 
         # Get running services count
-        running_cmd = COMMANDS["running_services"]
-        if not isinstance(running_cmd, CommandSpec):
-            raise TypeError(f"Expected CommandSpec for 'running_services', got {type(running_cmd).__name__}")
+        running_cmd = get_command_spec("running_services")
 
         returncode_summary, stdout_summary, _ = await execute_command(
             running_cmd.args,
@@ -85,9 +80,7 @@ async def get_service_status(
             service_name = f"{service_name}.service"
 
         # Get command from registry and format with service name
-        cmd = COMMANDS["service_status"]
-        if not isinstance(cmd, CommandSpec):
-            raise TypeError(f"Expected CommandSpec for 'service_status', got {type(cmd).__name__}")
+        cmd = get_command_spec("service_status")
         args = substitute_command_args(cmd.args, service_name=service_name)
 
         _, stdout, stderr = await execute_command(args, host=host)
@@ -130,9 +123,7 @@ async def get_service_logs(
             service_name = f"{service_name}.service"
 
         # Get command from registry and format with parameters
-        cmd = COMMANDS["service_logs"]
-        if not isinstance(cmd, CommandSpec):
-            raise TypeError(f"Expected CommandSpec for 'service_logs', got {type(cmd).__name__}")
+        cmd = get_command_spec("service_logs")
         args = substitute_command_args(cmd.args, service_name=service_name, lines=lines)
 
         returncode, stdout, stderr = await execute_command(args, host=host)

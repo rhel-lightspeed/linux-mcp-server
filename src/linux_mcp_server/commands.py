@@ -148,6 +148,42 @@ def get_command(name: str) -> CommandEntry:
     return COMMANDS[name]
 
 
+def get_command_spec(key: str) -> CommandSpec:
+    """Get and validate a CommandSpec from the COMMANDS registry.
+
+    Args:
+        key: The command key to look up.
+
+    Returns:
+        The validated CommandSpec.
+
+    Raises:
+        TypeError: If the retrieved command is not a CommandSpec.
+    """
+    cmd = COMMANDS[key]
+    if not isinstance(cmd, CommandSpec):
+        raise TypeError(f"Expected CommandSpec for '{key}', got {type(cmd).__name__}")
+    return cmd
+
+
+def get_command_group(key: str) -> CommandGroup:
+    """Get and validate a CommandGroup from the COMMANDS registry.
+
+    Args:
+        key: The command group key to look up.
+
+    Returns:
+        The validated CommandGroup.
+
+    Raises:
+        TypeError: If the retrieved command is not a CommandGroup.
+    """
+    group = COMMANDS[key]
+    if not isinstance(group, CommandGroup):
+        raise TypeError(f"Expected CommandGroup for '{key}', got {type(group).__name__}")
+    return group
+
+
 def substitute_command_args(args: list[str], **kwargs) -> list[str]:
     """Substitute placeholder values in command arguments.
 
