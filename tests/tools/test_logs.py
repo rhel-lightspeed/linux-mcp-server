@@ -4,21 +4,13 @@ from contextlib import nullcontext as does_not_raise
 
 import pytest
 
-from linux_mcp_server.server import mcp
+from tests import verify_result_structure as assert_tool_result_structure
 
 
 @pytest.fixture
 def mock_execute_command(mock_execute_command_for):
     """Logs-specific execute_command mock using the shared factory."""
     return mock_execute_command_for("linux_mcp_server.tools.logs")
-
-
-def assert_tool_result_structure(result):
-    """Verify common result structure returned by all tools."""
-    assert isinstance(result, tuple)
-    assert len(result) == 2
-    assert isinstance(result[0], list)
-    return result[0][0].text
 
 
 @pytest.fixture
@@ -77,7 +69,9 @@ class TestGetJournalLogs:
             ),
         ],
     )
-    async def test_get_journal_logs_filters(self, mock_execute_command, params, expected_args, expected_in_output):
+    async def test_get_journal_logs_filters(
+        self, mock_execute_command, mcp_client, params, expected_args, expected_in_output
+    ):
         """Test get_journal_logs with various filter combinations."""
         mock_execute_command.return_value = (
             0,
@@ -85,7 +79,7 @@ class TestGetJournalLogs:
             "",
         )
 
-        result = await mcp.call_tool("get_journal_logs", params)
+        result = await mcp_client.call_tool("get_journal_logs", params)
         output = assert_tool_result_structure(result)
 
         # Verify output contains expected strings
@@ -111,13 +105,13 @@ class TestGetJournalLogs:
         ],
     )
     async def test_get_journal_logs_edge_cases(
-        self, mock_execute_command, returncode, stdout, stderr, expected_error, expectation
+        self, mock_execute_command, mcp_client, returncode, stdout, stderr, expected_error, expectation
     ):
         """Test get_journal_logs error handling and edge cases."""
         mock_execute_command.return_value = (returncode, stdout, stderr)
 
         with expectation:
-            result = await mcp.call_tool("get_journal_logs", {})
+            result = await mcp_client.call_tool("get_journal_logs", {})
             output = assert_tool_result_structure(result)
             assert expected_error in output
 
@@ -128,17 +122,17 @@ class TestGetJournalLogs:
             ValueError("Raised intentionally"),
         ),
     )
-    async def test_get_journal_logs_journalctl_not_found(self, mocker, side_effect):
+    async def test_get_journal_logs_journalctl_not_found(self, mocker, mcp_client, side_effect):
         """Test get_journal_logs failure."""
         mock_execute_command = mocker.patch("linux_mcp_server.tools.logs.execute_command")
         mock_execute_command.side_effect = side_effect
 
-        result = await mcp.call_tool("get_journal_logs", {})
+        result = await mcp_client.call_tool("get_journal_logs", {})
         output = assert_tool_result_structure(result)
 
         assert str(side_effect).casefold() in output.casefold()
 
-    async def test_get_journal_logs_remote_execution(self, mock_execute_command):
+    async def test_get_journal_logs_remote_execution(self, mock_execute_command, mcp_client):
         """Test get_journal_logs with remote execution."""
         mock_execute_command.return_value = (
             0,
@@ -146,7 +140,7 @@ class TestGetJournalLogs:
             "",
         )
 
-        result = await mcp.call_tool("get_journal_logs", {"host": "remote.server.com"})
+        result = await mcp_client.call_tool("get_journal_logs", {"host": "remote.server.com"})
         output = assert_tool_result_structure(result)
 
         assert "Remote log entry" in output
@@ -166,7 +160,7 @@ class TestGetAuditLogs:
             (50, "50"),  # Custom
         ],
     )
-    async def test_get_audit_logs_success(self, mocker, mock_execute_command, lines, expected_line_count):
+    async def test_get_audit_logs_success(self, mocker, mock_execute_command, mcp_client, lines, expected_line_count):
         """Test get_audit_logs with various line counts."""
         mocker.patch("linux_mcp_server.tools.logs.os.path.exists", return_value=True)
         mock_execute_command.return_value = (
@@ -176,7 +170,7 @@ class TestGetAuditLogs:
         )
 
         params = {"lines": lines} if lines != 100 else {}
-        result = await mcp.call_tool("get_audit_logs", params)
+        result = await mcp_client.call_tool("get_audit_logs", params)
         output = assert_tool_result_structure(result)
 
         assert f"last {expected_line_count} entries" in output
@@ -186,11 +180,11 @@ class TestGetAuditLogs:
         cmd_args = mock_execute_command.call_args[0][0]
         assert cmd_args == ["tail", "-n", expected_line_count, "/var/log/audit/audit.log"]
 
-    async def test_get_audit_logs_file_not_found_local(self, mocker):
+    async def test_get_audit_logs_file_not_found_local(self, mocker, mcp_client):
         """Test get_audit_logs when audit log file doesn't exist locally."""
         mocker.patch("linux_mcp_server.tools.logs.os.path.exists", return_value=False)
 
-        result = await mcp.call_tool("get_audit_logs", {})
+        result = await mcp_client.call_tool("get_audit_logs", {})
         output = assert_tool_result_structure(result)
 
         assert "Audit log file not found" in output
@@ -206,22 +200,24 @@ class TestGetAuditLogs:
             (1, "tail: error reading file", "Error reading audit logs"),
         ],
     )
-    async def test_get_audit_logs_errors(self, mocker, mock_execute_command, returncode, stderr, expected_error):
+    async def test_get_audit_logs_errors(
+        self, mocker, mock_execute_command, mcp_client, returncode, stderr, expected_error
+    ):
         """Test get_audit_logs error handling."""
         mocker.patch("linux_mcp_server.tools.logs.os.path.exists", return_value=True)
         mock_execute_command.return_value = (returncode, "", stderr)
 
-        result = await mcp.call_tool("get_audit_logs", {})
+        result = await mcp_client.call_tool("get_audit_logs", {})
         output = assert_tool_result_structure(result)
 
         assert expected_error in output
 
-    async def test_get_audit_logs_no_entries(self, mocker, mock_execute_command):
+    async def test_get_audit_logs_no_entries(self, mocker, mock_execute_command, mcp_client):
         """Test get_audit_logs when no entries found."""
         mocker.patch("linux_mcp_server.tools.logs.os.path.exists", return_value=True)
         mock_execute_command.return_value = (0, "", "")
 
-        result = await mcp.call_tool("get_audit_logs", {})
+        result = await mcp_client.call_tool("get_audit_logs", {})
         output = assert_tool_result_structure(result)
 
         assert "No audit log entries found" in output
@@ -233,19 +229,19 @@ class TestGetAuditLogs:
             ValueError("Raised intentionally"),
         ),
     )
-    async def test_get_audit_logs_tail_not_found(self, mocker, side_effect):
+    async def test_get_audit_logs_tail_not_found(self, mocker, mcp_client, side_effect):
         """Test get_audit_logs when tail command is not available."""
         mock_exists = mocker.patch("linux_mcp_server.tools.logs.os.path.exists")
         mock_execute_command = mocker.patch("linux_mcp_server.tools.logs.execute_command")
         mock_exists.return_value = True
         mock_execute_command.side_effect = side_effect
 
-        result = await mcp.call_tool("get_audit_logs", {})
+        result = await mcp_client.call_tool("get_audit_logs", {})
         output = assert_tool_result_structure(result)
 
         assert str(side_effect).casefold() in output.casefold()
 
-    async def test_get_audit_logs_remote_execution(self, mock_execute_command):
+    async def test_get_audit_logs_remote_execution(self, mock_execute_command, mcp_client):
         """Test get_audit_logs with remote execution."""
         mock_execute_command.return_value = (
             0,
@@ -253,7 +249,7 @@ class TestGetAuditLogs:
             "",
         )
 
-        result = await mcp.call_tool("get_audit_logs", {"host": "remote.server.com"})
+        result = await mcp_client.call_tool("get_audit_logs", {"host": "remote.server.com"})
         output = assert_tool_result_structure(result)
 
         assert "remote audit entry" in output
@@ -285,7 +281,9 @@ class TestReadLogFile:
             (50, "50"),  # Custom
         ],
     )
-    async def test_read_log_file_success(self, mock_execute_command, setup_log_file, lines, expected_line_count):
+    async def test_read_log_file_success(
+        self, mock_execute_command, setup_log_file, mcp_client, lines, expected_line_count
+    ):
         """Test read_log_file with various line counts."""
         log_file = setup_log_file()
         mock_execute_command.return_value = (0, "Test log content\nLine 2", "")
@@ -294,7 +292,7 @@ class TestReadLogFile:
         if lines != 100:
             params["lines"] = lines
 
-        result = await mcp.call_tool("read_log_file", params)
+        result = await mcp_client.call_tool("read_log_file", params)
         output = assert_tool_result_structure(result)
 
         assert f"last {expected_line_count} lines" in output
@@ -305,11 +303,11 @@ class TestReadLogFile:
         assert "-n" in cmd_args
         assert expected_line_count in cmd_args
 
-    async def test_read_log_file_no_allowed_paths(self, mock_allowed_log_paths):
+    async def test_read_log_file_no_allowed_paths(self, mock_allowed_log_paths, mcp_client):
         """Test read_log_file when no allowed paths are configured."""
         mock_allowed_log_paths("")
 
-        result = await mcp.call_tool("read_log_file", {"log_path": "/var/log/test.log"})
+        result = await mcp_client.call_tool("read_log_file", {"log_path": "/var/log/test.log"})
         output = assert_tool_result_structure(result)
 
         assert "No log files are allowed" in output
@@ -325,7 +323,7 @@ class TestReadLogFile:
         ],
     )
     async def test_read_log_file_path_validation(
-        self, mock_allowed_log_paths, tmp_path, test_scenario, path_resolver, expected_error
+        self, mock_allowed_log_paths, tmp_path, mcp_client, test_scenario, path_resolver, expected_error
     ):
         """Test read_log_file path validation scenarios."""
         # Setup allowed path
@@ -339,28 +337,28 @@ class TestReadLogFile:
             restricted_file.write_text("restricted")
 
         test_path = path_resolver(tmp_path)
-        result = await mcp.call_tool("read_log_file", {"log_path": test_path})
+        result = await mcp_client.call_tool("read_log_file", {"log_path": test_path})
         output = assert_tool_result_structure(result)
 
         assert expected_error in output
 
-    async def test_read_log_file_nonexistent_but_allowed(self, mock_allowed_log_paths, tmp_path):
+    async def test_read_log_file_nonexistent_but_allowed(self, mock_allowed_log_paths, tmp_path, mcp_client):
         """Test read_log_file when path is allowed but file doesn't exist."""
         nonexistent_file = tmp_path / "nonexistent.log"
         mock_allowed_log_paths(str(nonexistent_file))
 
-        result = await mcp.call_tool("read_log_file", {"log_path": str(nonexistent_file)})
+        result = await mcp_client.call_tool("read_log_file", {"log_path": str(nonexistent_file)})
         output = assert_tool_result_structure(result)
 
         assert "Log file not found" in output
 
-    async def test_read_log_file_path_is_directory(self, mock_allowed_log_paths, tmp_path):
+    async def test_read_log_file_path_is_directory(self, mock_allowed_log_paths, tmp_path, mcp_client):
         """Test read_log_file when path is a directory, not a file."""
         log_dir = tmp_path / "logdir"
         log_dir.mkdir()
         mock_allowed_log_paths(str(log_dir))
 
-        result = await mcp.call_tool("read_log_file", {"log_path": str(log_dir)})
+        result = await mcp_client.call_tool("read_log_file", {"log_path": str(log_dir)})
         output = assert_tool_result_structure(result)
 
         assert "Path is not a file" in output
@@ -375,38 +373,40 @@ class TestReadLogFile:
         ],
     )
     async def test_read_log_file_command_errors(
-        self, mock_execute_command, setup_log_file, returncode, stderr, expected_error
+        self, mock_execute_command, setup_log_file, mcp_client, returncode, stderr, expected_error
     ):
         """Test read_log_file command error handling."""
         log_file = setup_log_file()
         mock_execute_command.return_value = (returncode, "", stderr)
 
-        result = await mcp.call_tool("read_log_file", {"log_path": str(log_file)})
+        result = await mcp_client.call_tool("read_log_file", {"log_path": str(log_file)})
         output = assert_tool_result_structure(result)
 
         assert expected_error in output
 
-    async def test_read_log_file_empty(self, mock_execute_command, setup_log_file):
+    async def test_read_log_file_empty(self, mock_execute_command, setup_log_file, mcp_client):
         """Test read_log_file with empty log file."""
         log_file = setup_log_file(content="")
         mock_execute_command.return_value = (0, "", "")
 
-        result = await mcp.call_tool("read_log_file", {"log_path": str(log_file)})
+        result = await mcp_client.call_tool("read_log_file", {"log_path": str(log_file)})
         output = assert_tool_result_structure(result)
 
         assert "Log file is empty" in output
 
-    async def test_read_log_file_tail_not_found(self, mock_execute_command, setup_log_file):
+    async def test_read_log_file_tail_not_found(self, mock_execute_command, setup_log_file, mcp_client):
         """Test read_log_file when tail command is not available."""
         log_file = setup_log_file()
         mock_execute_command.side_effect = FileNotFoundError("tail not found")
 
-        result = await mcp.call_tool("read_log_file", {"log_path": str(log_file)})
+        result = await mcp_client.call_tool("read_log_file", {"log_path": str(log_file)})
         output = assert_tool_result_structure(result)
 
         assert "tail command not found" in output
 
-    async def test_read_log_file_multiple_allowed_paths(self, mock_execute_command, mock_allowed_log_paths, tmp_path):
+    async def test_read_log_file_multiple_allowed_paths(
+        self, mock_execute_command, mock_allowed_log_paths, tmp_path, mcp_client
+    ):
         """Test read_log_file with multiple allowed paths."""
         log_file1 = tmp_path / "log1.log"
         log_file2 = tmp_path / "log2.log"
@@ -417,18 +417,18 @@ class TestReadLogFile:
         mock_allowed_log_paths(f"{log_file1},{log_file2}")
         mock_execute_command.return_value = (0, "content2", "")
 
-        result = await mcp.call_tool("read_log_file", {"log_path": str(log_file2)})
+        result = await mcp_client.call_tool("read_log_file", {"log_path": str(log_file2)})
         output = assert_tool_result_structure(result)
 
         assert "content2" in output
 
-    async def test_read_log_file_remote_execution(self, mock_execute_command, mock_allowed_log_paths):
+    async def test_read_log_file_remote_execution(self, mock_execute_command, mock_allowed_log_paths, mcp_client):
         """Test read_log_file with remote execution."""
         log_path = "/var/log/remote.log"
         mock_allowed_log_paths(log_path)
         mock_execute_command.return_value = (0, "Remote log content\nLine 2", "")
 
-        result = await mcp.call_tool("read_log_file", {"log_path": log_path, "host": "remote.server.com"})
+        result = await mcp_client.call_tool("read_log_file", {"log_path": log_path, "host": "remote.server.com"})
         output = assert_tool_result_structure(result)
 
         assert "Remote log content" in output
@@ -437,19 +437,21 @@ class TestReadLogFile:
         call_kwargs = mock_execute_command.call_args[1]
         assert call_kwargs["host"] == "remote.server.com"
 
-    async def test_read_log_file_remote_skips_local_validation(self, mock_execute_command, mock_allowed_log_paths):
+    async def test_read_log_file_remote_skips_local_validation(
+        self, mock_execute_command, mock_allowed_log_paths, mcp_client
+    ):
         """Test that remote execution skips local path validation."""
         log_path = "/nonexistent/remote.log"
         mock_allowed_log_paths(log_path)
         mock_execute_command.return_value = (0, "Remote content", "")
 
         # This path doesn't exist locally but should work for remote execution
-        result = await mcp.call_tool("read_log_file", {"log_path": log_path, "host": "remote.server.com"})
+        result = await mcp_client.call_tool("read_log_file", {"log_path": log_path, "host": "remote.server.com"})
         output = assert_tool_result_structure(result)
 
         assert "Remote content" in output
 
-    async def test_read_log_file_remote_not_in_allowed_paths(self, mock_allowed_log_paths, tmp_path):
+    async def test_read_log_file_remote_not_in_allowed_paths(self, mock_allowed_log_paths, tmp_path, mcp_client):
         """Test that remote execution still checks allowed paths."""
         allowed_path = tmp_path / "allowed.log"
         restricted_path = tmp_path / "restricted.log"
@@ -458,7 +460,9 @@ class TestReadLogFile:
 
         mock_allowed_log_paths(str(allowed_path))
 
-        result = await mcp.call_tool("read_log_file", {"log_path": str(restricted_path), "host": "remote.server.com"})
+        result = await mcp_client.call_tool(
+            "read_log_file", {"log_path": str(restricted_path), "host": "remote.server.com"}
+        )
         output = assert_tool_result_structure(result)
 
         assert "not allowed" in output

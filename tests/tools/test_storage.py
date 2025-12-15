@@ -11,7 +11,6 @@ import pytest
 
 from fastmcp.exceptions import ToolError
 
-from linux_mcp_server.server import mcp
 from linux_mcp_server.tools import storage
 from tests import verify_result_structure
 
@@ -134,11 +133,12 @@ class TestListBlockDevices:
         lsblk_output,
         expected_content,
         mock_storage_execute_command,
+        mcp_client,
     ):
         """Test list_block_devices with successful lsblk command."""
         mock_storage_execute_command.return_value = (0, lsblk_output, "")
 
-        result = await mcp.call_tool("list_block_devices", {})
+        result = await mcp_client.call_tool("list_block_devices", {})
         output = verify_result_structure(result)
 
         # Verify expected content
@@ -151,38 +151,32 @@ class TestListBlockDevices:
         assert args[0] == "lsblk"
         assert "-o" in args
 
-    async def test_list_block_devices_command_failure(self, mocker):
+    async def test_list_block_devices_command_failure(self, mocker, mcp_client):
         """Test list_block_devices returns error when lsblk fails."""
         mocker.patch(
             "linux_mcp_server.tools.storage.execute_command",
             AsyncMock(return_value=(1, "", "command failed")),
         )
 
-        result = await mcp.call_tool("list_block_devices", {})
-        assert isinstance(result, tuple)
-        assert len(result) == 2
-        assert isinstance(result[0], list)
-        output = result[0][0].text
+        result = await mcp_client.call_tool("list_block_devices", {})
+        output = verify_result_structure(result)
 
         assert "Error" in output or "Unable" in output
 
-    async def test_list_block_devices_file_not_found(self, mocker):
+    async def test_list_block_devices_file_not_found(self, mocker, mcp_client):
         """Test list_block_devices when lsblk is not available."""
         mocker.patch("linux_mcp_server.tools.storage.execute_command", side_effect=FileNotFoundError("lsblk not found"))
 
-        result = await mcp.call_tool("list_block_devices", {})
-        assert isinstance(result, tuple)
-        assert len(result) == 2
-        assert isinstance(result[0], list)
-        output = result[0][0].text
+        result = await mcp_client.call_tool("list_block_devices", {})
+        output = verify_result_structure(result)
 
         assert "Error" in output or "not found" in output
 
-    async def test_list_block_devices_remote_execution(self, mock_storage_execute_command):
+    async def test_list_block_devices_remote_execution(self, mock_storage_execute_command, mcp_client):
         """Test list_block_devices with remote execution."""
         mock_storage_execute_command.return_value = (0, "NAME   SIZE TYPE\nsda    1TB  disk", "")
 
-        result = await mcp.call_tool("list_block_devices", {"host": "remote.host.com"})
+        result = await mcp_client.call_tool("list_block_devices", {"host": "remote.host.com"})
         output = verify_result_structure(result)
 
         assert "=== Block Devices ===" in output
@@ -194,15 +188,12 @@ class TestListBlockDevices:
         call_kwargs = mock_storage_execute_command.call_args[1]
         assert call_kwargs["host"] == "remote.host.com"
 
-    async def test_list_block_devices_exception_handling(self, mock_storage_execute_command):
+    async def test_list_block_devices_exception_handling(self, mock_storage_execute_command, mcp_client):
         """Test list_block_devices handles general exceptions."""
         mock_storage_execute_command.side_effect = ValueError("Raised intentionally")
 
-        result = await mcp.call_tool("list_block_devices", {})
-        assert isinstance(result, tuple)
-        assert len(result) == 2
-        assert isinstance(result[0], list)
-        output = result[0][0].text
+        result = await mcp_client.call_tool("list_block_devices", {})
+        output = verify_result_structure(result)
         assert "Error" in output
 
 

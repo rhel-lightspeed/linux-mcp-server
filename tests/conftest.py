@@ -24,7 +24,21 @@ When to use each:
 
 import pytest
 
+from fastmcp import Client
+
 from linux_mcp_server.audit import log_tool_call
+from linux_mcp_server.server import mcp
+
+
+@pytest.fixture
+async def mcp_client():
+    """Fixture providing an async FastMCP client for tool testing.
+
+    Use this fixture for tests that need to call tools via the MCP protocol
+    rather than calling the underlying functions directly.
+    """
+    async with Client(mcp) as client:
+        yield client
 
 
 @pytest.fixture

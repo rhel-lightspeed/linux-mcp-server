@@ -1,19 +1,21 @@
 """Tests for Linux MCP Server."""
 
+from fastmcp.client.client import CallToolResult
 
-def verify_result_structure(result) -> str:
+
+def verify_result_structure(result: CallToolResult) -> str:
     """Verify standard MCP tool result structure and extract output text.
 
-    All MCP tools return a tuple of (list[TextContent], dict). This function
-    validates that structure and extracts the text content for assertions.
+    FastMCP 2.x Client.call_tool returns a CallToolResult object with
+    content as a list of TextContent objects.
 
     Args:
-        result: The result tuple from an MCP tool call
+        result: The CallToolResult from a Client.call_tool() call
 
     Returns:
         The text content from the first item in the result list
     """
-    assert isinstance(result, tuple)
-    assert len(result) == 2
-    assert isinstance(result[0], list)
-    return result[0][0].text
+    assert isinstance(result, CallToolResult)
+    assert result.content is not None
+    assert len(result.content) > 0
+    return result.content[0].text
