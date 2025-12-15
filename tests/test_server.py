@@ -17,17 +17,17 @@ class TestLinuxMCPServer:
         assert callable(mcp.get_tools)
 
     async def test_get_tools_returns_tools(self):
-        """Test that get_tools returns a list of tools."""
+        """Test that get_tools returns a dict of tools."""
         tools = await mcp.get_tools()
 
-        # Should return a list
-        assert isinstance(tools, list)
+        # FastMCP 2.x returns a dict mapping tool names to FunctionTool objects
+        assert isinstance(tools, dict)
         assert len(tools) > 0
 
     async def test_server_has_basic_tools(self):
         """Test that basic diagnostic tools are registered."""
         tools = await mcp.get_tools()
-        tool_names = [tool.name for tool in tools]
+        tool_names = list(tools.keys())
 
         # Should have at least the basic tools
         assert "get_system_information" in tool_names
