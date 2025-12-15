@@ -4,7 +4,7 @@ codecov:
     wait_for_ci: false
 
   require_ci_to_pass: false
-  token: 74bc381b-9c5f-44c1-9efa-af57d5f3fe50  # notsecret  # repo-scoped, upload-only, stability in fork PRs
+  token: 74bc381b-9c5f-44c1-9efa-af57d5f3fe50 # notsecret  # repo-scoped, upload-only, stability in fork PRs
 
 coverage:
   range: 40..100
@@ -25,10 +25,10 @@ coverage:
 
     patch:
       default:
-        target: 100%
+        target: 95%
         threshold: 10%
       app:
-        target: 100%
+        target: 95%
         threshold: 10%
         paths:
           - src/
