@@ -1,6 +1,6 @@
 [![CI](https://github.com/rhel-lightspeed/linux-mcp-server/actions/workflows/ci.yml/badge.svg)](https://github.com/rhel-lightspeed/linux-mcp-server/actions/workflows/ci.yml)
 [![Coverage](https://codecov.io/gh/rhel-lightspeed/linux-mcp-server/graph/badge.svg?token=TtUkG1y0rx)](https://codecov.io/gh/rhel-lightspeed/linux-mcp-server)
-![PyPI](https://img.shields.io/pypi/v/linux-mcp-server?label=PyPI)
+[![PyPI](https://img.shields.io/pypi/v/linux-mcp-server?label=PyPI)](https://pypi.org/project/linux-mcp-server)
 
 
 # Linux MCP Server
@@ -56,9 +56,30 @@ Key environment variables:
 - `LINUX_MCP_ALLOWED_LOG_PATHS` - Comma-separated list of log files that can be accessed
 - `LINUX_MCP_LOG_LEVEL` - Logging level (DEBUG, INFO, WARNING, ERROR, CRITICAL)
 - `LINUX_MCP_SSH_KEY_PATH` - Path to SSH private key for remote execution
-- `LINUX_MCP_USER` - Username used for SSH connections
+- `LINUX_MCP_USER` - Username used for SSH connections (optional)
 
 See [Environment Variables](https://github.com/rhel-lightspeed/linux-mcp-server/blob/main/docs/Install.md#environment-variables) for more details.
+
+### SSH Configuration
+
+The SSH configuration can be used to configure per-host connection settings. See [ssh_config][] for details.
+
+If `LINUX_MCP_USER` is set, it will be used for all connections to remote hosts. If per-host connections settings are required, use SSH config.
+
+Here is an example of per-host settings using SSH config:
+
+```
+# ~/.ssh/config
+Host server1
+  HostName 10.0.0.64
+  User millie
+
+Host server2
+  HostName 10.0.0.128
+  User bob
+  Port 2237
+```
+
 
 ### Example Configurations
 
@@ -273,64 +294,6 @@ For complete Claude Desktop integration instructions including platform-specific
 - `list_block_devices` - Block devices and partitions
 - `list_directories` - List directories under a specified path with various sorting options
 
-
-## Architecture Overview
-
-```mermaid
-graph TB
-    Client["Client Layer<br/>MCP Client (e.g. Claude Desktop)"]
-
-    subgraph Server["MCP Server"]
-        FastMCP[FastMCP Server]
-
-        subgraph Tools["Tool Categories"]
-            direction LR
-            subgraph Row1[" "]
-                SystemInfo[System Info]
-                Services[Services]
-                Processes[Processes]
-            end
-            subgraph Row2[" "]
-            Logs[Logs & Audit]
-                Network[Network]
-                Storage[Storage]
-            end
-        end
-
-        Executor[SSH Executor]
-        Logger[Audit Logger]
-    end
-
-    subgraph Targets["Execution Targets"]
-        direction LR
-        Local[Local System]
-        Remote[Remote Hosts<br/>SSH]
-    end
-
-    Client -->|MCP Protocol| FastMCP
-    FastMCP --> Tools
-    Tools --> Executor
-    Executor --> Targets
-
-    FastMCP -.-> Logger
-    Executor -.-> Logger
-
-    style Client fill:#4a9eff,stroke:#2563eb,color:#fff
-    style FastMCP fill:#f59e0b,stroke:#d97706,color:#fff
-    style SystemInfo fill:#64748b,stroke:#475569,color:#fff
-    style Services fill:#64748b,stroke:#475569,color:#fff
-    style Processes fill:#64748b,stroke:#475569,color:#fff
-    style Logs fill:#64748b,stroke:#475569,color:#fff
-    style Network fill:#64748b,stroke:#475569,color:#fff
-    style Storage fill:#64748b,stroke:#475569,color:#fff
-    style Executor fill:#10b981,stroke:#059669,color:#fff
-    style Logger fill:#8b5cf6,stroke:#7c3aed,color:#fff
-    style Local fill:#eab308,stroke:#ca8a04,color:#fff
-    style Remote fill:#eab308,stroke:#ca8a04,color:#fff
-    style Row1 fill:none,stroke:none
-    style Row2 fill:none,stroke:none
-```
-
 ### Key Components
 
 - **FastMCP Server**: Core MCP protocol server handling tool registration and invocation
@@ -342,3 +305,4 @@ graph TB
 
 [Podman]: https://podman-desktop.io
 [Docker]: https://www.docker.com
+[ssh_config]: https://www.man7.org/linux/man-pages/man5/ssh_config.5.html
