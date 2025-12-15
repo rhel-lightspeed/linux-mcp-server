@@ -96,7 +96,7 @@ async def get_network_connections(
         if returncode == 0 and stdout:
             connections = parse_ss_connections(stdout)
             return format_network_connections(connections)
-        return "Error getting network connections: return code {returncode}, stderr: {stderr}"
+        return f"Error getting network connections: return code {returncode}, stderr: {stderr}"
     except Exception as e:
         return f"Error getting network connections: {str(e)}"
 
@@ -129,6 +129,6 @@ async def get_listening_ports(
         if returncode == 0 and stdout:
             ports = parse_ss_listening(stdout)
             return format_listening_ports(ports)
-        return "Error getting listening ports: return code {returncode}, stderr: {stderr}"
+        return f"Error getting listening ports: return code {returncode}, stderr: {stderr}"
     except Exception as e:
         return f"Error getting listening ports: {str(e)}"
