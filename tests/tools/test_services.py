@@ -5,6 +5,12 @@ import sys
 import pytest
 
 
+@pytest.fixture
+def mock_execute_with_fallback(mock_execute_with_fallback_for):
+    """Services-specific execute_with_fallback mock using the shared factory."""
+    return mock_execute_with_fallback_for("linux_mcp_server.commands")
+
+
 @pytest.mark.skipif(sys.platform != "linux", reason="Only passes on Linux")
 class TestServices:
     async def test_list_services(self, mcp_client):
@@ -63,26 +69,24 @@ class TestServices:
 
 
 class TestRemoteServices:
-    async def test_list_services_remote(self, mocker, mcp_client):
+    """Test remote service management."""
+
+    async def test_list_services_remote(self, mock_execute_with_fallback, mcp_client):
         """Test listing services on a remote host."""
         mock_output = "UNIT                     LOAD   ACTIVE SUB     DESCRIPTION\nnginx.service           loaded active running Nginx server\n"
-        mock_exec = mocker.patch(
-            "linux_mcp_server.tools.services.execute_command", return_value=(0, mock_output, ""), autospec=True
-        )
+        mock_execute_with_fallback.return_value = (0, mock_output, "")
 
         result = await mcp_client.call_tool("list_services", arguments={"host": "remote.example.com"})
         result_text = result.content[0].text.casefold()
 
         assert "nginx.service" in result_text
         assert "system services" in result_text
-        assert mock_exec.call_count > 0
+        mock_execute_with_fallback.assert_called()
 
-    async def test_get_service_status_remote(self, mocker, mcp_client):
+    async def test_get_service_status_remote(self, mock_execute_with_fallback, mcp_client):
         """Test getting service status on a remote host."""
         mock_output = "● nginx.service - Nginx HTTP Server\n   Loaded: loaded\n   Active: active (running)"
-        mock_exec = mocker.patch(
-            "linux_mcp_server.tools.services.execute_command", return_value=(0, mock_output, ""), autospec=True
-        )
+        mock_execute_with_fallback.return_value = (0, mock_output, "")
 
         result = await mcp_client.call_tool(
             "get_service_status", arguments={"service_name": "nginx", "host": "remote.example.com"}
@@ -91,14 +95,12 @@ class TestRemoteServices:
 
         assert "nginx.service" in result_text
         assert "active" in result_text
-        assert mock_exec.call_count > 0
+        mock_execute_with_fallback.assert_called()
 
-    async def test_get_service_logs_remote(self, mocker, mcp_client):
+    async def test_get_service_logs_remote(self, mock_execute_with_fallback, mcp_client):
         """Test getting service logs on a remote host."""
         mock_output = "Jan 01 12:00:00 host nginx[1234]: Starting Nginx\nJan 01 12:00:01 host nginx[1234]: Started"
-        mock_exec = mocker.patch(
-            "linux_mcp_server.tools.services.execute_command", return_value=(0, mock_output, ""), autospec=True
-        )
+        mock_execute_with_fallback.return_value = (0, mock_output, "")
 
         result = await mcp_client.call_tool(
             "get_service_logs", arguments={"service_name": "nginx", "host": "remote.example.com", "lines": 50}
@@ -107,4 +109,4 @@ class TestRemoteServices:
 
         assert "nginx" in result_text
         assert "starting" in result_text
-        assert mock_exec.call_count > 0
+        mock_execute_with_fallback.assert_called()

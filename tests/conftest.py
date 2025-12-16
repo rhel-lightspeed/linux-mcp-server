@@ -49,26 +49,26 @@ async def adecorated_fail():
 
 
 @pytest.fixture
-def mock_execute_command_for(mocker):
-    """Factory fixture for mocking execute_command in any module.
+def mock_execute_with_fallback_for(mocker):
+    """Factory fixture for mocking execute_with_fallback in any module.
 
-    Returns a callable that creates mocks for execute_command in the specified module.
+    Returns a callable that creates mocks for execute_with_fallback in the specified module.
     Uses autospec=True to verify arguments match the real function signature.
 
     Usage:
         @pytest.fixture
-        def mock_execute_command(mock_execute_command_for):
-            return mock_execute_command_for("linux_mcp_server.tools.mymodule")
+        def mock_execute_with_fallback(mock_execute_with_fallback_for):
+            return mock_execute_with_fallback_for("linux_mcp_server.commands")
 
-        async def test_something(mock_execute_command):
-            mock_execute_command.return_value = (0, "output", "")
+        async def test_something(mock_execute_with_fallback):
+            mock_execute_with_fallback.return_value = (0, "output", "")
             # ... test code ...
-            mock_execute_command.assert_called_once()
+            mock_execute_with_fallback.assert_called_once()
     """
 
     def _mock(module: str):
         return mocker.patch(
-            f"{module}.execute_command",
+            f"{module}.execute_with_fallback",
             autospec=True,
         )
 

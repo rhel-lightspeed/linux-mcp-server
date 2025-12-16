@@ -2,13 +2,11 @@
 
 import pytest
 
-from linux_mcp_server.tools import network
-
 
 @pytest.fixture
-def mock_execute(mocker):
+def mock_execute(mock_execute_with_fallback_for):
     """Mock execute_with_fallback for network module."""
-    return mocker.patch.object(network, "execute_with_fallback", autospec=True)
+    return mock_execute_with_fallback_for("linux_mcp_server.commands")
 
 
 class TestGetNetworkInterfaces:

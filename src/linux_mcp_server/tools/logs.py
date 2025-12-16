@@ -9,11 +9,8 @@ from mcp.types import ToolAnnotations
 from pydantic import Field
 
 from linux_mcp_server.audit import log_tool_call
-from linux_mcp_server.commands import build_journal_command
 from linux_mcp_server.commands import get_command
-from linux_mcp_server.commands import substitute_command_args
 from linux_mcp_server.config import CONFIG
-from linux_mcp_server.connection.ssh import execute_command
 from linux_mcp_server.formatters import format_audit_logs
 from linux_mcp_server.formatters import format_journal_logs
 from linux_mcp_server.formatters import format_log_file
@@ -56,10 +53,9 @@ async def get_journal_logs(
         # Validate lines parameter (accepts floats from LLMs)
         lines, _ = validate_line_count(lines, default=100)
 
-        # Build command with optional filters
-        cmd = build_journal_command(lines, unit=unit, priority=priority, since=since)
-
-        returncode, stdout, stderr = await execute_command(cmd, host=host)
+        # Get command from registry
+        cmd = get_command("journal_logs")
+        returncode, stdout, stderr = await cmd.run(host=host, lines=lines, unit=unit, priority=priority, since=since)
 
         if returncode != 0:
             return f"Error reading journal logs: {stderr}"
@@ -99,9 +95,7 @@ async def get_audit_logs(
             return f"Audit log file not found at {audit_log_path}. Audit logging may not be enabled."
 
         cmd = get_command("audit_logs")
-        args = substitute_command_args(cmd.args, lines=lines)
-
-        returncode, stdout, stderr = await execute_command(args, host=host)
+        returncode, stdout, stderr = await cmd.run(host=host, lines=lines)
 
         if returncode != 0:
             if "Permission denied" in stderr:
@@ -190,9 +184,7 @@ async def read_log_file(  # noqa: C901
             log_path_str = log_path
 
         cmd = get_command("read_log_file")
-        args = substitute_command_args(cmd.args, lines=lines, log_path=log_path_str)
-
-        returncode, stdout, stderr = await execute_command(args, host=host)
+        returncode, stdout, stderr = await cmd.run(host=host, lines=lines, log_path=log_path_str)
 
         if returncode != 0:
             if "Permission denied" in stderr:

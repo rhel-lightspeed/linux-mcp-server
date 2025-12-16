@@ -4,7 +4,6 @@ from mcp.types import ToolAnnotations
 
 from linux_mcp_server.audit import log_tool_call
 from linux_mcp_server.commands import get_command
-from linux_mcp_server.connection.ssh import execute_with_fallback
 from linux_mcp_server.formatters import format_listening_ports
 from linux_mcp_server.formatters import format_network_connections
 from linux_mcp_server.formatters import format_network_interfaces
@@ -36,22 +35,14 @@ async def get_network_interfaces(
 
         # Get brief interface info
         brief_cmd = get_command("network_interfaces", "brief")
-        returncode, stdout, _ = await execute_with_fallback(
-            brief_cmd.args,
-            fallback=brief_cmd.fallback,
-            host=host,
-        )
+        returncode, stdout, _ = await brief_cmd.run(host=host)
 
         if returncode == 0 and stdout:
             interfaces = parse_ip_brief(stdout)
 
         # Get network statistics from /proc/net/dev
         stats_cmd = get_command("network_interfaces", "stats")
-        returncode, stdout, _ = await execute_with_fallback(
-            stats_cmd.args,
-            fallback=stats_cmd.fallback,
-            host=host,
-        )
+        returncode, stdout, _ = await stats_cmd.run(host=host)
 
         if returncode == 0 and stdout:
             stats = parse_proc_net_dev(stdout)
@@ -77,11 +68,7 @@ async def get_network_connections(
     try:
         cmd = get_command("network_connections")
 
-        returncode, stdout, stderr = await execute_with_fallback(
-            cmd.args,
-            fallback=cmd.fallback,
-            host=host,
-        )
+        returncode, stdout, stderr = await cmd.run(host=host)
 
         if returncode == 0 and stdout:
             connections = parse_ss_connections(stdout)
@@ -107,11 +94,7 @@ async def get_listening_ports(
     try:
         cmd = get_command("listening_ports")
 
-        returncode, stdout, stderr = await execute_with_fallback(
-            cmd.args,
-            fallback=cmd.fallback,
-            host=host,
-        )
+        returncode, stdout, stderr = await cmd.run(host=host)
 
         if returncode == 0 and stdout:
             ports = parse_ss_listening(stdout)

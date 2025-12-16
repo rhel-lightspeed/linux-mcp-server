@@ -11,8 +11,6 @@ from pydantic import Field
 
 from linux_mcp_server.audit import log_tool_call
 from linux_mcp_server.commands import get_command
-from linux_mcp_server.commands import substitute_command_args
-from linux_mcp_server.connection.ssh import execute_command
 from linux_mcp_server.formatters import format_block_devices
 from linux_mcp_server.formatters import format_directory_listing
 from linux_mcp_server.formatters import format_file_listing
@@ -75,7 +73,7 @@ async def list_block_devices(
     """
     try:
         cmd = get_command("list_block_devices")
-        returncode, stdout, _ = await execute_command(cmd.args, host=host)
+        returncode, stdout, _ = await cmd.run(host=host)
 
         if returncode == 0 and stdout:
             return format_block_devices(stdout)
@@ -122,11 +120,8 @@ async def list_directories(
     cmd_name = DIRECTORY_COMMANDS[order_by]
     cmd = get_command(cmd_name)
 
-    # Substitute path into command args
-    args = substitute_command_args(cmd.args, path=path)
-
     try:
-        returncode, stdout, stderr = await execute_command(args, host=host)
+        returncode, stdout, stderr = await cmd.run(host=host, path=path)
 
         if returncode != 0:
             raise ToolError(f"Error running command: command failed with return code {returncode}: {stderr}")
@@ -188,11 +183,8 @@ async def list_files(
     cmd_name = FILE_COMMANDS[order_by]
     cmd = get_command(cmd_name)
 
-    # Substitute path into command args
-    args = substitute_command_args(cmd.args, path=path)
-
     try:
-        returncode, stdout, stderr = await execute_command(args, host=host)
+        returncode, stdout, stderr = await cmd.run(host=host, path=path)
 
         if returncode != 0:
             raise ToolError(f"Error running command: command failed with return code {returncode}: {stderr}")
@@ -240,10 +232,9 @@ async def read_file(
             raise ToolError(f"Path is not a file: {path}")
 
     cmd = get_command("read_file")
-    args = substitute_command_args(cmd.args, path=path)
 
     try:
-        returncode, stdout, stderr = await execute_command(args, host=host)
+        returncode, stdout, stderr = await cmd.run(host=host, path=path)
 
         if returncode != 0:
             raise ToolError(f"Error running command: command failed with return code {returncode}: {stderr}")

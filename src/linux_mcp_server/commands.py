@@ -11,6 +11,8 @@ from types import MappingProxyType
 from pydantic import BaseModel
 from pydantic import ConfigDict
 
+from linux_mcp_server.connection.ssh import execute_with_fallback
+
 
 class CommandSpec(BaseModel):
     """Specification for a single command with optional fallback.
@@ -18,12 +20,31 @@ class CommandSpec(BaseModel):
     Attributes:
         args: Command arguments as a tuple of strings.
         fallback: Alternative command arguments if primary fails.
+        optional_flags: Maps parameter names to flag arguments that are added
+            when the parameter is truthy. For example:
+            {"unit": ["--unit", "{unit}"]} adds "--unit <value>" when unit is provided.
     """
 
     model_config = ConfigDict(frozen=True)
 
     args: tuple[str, ...]
     fallback: tuple[str, ...] | None = None
+    optional_flags: Mapping[str, tuple[str, ...]] | None = None
+
+    async def run(self, host: str | None = None, **kwargs) -> tuple[int, str, str]:
+        """Run the command with optional fallback.
+
+        Args:
+            host: Optional remote host address.
+            **kwargs: Additional arguments passed to substitute_command_args.
+        """
+        args = list(substitute_command_args(self.args, **kwargs))
+        if self.optional_flags:
+            for param_name, flag_args in self.optional_flags.items():
+                if kwargs.get(param_name):
+                    args.extend(substitute_command_args(flag_args, **kwargs))
+
+        return await execute_with_fallback(tuple(args), fallback=self.fallback, host=host)
 
 
 class CommandGroup(BaseModel):
@@ -94,7 +115,14 @@ COMMANDS: Mapping[str, CommandGroup] = MappingProxyType(
         # === Logs ===
         "journal_logs": CommandGroup(
             commands={
-                "default": CommandSpec(args=("journalctl", "-n", "{lines}", "--no-pager")),
+                "default": CommandSpec(
+                    args=("journalctl", "-n", "{lines}", "--no-pager"),
+                    optional_flags={
+                        "unit": ("--unit", "{unit}"),
+                        "priority": ("--priority", "{priority}"),
+                        "since": ("--since", "{since}"),
+                    },
+                ),
             }
         ),
         "audit_logs": CommandGroup(
@@ -288,32 +316,3 @@ def substitute_command_args(args: Sequence[str], **kwargs) -> tuple[str, ...]:
             raise ValueError(f"Unsubstituted placeholder in command argument: {arg}")
 
     return result
-
-
-def build_journal_command(
-    lines: int,
-    unit: str | None = None,
-    priority: str | None = None,
-    since: str | None = None,
-) -> tuple[str, ...]:
-    """Build journalctl command with optional flags.
-
-    Args:
-        lines: Number of lines to retrieve.
-        unit: Optional service unit filter.
-        priority: Optional priority filter (e.g., "err", "warning").
-        since: Optional time filter (e.g., "1 hour ago", "today").
-
-    Returns:
-        Complete journalctl command arguments.
-    """
-    cmd = ["journalctl", "-n", str(lines), "--no-pager"]
-
-    if unit:
-        cmd.extend(["--unit", unit])
-    if priority:
-        cmd.extend(["--priority", priority])
-    if since:
-        cmd.extend(["--since", since])
-
-    return tuple(cmd)
