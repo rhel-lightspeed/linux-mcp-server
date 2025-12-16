@@ -44,9 +44,8 @@ def setup_test_directory(tmp_path) -> Callable[[list[tuple[str, int, float]]], t
             dir_path.mkdir()
 
             # Create a file inside the directory to give it size
-            if size > 0:
-                content_file = dir_path / "content.txt"
-                content_file.write_text("x" * size)
+            content_file = dir_path / "content.txt"
+            content_file.write_text("x" * size)
 
             # Set modification time on the directory itself
             os.utime(dir_path, (modified_time, modified_time))
@@ -83,11 +82,7 @@ def setup_test_files(tmp_path) -> Callable[[list[tuple[str, int, float]]], tuple
 
         for name, size, modified_time in file_specs:
             content_file = tmp_path / name
-            content_file.touch()
-
-            # Create a file with specific size
-            if size > 0:
-                content_file.write_text("x" * size)
+            content_file.write_text("x" * size)
 
             # Set modification time on the file itself
             os.utime(content_file, (modified_time, modified_time))

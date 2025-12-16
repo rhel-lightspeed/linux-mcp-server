@@ -3,9 +3,7 @@
 from mcp.types import ToolAnnotations
 
 from linux_mcp_server.audit import log_tool_call
-from linux_mcp_server.commands import CommandGroup
-from linux_mcp_server.commands import COMMANDS
-from linux_mcp_server.commands import CommandSpec
+from linux_mcp_server.commands import get_command
 from linux_mcp_server.connection.ssh import execute_with_fallback
 from linux_mcp_server.formatters import format_listening_ports
 from linux_mcp_server.formatters import format_network_connections
@@ -33,16 +31,11 @@ async def get_network_interfaces(
     Get network interface information.
     """
     try:
-        # Get command group from registry
-        group = COMMANDS["network_interfaces"]
-        if not isinstance(group, CommandGroup):
-            raise TypeError(f"Expected CommandGroup for 'network_interfaces', got {type(group).__name__}")
-
         interfaces = {}
         stats = {}
 
         # Get brief interface info
-        brief_cmd = group.commands["brief"]
+        brief_cmd = get_command("network_interfaces", "brief")
         returncode, stdout, _ = await execute_with_fallback(
             brief_cmd.args,
             fallback=brief_cmd.fallback,
@@ -53,7 +46,7 @@ async def get_network_interfaces(
             interfaces = parse_ip_brief(stdout)
 
         # Get network statistics from /proc/net/dev
-        stats_cmd = group.commands["stats"]
+        stats_cmd = get_command("network_interfaces", "stats")
         returncode, stdout, _ = await execute_with_fallback(
             stats_cmd.args,
             fallback=stats_cmd.fallback,
@@ -82,10 +75,7 @@ async def get_network_connections(
     Get active network connections.
     """
     try:
-        # Get command from registry
-        cmd = COMMANDS["network_connections"]
-        if not isinstance(cmd, CommandSpec):
-            raise TypeError(f"Expected CommandSpec for 'network_connections', got {type(cmd).__name__}")
+        cmd = get_command("network_connections")
 
         returncode, stdout, stderr = await execute_with_fallback(
             cmd.args,
@@ -115,10 +105,7 @@ async def get_listening_ports(
     Get listening ports.
     """
     try:
-        # Get command from registry
-        cmd = COMMANDS["listening_ports"]
-        if not isinstance(cmd, CommandSpec):
-            raise TypeError(f"Expected CommandSpec for 'listening_ports', got {type(cmd).__name__}")
+        cmd = get_command("listening_ports")
 
         returncode, stdout, stderr = await execute_with_fallback(
             cmd.args,

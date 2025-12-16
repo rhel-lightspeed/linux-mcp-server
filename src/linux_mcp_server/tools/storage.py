@@ -10,8 +10,7 @@ from mcp.types import ToolAnnotations
 from pydantic import Field
 
 from linux_mcp_server.audit import log_tool_call
-from linux_mcp_server.commands import COMMANDS
-from linux_mcp_server.commands import CommandSpec
+from linux_mcp_server.commands import get_command
 from linux_mcp_server.commands import substitute_command_args
 from linux_mcp_server.connection.ssh import execute_command
 from linux_mcp_server.formatters import format_block_devices
@@ -75,11 +74,7 @@ async def list_block_devices(
     List block devices.
     """
     try:
-        # Get command from registry
-        cmd = COMMANDS["list_block_devices"]
-        if not isinstance(cmd, CommandSpec):
-            raise TypeError(f"Expected CommandSpec for 'list_block_devices', got {type(cmd).__name__}")
-
+        cmd = get_command("list_block_devices")
         returncode, stdout, _ = await execute_command(cmd.args, host=host)
 
         if returncode == 0 and stdout:
@@ -125,9 +120,7 @@ async def list_directories(
 
     # Get the appropriate command for the order_by field
     cmd_name = DIRECTORY_COMMANDS[order_by]
-    cmd = COMMANDS[cmd_name]
-    if not isinstance(cmd, CommandSpec):
-        raise TypeError(f"Expected CommandSpec for 'list_directories', got {type(cmd).__name__}")
+    cmd = get_command(cmd_name)
 
     # Substitute path into command args
     args = substitute_command_args(cmd.args, path=path)
@@ -195,9 +188,7 @@ async def list_files(
 
     # Get the appropriate command for the order_by field
     cmd_name = FILE_COMMANDS[order_by]
-    cmd = COMMANDS[cmd_name]
-    if not isinstance(cmd, CommandSpec):
-        raise TypeError(f"Expected CommandSpec for 'list_files', got {type(cmd).__name__}")
+    cmd = get_command(cmd_name)
 
     # Substitute path into command args
     args = substitute_command_args(cmd.args, path=path)
@@ -252,10 +243,7 @@ async def read_file(
         if not os.path.isfile(path):
             raise ToolError(f"Path is not a file: {path}")
 
-    # Get command from registry and substitute path
-    cmd = COMMANDS["read_file"]
-    if not isinstance(cmd, CommandSpec):
-        raise TypeError(f"Expected CommandSpec for 'read_file', got {type(cmd).__name__}")
+    cmd = get_command("read_file")
     args = substitute_command_args(cmd.args, path=path)
 
     try:
