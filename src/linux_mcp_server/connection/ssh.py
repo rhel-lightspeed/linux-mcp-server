@@ -201,6 +201,8 @@ class SSHConnectionManager:
         conn = await self.get_connection(host)
         bin = command[0]
         if not Path(bin).is_absolute():
+            # NOTE(major): Copy to avoid mutating the caller's list (e.g., CommandSpec.args)
+            command = command.copy()
             command[0] = await get_remote_bin_path(bin, host, conn)
 
         # Build command string with proper shell escaping
@@ -423,6 +425,8 @@ async def _execute_local(command: list[str]) -> tuple[int, str, str]:
     start_time = time.time()
     bin = command[0]
     if not Path(bin).is_absolute():
+        # NOTE(major): Copy to avoid mutating the caller's list (e.g., CommandSpec.args)
+        command = command.copy()
         command[0] = get_bin_path(bin)
 
     try:
