@@ -1,6 +1,15 @@
 import pytest
 
+from fastmcp.client import Client
+
 from linux_mcp_server.audit import log_tool_call
+from linux_mcp_server.server import mcp
+
+
+@pytest.fixture
+async def mcp_client():
+    async with Client(transport=mcp) as mcp_client:
+        yield mcp_client
 
 
 @pytest.fixture
