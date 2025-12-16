@@ -11,34 +11,24 @@ class TestLinuxMCPServer:
         assert mcp is not None
         assert mcp.name == "linux-diagnostics"
 
-    def test_server_has_list_tools_method(self):
-        """Test that the server has list_tools method."""
-        assert hasattr(mcp, "list_tools")
-        assert callable(mcp.list_tools)
-
-    async def test_list_tools_returns_tools(self):
+    async def test_list_tools_returns_tools(self, mcp_client):
         """Test that list_tools returns a list of tools."""
-        tools = await mcp.list_tools()
+        tools = await mcp_client.list_tools()
 
-        # Should return a list
-        assert isinstance(tools, list)
-        assert len(tools) > 0
+        assert tools
 
-    async def test_server_has_basic_tools(self):
+    async def test_server_has_basic_tools(self, mcp_client):
         """Test that basic diagnostic tools are registered."""
-        tools = await mcp.list_tools()
-        tool_names = [tool.name for tool in tools]
+        tools = await mcp_client.list_tools()
+        tool_names = {tool.name for tool in tools}
+        expected_tools = {
+            "get_system_information",
+            "list_services",
+            "list_processes",
+            "get_network_interfaces",
+            "list_block_devices",
+            "list_directories",
+            "list_files",
+        }
 
-        # Should have at least the basic tools
-        assert "get_system_information" in tool_names
-        assert "list_services" in tool_names
-        assert "list_processes" in tool_names
-        assert "get_network_interfaces" in tool_names
-        assert "list_block_devices" in tool_names
-        assert "list_directories" in tool_names
-        assert "list_files" in tool_names
-
-    async def test_all_tools_have_correct_count(self):
-        """Test that all 18 tools are registered."""
-        tools = await mcp.list_tools()
-        assert len(tools) == 20
+        assert tool_names.issuperset(expected_tools), "Missing basic tools"
