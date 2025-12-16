@@ -13,6 +13,7 @@ import shutil
 import subprocess
 import time
 
+from collections.abc import Sequence
 from pathlib import Path
 from typing import Optional
 
@@ -175,7 +176,7 @@ class SSHConnectionManager:
 
     async def execute_remote(
         self,
-        command: list[str],
+        command: Sequence[str],
         host: str,
         timeout: int = CONFIG.command_timeout,
     ) -> tuple[int, str, str]:
@@ -186,9 +187,8 @@ class SSHConnectionManager:
         can be specified per-call or defaults to CONFIG.command_timeout (30s).
 
         Args:
-            command: Command and arguments to execute
+            command: Command and arguments to execute (tuple or list)
             host: Remote host address
-            username: SSH username
             timeout: Command timeout in seconds. Defaults to CONFIG.command_timeout.
                 Use for commands that need longer execution time.
 
@@ -200,14 +200,14 @@ class SSHConnectionManager:
         """
         conn = await self.get_connection(host)
         bin = command[0]
+        # Convert to list for modification - CommandSpec.args is an immutable tuple
+        cmd_list = list(command)
         if not Path(bin).is_absolute():
-            # NOTE(major): Copy to avoid mutating the caller's list (e.g., CommandSpec.args)
-            command = command.copy()
-            command[0] = await get_remote_bin_path(bin, host, conn)
+            cmd_list[0] = await get_remote_bin_path(bin, host, conn)
 
         # Build command string with proper shell escaping
         # Use shlex.quote() to ensure special characters (like \n in printf format) are preserved
-        cmd_str = shlex.join(command)
+        cmd_str = shlex.join(cmd_list)
 
         # Start timing for command execution
         start_time = time.time()
@@ -324,7 +324,7 @@ async def get_remote_bin_path(
 
 
 async def execute_command(
-    command: list[str],
+    command: Sequence[str],
     host: str | None = None,
     **kwargs,
 ) -> tuple[int, str, str]:
@@ -336,8 +336,9 @@ async def execute_command(
     whether host/username parameters are provided.
 
     Args:
-        command: Command and arguments to execute. If the command is not an absolute path
-                 it will be resolved to the full path before execution.
+        command: Command and arguments to execute (tuple or list). If the command
+                 is not an absolute path it will be resolved to the full path
+                 before execution.
         host: Optional remote host address
         **kwargs: Additional arguments (reserved for future use)
 
@@ -371,8 +372,8 @@ async def execute_command(
 
 
 async def execute_with_fallback(
-    args: list[str],
-    fallback: list[str] | None = None,
+    args: Sequence[str],
+    fallback: Sequence[str] | None = None,
     host: str | None = None,
     **kwargs,
 ) -> tuple[int, str, str]:
@@ -384,10 +385,9 @@ async def execute_with_fallback(
     attempt the fallback command.
 
     Args:
-        args: Primary command and arguments to execute
-        fallback: Optional fallback command if primary fails
+        args: Primary command and arguments to execute (tuple or list)
+        fallback: Optional fallback command if primary fails (tuple or list)
         host: Optional remote host address
-        username: Optional SSH username (required if host is provided)
         **kwargs: Additional arguments passed to execute_command
 
     Returns:
@@ -411,26 +411,26 @@ async def execute_with_fallback(
     return returncode, stdout, stderr
 
 
-async def _execute_local(command: list[str]) -> tuple[int, str, str]:
+async def _execute_local(command: Sequence[str]) -> tuple[int, str, str]:
     """
     Execute a command locally using subprocess.
 
     Args:
-        command: Command and arguments to execute
+        command: Command and arguments to execute (tuple or list)
 
     Returns:
         Tuple of (return_code, stdout, stderr)
     """
-    cmd_str = " ".join(command)
+    # Convert to list for modification - CommandSpec.args is an immutable tuple
+    cmd_list = list(command)
+    cmd_str = " ".join(cmd_list)
     start_time = time.time()
-    bin = command[0]
+    bin = cmd_list[0]
     if not Path(bin).is_absolute():
-        # NOTE(major): Copy to avoid mutating the caller's list (e.g., CommandSpec.args)
-        command = command.copy()
-        command[0] = get_bin_path(bin)
+        cmd_list[0] = get_bin_path(bin)
 
     try:
-        proc = await asyncio.create_subprocess_exec(*command, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+        proc = await asyncio.create_subprocess_exec(*cmd_list, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
         stdout_bytes, stderr_bytes = await proc.communicate()
 
         return_code = proc.returncode if proc.returncode is not None else 0

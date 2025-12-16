@@ -11,12 +11,19 @@ class CommandSpec(BaseModel):
     """Specification for a single command with optional fallback.
 
     Attributes:
-        args: Command arguments as a list of strings.
+        args: Command arguments as a tuple of strings.
         fallback: Alternative command arguments if primary fails.
+
+    Note:
+        Fields use tuples instead of lists to ensure immutability. Command specs
+        are shared across the application via the COMMANDS registry, and mutable
+        lists would risk accidental mutation (e.g., when modifying command[0] to
+        add absolute paths). Tuples enforce immutability at the type level,
+        requiring explicit conversion to list when modification is needed.
     """
 
-    args: list[str]
-    fallback: list[str] | None = None
+    args: tuple[str, ...]
+    fallback: tuple[str, ...] | None = None
 
 
 class CommandGroup(BaseModel):
@@ -37,168 +44,168 @@ COMMANDS: dict[str, CommandGroup] = {
     # === Services ===
     "list_services": CommandGroup(
         commands={
-            "default": CommandSpec(args=["systemctl", "list-units", "--type=service", "--all", "--no-pager"]),
+            "default": CommandSpec(args=("systemctl", "list-units", "--type=service", "--all", "--no-pager")),
         }
     ),
     "running_services": CommandGroup(
         commands={
-            "default": CommandSpec(args=["systemctl", "list-units", "--type=service", "--state=running", "--no-pager"]),
+            "default": CommandSpec(args=("systemctl", "list-units", "--type=service", "--state=running", "--no-pager")),
         }
     ),
     "service_status": CommandGroup(
         commands={
-            "default": CommandSpec(args=["systemctl", "status", "{service_name}", "--no-pager", "--full"]),
+            "default": CommandSpec(args=("systemctl", "status", "{service_name}", "--no-pager", "--full")),
         }
     ),
     "service_logs": CommandGroup(
         commands={
-            "default": CommandSpec(args=["journalctl", "-u", "{service_name}", "-n", "{lines}", "--no-pager"]),
+            "default": CommandSpec(args=("journalctl", "-u", "{service_name}", "-n", "{lines}", "--no-pager")),
         }
     ),
     # === Network ===
     "network_connections": CommandGroup(
         commands={
             "default": CommandSpec(
-                args=["ss", "-tunap"],
-                fallback=["netstat", "-tunap"],
+                args=("ss", "-tunap"),
+                fallback=("netstat", "-tunap"),
             ),
         }
     ),
     "listening_ports": CommandGroup(
         commands={
             "default": CommandSpec(
-                args=["ss", "-tulnp"],
-                fallback=["netstat", "-tulnp"],
+                args=("ss", "-tulnp"),
+                fallback=("netstat", "-tulnp"),
             ),
         }
     ),
     "network_interfaces": CommandGroup(
         commands={
-            "brief": CommandSpec(args=["ip", "-brief", "address"]),
-            "detail": CommandSpec(args=["ip", "address"]),
-            "stats": CommandSpec(args=["cat", "/proc/net/dev"]),
+            "brief": CommandSpec(args=("ip", "-brief", "address")),
+            "detail": CommandSpec(args=("ip", "address")),
+            "stats": CommandSpec(args=("cat", "/proc/net/dev")),
         }
     ),
     # === Logs ===
     "journal_logs": CommandGroup(
         commands={
-            "default": CommandSpec(args=["journalctl", "-n", "{lines}", "--no-pager"]),
+            "default": CommandSpec(args=("journalctl", "-n", "{lines}", "--no-pager")),
         }
     ),
     "audit_logs": CommandGroup(
         commands={
-            "default": CommandSpec(args=["tail", "-n", "{lines}", "/var/log/audit/audit.log"]),
+            "default": CommandSpec(args=("tail", "-n", "{lines}", "/var/log/audit/audit.log")),
         }
     ),
     "read_log_file": CommandGroup(
         commands={
-            "default": CommandSpec(args=["tail", "-n", "{lines}", "{log_path}"]),
+            "default": CommandSpec(args=("tail", "-n", "{lines}", "{log_path}")),
         }
     ),
     # === Processes ===
     "list_processes": CommandGroup(
         commands={
-            "default": CommandSpec(args=["ps", "aux", "--sort=-%cpu"]),
+            "default": CommandSpec(args=("ps", "aux", "--sort=-%cpu")),
         }
     ),
     "process_info": CommandGroup(
         commands={
             "ps_detail": CommandSpec(
-                args=["ps", "-p", "{pid}", "-o", "pid,user,stat,pcpu,pmem,vsz,rss,etime,comm,args"]
+                args=("ps", "-p", "{pid}", "-o", "pid,user,stat,pcpu,pmem,vsz,rss,etime,comm,args")
             ),
-            "proc_status": CommandSpec(args=["cat", "/proc/{pid}/status"]),
+            "proc_status": CommandSpec(args=("cat", "/proc/{pid}/status")),
         }
     ),
     # === Storage ===
     "list_block_devices": CommandGroup(
         commands={
-            "default": CommandSpec(args=["lsblk", "-o", "NAME,SIZE,TYPE,MOUNTPOINT,FSTYPE,MODEL", "--no-pager"]),
+            "default": CommandSpec(args=("lsblk", "-o", "NAME,SIZE,TYPE,MOUNTPOINT,FSTYPE,MODEL", "--no-pager")),
         }
     ),
     "disk_usage": CommandGroup(
         commands={
             "default": CommandSpec(
-                args=["df", "-h", "--output=source,size,used,avail,pcent,target"],
-                fallback=["df", "-h"],
+                args=("df", "-h", "--output=source,size,used,avail,pcent,target"),
+                fallback=("df", "-h"),
             ),
         }
     ),
     "list_directories_size": CommandGroup(
         commands={
-            "default": CommandSpec(args=["du", "-b", "--max-depth=1", "{path}"]),
+            "default": CommandSpec(args=("du", "-b", "--max-depth=1", "{path}")),
         }
     ),
     "list_directories_name": CommandGroup(
         commands={
             "default": CommandSpec(
-                args=["find", "{path}", "-mindepth", "1", "-maxdepth", "1", "-type", "d", "-printf", "%f\\n"]
+                args=("find", "{path}", "-mindepth", "1", "-maxdepth", "1", "-type", "d", "-printf", "%f\\n")
             ),
         }
     ),
     "list_directories_modified": CommandGroup(
         commands={
             "default": CommandSpec(
-                args=["find", "{path}", "-mindepth", "1", "-maxdepth", "1", "-type", "d", "-printf", "%T@\\t%f\\n"]
+                args=("find", "{path}", "-mindepth", "1", "-maxdepth", "1", "-type", "d", "-printf", "%T@\\t%f\\n")
             ),
         }
     ),
     "list_files_size": CommandGroup(
         commands={
             "default": CommandSpec(
-                args=["find", "{path}", "-mindepth", "1", "-maxdepth", "1", "-type", "f", "-printf", "%s\\t%f\\n"]
+                args=("find", "{path}", "-mindepth", "1", "-maxdepth", "1", "-type", "f", "-printf", "%s\\t%f\\n")
             ),
         }
     ),
     "list_files_name": CommandGroup(
         commands={
             "default": CommandSpec(
-                args=["find", "{path}", "-mindepth", "1", "-maxdepth", "1", "-type", "f", "-printf", "%f\\n"]
+                args=("find", "{path}", "-mindepth", "1", "-maxdepth", "1", "-type", "f", "-printf", "%f\\n")
             ),
         }
     ),
     "list_files_modified": CommandGroup(
         commands={
             "default": CommandSpec(
-                args=["find", "{path}", "-mindepth", "1", "-maxdepth", "1", "-type", "f", "-printf", "%T@\\t%f\\n"]
+                args=("find", "{path}", "-mindepth", "1", "-maxdepth", "1", "-type", "f", "-printf", "%T@\\t%f\\n")
             ),
         }
     ),
     "read_file": CommandGroup(
         commands={
-            "default": CommandSpec(args=["cat", "{path}"]),
+            "default": CommandSpec(args=("cat", "{path}")),
         }
     ),
     # === System Info ===
     "system_info": CommandGroup(
         commands={
-            "hostname": CommandSpec(args=["hostname"]),
-            "os_release": CommandSpec(args=["cat", "/etc/os-release"]),
-            "kernel": CommandSpec(args=["uname", "-r"]),
-            "arch": CommandSpec(args=["uname", "-m"]),
-            "uptime": CommandSpec(args=["uptime", "-p"]),
-            "boot_time": CommandSpec(args=["uptime", "-s"]),
+            "hostname": CommandSpec(args=("hostname",)),
+            "os_release": CommandSpec(args=("cat", "/etc/os-release")),
+            "kernel": CommandSpec(args=("uname", "-r")),
+            "arch": CommandSpec(args=("uname", "-m")),
+            "uptime": CommandSpec(args=("uptime", "-p")),
+            "boot_time": CommandSpec(args=("uptime", "-s")),
         }
     ),
     "cpu_info": CommandGroup(
         commands={
-            "model": CommandSpec(args=["grep", "-m", "1", "model name", "/proc/cpuinfo"]),
-            "logical_cores": CommandSpec(args=["grep", "-c", "^processor", "/proc/cpuinfo"]),
-            "physical_cores": CommandSpec(args=["grep", "^core id", "/proc/cpuinfo"]),
-            "frequency": CommandSpec(args=["grep", "-m", "1", "cpu MHz", "/proc/cpuinfo"]),
-            "load_avg": CommandSpec(args=["cat", "/proc/loadavg"]),
-            "top_snapshot": CommandSpec(args=["top", "-bn1"]),
+            "model": CommandSpec(args=("grep", "-m", "1", "model name", "/proc/cpuinfo")),
+            "logical_cores": CommandSpec(args=("grep", "-c", "^processor", "/proc/cpuinfo")),
+            "physical_cores": CommandSpec(args=("grep", "^core id", "/proc/cpuinfo")),
+            "frequency": CommandSpec(args=("grep", "-m", "1", "cpu MHz", "/proc/cpuinfo")),
+            "load_avg": CommandSpec(args=("cat", "/proc/loadavg")),
+            "top_snapshot": CommandSpec(args=("top", "-bn1")),
         }
     ),
     "memory_info": CommandGroup(
         commands={
-            "free": CommandSpec(args=["free", "-b", "-w"]),
+            "free": CommandSpec(args=("free", "-b", "-w")),
         }
     ),
     "hardware_info": CommandGroup(
         commands={
-            "lscpu": CommandSpec(args=["lscpu"]),
-            "lspci": CommandSpec(args=["lspci"]),
-            "lsusb": CommandSpec(args=["lsusb"]),
+            "lscpu": CommandSpec(args=("lscpu",)),
+            "lspci": CommandSpec(args=("lspci",)),
+            "lsusb": CommandSpec(args=("lsusb",)),
         }
     ),
 }
@@ -246,11 +253,11 @@ def get_command(name: str, subcommand: str = "default") -> CommandSpec:
         raise KeyError(f"Subcommand '{subcommand}' not found for '{name}'. Available: {available}") from e
 
 
-def substitute_command_args(args: list[str], **kwargs) -> list[str]:
+def substitute_command_args(args: tuple[str, ...], **kwargs) -> list[str]:
     """Substitute placeholder values in command arguments.
 
     Args:
-        args: List of command arguments, possibly with {placeholder} values.
+        args: Tuple of command arguments, possibly with {placeholder} values.
         **kwargs: Key-value pairs to substitute into placeholders.
 
     Returns:
@@ -261,7 +268,7 @@ def substitute_command_args(args: list[str], **kwargs) -> list[str]:
             unsubstituted after replacement.
 
     Example:
-        >>> substitute_command_args(["ps", "-p", "{pid}"], pid=1234)
+        >>> substitute_command_args(("ps", "-p", "{pid}"), pid=1234)
         ["ps", "-p", "1234"]
     """
     try:
