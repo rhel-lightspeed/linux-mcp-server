@@ -318,7 +318,7 @@ class TestListDirectoriesRemote:
 
     async def test_list_directories_remote(self, mocker, mcp_client):
         """Test list_directories with remote execution."""
-        mock_execute = AsyncMock(return_value=(0, "alpha\nbeta\ngamma", ""))
+        mock_execute = AsyncMock(spec=True, return_value=(0, "alpha\nbeta\ngamma", ""))
         mocker.patch("linux_mcp_server.tools.storage.execute_command", mock_execute)
 
         result = await mcp_client.call_tool(
@@ -430,7 +430,7 @@ class TestListFilesRemote:
 
     async def test_list_files_remote(self, mocker, mcp_client):
         """Test list_files with remote execution."""
-        mock_execute = AsyncMock(return_value=(0, "file1.txt\nfile2.txt\nfile3.txt", ""))
+        mock_execute = AsyncMock(spec=True, return_value=(0, "file1.txt\nfile2.txt\nfile3.txt", ""))
         mocker.patch("linux_mcp_server.tools.storage.execute_command", mock_execute)
 
         result = await mcp_client.call_tool("list_files", arguments={"path": "/remote/path", "host": "remote.host"})
@@ -468,7 +468,7 @@ class TestReadFile:
 
     async def test_read_file_remote(self, mocker, mcp_client):
         """Test reading a file remotely."""
-        mock_execute = AsyncMock(return_value=(0, "Remote file content", ""))
+        mock_execute = AsyncMock(spec=True, return_value=(0, "Remote file content", ""))
         mocker.patch("linux_mcp_server.tools.storage.execute_command", mock_execute)
 
         result = await mcp_client.call_tool(
@@ -481,7 +481,7 @@ class TestReadFile:
 
     async def test_read_file_remote_failure(self, mocker, mcp_client):
         """Test reading a file remotely with failure."""
-        mock_execute = AsyncMock(return_value=(1, "", "File not found"))
+        mock_execute = AsyncMock(spec=True, return_value=(1, "", "File not found"))
         mocker.patch("linux_mcp_server.tools.storage.execute_command", mock_execute)
 
         with pytest.raises(ToolError) as exc_info:

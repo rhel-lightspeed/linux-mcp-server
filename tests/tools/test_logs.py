@@ -117,7 +117,7 @@ class TestGetJournalLogs:
     )
     async def test_get_journal_logs_journalctl_not_found(self, mcp_client, mocker, side_effect):
         """Test get_journal_logs failure."""
-        mock_execute_command = mocker.patch("linux_mcp_server.tools.logs.execute_command")
+        mock_execute_command = mocker.patch("linux_mcp_server.tools.logs.execute_command", autospec=True)
         mock_execute_command.side_effect = side_effect
 
         result = await mcp_client.call_tool("get_journal_logs", {})
@@ -224,8 +224,8 @@ class TestGetAuditLogs:
     )
     async def test_get_audit_logs_tail_not_found(self, mcp_client, mocker, side_effect):
         """Test get_audit_logs when tail command is not available."""
-        mock_exists = mocker.patch("linux_mcp_server.tools.logs.os.path.exists")
-        mock_execute_command = mocker.patch("linux_mcp_server.tools.logs.execute_command")
+        mock_exists = mocker.patch("linux_mcp_server.tools.logs.os.path.exists", autospec=True)
+        mock_execute_command = mocker.patch("linux_mcp_server.tools.logs.execute_command", autospec=True)
         mock_exists.return_value = True
         mock_execute_command.side_effect = side_effect
 
