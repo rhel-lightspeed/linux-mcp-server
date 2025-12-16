@@ -6,7 +6,10 @@ from mcp.types import ToolAnnotations
 from pydantic import Field
 
 from linux_mcp_server.audit import log_tool_call
+from linux_mcp_server.commands import CommandGroup
+from linux_mcp_server.commands import CommandSpec
 from linux_mcp_server.commands import get_command
+from linux_mcp_server.commands import get_command_group
 from linux_mcp_server.commands import substitute_command_args
 from linux_mcp_server.connection.ssh import execute_command
 from linux_mcp_server.formatters import format_process_detail
@@ -28,9 +31,9 @@ from linux_mcp_server.utils.validation import validate_pid
 @disallow_local_execution_in_containers
 async def list_processes(
     host: Host | None = None,
+    cmd: t.Annotated[CommandSpec, Field(description="Ignore this parameter")] = get_command("list_processes"),
 ) -> str:
     try:
-        cmd = get_command("list_processes")
         returncode, stdout, _ = await execute_command(cmd.args, host=host)
 
         if returncode == 0 and stdout:
@@ -52,6 +55,9 @@ async def list_processes(
 async def get_process_info(
     pid: t.Annotated[int, Field(description="Process ID")],
     host: Host | None = None,
+    cmd_group: t.Annotated[CommandGroup, Field(description="Ignore this parameter")] = get_command_group(
+        "process_info"
+    ),
 ) -> str:
     # Validate PID (accepts floats from LLMs)
     validated_pid, error = validate_pid(pid)
@@ -63,7 +69,7 @@ async def get_process_info(
 
     try:
         # Get process details with ps
-        ps_cmd = get_command("process_info", "ps_detail")
+        ps_cmd = cmd_group.commands["ps_detail"]
         args = substitute_command_args(ps_cmd.args, pid=validated_pid)
 
         returncode, stdout, _ = await execute_command(args, host=host)
@@ -76,7 +82,7 @@ async def get_process_info(
 
         # Try to get more details from /proc
         proc_status = None
-        status_cmd = get_command("process_info", "proc_status")
+        status_cmd = cmd_group.commands["proc_status"]
         status_args = substitute_command_args(status_cmd.args, pid=validated_pid)
 
         status_code, status_stdout, _ = await execute_command(status_args, host=host)

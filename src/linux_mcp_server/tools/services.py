@@ -6,6 +6,7 @@ from mcp.types import ToolAnnotations
 from pydantic import Field
 
 from linux_mcp_server.audit import log_tool_call
+from linux_mcp_server.commands import CommandSpec
 from linux_mcp_server.commands import get_command
 from linux_mcp_server.commands import substitute_command_args
 from linux_mcp_server.connection.ssh import execute_command
@@ -28,19 +29,19 @@ from linux_mcp_server.utils.validation import validate_line_count
 @disallow_local_execution_in_containers
 async def list_services(
     host: Host | None = None,
+    list_cmd: t.Annotated[CommandSpec, Field(description="Ignore this parameter")] = get_command("list_services"),
+    running_cmd: t.Annotated[CommandSpec, Field(description="Ignore this parameter")] = get_command("running_services"),
 ) -> str:
     """
     List all systemd services.
     """
     try:
-        cmd = get_command("list_services")
-        returncode, stdout, stderr = await execute_command(cmd.args, host=host)
+        returncode, stdout, stderr = await execute_command(list_cmd.args, host=host)
 
         if returncode != 0:
             return f"Error listing services: {stderr}"
 
         # Get running services count
-        running_cmd = get_command("running_services")
         returncode_summary, stdout_summary, _ = await execute_command(
             running_cmd.args,
             host=host,
@@ -67,6 +68,7 @@ async def list_services(
 async def get_service_status(
     service_name: t.Annotated[str, Field(description="Name of the service")],
     host: Host | None = None,
+    cmd: t.Annotated[CommandSpec, Field(description="Ignore this parameter")] = get_command("service_status"),
 ) -> str:
     """
     Get status of a specific service.
@@ -76,7 +78,6 @@ async def get_service_status(
         if not service_name.endswith(".service") and "." not in service_name:
             service_name = f"{service_name}.service"
 
-        cmd = get_command("service_status")
         args = substitute_command_args(cmd.args, service_name=service_name)
 
         _, stdout, stderr = await execute_command(args, host=host)
@@ -106,6 +107,7 @@ async def get_service_logs(
     service_name: t.Annotated[str, Field(description="Name of the service")],
     lines: t.Annotated[int, Field(description="Number of log lines to retrieve.")] = 50,
     host: Host | None = None,
+    cmd: t.Annotated[CommandSpec, Field(description="Ignore this parameter")] = get_command("service_logs"),
 ) -> str:
     """
     Get logs for a specific service.
@@ -118,7 +120,6 @@ async def get_service_logs(
         if not service_name.endswith(".service") and "." not in service_name:
             service_name = f"{service_name}.service"
 
-        cmd = get_command("service_logs")
         args = substitute_command_args(cmd.args, service_name=service_name, lines=lines)
 
         returncode, stdout, stderr = await execute_command(args, host=host)

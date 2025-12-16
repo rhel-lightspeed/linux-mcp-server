@@ -10,7 +10,10 @@ from mcp.types import ToolAnnotations
 from pydantic import Field
 
 from linux_mcp_server.audit import log_tool_call
+from linux_mcp_server.commands import CommandGroup
+from linux_mcp_server.commands import CommandSpec
 from linux_mcp_server.commands import get_command
+from linux_mcp_server.commands import get_command_group
 from linux_mcp_server.commands import substitute_command_args
 from linux_mcp_server.connection.ssh import execute_command
 from linux_mcp_server.constants import OrderBy
@@ -23,20 +26,6 @@ from linux_mcp_server.parsers import parse_file_listing
 from linux_mcp_server.server import mcp
 from linux_mcp_server.utils.decorators import disallow_local_execution_in_containers
 from linux_mcp_server.utils.types import Host
-
-
-# Map OrderBy enum to command names
-DIRECTORY_COMMANDS: dict[OrderBy, str] = {
-    OrderBy.SIZE: "list_directories_size",
-    OrderBy.NAME: "list_directories_name",
-    OrderBy.MODIFIED: "list_directories_modified",
-}
-
-FILE_COMMANDS: dict[OrderBy, str] = {
-    OrderBy.SIZE: "list_files_size",
-    OrderBy.NAME: "list_files_name",
-    OrderBy.MODIFIED: "list_files_modified",
-}
 
 
 def _validate_path(path: str) -> str:
@@ -59,12 +48,12 @@ def _validate_path(path: str) -> str:
 @disallow_local_execution_in_containers
 async def list_block_devices(
     host: Host | None = None,
+    cmd: t.Annotated[CommandSpec, Field(description="Ignore this parameter")] = get_command("list_block_devices"),
 ) -> str:
     """
     List block devices.
     """
     try:
-        cmd = get_command("list_block_devices")
         returncode, stdout, _ = await execute_command(cmd.args, host=host)
 
         if returncode == 0 and stdout:
@@ -102,6 +91,9 @@ async def list_directories(
         ),
     ] = None,
     host: Host | None = None,
+    cmd_group: t.Annotated[CommandGroup, Field(description="Ignore this parameter")] = get_command_group(
+        "list_directories"
+    ),
 ) -> str:
     """
     List directories under a specified path.
@@ -109,8 +101,7 @@ async def list_directories(
     path = _validate_path(path)
 
     # Get the appropriate command for the order_by field
-    cmd_name = DIRECTORY_COMMANDS[order_by]
-    cmd = get_command(cmd_name)
+    cmd = cmd_group.commands[order_by]
 
     # Substitute path into command args
     args = substitute_command_args(cmd.args, path=path)
@@ -166,6 +157,7 @@ async def list_files(
         ),
     ] = None,
     host: Host | None = None,
+    cmd_group: t.Annotated[CommandGroup, Field(description="Ignore this parameter")] = get_command_group("list_files"),
 ) -> str:
     """
     List files under a specified path.
@@ -175,8 +167,7 @@ async def list_files(
         path = _validate_path(path)
 
     # Get the appropriate command for the order_by field
-    cmd_name = FILE_COMMANDS[order_by]
-    cmd = get_command(cmd_name)
+    cmd = cmd_group.commands[order_by]
 
     # Substitute path into command args
     args = substitute_command_args(cmd.args, path=path)
@@ -218,6 +209,7 @@ async def list_files(
 async def read_file(
     path: t.Annotated[str, Field(description="The file path to read")],
     host: Host | None = None,
+    cmd: t.Annotated[CommandSpec, Field(description="Ignore this parameter")] = get_command("read_file"),
 ) -> str:
     """
     Read the contents of a file using cat.
@@ -229,7 +221,6 @@ async def read_file(
         if not os.path.isfile(path):
             raise ToolError(f"Path is not a file: {path}")
 
-    cmd = get_command("read_file")
     args = substitute_command_args(cmd.args, path=path)
 
     try:

@@ -11,6 +11,8 @@ from types import MappingProxyType
 from pydantic import BaseModel
 from pydantic import ConfigDict
 
+from linux_mcp_server.constants import OrderBy
+
 
 class CommandSpec(BaseModel):
     """Specification for a single command with optional fallback.
@@ -135,42 +137,30 @@ COMMANDS: Mapping[str, CommandGroup] = MappingProxyType(
                 ),
             }
         ),
-        "list_directories_size": CommandGroup(
+        "list_directories": CommandGroup(
             commands={
                 "default": CommandSpec(args=("du", "-b", "--max-depth=1", "{path}")),
-            }
-        ),
-        "list_directories_name": CommandGroup(
-            commands={
-                "default": CommandSpec(
+                OrderBy.SIZE: CommandSpec(args=("du", "-b", "--max-depth=1", "{path}")),
+                OrderBy.NAME: CommandSpec(
                     args=("find", "{path}", "-mindepth", "1", "-maxdepth", "1", "-type", "d", "-printf", "%f\\n")
                 ),
-            }
-        ),
-        "list_directories_modified": CommandGroup(
-            commands={
-                "default": CommandSpec(
+                OrderBy.MODIFIED: CommandSpec(
                     args=("find", "{path}", "-mindepth", "1", "-maxdepth", "1", "-type", "d", "-printf", "%T@\\t%f\\n")
                 ),
             }
         ),
-        "list_files_size": CommandGroup(
+        "list_files": CommandGroup(
             commands={
                 "default": CommandSpec(
                     args=("find", "{path}", "-mindepth", "1", "-maxdepth", "1", "-type", "f", "-printf", "%s\\t%f\\n")
                 ),
-            }
-        ),
-        "list_files_name": CommandGroup(
-            commands={
-                "default": CommandSpec(
+                OrderBy.SIZE: CommandSpec(
+                    args=("find", "{path}", "-mindepth", "1", "-maxdepth", "1", "-type", "f", "-printf", "%s\\t%f\\n")
+                ),
+                OrderBy.NAME: CommandSpec(
                     args=("find", "{path}", "-mindepth", "1", "-maxdepth", "1", "-type", "f", "-printf", "%f\\n")
                 ),
-            }
-        ),
-        "list_files_modified": CommandGroup(
-            commands={
-                "default": CommandSpec(
+                OrderBy.MODIFIED: CommandSpec(
                     args=("find", "{path}", "-mindepth", "1", "-maxdepth", "1", "-type", "f", "-printf", "%T@\\t%f\\n")
                 ),
             }
