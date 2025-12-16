@@ -64,6 +64,7 @@ test = [
     "pytest-asyncio>=0.23.0",
     "pytest-cov>=4.1.0",
     "pytest-mock",
+    "pytest-randomly",
     "pytest>=8.0.0",
 ]
 
