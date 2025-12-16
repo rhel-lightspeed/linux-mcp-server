@@ -143,9 +143,19 @@ def get_command(name: str) -> CommandEntry:
         The CommandSpec or CommandGroup for the given name.
 
     Raises:
-        KeyError: If the command name is not found in the registry.
+        TypeError: If the command name is not found in the registry or
+        if the entry is not a valid CommandSpec or CommandGroup.
     """
-    return COMMANDS[name]
+    try:
+        cmd = COMMANDS[name]
+
+        # Match both the CommandGroup and CommandSpec
+        if not isinstance(cmd, (CommandSpec, CommandGroup)):
+            raise TypeError(f"Expected CommandSpec or CommandGroup for '{name}', got {type(cmd).__name__}")
+    except KeyError as e:
+        raise TypeError(f"CommandSpec for '{name}' not found.") from e
+
+    return cmd
 
 
 def substitute_command_args(args: list[str], **kwargs) -> list[str]:

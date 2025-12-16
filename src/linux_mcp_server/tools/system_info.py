@@ -1,11 +1,13 @@
 """System information tools."""
 
+import typing as t
+
 from mcp.types import ToolAnnotations
 
 from linux_mcp_server.audit import log_tool_call
 from linux_mcp_server.commands import CommandGroup
-from linux_mcp_server.commands import COMMANDS
 from linux_mcp_server.commands import CommandSpec
+from linux_mcp_server.commands import get_command
 from linux_mcp_server.connection.ssh import execute_command
 from linux_mcp_server.connection.ssh import execute_with_fallback
 from linux_mcp_server.formatters import format_cpu_info
@@ -36,10 +38,7 @@ async def get_system_information(
     """
     try:
         # Get command group from registry
-        group = COMMANDS["system_info"]
-        if not isinstance(group, CommandGroup):
-            raise TypeError(f"Expected CommandGroup for 'system_info', got {type(group).__name__}")
-
+        group = t.cast(CommandGroup, get_command("system_info"))
         results = {}
 
         # Execute all commands in the group
@@ -69,10 +68,7 @@ async def get_cpu_information(
     """
     try:
         # Get command group from registry
-        group = COMMANDS["cpu_info"]
-        if not isinstance(group, CommandGroup):
-            raise TypeError(f"Expected CommandGroup for 'cpu_info', got {type(group).__name__}")
-
+        group = t.cast(CommandGroup, get_command("cpu_info"))
         results = {}
 
         # Execute all commands in the group
@@ -102,9 +98,7 @@ async def get_memory_information(
     """
     try:
         # Get command group from registry
-        group = COMMANDS["memory_info"]
-        if not isinstance(group, CommandGroup):
-            raise TypeError(f"Expected CommandGroup for 'memory_info', got {type(group).__name__}")
+        group = t.cast(CommandGroup, get_command("memory_info"))
 
         # Execute free command
         free_cmd = group.commands["free"]
@@ -134,9 +128,7 @@ async def get_disk_usage(
     """
     try:
         # Get command from registry
-        cmd = COMMANDS["disk_usage"]
-        if not isinstance(cmd, CommandSpec):
-            raise TypeError(f"Expected CommandSpec for 'disk_usage', got {type(cmd).__name__}")
+        cmd = t.cast(CommandSpec, get_command("disk_usage"))
 
         returncode, stdout, _ = await execute_with_fallback(
             cmd.args,
@@ -167,10 +159,7 @@ async def get_hardware_information(
     """
     try:
         # Get command group from registry
-        group = COMMANDS["hardware_info"]
-        if not isinstance(group, CommandGroup):
-            raise TypeError(f"Expected CommandGroup for 'hardware_info', got {type(group).__name__}")
-
+        group = t.cast(CommandGroup, get_command("hardware_info"))
         results = {}
 
         # Execute all commands in the group

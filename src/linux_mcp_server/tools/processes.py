@@ -7,8 +7,8 @@ from pydantic import Field
 
 from linux_mcp_server.audit import log_tool_call
 from linux_mcp_server.commands import CommandGroup
-from linux_mcp_server.commands import COMMANDS
 from linux_mcp_server.commands import CommandSpec
+from linux_mcp_server.commands import get_command
 from linux_mcp_server.commands import substitute_command_args
 from linux_mcp_server.connection.ssh import execute_command
 from linux_mcp_server.formatters import format_process_detail
@@ -33,9 +33,7 @@ async def list_processes(
 ) -> str:
     try:
         # Get command from registry
-        cmd = COMMANDS["list_processes"]
-        if not isinstance(cmd, CommandSpec):
-            raise TypeError(f"Expected CommandSpec for 'list_processes', got {type(cmd).__name__}")
+        cmd = t.cast(CommandSpec, get_command("list_processes"))
 
         returncode, stdout, _ = await execute_command(cmd.args, host=host)
 
@@ -69,9 +67,7 @@ async def get_process_info(
 
     try:
         # Get command group from registry
-        group = COMMANDS["process_info"]
-        if not isinstance(group, CommandGroup):
-            raise TypeError(f"Expected CommandGroup for 'process_info', got {type(group).__name__}")
+        group = t.cast(CommandGroup, get_command("process_info"))
 
         # Get process details with ps
         ps_cmd = group.commands["ps_detail"]

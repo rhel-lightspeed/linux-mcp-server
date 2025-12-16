@@ -1,11 +1,13 @@
 """Network diagnostic tools."""
 
+import typing as t
+
 from mcp.types import ToolAnnotations
 
 from linux_mcp_server.audit import log_tool_call
 from linux_mcp_server.commands import CommandGroup
-from linux_mcp_server.commands import COMMANDS
 from linux_mcp_server.commands import CommandSpec
+from linux_mcp_server.commands import get_command
 from linux_mcp_server.connection.ssh import execute_with_fallback
 from linux_mcp_server.formatters import format_listening_ports
 from linux_mcp_server.formatters import format_network_connections
@@ -34,9 +36,7 @@ async def get_network_interfaces(
     """
     try:
         # Get command group from registry
-        group = COMMANDS["network_interfaces"]
-        if not isinstance(group, CommandGroup):
-            raise TypeError(f"Expected CommandGroup for 'network_interfaces', got {type(group).__name__}")
+        group = t.cast(CommandGroup, get_command("network_interfaces"))
 
         interfaces = {}
         stats = {}
@@ -83,9 +83,7 @@ async def get_network_connections(
     """
     try:
         # Get command from registry
-        cmd = COMMANDS["network_connections"]
-        if not isinstance(cmd, CommandSpec):
-            raise TypeError(f"Expected CommandSpec for 'network_connections', got {type(cmd).__name__}")
+        cmd = t.cast(CommandSpec, get_command("network_connections"))
 
         returncode, stdout, stderr = await execute_with_fallback(
             cmd.args,
@@ -116,9 +114,7 @@ async def get_listening_ports(
     """
     try:
         # Get command from registry
-        cmd = COMMANDS["listening_ports"]
-        if not isinstance(cmd, CommandSpec):
-            raise TypeError(f"Expected CommandSpec for 'listening_ports', got {type(cmd).__name__}")
+        cmd = t.cast(CommandSpec, get_command("listening_ports"))
 
         returncode, stdout, stderr = await execute_with_fallback(
             cmd.args,

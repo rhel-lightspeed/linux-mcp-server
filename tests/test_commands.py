@@ -1,7 +1,11 @@
 """Tests for command registry and utilities."""
 
+from contextlib import nullcontext
+
 import pytest
 
+from linux_mcp_server.commands import CommandSpec
+from linux_mcp_server.commands import get_command
 from linux_mcp_server.commands import substitute_command_args
 
 
@@ -68,3 +72,21 @@ class TestSubstituteCommandArgs:
         """Test that missing placeholders raise ValueError."""
         with pytest.raises(ValueError, match=match):
             substitute_command_args(args, **kwargs)
+
+
+@pytest.mark.parametrize(
+    ("should_raise", "name", "commands", "expected_instance"),
+    (
+        (pytest.raises(TypeError), "list_process", {"list_process": None}, None),
+        (pytest.raises(TypeError), "list_process", {"bla": None}, None),
+        (pytest.raises(TypeError), "list_process", {"list_process": {"args": ["ps"]}}, None),
+        (nullcontext(), "list_process", {"list_process": CommandSpec(args=[])}, CommandSpec),
+    ),
+)
+def test_get_command(should_raise, name, commands, expected_instance, mocker):
+    """Test that get_command is raising when a given command is not in the expected format."""
+    mocker.patch("linux_mcp_server.commands.COMMANDS", commands)
+
+    with should_raise:
+        result = get_command(name)
+        assert isinstance(result, expected_instance)
