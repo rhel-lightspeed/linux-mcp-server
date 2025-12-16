@@ -201,13 +201,13 @@ class SSHConnectionManager:
         conn = await self.get_connection(host)
         bin = command[0]
         if not Path(bin).is_absolute():
-            # NOTE(major): Copy to avoid mutating the caller's list (e.g., CommandSpec.args)
-            command = command.copy()
-            command[0] = await get_remote_bin_path(bin, host, conn)
+            bin = await get_remote_bin_path(bin, host, conn)
+
+        full_command = [bin] + command[1:]
 
         # Build command string with proper shell escaping
         # Use shlex.quote() to ensure special characters (like \n in printf format) are preserved
-        cmd_str = shlex.join(command)
+        cmd_str = shlex.join(full_command)
 
         # Start timing for command execution
         start_time = time.time()
@@ -425,12 +425,12 @@ async def _execute_local(command: list[str]) -> tuple[int, str, str]:
     start_time = time.time()
     bin = command[0]
     if not Path(bin).is_absolute():
-        # NOTE(major): Copy to avoid mutating the caller's list (e.g., CommandSpec.args)
-        command = command.copy()
-        command[0] = get_bin_path(bin)
+        bin = get_bin_path(bin)
+
+    full_command = [bin] + command[1:]
 
     try:
-        proc = await asyncio.create_subprocess_exec(*command, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+        proc = await asyncio.create_subprocess_exec(*full_command, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
         stdout_bytes, stderr_bytes = await proc.communicate()
 
         return_code = proc.returncode if proc.returncode is not None else 0
