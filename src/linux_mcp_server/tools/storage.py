@@ -253,7 +253,5 @@ async def read_file(
             raise ToolError(f"Error running command: command failed with return code {returncode}: {stderr}")
 
         return stdout
-    except ToolError:
-        raise
     except Exception as e:
         raise ToolError(f"Error reading file: {str(e)}") from e
