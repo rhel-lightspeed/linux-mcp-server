@@ -13,26 +13,16 @@ from linux_mcp_server.audit import log_tool_call
 from linux_mcp_server.commands import get_command
 from linux_mcp_server.commands import substitute_command_args
 from linux_mcp_server.connection.ssh import execute_command
+from linux_mcp_server.constants import OrderBy
+from linux_mcp_server.constants import SortBy
 from linux_mcp_server.formatters import format_block_devices
 from linux_mcp_server.formatters import format_directory_listing
 from linux_mcp_server.formatters import format_file_listing
 from linux_mcp_server.parsers import parse_directory_listing
 from linux_mcp_server.parsers import parse_file_listing
 from linux_mcp_server.server import mcp
-from linux_mcp_server.utils import StrEnum
 from linux_mcp_server.utils.decorators import disallow_local_execution_in_containers
 from linux_mcp_server.utils.types import Host
-
-
-class OrderBy(StrEnum):
-    SIZE = "size"
-    NAME = "name"
-    MODIFIED = "modified"
-
-
-class SortBy(StrEnum):
-    ASCENDING = "ascending"
-    DESCENDING = "descending"
 
 
 # Map OrderBy enum to command names
