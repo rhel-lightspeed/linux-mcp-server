@@ -143,26 +143,26 @@ class TestListBlockDevices:
         assert mock_storage_execute_command.call_args.args[0][0] == "lsblk"
         assert "-o" in mock_storage_execute_command.call_args.args[0]
 
-    async def test_list_block_devices_command_failure(self, mocker, mcp_client):
-        """Test list_block_devices returns error when lsblk fails."""
+    @pytest.mark.parametrize(
+        "side_effect, expected",
+        (
+            (AsyncMock(return_value=(1, "", "command failed")), ["error", "unable"]),
+            (FileNotFoundError("lsblk not found"), ["not found"]),
+            (ValueError("Raised intentionally"), ["error", "raised intentionally"]),
+        ),
+    )
+    async def test_list_block_devices_command_failure(self, side_effect, expected, mocker, mcp_client):
+        """Test list_block_devices failure."""
         mocker.patch(
             "linux_mcp_server.tools.storage.execute_command",
-            AsyncMock(return_value=(1, "", "command failed")),
+            side_effect=side_effect,
+            autospec=True,
         )
 
         result = await mcp_client.call_tool("list_block_devices", {})
-        result_text = result.content[0].text
+        result_text = result.content[0].text.casefold()
 
-        assert "Error" in result_text or "Unable" in result_text
-
-    async def test_list_block_devices_file_not_found(self, mocker, mcp_client):
-        """Test list_block_devices when lsblk is not available."""
-        mocker.patch("linux_mcp_server.tools.storage.execute_command", side_effect=FileNotFoundError("lsblk not found"))
-
-        result = await mcp_client.call_tool("list_block_devices", {})
-        result_text = result.content[0].text
-
-        assert "Error" in result_text or "not found" in result_text
+        assert all(case in result_text for case in expected), "Did not find all expected values"
 
     async def test_list_block_devices_remote_execution(self, mock_storage_execute_command, mcp_client):
         """Test list_block_devices with remote execution."""
@@ -177,19 +177,10 @@ class TestListBlockDevices:
         assert mock_storage_execute_command.call_count == 1
         assert mock_storage_execute_command.call_args.kwargs["host"] == "remote.host.com"
 
-    async def test_list_block_devices_exception_handling(self, mock_storage_execute_command, mcp_client):
-        """Test list_block_devices handles general exceptions."""
-        mock_storage_execute_command.side_effect = ValueError("Raised intentionally")
-
-        result = await mcp_client.call_tool("list_block_devices", {})
-
-        assert "Error" in result.content[0].text
-
 
 @pytest.mark.skipif(sys.platform != "linux", reason="requires GNU version of coreutils/findutils")
 class TestListDirectories:
-    async def test_list_directories_returns_string_output(self, setup_test_directory, mcp_client):
-        """Test that list_directories returns string output."""
+    async def test_list_directories(self, setup_test_directory, mcp_client):
         dir_specs = [
             ("alpha", 100, 1000.0),
             ("beta", 200, 2000.0),
@@ -202,23 +193,6 @@ class TestListDirectories:
 
         assert "=== Directories in" in result_text
         assert all(name in result_text for name in expected_names), "Did not find all expected names"
-
-    async def test_list_directories_by_name(self, setup_test_directory, mcp_client):
-        """Test that list_directories returns sorted output by name."""
-        dir_specs = [
-            ("gamma", 300, 3000.0),
-            ("alpha", 100, 1000.0),
-            ("beta", 200, 2000.0),
-        ]
-        test_path, _ = setup_test_directory(dir_specs)
-
-        result = await mcp_client.call_tool("list_directories", arguments={"path": str(test_path), "order_by": "name"})
-        result_text = result.content[0].text
-
-        # Verify all directories are present
-        assert "alpha" in result_text
-        assert "beta" in result_text
-        assert "gamma" in result_text
 
         # Verify sorted order (alpha should appear before beta, beta before gamma)
         alpha_pos = result_text.find("alpha")
