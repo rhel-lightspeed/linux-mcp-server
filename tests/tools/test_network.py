@@ -8,7 +8,7 @@ from linux_mcp_server.tools import network
 @pytest.fixture
 def mock_execute(mocker):
     """Mock execute_with_fallback for network module."""
-    return mocker.patch.object(network, "execute_with_fallback")
+    return mocker.patch.object(network, "execute_with_fallback", autospec=True)
 
 
 class TestGetNetworkInterfaces:
@@ -45,40 +45,38 @@ class TestGetNetworkInterfaces:
             ),
         ],
     )
-    async def test_get_network_interfaces_success(self, mock_execute, host, responses, expected_interfaces):
+    async def test_get_network_interfaces_success(self, mcp_client, mock_execute, host, responses, expected_interfaces):
         """Test getting network interfaces with success."""
         mock_execute.side_effect = responses
+        result = await mcp_client.call_tool("get_network_interfaces", arguments={"host": host})
+        result_text = result.content[0].text.casefold()
 
-        result = await network.get_network_interfaces(host=host)
-
-        assert isinstance(result, str)
-        assert "Network Interfaces" in result
-        for iface in expected_interfaces:
-            assert iface in result
+        assert "network interfaces" in result_text
+        assert all(iface in result_text for iface in expected_interfaces), "Did not find all expected values"
         assert mock_execute.call_count == 2
 
-    async def test_get_network_interfaces_partial_failure(self, mock_execute):
+    async def test_get_network_interfaces_partial_failure(self, mcp_client, mock_execute):
         """Test getting network interfaces with partial failures."""
         mock_execute.side_effect = [
             (0, "eth0             UP             192.168.1.100/24", ""),
             (1, "", "Command failed"),
         ]
 
-        result = await network.get_network_interfaces()
+        result = await mcp_client.call_tool("get_network_interfaces")
+        result_text = result.content[0].text.casefold()
 
-        assert isinstance(result, str)
-        assert "Network Interfaces" in result
-        assert "eth0" in result
+        assert "network interfaces" in result_text
+        assert "eth0" in result_text
 
-    async def test_get_network_interfaces_error(self, mock_execute):
+    async def test_get_network_interfaces_error(self, mcp_client, mock_execute):
         """Test getting network interfaces with error."""
         mock_execute.side_effect = Exception("Network error")
 
-        result = await network.get_network_interfaces()
+        result = await mcp_client.call_tool("get_network_interfaces")
+        result_text = result.content[0].text.casefold()
 
-        assert isinstance(result, str)
-        assert "Error getting network interface information" in result
-        assert "Network error" in result
+        assert "error getting network interface information" in result_text
+        assert "network error" in result_text
 
 
 class TestGetNetworkConnections:
@@ -104,16 +102,16 @@ tcp    ESTAB      0      0      10.0.0.5:443         10.0.0.1:12345""",
             ),
         ],
     )
-    async def test_get_network_connections_success(self, mock_execute, host, mock_output, expected_content):
+    async def test_get_network_connections_success(self, mcp_client, mock_execute, host, mock_output, expected_content):
         """Test getting network connections with success."""
         mock_execute.return_value = (0, mock_output, "")
+        result = await mcp_client.call_tool("get_network_connections", arguments={"host": host})
+        result_text = result.content[0].text.casefold()
 
-        result = await network.get_network_connections(host=host)
-
-        assert isinstance(result, str)
-        assert "Active Network Connections" in result
-        for content in expected_content:
-            assert content in result
+        assert "active network connections" in result_text
+        assert all(content.casefold() in result_text for content in expected_content), (
+            "Did not find all expected values"
+        )
 
     @pytest.mark.parametrize(
         ("return_value",),
@@ -122,24 +120,28 @@ tcp    ESTAB      0      0      10.0.0.5:443         10.0.0.1:12345""",
             pytest.param((0, "", ""), id="empty_output"),
         ],
     )
-    async def test_get_network_connections_failure(self, mock_execute, return_value):
+    async def test_get_network_connections_failure(self, mcp_client, mock_execute, return_value):
         """Test getting network connections when command fails or returns empty."""
         mock_execute.return_value = return_value
+        result = await mcp_client.call_tool("get_network_connections")
+        result_text = result.content[0].text.casefold()
+        expected = (
+            "error",
+            "neither ss nor netstat",
+        )
+        assert any(content.casefold() in result_text for content in expected)
 
-        result = await network.get_network_connections()
-
-        assert isinstance(result, str)
-        assert "Error" in result or "Neither ss nor netstat" in result
-
-    async def test_get_network_connections_error(self, mock_execute):
+    async def test_get_network_connections_error(self, mcp_client, mock_execute):
         """Test getting network connections with general error."""
         mock_execute.side_effect = Exception("Network error")
+        result = await mcp_client.call_tool("get_network_connections")
+        result_text = result.content[0].text.casefold()
+        expected = (
+            "error getting network connections",
+            "network error",
+        )
 
-        result = await network.get_network_connections()
-
-        assert isinstance(result, str)
-        assert "Error getting network connections" in result
-        assert "Network error" in result
+        assert all(content.casefold() in result_text for content in expected), "Did not find all expected values"
 
 
 class TestGetListeningPorts:
@@ -165,16 +167,15 @@ tcp    LISTEN     0      128    0.0.0.0:22           0.0.0.0:*""",
             ),
         ],
     )
-    async def test_get_listening_ports_success(self, mock_execute, host, mock_output, expected_content):
+    async def test_get_listening_ports_success(self, mcp_client, mock_execute, host, mock_output, expected_content):
         """Test getting listening ports with success."""
         mock_execute.return_value = (0, mock_output, "")
+        result = await mcp_client.call_tool("get_listening_ports", arguments={"host": host})
+        result_text = result.content[0].text.casefold()
 
-        result = await network.get_listening_ports(host=host)
-
-        assert isinstance(result, str)
-        assert "Listening Ports" in result
-        for content in expected_content:
-            assert content in result
+        assert all(content.casefold() in result_text for content in expected_content), (
+            "Did not find all expected values"
+        )
 
     @pytest.mark.parametrize(
         ("return_value",),
@@ -183,21 +184,30 @@ tcp    LISTEN     0      128    0.0.0.0:22           0.0.0.0:*""",
             pytest.param((0, "", ""), id="empty_output"),
         ],
     )
-    async def test_get_listening_ports_failure(self, mock_execute, return_value):
+    async def test_get_listening_ports_failure(self, mcp_client, mock_execute, return_value):
         """Test getting listening ports when command fails or returns empty."""
         mock_execute.return_value = return_value
+        result = await mcp_client.call_tool("get_listening_ports")
+        result_text = result.content[0].text.casefold()
+        expected_content = (
+            "error",
+            "neither ss nor netstat",
+        )
 
-        result = await network.get_listening_ports()
+        assert any(content.casefold() in result_text for content in expected_content), (
+            "Did not find any expected values"
+        )
 
-        assert isinstance(result, str)
-        assert "Error" in result or "Neither ss nor netstat" in result
-
-    async def test_get_listening_ports_error(self, mock_execute):
+    async def test_get_listening_ports_error(self, mcp_client, mock_execute):
         """Test getting listening ports with general error."""
         mock_execute.side_effect = Exception("Network error")
+        result = await mcp_client.call_tool("get_listening_ports")
+        result_text = result.content[0].text.casefold()
+        expected_content = (
+            "error getting listening ports",
+            "network error",
+        )
 
-        result = await network.get_listening_ports()
-
-        assert isinstance(result, str)
-        assert "Error getting listening ports" in result
-        assert "Network error" in result
+        assert all(content.casefold() in result_text for content in expected_content), (
+            "Did not find all expected values"
+        )

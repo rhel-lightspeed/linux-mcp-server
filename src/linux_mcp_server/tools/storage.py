@@ -5,7 +5,7 @@ import typing as t
 
 from pathlib import Path
 
-from mcp.server.fastmcp.exceptions import ToolError
+from fastmcp.exceptions import ToolError
 from mcp.types import ToolAnnotations
 from pydantic import Field
 
@@ -148,8 +148,6 @@ async def list_directories(
         # Format the output
         return format_directory_listing(entries, path, order_by, reverse=sort == SortBy.DESCENDING)
 
-    except ToolError:
-        raise
     except Exception as e:
         raise ToolError(f"Error listing directories: {str(e)}") from e
 
@@ -216,8 +214,6 @@ async def list_files(
         # Format the output
         return format_file_listing(entries, path, order_by, reverse=sort == SortBy.DESCENDING)
 
-    except ToolError:
-        raise
     except Exception as e:
         raise ToolError(f"Error listing files: {str(e)}") from e
 
@@ -253,7 +249,5 @@ async def read_file(
             raise ToolError(f"Error running command: command failed with return code {returncode}: {stderr}")
 
         return stdout
-    except ToolError:
-        raise
     except Exception as e:
         raise ToolError(f"Error reading file: {str(e)}") from e

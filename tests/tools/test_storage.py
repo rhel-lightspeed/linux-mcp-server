@@ -9,11 +9,7 @@ from unittest.mock import AsyncMock
 
 import pytest
 
-from mcp.server.fastmcp.exceptions import ToolError
-
-from linux_mcp_server.server import mcp
-from linux_mcp_server.tools import storage
-from tests import verify_result_structure
+from fastmcp.exceptions import ToolError
 
 
 @pytest.fixture
@@ -134,82 +130,57 @@ class TestListBlockDevices:
         lsblk_output,
         expected_content,
         mock_storage_execute_command,
+        mcp_client,
     ):
         """Test list_block_devices with successful lsblk command."""
         mock_storage_execute_command.return_value = (0, lsblk_output, "")
 
-        result = await mcp.call_tool("list_block_devices", {})
-        output = verify_result_structure(result)
+        result = await mcp_client.call_tool("list_block_devices", {})
+        result_text = result.content[0].text
 
-        # Verify expected content
-        for content in expected_content:
-            assert content in output
+        assert all(content in result_text for content in expected_content), "Did not find all expected content"
+        assert mock_storage_execute_command.call_count == 1
+        assert mock_storage_execute_command.call_args.args[0][0] == "lsblk"
+        assert "-o" in mock_storage_execute_command.call_args.args[0]
 
-        # Verify lsblk was called with correct arguments
-        mock_storage_execute_command.assert_called_once()
-        args = mock_storage_execute_command.call_args[0][0]
-        assert args[0] == "lsblk"
-        assert "-o" in args
-
-    async def test_list_block_devices_command_failure(self, mocker):
-        """Test list_block_devices returns error when lsblk fails."""
+    @pytest.mark.parametrize(
+        "side_effect, expected",
+        (
+            (AsyncMock(return_value=(1, "", "command failed")), ["error", "unable"]),
+            (FileNotFoundError("lsblk not found"), ["not found"]),
+            (ValueError("Raised intentionally"), ["error", "raised intentionally"]),
+        ),
+    )
+    async def test_list_block_devices_command_failure(self, side_effect, expected, mocker, mcp_client):
+        """Test list_block_devices failure."""
         mocker.patch(
             "linux_mcp_server.tools.storage.execute_command",
-            AsyncMock(return_value=(1, "", "command failed")),
+            side_effect=side_effect,
+            autospec=True,
         )
 
-        result = await mcp.call_tool("list_block_devices", {})
-        assert isinstance(result, tuple)
-        assert len(result) == 2
-        assert isinstance(result[0], list)
-        output = result[0][0].text
+        result = await mcp_client.call_tool("list_block_devices", {})
+        result_text = result.content[0].text.casefold()
 
-        assert "Error" in output or "Unable" in output
+        assert all(case in result_text for case in expected), "Did not find all expected values"
 
-    async def test_list_block_devices_file_not_found(self, mocker):
-        """Test list_block_devices when lsblk is not available."""
-        mocker.patch("linux_mcp_server.tools.storage.execute_command", side_effect=FileNotFoundError("lsblk not found"))
-
-        result = await mcp.call_tool("list_block_devices", {})
-        assert isinstance(result, tuple)
-        assert len(result) == 2
-        assert isinstance(result[0], list)
-        output = result[0][0].text
-
-        assert "Error" in output or "not found" in output
-
-    async def test_list_block_devices_remote_execution(self, mock_storage_execute_command):
+    async def test_list_block_devices_remote_execution(self, mock_storage_execute_command, mcp_client):
         """Test list_block_devices with remote execution."""
         mock_storage_execute_command.return_value = (0, "NAME   SIZE TYPE\nsda    1TB  disk", "")
 
-        result = await mcp.call_tool("list_block_devices", {"host": "remote.host.com"})
-        output = verify_result_structure(result)
+        result = await mcp_client.call_tool("list_block_devices", {"host": "remote.host.com"})
+        result_text = result.content[0].text
 
-        assert "=== Block Devices ===" in output
-        assert "sda" in output
-        assert "=== Disk I/O Statistics" not in output
-
-        # Verify execute_command was called with host parameter
-        mock_storage_execute_command.assert_called_once()
-        call_kwargs = mock_storage_execute_command.call_args[1]
-        assert call_kwargs["host"] == "remote.host.com"
-
-    async def test_list_block_devices_exception_handling(self, mock_storage_execute_command):
-        """Test list_block_devices handles general exceptions."""
-        mock_storage_execute_command.side_effect = ValueError("Raised intentionally")
-
-        result = await mcp.call_tool("list_block_devices", {})
-        assert isinstance(result, tuple)
-        assert len(result) == 2
-        assert isinstance(result[0], list)
-        output = result[0][0].text
-        assert "Error" in output
+        assert "=== Block Devices ===" in result_text
+        assert "sda" in result_text
+        assert "=== Disk I/O Statistics" not in result_text
+        assert mock_storage_execute_command.call_count == 1
+        assert mock_storage_execute_command.call_args.kwargs["host"] == "remote.host.com"
 
 
 @pytest.mark.skipif(sys.platform != "linux", reason="requires GNU version of coreutils/findutils")
 class TestListDirectories:
-    async def test_list_directories_returns_string_output(self, setup_test_directory):
-        """Test that list_directories returns string output."""
+    async def test_list_directories(self, setup_test_directory, mcp_client):
         dir_specs = [
             ("alpha", 100, 1000.0),
             ("beta", 200, 2000.0),
@@ -217,36 +188,19 @@ class TestListDirectories:
         ]
         test_path, expected_names = setup_test_directory(dir_specs)
 
-        result = await storage.list_directories(str(test_path), order_by="name")
+        result = await mcp_client.call_tool("list_directories", arguments={"path": str(test_path), "order_by": "name"})
+        result_text = result.content[0].text
 
-        assert isinstance(result, str)
-        assert "=== Directories in" in result
-        for name in expected_names:
-            assert name in result
+        assert "=== Directories in" in result_text
+        assert all(name in result_text for name in expected_names), "Did not find all expected names"
 
-    async def test_list_directories_by_name(self, setup_test_directory):
-        """Test that list_directories returns sorted output by name."""
-        dir_specs = [
-            ("gamma", 300, 3000.0),
-            ("alpha", 100, 1000.0),
-            ("beta", 200, 2000.0),
-        ]
-        test_path, _ = setup_test_directory(dir_specs)
-
-        result = await storage.list_directories(str(test_path), order_by="name")
-
-        assert isinstance(result, str)
-        # Verify all directories are present
-        assert "alpha" in result
-        assert "beta" in result
-        assert "gamma" in result
         # Verify sorted order (alpha should appear before beta, beta before gamma)
-        alpha_pos = result.find("alpha")
-        beta_pos = result.find("beta")
-        gamma_pos = result.find("gamma")
+        alpha_pos = result_text.find("alpha")
+        beta_pos = result_text.find("beta")
+        gamma_pos = result_text.find("gamma")
         assert alpha_pos < beta_pos < gamma_pos
 
-    async def test_list_directories_by_size(self, setup_test_directory):
+    async def test_list_directories_by_size(self, setup_test_directory, mcp_client):
         """Test that list_directories sorts by size."""
         dir_specs = [
             ("small", 100, 1000.0),
@@ -255,13 +209,13 @@ class TestListDirectories:
         ]
         test_path, _ = setup_test_directory(dir_specs)
 
-        result = await storage.list_directories(str(test_path), order_by="size")
+        result = await mcp_client.call_tool("list_directories", arguments={"path": str(test_path), "order_by": "size"})
+        result_text = result.content[0].text
 
-        assert isinstance(result, str)
         # All directories should be present
-        assert "small" in result
-        assert "medium" in result
-        assert "large" in result
+        assert "small" in result_text
+        assert "medium" in result_text
+        assert "large" in result_text
 
     @pytest.mark.parametrize(
         ("dir_specs", "order_by", "expected_order"),
@@ -286,18 +240,22 @@ class TestListDirectories:
             ),
         ],
     )
-    async def test_list_directories_descending(self, setup_test_directory, dir_specs, order_by, expected_order):
+    async def test_list_directories_descending(
+        self, setup_test_directory, dir_specs, order_by, expected_order, mcp_client
+    ):
         """Test that list_directories can sort descending by name, size, or modified time."""
         test_path, _ = setup_test_directory(dir_specs)
 
-        result = await storage.list_directories(str(test_path), order_by=order_by, sort="descending")
+        result = await mcp_client.call_tool(
+            "list_directories", arguments={"path": str(test_path), "order_by": order_by, "sort": "descending"}
+        )
+        result_text = result.content[0].text
 
-        assert isinstance(result, str)
         # Verify descending order
-        positions = [result.find(name) for name in expected_order]
+        positions = [result_text.find(name) for name in expected_order]
         assert positions[0] < positions[1] < positions[2]
 
-    async def test_list_directories_with_top_n(self, setup_test_directory):
+    async def test_list_directories_with_top_n(self, setup_test_directory, mcp_client):
         """Test that list_directories limits results with top_n."""
         dir_specs = [
             ("alpha", 100, 1000.0),
@@ -306,24 +264,25 @@ class TestListDirectories:
         ]
         test_path, _ = setup_test_directory(dir_specs)
 
-        result = await storage.list_directories(str(test_path), order_by="name", top_n=2)
+        result = await mcp_client.call_tool(
+            "list_directories", arguments={"path": str(test_path), "order_by": "name", "top_n": 2}
+        )
 
-        assert isinstance(result, str)
-        assert "Total directories: 2" in result
+        assert "Total directories: 2" in result.content[0].text
 
-    async def test_list_directories_nonexistent_path(self, tmp_path):
+    async def test_list_directories_nonexistent_path(self, tmp_path, mcp_client):
         """Test list_directories with nonexistent path raises ToolError."""
         nonexistent = tmp_path / "nonexistent"
 
         with pytest.raises(ToolError) as exc_info:
-            await storage.list_directories(str(nonexistent))
+            await mcp_client.call_tool("list_directories", arguments={"path": str(nonexistent)})
 
         assert "Error running command: command failed with return code 1" in str(exc_info.value)
 
-    async def test_list_directories_restricted_path(self, restricted_path):
+    async def test_list_directories_restricted_path(self, restricted_path, mcp_client):
         """Test list_directories with restricted path raises ToolError."""
         with pytest.raises(ToolError) as exc_info:
-            await storage.list_directories(str(restricted_path))
+            await mcp_client.call_tool("list_directories", arguments={"path": str(restricted_path)})
 
         assert "Error running command: command failed with return code 1" in str(exc_info.value)
 
@@ -331,27 +290,26 @@ class TestListDirectories:
 class TestListDirectoriesRemote:
     """Test list_directories with mocked remote execution."""
 
-    async def test_list_directories_remote(self, mocker):
+    async def test_list_directories_remote(self, mocker, mcp_client):
         """Test list_directories with remote execution."""
-        mock_execute = AsyncMock(return_value=(0, "alpha\nbeta\ngamma", ""))
+        mock_execute = AsyncMock(spec=True, return_value=(0, "alpha\nbeta\ngamma", ""))
         mocker.patch("linux_mcp_server.tools.storage.execute_command", mock_execute)
 
-        result = await storage.list_directories("/remote/path", host="remote.host")
+        result = await mcp_client.call_tool(
+            "list_directories", arguments={"path": "/remote/path", "host": "remote.host"}
+        )
+        result_text = result.content[0].text
 
-        assert isinstance(result, str)
-        assert "alpha" in result
-        assert "beta" in result
-        assert "gamma" in result
-
-        # Verify execute_command was called with host
-        mock_execute.assert_called_once()
-        call_kwargs = mock_execute.call_args[1]
-        assert call_kwargs["host"] == "remote.host"
+        assert "alpha" in result_text
+        assert "beta" in result_text
+        assert "gamma" in result_text
+        assert mock_execute.call_count == 1
+        assert mock_execute.call_args.kwargs["host"] == "remote.host"
 
 
 @pytest.mark.skipif(sys.platform != "linux", reason="requires GNU version of coreutils/findutils")
 class TestListFiles:
-    async def test_list_files_returns_string_output(self, setup_test_files):
+    async def test_list_files_returns_string_output(self, setup_test_files, mcp_client):
         """Test that list_files returns string output."""
         file_specs = [
             ("file1.txt", 100, 1000.0),
@@ -360,14 +318,13 @@ class TestListFiles:
         ]
         test_path, expected_names = setup_test_files(file_specs)
 
-        result = await storage.list_files(str(test_path), order_by="name")
+        result = await mcp_client.call_tool("list_files", arguments={"path": str(test_path), "order_by": "name"})
+        result_text = result.content[0].text
 
-        assert isinstance(result, str)
-        assert "=== Files in" in result
-        for name in expected_names:
-            assert name in result
+        assert "=== Files in" in result_text
+        assert all(name in result_text for name in expected_names)
 
-    async def test_list_files_by_name(self, setup_test_files):
+    async def test_list_files_by_name(self, setup_test_files, mcp_client):
         """Test that list_files returns sorted output by name."""
         file_specs = [
             ("gamma.txt", 300, 3000.0),
@@ -376,16 +333,16 @@ class TestListFiles:
         ]
         test_path, _ = setup_test_files(file_specs)
 
-        result = await storage.list_files(str(test_path), order_by="name")
+        result = await mcp_client.call_tool("list_files", arguments={"path": str(test_path), "order_by": "name"})
+        result_text = result.content[0].text
 
-        assert isinstance(result, str)
         # Verify sorted order
-        alpha_pos = result.find("alpha.txt")
-        beta_pos = result.find("beta.txt")
-        gamma_pos = result.find("gamma.txt")
+        alpha_pos = result_text.find("alpha.txt")
+        beta_pos = result_text.find("beta.txt")
+        gamma_pos = result_text.find("gamma.txt")
         assert alpha_pos < beta_pos < gamma_pos
 
-    async def test_list_files_by_size(self, setup_test_files):
+    async def test_list_files_by_size(self, setup_test_files, mcp_client):
         """Test that list_files sorts by size."""
         file_specs = [
             ("small.txt", 100, 1000.0),
@@ -393,16 +350,15 @@ class TestListFiles:
             ("medium.txt", 200, 2000.0),
         ]
         test_path, _ = setup_test_files(file_specs)
+        result = await mcp_client.call_tool("list_files", arguments={"path": str(test_path), "order_by": "size"})
+        result_text = result.content[0].text
 
-        result = await storage.list_files(str(test_path), order_by="size")
-
-        assert isinstance(result, str)
         # All files should be present
-        assert "small.txt" in result
-        assert "medium.txt" in result
-        assert "large.txt" in result
+        assert "small.txt" in result_text
+        assert "medium.txt" in result_text
+        assert "large.txt" in result_text
 
-    async def test_list_files_descending(self, setup_test_files):
+    async def test_list_files_descending(self, setup_test_files, mcp_client):
         """Test that list_files can sort descending."""
         file_specs = [
             ("alpha.txt", 100, 1000.0),
@@ -410,17 +366,16 @@ class TestListFiles:
             ("gamma.txt", 300, 3000.0),
         ]
         test_path, _ = setup_test_files(file_specs)
+        result = await mcp_client.call_tool("list_files", arguments={"path": str(test_path), "sort": "descending"})
+        result_text = result.content[0].text
 
-        result = await storage.list_files(str(test_path), order_by="name", sort="descending")
-
-        assert isinstance(result, str)
         # Verify descending order
-        gamma_pos = result.find("gamma.txt")
-        beta_pos = result.find("beta.txt")
-        alpha_pos = result.find("alpha.txt")
+        gamma_pos = result_text.find("gamma.txt")
+        beta_pos = result_text.find("beta.txt")
+        alpha_pos = result_text.find("alpha.txt")
         assert gamma_pos < beta_pos < alpha_pos
 
-    async def test_list_files_with_top_n(self, setup_test_files):
+    async def test_list_files_with_top_n(self, setup_test_files, mcp_client):
         """Test that list_files limits results with top_n."""
         file_specs = [
             ("file1.txt", 100, 1000.0),
@@ -428,18 +383,18 @@ class TestListFiles:
             ("file3.txt", 300, 3000.0),
         ]
         test_path, _ = setup_test_files(file_specs)
+        result = await mcp_client.call_tool(
+            "list_files", arguments={"path": str(test_path), "order_by": "name", "top_n": 2}
+        )
 
-        result = await storage.list_files(str(test_path), order_by="name", top_n=2)
+        assert "Total files: 2" in result.content[0].text
 
-        assert isinstance(result, str)
-        assert "Total files: 2" in result
-
-    async def test_list_files_nonexistent_path(self, tmp_path):
+    async def test_list_files_nonexistent_path(self, tmp_path, mcp_client):
         """Test list_files with nonexistent path raises ToolError."""
         nonexistent = tmp_path / "nonexistent"
 
         with pytest.raises(ToolError) as exc_info:
-            await storage.list_files(str(nonexistent))
+            await mcp_client.call_tool("list_files", arguments={"path": str(nonexistent)})
 
         assert "Error running command: command failed with return code 1" in str(exc_info.value)
 
@@ -447,70 +402,63 @@ class TestListFiles:
 class TestListFilesRemote:
     """Test list_files with mocked remote execution."""
 
-    async def test_list_files_remote(self, mocker):
+    async def test_list_files_remote(self, mocker, mcp_client):
         """Test list_files with remote execution."""
-        mock_execute = AsyncMock(return_value=(0, "file1.txt\nfile2.txt\nfile3.txt", ""))
+        mock_execute = AsyncMock(spec=True, return_value=(0, "file1.txt\nfile2.txt\nfile3.txt", ""))
         mocker.patch("linux_mcp_server.tools.storage.execute_command", mock_execute)
 
-        result = await storage.list_files("/remote/path", host="remote.host")
+        result = await mcp_client.call_tool("list_files", arguments={"path": "/remote/path", "host": "remote.host"})
 
-        assert isinstance(result, str)
-        assert "file1.txt" in result
-        assert "file2.txt" in result
-        assert "file3.txt" in result
-
-        # Verify execute_command was called with host
-        mock_execute.assert_called_once()
-        call_kwargs = mock_execute.call_args[1]
-        assert call_kwargs["host"] == "remote.host"
+        assert all(f"file{n}.txt" in result.content[0].text for n in range(1, 4))
+        assert mock_execute.call_count == 1
+        assert mock_execute.call_args.kwargs.get("host") == "remote.host"
 
 
 class TestReadFile:
-    async def test_read_file_success(self, tmp_path):
+    async def test_read_file_success(self, tmp_path, mcp_client):
         """Test reading a file successfully."""
         test_file = tmp_path / "test.txt"
         test_file.write_text("Hello, World!")
 
-        result = await storage.read_file(str(test_file))
+        result = await mcp_client.call_tool("read_file", arguments={"path": str(test_file)})
 
-        assert result == "Hello, World!"
+        assert result.content[0].text == "Hello, World!"
 
-    async def test_read_file_nonexistent(self, tmp_path):
+    async def test_read_file_nonexistent(self, tmp_path, mcp_client):
         """Test reading a nonexistent file raises ToolError."""
         nonexistent = tmp_path / "nonexistent.txt"
 
         with pytest.raises(ToolError) as exc_info:
-            await storage.read_file(str(nonexistent))
+            await mcp_client.call_tool("read_file", arguments={"path": str(nonexistent)})
 
         assert f"Path is not a file: {nonexistent}" == str(exc_info.value)
 
-    async def test_read_file_is_directory(self, tmp_path):
+    async def test_read_file_is_directory(self, tmp_path, mcp_client):
         """Test reading a directory raises ToolError."""
         with pytest.raises(ToolError) as exc_info:
-            await storage.read_file(str(tmp_path))
+            await mcp_client.call_tool("read_file", arguments={"path": str(tmp_path)})
 
         assert "not a file" in str(exc_info.value)
 
-    async def test_read_file_remote(self, mocker):
+    async def test_read_file_remote(self, mocker, mcp_client):
         """Test reading a file remotely."""
-        mock_execute = AsyncMock(return_value=(0, "Remote file content", ""))
+        mock_execute = AsyncMock(spec=True, return_value=(0, "Remote file content", ""))
         mocker.patch("linux_mcp_server.tools.storage.execute_command", mock_execute)
 
-        result = await storage.read_file("/remote/path/file.txt", host="remote.host")
+        result = await mcp_client.call_tool(
+            "read_file", arguments={"path": "/remote/path/file.txt", "host": "remote.host"}
+        )
 
-        assert result == "Remote file content"
+        assert result.content[0].text == "Remote file content"
+        assert mock_execute.call_count == 1
+        assert mock_execute.call_args.kwargs.get("host") == "remote.host"
 
-        # Verify execute_command was called with host
-        mock_execute.assert_called_once()
-        call_kwargs = mock_execute.call_args[1]
-        assert call_kwargs["host"] == "remote.host"
-
-    async def test_read_file_remote_failure(self, mocker):
+    async def test_read_file_remote_failure(self, mocker, mcp_client):
         """Test reading a file remotely with failure."""
-        mock_execute = AsyncMock(return_value=(1, "", "File not found"))
+        mock_execute = AsyncMock(spec=True, return_value=(1, "", "File not found"))
         mocker.patch("linux_mcp_server.tools.storage.execute_command", mock_execute)
 
         with pytest.raises(ToolError) as exc_info:
-            await storage.read_file("/remote/path/file.txt", host="remote.host")
+            await mcp_client.call_tool("read_file", arguments={"path": "/remote/path/file.txt", "host": "remote.host"})
 
         assert "Error running command: command failed with return code 1" in str(exc_info.value)
