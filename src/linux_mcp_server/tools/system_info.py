@@ -1,9 +1,7 @@
 """System information tools."""
 
-import typing as t
-
+from fastmcp.dependencies import Depends
 from mcp.types import ToolAnnotations
-from pydantic import Field
 
 from linux_mcp_server.audit import log_tool_call
 from linux_mcp_server.commands import CommandGroup
@@ -34,7 +32,7 @@ from linux_mcp_server.utils.types import Host
 @disallow_local_execution_in_containers
 async def get_system_information(
     host: Host | None = None,
-    cmd_group: t.Annotated[CommandGroup, Field(description="Ignore this parameter")] = get_command_group("system_info"),
+    cmd_group: CommandGroup = Depends(get_command_group("system_info")),
 ) -> str:
     """
     Get basic system information.
@@ -63,7 +61,7 @@ async def get_system_information(
 @disallow_local_execution_in_containers
 async def get_cpu_information(
     host: Host | None = None,
-    cmd_group: t.Annotated[CommandGroup, Field(description="Ignore this parameter")] = get_command_group("cpu_info"),
+    cmd_group: CommandGroup = Depends(get_command_group("cpu_info")),
 ) -> str:
     """
     Get CPU information.
@@ -92,7 +90,7 @@ async def get_cpu_information(
 @disallow_local_execution_in_containers
 async def get_memory_information(
     host: Host | None = None,
-    cmd: t.Annotated[CommandSpec, Field(description="Ignore this parameter")] = get_command("memory_info", "free"),
+    cmd: CommandSpec = Depends(get_command("memory_info", "free")),
 ) -> str:
     """
     Get memory information.
@@ -119,7 +117,7 @@ async def get_memory_information(
 @disallow_local_execution_in_containers
 async def get_disk_usage(
     host: Host | None = None,
-    cmd: t.Annotated[CommandSpec, Field(description="Ignore this parameter")] = get_command("disk_usage"),
+    cmd: CommandSpec = Depends(get_command("disk_usage")),
 ) -> str:
     """
     Get disk usage information.
@@ -148,9 +146,7 @@ async def get_disk_usage(
 @disallow_local_execution_in_containers
 async def get_hardware_information(
     host: Host | None = None,
-    cmd_group: t.Annotated[CommandGroup, Field(description="Ignore this parameter")] = get_command_group(
-        "hardware_info"
-    ),
+    cmd_group: CommandGroup = Depends(get_command_group("hardware_info")),
 ) -> str:
     """
     Get hardware information.

@@ -1,9 +1,7 @@
 """Network diagnostic tools."""
 
-import typing as t
-
+from fastmcp.dependencies import Depends
 from mcp.types import ToolAnnotations
-from pydantic import Field
 
 from linux_mcp_server.audit import log_tool_call
 from linux_mcp_server.commands import CommandGroup
@@ -32,9 +30,7 @@ from linux_mcp_server.utils.types import Host
 @disallow_local_execution_in_containers
 async def get_network_interfaces(
     host: Host | None = None,
-    cmd_group: t.Annotated[CommandGroup, Field(description="Ignore this parameter")] = get_command_group(
-        "network_interfaces"
-    ),
+    cmd_group: CommandGroup = Depends(get_command_group("network_interfaces")),
 ) -> str:
     """
     Get network interface information.
@@ -79,7 +75,7 @@ async def get_network_interfaces(
 @disallow_local_execution_in_containers
 async def get_network_connections(
     host: Host | None = None,
-    cmd: t.Annotated[CommandSpec, Field(description="Ignore this parameter")] = get_command("network_connections"),
+    cmd: CommandSpec = Depends(get_command("network_connections")),
 ) -> str:
     """
     Get active network connections.
@@ -108,7 +104,7 @@ async def get_network_connections(
 @disallow_local_execution_in_containers
 async def get_listening_ports(
     host: Host | None = None,
-    cmd: t.Annotated[CommandSpec, Field(description="Ignore this parameter")] = get_command("listening_ports"),
+    cmd: CommandSpec = Depends(get_command("listening_ports")),
 ) -> str:
     """
     Get listening ports.

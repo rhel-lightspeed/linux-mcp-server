@@ -5,6 +5,7 @@ import typing as t
 
 from pathlib import Path
 
+from fastmcp.dependencies import Depends
 from fastmcp.exceptions import ToolError
 from mcp.types import ToolAnnotations
 from pydantic import Field
@@ -48,7 +49,7 @@ def _validate_path(path: str) -> str:
 @disallow_local_execution_in_containers
 async def list_block_devices(
     host: Host | None = None,
-    cmd: t.Annotated[CommandSpec, Field(description="Ignore this parameter")] = get_command("list_block_devices"),
+    cmd: CommandSpec = Depends(get_command("list_block_devices")),
 ) -> str:
     """
     List block devices.
@@ -91,9 +92,7 @@ async def list_directories(
         ),
     ] = None,
     host: Host | None = None,
-    cmd_group: t.Annotated[CommandGroup, Field(description="Ignore this parameter")] = get_command_group(
-        "list_directories"
-    ),
+    cmd_group: CommandGroup = Depends(get_command_group("list_directories")),
 ) -> str:
     """
     List directories under a specified path.
@@ -157,7 +156,7 @@ async def list_files(
         ),
     ] = None,
     host: Host | None = None,
-    cmd_group: t.Annotated[CommandGroup, Field(description="Ignore this parameter")] = get_command_group("list_files"),
+    cmd_group: CommandGroup = Depends(get_command_group("list_files")),
 ) -> str:
     """
     List files under a specified path.
@@ -209,7 +208,7 @@ async def list_files(
 async def read_file(
     path: t.Annotated[str, Field(description="The file path to read")],
     host: Host | None = None,
-    cmd: t.Annotated[CommandSpec, Field(description="Ignore this parameter")] = get_command("read_file"),
+    cmd: CommandSpec = Depends(get_command("read_file")),
 ) -> str:
     """
     Read the contents of a file using cat.

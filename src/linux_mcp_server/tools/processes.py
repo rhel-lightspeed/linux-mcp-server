@@ -2,6 +2,7 @@
 
 import typing as t
 
+from fastmcp.dependencies import Depends
 from mcp.types import ToolAnnotations
 from pydantic import Field
 
@@ -31,7 +32,7 @@ from linux_mcp_server.utils.validation import validate_pid
 @disallow_local_execution_in_containers
 async def list_processes(
     host: Host | None = None,
-    cmd: t.Annotated[CommandSpec, Field(description="Ignore this parameter")] = get_command("list_processes"),
+    cmd: CommandSpec = Depends(get_command("list_processes")),
 ) -> str:
     try:
         returncode, stdout, _ = await execute_command(cmd.args, host=host)
@@ -55,9 +56,7 @@ async def list_processes(
 async def get_process_info(
     pid: t.Annotated[int, Field(description="Process ID")],
     host: Host | None = None,
-    cmd_group: t.Annotated[CommandGroup, Field(description="Ignore this parameter")] = get_command_group(
-        "process_info"
-    ),
+    cmd_group: CommandGroup = Depends(get_command_group("process_info")),
 ) -> str:
     # Validate PID (accepts floats from LLMs)
     validated_pid, error = validate_pid(pid)

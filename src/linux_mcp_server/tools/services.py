@@ -2,6 +2,7 @@
 
 import typing as t
 
+from fastmcp.dependencies import Depends
 from mcp.types import ToolAnnotations
 from pydantic import Field
 
@@ -29,8 +30,8 @@ from linux_mcp_server.utils.validation import validate_line_count
 @disallow_local_execution_in_containers
 async def list_services(
     host: Host | None = None,
-    list_cmd: t.Annotated[CommandSpec, Field(description="Ignore this parameter")] = get_command("list_services"),
-    running_cmd: t.Annotated[CommandSpec, Field(description="Ignore this parameter")] = get_command("running_services"),
+    list_cmd: CommandSpec = Depends(get_command("list_services")),
+    running_cmd: CommandSpec = Depends(get_command("running_services")),
 ) -> str:
     """
     List all systemd services.
@@ -68,7 +69,7 @@ async def list_services(
 async def get_service_status(
     service_name: t.Annotated[str, Field(description="Name of the service")],
     host: Host | None = None,
-    cmd: t.Annotated[CommandSpec, Field(description="Ignore this parameter")] = get_command("service_status"),
+    cmd: CommandSpec = Depends(get_command("service_status")),
 ) -> str:
     """
     Get status of a specific service.
@@ -107,7 +108,7 @@ async def get_service_logs(
     service_name: t.Annotated[str, Field(description="Name of the service")],
     lines: t.Annotated[int, Field(description="Number of log lines to retrieve.")] = 50,
     host: Host | None = None,
-    cmd: t.Annotated[CommandSpec, Field(description="Ignore this parameter")] = get_command("service_logs"),
+    cmd: CommandSpec = Depends(get_command("service_logs")),
 ) -> str:
     """
     Get logs for a specific service.
