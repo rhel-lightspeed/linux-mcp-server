@@ -13,6 +13,7 @@ import shutil
 import subprocess
 import time
 
+from collections.abc import Sequence
 from pathlib import Path
 from typing import Optional
 
@@ -175,7 +176,7 @@ class SSHConnectionManager:
 
     async def execute_remote(
         self,
-        command: list[str],
+        command: Sequence[str],
         host: str,
         timeout: int = CONFIG.command_timeout,
     ) -> tuple[int, str, str]:
@@ -203,7 +204,7 @@ class SSHConnectionManager:
         if not Path(bin).is_absolute():
             bin = await get_remote_bin_path(bin, host, conn)
 
-        full_command = [bin] + command[1:]
+        full_command = [bin, *command[1:]]
 
         # Build command string with proper shell escaping
         # Use shlex.quote() to ensure special characters (like \n in printf format) are preserved
@@ -324,7 +325,7 @@ async def get_remote_bin_path(
 
 
 async def execute_command(
-    command: list[str],
+    command: Sequence[str],
     host: str | None = None,
     **kwargs,
 ) -> tuple[int, str, str]:
@@ -371,8 +372,8 @@ async def execute_command(
 
 
 async def execute_with_fallback(
-    args: list[str],
-    fallback: list[str] | None = None,
+    args: Sequence[str],
+    fallback: Sequence[str] | None = None,
     host: str | None = None,
     **kwargs,
 ) -> tuple[int, str, str]:
@@ -411,7 +412,7 @@ async def execute_with_fallback(
     return returncode, stdout, stderr
 
 
-async def _execute_local(command: list[str]) -> tuple[int, str, str]:
+async def _execute_local(command: Sequence[str]) -> tuple[int, str, str]:
     """
     Execute a command locally using subprocess.
 
@@ -427,7 +428,7 @@ async def _execute_local(command: list[str]) -> tuple[int, str, str]:
     if not Path(bin).is_absolute():
         bin = get_bin_path(bin)
 
-    full_command = [bin] + command[1:]
+    full_command = [bin, *command[1:]]
 
     try:
         proc = await asyncio.create_subprocess_exec(*full_command, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
