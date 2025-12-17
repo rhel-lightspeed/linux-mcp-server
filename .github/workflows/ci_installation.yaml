@@ -59,6 +59,7 @@ jobs:
         shell: bash
         env:
           METHOD: ${{ matrix.method }}
+          UV_PYTHON: python
         run: |
           chmod +x scripts/verify_installation.sh
           ./scripts/verify_installation.sh
