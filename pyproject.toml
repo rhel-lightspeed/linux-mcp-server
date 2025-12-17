@@ -68,6 +68,11 @@ test = [
     "pytest>=8.0.0",
 ]
 
+llm-eval = [
+    "google-genai>=1.56.0",
+    "inspect-ai>=0.3.50",
+]
+
 [tool.hatch.build.targets.wheel]
 packages = ["src/linux_mcp_server"]
 
@@ -103,6 +108,7 @@ source = [
 ]
 omit = [
     "src/linux_mcp_server/_vendor/*/*",
+    "tests/llm/*",
 ]
 
 [tool.coverage.report]
@@ -140,7 +146,8 @@ include = [
     "tests",
 ]
 ignore = [
-    "src/linux_mcp_server/_vendor/*/*"
+    "src/linux_mcp_server/_vendor/*/*",
+    "tests/llm/*",
 ]
 pythonVersion = "3.10"
 

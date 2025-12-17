@@ -1,0 +1,76 @@
+name: LLM Tool Selection Evaluation
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - main
+  pull_request:
+    branches:
+      - main
+
+permissions:
+  contents: read
+
+env:
+  FORCE_COLOR: 1
+  EVAL_MODEL: google/vertex/gemini-2.5-flash
+
+jobs:
+  evaluate:
+    name: Evaluate Tool Selection
+    runs-on: ubuntu-latest
+
+    # Only run if secrets are available (skip on forks)
+    if: github.repository == 'rhel-lightspeed/linux-mcp-server'
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v5.0.0
+
+      - name: Install Python
+        uses: actions/setup-python@v6.0.0
+        with:
+          python-version-file: pyproject.toml
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v7.1.0
+        with:
+          enable-cache: true
+          prune-cache: false
+
+      - name: Install dependencies
+        run: uv sync --locked --group llm-eval
+
+      - name: Write GCP credentials
+        run: |
+          echo '${{ secrets.GCP_CREDENTIALS_JSON }}' > /tmp/gcp-credentials.json
+
+      - name: Run LLM evaluation
+        env:
+          GOOGLE_APPLICATION_CREDENTIALS: /tmp/gcp-credentials.json
+          GOOGLE_CLOUD_PROJECT: ${{ secrets.GCP_PROJECT_ID }}
+          GOOGLE_CLOUD_LOCATION: us-east5
+          LINUX_MCP_LOG_LEVEL: WARNING
+        run: |
+          # Available tasks:
+          #   tool_selection_eval - Full evaluation (41 samples, all tool categories)
+          #   tool_selection_system_info - Focused test (12 samples, system info only)
+          #   tool_selection_negative - Unsupported operations (20 samples)
+          #   tool_selection_full - All positive + negative (61 samples)
+          #   tool_selection_params - Parameter validation (25 samples)
+          uv run --locked inspect eval ./tests/llm/eval_tool_selection.py@tool_selection_eval \
+            --model "$EVAL_MODEL" \
+            --log-dir ./inspect-logs
+
+      - name: Upload evaluation results
+        uses: actions/upload-artifact@v4.6.2
+        if: always()
+        with:
+          name: llm-eval-results
+          path: ./inspect-logs/
+          retention-days: 30
+
+      - name: Clean up credentials
+        if: always()
+        run: rm -f /tmp/gcp-credentials.json
