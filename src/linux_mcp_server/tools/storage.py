@@ -176,7 +176,21 @@ async def list_directories(
     ] = None,
     host: Host | None = None,
 ) -> str:
-    """List directories under a specified path."""
+    """List directories under a specified path with sorting and filtering.
+
+    Args:
+        path: Absolute path to the directory to analyze.
+        order_by: Sort criterion (size, name, or modified).
+        sort: Sort direction (ascending or descending).
+        top_n: Optional limit on number of directories to return.
+        host: Optional remote host to execute command on.
+
+    Returns:
+        Formatted string listing of directories with metadata.
+
+    Raises:
+        ToolError: If path validation fails or command execution fails.
+    """
     return await _list_resources(
         path=path,
         order_by=order_by,
@@ -215,7 +229,21 @@ async def list_files(
     ] = None,
     host: Host | None = None,
 ) -> str:
-    """List files under a specified path."""
+    """List files under a specified path with sorting and filtering.
+
+    Args:
+        path: Absolute path to the directory to analyze.
+        order_by: Sort criterion (size, name, or modified).
+        sort: Sort direction (ascending or descending).
+        top_n: Optional limit on number of files to return.
+        host: Optional remote host to execute command on.
+
+    Returns:
+        Formatted string listing of files with metadata.
+
+    Raises:
+        ToolError: If path validation fails or command execution fails.
+    """
     return await _list_resources(
         path=path,
         order_by=order_by,
