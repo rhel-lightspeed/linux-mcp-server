@@ -184,7 +184,7 @@ class TestGetAuditLogs:
 
         # Verify command arguments
         cmd_args = mock_execute_command.call_args[0][0]
-        assert cmd_args == ["tail", "-n", expected_line_count, "/var/log/audit/audit.log"]
+        assert cmd_args == ("tail", "-n", expected_line_count, "/var/log/audit/audit.log")
 
     async def test_get_audit_logs_file_not_found_local(self, mocker):
         """Test get_audit_logs when audit log file doesn't exist locally."""
