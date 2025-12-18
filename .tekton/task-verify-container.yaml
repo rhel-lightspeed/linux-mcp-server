@@ -1,0 +1,57 @@
+apiVersion: tekton.dev/v1
+kind: Task
+metadata:
+  name: verify-container-lifecycle
+  namespace: rhel-lightspeed-tenant
+spec:
+  description: Verifies that the MCP server container starts, has correct user permissions, and responds to JSON-RPC.
+  params:
+    - name: image_url
+      description: The URL of the image to verify.
+      type: string
+  steps:
+    - name: verify-user-and-startup
+      image: $(params.image_url)
+      script: |
+        #!/usr/bin/env bash
+        set -euo pipefail
+
+        echo "--- Verification Step 1: User Identity ---"
+        CURRENT_UID=$(id -u)
+        echo "Running as UID: $CURRENT_UID"
+        if [ "$CURRENT_UID" -ne 1001 ]; then
+          echo "::error::Container must run as UID 1001 (mcp). Found $CURRENT_UID"
+          exit 1
+        fi
+
+        echo "--- Verification Step 2: Server Startup Log ---"
+        # Start server in background, capture logs
+        # Uses the CMD defined in Containerfile
+        linux-mcp-server > startup.log 2>&1 &
+        SERVER_PID=$!
+
+        timeout 15s bash -c 'until grep -q "Running Linux MCP Server" startup.log; do sleep 1; done' || {
+          echo "::error::Server failed to log 'Running Linux MCP Server' within 15s"
+          cat startup.log
+          kill $SERVER_PID || true
+          exit 1
+        }
+        echo "Success: Server initialized correctly."
+        kill $SERVER_PID
+
+    - name: verify-mcp-handshake
+      image: $(params.image_url)
+      script: |
+        #!/usr/bin/env bash
+        echo "--- Verification Step 3: MCP Handshake ---"
+        
+        # Prepare a standard MCP initialization request JSON-RPC 2.0
+        INIT_REQ='{"jsonrpc":"2.0","id":1,"method":"initialize","params":{"protocolVersion":"2024-11-05","capabilities":{},"clientInfo":{"name":"QA-Test","version":"1.0"}}}'
+        
+        RESPONSE=$(echo "$INIT_REQ" | linux-mcp-server 2>/dev/null | grep "capabilities" || true)
+        
+        if [[ -z "$RESPONSE" ]]; then
+          echo "::error::Server did not return a valid MCP capability response."
+          exit 1
+        fi
+        echo "Success: Valid MCP JSON-RPC response received."

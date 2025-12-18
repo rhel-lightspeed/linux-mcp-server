@@ -346,6 +346,23 @@ spec:
           values:
             - "true"
 
+    - name: verify-container
+      params:
+        - name: image_url
+          value: $(tasks.build-image-index.results.IMAGE_URL)
+
+      runAfter:
+        - build-image-index
+
+      taskRef:
+        name: verify-container-lifecycle
+
+      when:
+        - input: $(tasks.init.results.build)
+          operator: in
+          values:
+            - "true"
+
     - name: deprecated-base-image-check
       params:
         - name: IMAGE_URL
@@ -355,7 +372,7 @@ spec:
           value: $(tasks.build-image-index.results.IMAGE_DIGEST)
 
       runAfter:
-        - build-image-index
+        - verify-container
 
       taskRef:
         resolver: bundles
@@ -384,7 +401,7 @@ spec:
           value: $(tasks.build-image-index.results.IMAGE_URL)
 
       runAfter:
-        - build-image-index
+        - verify-container
 
       taskRef:
         resolver: bundles
@@ -409,7 +426,7 @@ spec:
           value: $(tasks.build-image-index.results.IMAGE_URL)
 
       runAfter:
-        - build-image-index
+        - verify-container
 
       taskRef:
         resolver: bundles
@@ -446,7 +463,7 @@ spec:
           value: "--project-name=linux-mcp-server --report --org=12d05a23-73a7-4a1d-9162-ab12e8c051c4"
 
       runAfter:
-        - build-image-index
+        - verify-container
 
       taskRef:
         resolver: bundles
@@ -475,7 +492,7 @@ spec:
           value: $(tasks.build-image-index.results.IMAGE_URL)
 
       runAfter:
-        - build-image-index
+        - verify-container
 
       taskRef:
         resolver: bundles
@@ -497,7 +514,7 @@ spec:
 
     - name: coverity-availability-check
       runAfter:
-        - build-image-index
+        - verify-container
 
       taskRef:
         resolver: bundles
@@ -601,7 +618,7 @@ spec:
           value: $(tasks.prefetch-dependencies.results.CACHI2_ARTIFACT)
 
       runAfter:
-        - build-image-index
+        - verify-container
 
       taskRef:
         resolver: bundles
@@ -636,7 +653,7 @@ spec:
           value: $(tasks.prefetch-dependencies.results.CACHI2_ARTIFACT)
 
       runAfter:
-        - build-image-index
+        - verify-container
 
       taskRef:
         resolver: bundles
@@ -670,7 +687,7 @@ spec:
             - $(params.tag-prefix)$(tasks.clone-repository.results.short-commit)
 
       runAfter:
-        - build-image-index
+        - verify-container
 
       taskRef:
         resolver: bundles
@@ -702,7 +719,7 @@ spec:
           value: $(tasks.prefetch-dependencies.results.SOURCE_ARTIFACT)
 
       runAfter:
-        - build-image-index
+        - verify-container
 
       taskRef:
         resolver: bundles
@@ -725,7 +742,7 @@ spec:
           value: $(tasks.build-image-index.results.IMAGE_URL)
 
       runAfter:
-        - build-image-index
+        - verify-container
 
       taskRef:
         resolver: bundles
