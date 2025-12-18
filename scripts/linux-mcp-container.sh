@@ -37,7 +37,7 @@ mkdir -p "$LOGS_DIR"
 # Build podman command
 PODMAN_ARGS=(
     run --rm -i
-    --userns "keep-id:uid=1001,gid=0"
+    #--userns "keep-id:uid=1001,gid=0"
     -v "$SSH_KEY:/var/lib/mcp/.ssh/id_rsa:ro,Z"
     -v "$LOGS_DIR:/var/lib/mcp/.local/share/linux-mcp-server/logs:rw,Z"
 )
