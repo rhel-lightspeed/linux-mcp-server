@@ -102,9 +102,9 @@ def restricted_path(tmp_path):
 
 
 @pytest.fixture
-def mock_storage_execute_command(mock_execute_command_for):
-    """Storage-specific execute_command mock using the shared factory."""
-    return mock_execute_command_for("linux_mcp_server.tools.storage")
+def mock_execute_with_fallback(mock_execute_with_fallback_for):
+    """Storage-specific execute_with_fallback mock using the shared factory."""
+    return mock_execute_with_fallback_for("linux_mcp_server.commands")
 
 
 class TestListBlockDevices:
@@ -129,19 +129,22 @@ class TestListBlockDevices:
         self,
         lsblk_output,
         expected_content,
-        mock_storage_execute_command,
+        mock_execute_with_fallback,
         mcp_client,
     ):
         """Test list_block_devices with successful lsblk command."""
-        mock_storage_execute_command.return_value = (0, lsblk_output, "")
+        mock_execute_with_fallback.return_value = (0, lsblk_output, "")
 
         result = await mcp_client.call_tool("list_block_devices", {})
         result_text = result.content[0].text
 
         assert all(content in result_text for content in expected_content), "Did not find all expected content"
-        assert mock_storage_execute_command.call_count == 1
-        assert mock_storage_execute_command.call_args.args[0][0] == "lsblk"
-        assert "-o" in mock_storage_execute_command.call_args.args[0]
+
+        # Verify lsblk was called with correct arguments
+        mock_execute_with_fallback.assert_called_once()
+        args = mock_execute_with_fallback.call_args[0][0]
+        assert args[0] == "lsblk"
+        assert "-o" in args
 
     @pytest.mark.parametrize(
         "side_effect, expected",
@@ -154,7 +157,7 @@ class TestListBlockDevices:
     async def test_list_block_devices_command_failure(self, side_effect, expected, mocker, mcp_client):
         """Test list_block_devices failure."""
         mocker.patch(
-            "linux_mcp_server.tools.storage.execute_command",
+            "linux_mcp_server.commands.execute_with_fallback",
             side_effect=side_effect,
             autospec=True,
         )
@@ -164,9 +167,9 @@ class TestListBlockDevices:
 
         assert all(case in result_text for case in expected), "Did not find all expected values"
 
-    async def test_list_block_devices_remote_execution(self, mock_storage_execute_command, mcp_client):
+    async def test_list_block_devices_remote_execution(self, mock_execute_with_fallback, mcp_client):
         """Test list_block_devices with remote execution."""
-        mock_storage_execute_command.return_value = (0, "NAME   SIZE TYPE\nsda    1TB  disk", "")
+        mock_execute_with_fallback.return_value = (0, "NAME   SIZE TYPE\nsda    1TB  disk", "")
 
         result = await mcp_client.call_tool("list_block_devices", {"host": "remote.host.com"})
         result_text = result.content[0].text
@@ -174,8 +177,11 @@ class TestListBlockDevices:
         assert "=== Block Devices ===" in result_text
         assert "sda" in result_text
         assert "=== Disk I/O Statistics" not in result_text
-        assert mock_storage_execute_command.call_count == 1
-        assert mock_storage_execute_command.call_args.kwargs["host"] == "remote.host.com"
+
+        # Verify execute_with_fallback was called with host
+        mock_execute_with_fallback.assert_called_once()
+        call_kwargs = mock_execute_with_fallback.call_args[1]
+        assert call_kwargs["host"] == "remote.host.com"
 
 
 @pytest.mark.skipif(sys.platform != "linux", reason="requires GNU version of coreutils/findutils")
@@ -290,10 +296,9 @@ class TestListDirectories:
 class TestListDirectoriesRemote:
     """Test list_directories with mocked remote execution."""
 
-    async def test_list_directories_remote(self, mocker, mcp_client):
+    async def test_list_directories_remote(self, mock_execute_with_fallback, mcp_client):
         """Test list_directories with remote execution."""
-        mock_execute = AsyncMock(spec=True, return_value=(0, "alpha\nbeta\ngamma", ""))
-        mocker.patch("linux_mcp_server.tools.storage.execute_command", mock_execute)
+        mock_execute_with_fallback.return_value = (0, "alpha\nbeta\ngamma", "")
 
         result = await mcp_client.call_tool(
             "list_directories", arguments={"path": "/remote/path", "host": "remote.host"}
@@ -303,8 +308,11 @@ class TestListDirectoriesRemote:
         assert "alpha" in result_text
         assert "beta" in result_text
         assert "gamma" in result_text
-        assert mock_execute.call_count == 1
-        assert mock_execute.call_args.kwargs["host"] == "remote.host"
+
+        # Verify execute_with_fallback was called with host
+        mock_execute_with_fallback.assert_called_once()
+        call_kwargs = mock_execute_with_fallback.call_args[1]
+        assert call_kwargs["host"] == "remote.host"
 
 
 @pytest.mark.skipif(sys.platform != "linux", reason="requires GNU version of coreutils/findutils")
@@ -402,16 +410,18 @@ class TestListFiles:
 class TestListFilesRemote:
     """Test list_files with mocked remote execution."""
 
-    async def test_list_files_remote(self, mocker, mcp_client):
+    async def test_list_files_remote(self, mock_execute_with_fallback, mcp_client):
         """Test list_files with remote execution."""
-        mock_execute = AsyncMock(spec=True, return_value=(0, "file1.txt\nfile2.txt\nfile3.txt", ""))
-        mocker.patch("linux_mcp_server.tools.storage.execute_command", mock_execute)
+        mock_execute_with_fallback.return_value = (0, "file1.txt\nfile2.txt\nfile3.txt", "")
 
         result = await mcp_client.call_tool("list_files", arguments={"path": "/remote/path", "host": "remote.host"})
 
         assert all(f"file{n}.txt" in result.content[0].text for n in range(1, 4))
-        assert mock_execute.call_count == 1
-        assert mock_execute.call_args.kwargs.get("host") == "remote.host"
+
+        # Verify execute_with_fallback was called with host
+        mock_execute_with_fallback.assert_called_once()
+        call_kwargs = mock_execute_with_fallback.call_args[1]
+        assert call_kwargs["host"] == "remote.host"
 
 
 class TestReadFile:
@@ -440,23 +450,24 @@ class TestReadFile:
 
         assert "not a file" in str(exc_info.value)
 
-    async def test_read_file_remote(self, mocker, mcp_client):
+    async def test_read_file_remote(self, mock_execute_with_fallback, mcp_client):
         """Test reading a file remotely."""
-        mock_execute = AsyncMock(spec=True, return_value=(0, "Remote file content", ""))
-        mocker.patch("linux_mcp_server.tools.storage.execute_command", mock_execute)
+        mock_execute_with_fallback.return_value = (0, "Remote file content", "")
 
         result = await mcp_client.call_tool(
             "read_file", arguments={"path": "/remote/path/file.txt", "host": "remote.host"}
         )
 
         assert result.content[0].text == "Remote file content"
-        assert mock_execute.call_count == 1
-        assert mock_execute.call_args.kwargs.get("host") == "remote.host"
 
-    async def test_read_file_remote_failure(self, mocker, mcp_client):
+        # Verify execute_with_fallback was called with host
+        mock_execute_with_fallback.assert_called_once()
+        call_kwargs = mock_execute_with_fallback.call_args[1]
+        assert call_kwargs["host"] == "remote.host"
+
+    async def test_read_file_remote_failure(self, mock_execute_with_fallback, mcp_client):
         """Test reading a file remotely with failure."""
-        mock_execute = AsyncMock(spec=True, return_value=(1, "", "File not found"))
-        mocker.patch("linux_mcp_server.tools.storage.execute_command", mock_execute)
+        mock_execute_with_fallback.return_value = (1, "", "File not found")
 
         with pytest.raises(ToolError) as exc_info:
             await mcp_client.call_tool("read_file", arguments={"path": "/remote/path/file.txt", "host": "remote.host"})

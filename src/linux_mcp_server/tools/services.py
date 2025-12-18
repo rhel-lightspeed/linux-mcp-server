@@ -7,8 +7,6 @@ from pydantic import Field
 
 from linux_mcp_server.audit import log_tool_call
 from linux_mcp_server.commands import get_command
-from linux_mcp_server.commands import substitute_command_args
-from linux_mcp_server.connection.ssh import execute_command
 from linux_mcp_server.formatters import format_service_logs
 from linux_mcp_server.formatters import format_service_status
 from linux_mcp_server.formatters import format_services_list
@@ -34,17 +32,14 @@ async def list_services(
     """
     try:
         cmd = get_command("list_services")
-        returncode, stdout, stderr = await execute_command(cmd.args, host=host)
+        returncode, stdout, stderr = await cmd.run(host=host)
 
         if returncode != 0:
             return f"Error listing services: {stderr}"
 
         # Get running services count
         running_cmd = get_command("running_services")
-        returncode_summary, stdout_summary, _ = await execute_command(
-            running_cmd.args,
-            host=host,
-        )
+        returncode_summary, stdout_summary, _ = await running_cmd.run(host=host)
 
         running_count = None
         if returncode_summary == 0:
@@ -77,9 +72,7 @@ async def get_service_status(
             service_name = f"{service_name}.service"
 
         cmd = get_command("service_status")
-        args = substitute_command_args(cmd.args, service_name=service_name)
-
-        _, stdout, stderr = await execute_command(args, host=host)
+        _, stdout, stderr = await cmd.run(host=host, service_name=service_name)
 
         # Note: systemctl status returns non-zero for inactive services, but that's expected
         if not stdout and stderr:
@@ -119,9 +112,7 @@ async def get_service_logs(
             service_name = f"{service_name}.service"
 
         cmd = get_command("service_logs")
-        args = substitute_command_args(cmd.args, service_name=service_name, lines=lines)
-
-        returncode, stdout, stderr = await execute_command(args, host=host)
+        returncode, stdout, stderr = await cmd.run(host=host, service_name=service_name, lines=lines)
 
         if returncode != 0:
             if "not found" in stderr.lower() or "no entries" in stderr.lower():

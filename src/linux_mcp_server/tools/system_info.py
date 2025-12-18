@@ -5,8 +5,6 @@ from mcp.types import ToolAnnotations
 from linux_mcp_server.audit import log_tool_call
 from linux_mcp_server.commands import get_command
 from linux_mcp_server.commands import get_command_group
-from linux_mcp_server.connection.ssh import execute_command
-from linux_mcp_server.connection.ssh import execute_with_fallback
 from linux_mcp_server.formatters import format_cpu_info
 from linux_mcp_server.formatters import format_disk_usage
 from linux_mcp_server.formatters import format_hardware_info
@@ -39,7 +37,7 @@ async def get_system_information(
 
         # Execute all commands in the group
         for name, cmd in group.commands.items():
-            returncode, stdout, _ = await execute_command(cmd.args, host=host)
+            returncode, stdout, _ = await cmd.run(host=host)
             if returncode == 0 and stdout:
                 results[name] = stdout
 
@@ -68,7 +66,7 @@ async def get_cpu_information(
 
         # Execute all commands in the group
         for name, cmd in group.commands.items():
-            returncode, stdout, _ = await execute_command(cmd.args, host=host)
+            returncode, stdout, _ = await cmd.run(host=host)
             if returncode == 0 and stdout:
                 results[name] = stdout
 
@@ -94,7 +92,7 @@ async def get_memory_information(
     try:
         # Execute free command
         free_cmd = get_command("memory_info", "free")
-        returncode, stdout, _ = await execute_command(free_cmd.args, host=host)
+        returncode, stdout, _ = await free_cmd.run(host=host)
 
         if returncode == 0 and stdout:
             memory = parse_free_output(stdout)
@@ -121,11 +119,7 @@ async def get_disk_usage(
     try:
         cmd = get_command("disk_usage")
 
-        returncode, stdout, _ = await execute_with_fallback(
-            cmd.args,
-            fallback=cmd.fallback,
-            host=host,
-        )
+        returncode, stdout, _ = await cmd.run(host=host)
 
         if returncode == 0 and stdout:
             return format_disk_usage(stdout)
@@ -155,7 +149,7 @@ async def get_hardware_information(
         # Execute all commands in the group
         for name, cmd in group.commands.items():
             try:
-                returncode, stdout, stderr = await execute_command(cmd.args, host=host)
+                returncode, stdout, stderr = await cmd.run(host=host)
                 if returncode == 0:
                     results[name] = stdout
             except FileNotFoundError:
