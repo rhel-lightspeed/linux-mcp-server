@@ -363,6 +363,15 @@ spec:
           values:
             - "true"
 
+    - name: mcp-protocol-audit
+      params:
+        - name: image_url
+          value: $(tasks.build-image-index.results.IMAGE_URL)
+      runAfter:
+        - verify-container
+      taskRef:
+        name: mcp-protocol-audit
+
     - name: deprecated-base-image-check
       params:
         - name: IMAGE_URL
@@ -372,7 +381,7 @@ spec:
           value: $(tasks.build-image-index.results.IMAGE_DIGEST)
 
       runAfter:
-        - verify-container
+        - mcp-protocol-audit
 
       taskRef:
         resolver: bundles
@@ -401,7 +410,7 @@ spec:
           value: $(tasks.build-image-index.results.IMAGE_URL)
 
       runAfter:
-        - verify-container
+        - mcp-protocol-audit
 
       taskRef:
         resolver: bundles
@@ -426,7 +435,7 @@ spec:
           value: $(tasks.build-image-index.results.IMAGE_URL)
 
       runAfter:
-        - verify-container
+        - mcp-protocol-audit
 
       taskRef:
         resolver: bundles
@@ -463,7 +472,7 @@ spec:
           value: "--project-name=linux-mcp-server --report --org=12d05a23-73a7-4a1d-9162-ab12e8c051c4"
 
       runAfter:
-        - verify-container
+        - mcp-protocol-audit
 
       taskRef:
         resolver: bundles
@@ -492,7 +501,7 @@ spec:
           value: $(tasks.build-image-index.results.IMAGE_URL)
 
       runAfter:
-        - verify-container
+        - mcp-protocol-audit
 
       taskRef:
         resolver: bundles
@@ -618,7 +627,7 @@ spec:
           value: $(tasks.prefetch-dependencies.results.CACHI2_ARTIFACT)
 
       runAfter:
-        - verify-container
+        - mcp-protocol-audit
 
       taskRef:
         resolver: bundles
@@ -653,7 +662,7 @@ spec:
           value: $(tasks.prefetch-dependencies.results.CACHI2_ARTIFACT)
 
       runAfter:
-        - verify-container
+        - mcp-protocol-audit
 
       taskRef:
         resolver: bundles
@@ -687,7 +696,7 @@ spec:
             - $(params.tag-prefix)$(tasks.clone-repository.results.short-commit)
 
       runAfter:
-        - verify-container
+        - mcp-protocol-audit
 
       taskRef:
         resolver: bundles
@@ -719,7 +728,7 @@ spec:
           value: $(tasks.prefetch-dependencies.results.SOURCE_ARTIFACT)
 
       runAfter:
-        - verify-container
+        - mcp-protocol-audit
 
       taskRef:
         resolver: bundles
@@ -742,7 +751,7 @@ spec:
           value: $(tasks.build-image-index.results.IMAGE_URL)
 
       runAfter:
-        - verify-container
+        - mcp-protocol-audit
 
       taskRef:
         resolver: bundles

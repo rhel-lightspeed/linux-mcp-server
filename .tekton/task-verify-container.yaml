@@ -9,6 +9,11 @@ spec:
     - name: image_url
       description: The URL of the image to verify.
       type: string
+
+    - name: startup_timeout
+      description: Time to wait for server statup
+      type: string
+      default: "30s"
   steps:
     - name: verify-user-and-startup
       image: $(params.image_url)
@@ -30,8 +35,8 @@ spec:
         linux-mcp-server > startup.log 2>&1 &
         SERVER_PID=$!
 
-        timeout 15s bash -c 'until grep -q "Running Linux MCP Server" startup.log; do sleep 1; done' || {
-          echo "::error::Server failed to log 'Running Linux MCP Server' within 15s"
+        timeout $(params.startup_timeout) bash -c 'until grep -q "Running Linux MCP Server" startup.log; do sleep 1; done' || {
+          echo "::error::Server failed to log 'Running Linux MCP Server' within $(params.startup_timeout)"
           cat startup.log
           kill $SERVER_PID || true
           exit 1

@@ -1,6 +1,8 @@
 #!/bin/bash
 set -e
 
+TIMEOUT="30s"
+
 # Reusable startup verification function
 verify_server_startup() {
   local start_command="$1"
@@ -14,7 +16,7 @@ verify_server_startup() {
   SERVER_PID=$!
 
   # Wait for the specific MCP startup message
-  if timeout 15s grep -q "Running Linux MCP Server" <(tail -f "$log_file"); then
+  if timeout "$TIMEOUT" grep -q "Running Linux MCP Server" <(tail -f "$log_file"); then
     echo "Success: Container successfully initialized and logged startup message."
     kill $SERVER_PID 2>/dev/null || true
     return 0

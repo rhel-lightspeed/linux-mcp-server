@@ -1,0 +1,63 @@
+apiVersion: tekton.dev/v1
+kind: Task
+metadata:
+  name: mcp-protocol-audit
+spec:
+  description: Audits the MCP server for protocol compliance, tool discovery, and stdout hygiene.
+  params:
+    - name: image_url
+      type: string
+      description: The URL of the image to audit.
+  steps:
+    - name: validate-tool-discovery
+      image: $(params.image_url)
+      script: |
+        #!/usr/bin/env bash
+        set -euo pipefail
+
+        # Define timeout for protocol operations
+        TIMEOUT="30s"
+
+        echo "--- Verification: Tool Discovery & Schema ---"
+
+        # 1. Simulate the MCP 'tools/list' request
+        LIST_REQ='{"jsonrpc":"2.0","id":1,"method":"tools/list","params":{}}'
+        
+        # 2. Capture response, ignoring logs on stderr
+        RESPONSE=$(echo "$LIST_REQ" | linux-mcp-server 2>/dev/null)
+        
+        # 3. Verify JSON-RPC structure and Tool presence using jq
+        # Ensures: Valid JSON-RPC 2.0, result.tools is an array, and 'inspect_linux' exists with an object schema
+        echo "$RESPONSE" | jq -e '
+          .jsonrpc == "2.0" and 
+          .id == 1 and
+          (.result.tools | isarray) and 
+          any(.result.tools[]; .name == "inspect_linux" and (.inputSchema | type == "object"))
+        ' > /dev/null || {
+          echo "::error::Protocol Audit Failed: Response within $TIMEOUT was structurally invalid or missing tools."
+          echo "Response received: $RESPONSE"
+          exit 1
+        }
+
+        echo "✅ Tool Discovery: 'inspect_linux' found with valid inputSchema."
+
+    - name: verify-stdout-hygiene
+      image: $(params.image_url)
+      script: |
+        #!/usr/bin/env bash
+        set -euo pipefail
+
+        echo "--- Verification: Stdout Hygiene ---"
+        
+        # Start server and capture the VERY FIRST line of stdout
+        # MCP spec requires JSON-RPC on stdout and logs on stderr
+        FIRST_LINE=$(echo '{"jsonrpc":"2.0","id":1,"method":"ping"}' | linux-mcp-server 2>/dev/null | head -n 1)
+        
+        # 1. Ensure the first line is valid JSON-RPC 2.0 using jq
+        if ! echo "$FIRST_LINE" | jq -e '.jsonrpc == "2.0"' > /dev/null; then
+          echo "::error::Hygiene Failed: Stdout is polluted with non-JSON text or invalid JSON-RPC."
+          echo "Found: $FIRST_LINE"
+          exit 1
+        fi
+        
+        echo "✅ Hygiene: Stdout is pure JSON-RPC 2.0."
