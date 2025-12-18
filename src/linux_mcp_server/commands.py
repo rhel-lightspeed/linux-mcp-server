@@ -4,12 +4,15 @@ This module provides a centralized registry of commands used by tools,
 enabling consistent execution across local and remote systems.
 """
 
+from collections.abc import Callable
 from collections.abc import Mapping
 from collections.abc import Sequence
 from types import MappingProxyType
 
 from pydantic import BaseModel
 from pydantic import ConfigDict
+
+from linux_mcp_server.constants import OrderBy
 
 
 class CommandSpec(BaseModel):
@@ -135,42 +138,30 @@ COMMANDS: Mapping[str, CommandGroup] = MappingProxyType(
                 ),
             }
         ),
-        "list_directories_size": CommandGroup(
+        "list_directories": CommandGroup(
             commands={
                 "default": CommandSpec(args=("du", "-b", "--max-depth=1", "{path}")),
-            }
-        ),
-        "list_directories_name": CommandGroup(
-            commands={
-                "default": CommandSpec(
+                OrderBy.SIZE: CommandSpec(args=("du", "-b", "--max-depth=1", "{path}")),
+                OrderBy.NAME: CommandSpec(
                     args=("find", "{path}", "-mindepth", "1", "-maxdepth", "1", "-type", "d", "-printf", "%f\\n")
                 ),
-            }
-        ),
-        "list_directories_modified": CommandGroup(
-            commands={
-                "default": CommandSpec(
+                OrderBy.MODIFIED: CommandSpec(
                     args=("find", "{path}", "-mindepth", "1", "-maxdepth", "1", "-type", "d", "-printf", "%T@\\t%f\\n")
                 ),
             }
         ),
-        "list_files_size": CommandGroup(
+        "list_files": CommandGroup(
             commands={
                 "default": CommandSpec(
                     args=("find", "{path}", "-mindepth", "1", "-maxdepth", "1", "-type", "f", "-printf", "%s\\t%f\\n")
                 ),
-            }
-        ),
-        "list_files_name": CommandGroup(
-            commands={
-                "default": CommandSpec(
+                OrderBy.SIZE: CommandSpec(
+                    args=("find", "{path}", "-mindepth", "1", "-maxdepth", "1", "-type", "f", "-printf", "%s\\t%f\\n")
+                ),
+                OrderBy.NAME: CommandSpec(
                     args=("find", "{path}", "-mindepth", "1", "-maxdepth", "1", "-type", "f", "-printf", "%f\\n")
                 ),
-            }
-        ),
-        "list_files_modified": CommandGroup(
-            commands={
-                "default": CommandSpec(
+                OrderBy.MODIFIED: CommandSpec(
                     args=("find", "{path}", "-mindepth", "1", "-maxdepth", "1", "-type", "f", "-printf", "%T@\\t%f\\n")
                 ),
             }
@@ -217,7 +208,7 @@ COMMANDS: Mapping[str, CommandGroup] = MappingProxyType(
 )
 
 
-def get_command_group(name: str) -> CommandGroup:
+def get_command_group(name: str) -> Callable[[], CommandGroup]:
     """Get a command group from the registry.
 
     Use this when you need to iterate over all subcommands in a group.
@@ -231,14 +222,18 @@ def get_command_group(name: str) -> CommandGroup:
     Raises:
         KeyError: If the command name is not found in the registry.
     """
-    try:
-        return COMMANDS[name]
-    except KeyError as e:
-        available = ", ".join(sorted(COMMANDS.keys()))
-        raise KeyError(f"Command '{name}' not found in registry. Available: {available}") from e
+
+    def _wrapper() -> CommandGroup:
+        try:
+            return COMMANDS[name]
+        except KeyError as e:
+            available = ", ".join(sorted(COMMANDS.keys()))
+            raise KeyError(f"Command '{name}' not found in registry. Available: {available}") from e
+
+    return _wrapper
 
 
-def get_command(name: str, subcommand: str = "default") -> CommandSpec:
+def get_command(name: str, subcommand: str = "default") -> Callable[[], CommandSpec]:
     """Get a command spec from the registry.
 
     Args:
@@ -251,12 +246,16 @@ def get_command(name: str, subcommand: str = "default") -> CommandSpec:
     Raises:
         KeyError: If the command name or subcommand is not found.
     """
-    group = get_command_group(name)
-    try:
-        return group.commands[subcommand]
-    except KeyError as e:
-        available = ", ".join(sorted(group.commands.keys()))
-        raise KeyError(f"Subcommand '{subcommand}' not found for '{name}'. Available: {available}") from e
+
+    def _wrapper() -> CommandSpec:
+        group = get_command_group(name)()
+        try:
+            return group.commands[subcommand]
+        except KeyError as e:
+            available = ", ".join(sorted(group.commands.keys()))
+            raise KeyError(f"Subcommand '{subcommand}' not found for '{name}'. Available: {available}") from e
+
+    return _wrapper
 
 
 def substitute_command_args(args: Sequence[str], **kwargs) -> tuple[str, ...]:

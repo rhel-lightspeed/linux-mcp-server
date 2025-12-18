@@ -1,8 +1,11 @@
 """System information tools."""
 
+from fastmcp.dependencies import Depends
 from mcp.types import ToolAnnotations
 
 from linux_mcp_server.audit import log_tool_call
+from linux_mcp_server.commands import CommandGroup
+from linux_mcp_server.commands import CommandSpec
 from linux_mcp_server.commands import get_command
 from linux_mcp_server.commands import get_command_group
 from linux_mcp_server.connection.ssh import execute_command
@@ -29,16 +32,16 @@ from linux_mcp_server.utils.types import Host
 @disallow_local_execution_in_containers
 async def get_system_information(
     host: Host | None = None,
+    cmd_group: CommandGroup = Depends(get_command_group("system_info")),
 ) -> str:
     """
     Get basic system information.
     """
     try:
-        group = get_command_group("system_info")
         results = {}
 
         # Execute all commands in the group
-        for name, cmd in group.commands.items():
+        for name, cmd in cmd_group.commands.items():
             returncode, stdout, _ = await execute_command(cmd.args, host=host)
             if returncode == 0 and stdout:
                 results[name] = stdout
@@ -58,16 +61,16 @@ async def get_system_information(
 @disallow_local_execution_in_containers
 async def get_cpu_information(
     host: Host | None = None,
+    cmd_group: CommandGroup = Depends(get_command_group("cpu_info")),
 ) -> str:
     """
     Get CPU information.
     """
     try:
-        group = get_command_group("cpu_info")
         results = {}
 
         # Execute all commands in the group
-        for name, cmd in group.commands.items():
+        for name, cmd in cmd_group.commands.items():
             returncode, stdout, _ = await execute_command(cmd.args, host=host)
             if returncode == 0 and stdout:
                 results[name] = stdout
@@ -87,14 +90,14 @@ async def get_cpu_information(
 @disallow_local_execution_in_containers
 async def get_memory_information(
     host: Host | None = None,
+    cmd: CommandSpec = Depends(get_command("memory_info", "free")),
 ) -> str:
     """
     Get memory information.
     """
     try:
         # Execute free command
-        free_cmd = get_command("memory_info", "free")
-        returncode, stdout, _ = await execute_command(free_cmd.args, host=host)
+        returncode, stdout, _ = await execute_command(cmd.args, host=host)
 
         if returncode == 0 and stdout:
             memory = parse_free_output(stdout)
@@ -114,13 +117,12 @@ async def get_memory_information(
 @disallow_local_execution_in_containers
 async def get_disk_usage(
     host: Host | None = None,
+    cmd: CommandSpec = Depends(get_command("disk_usage")),
 ) -> str:
     """
     Get disk usage information.
     """
     try:
-        cmd = get_command("disk_usage")
-
         returncode, stdout, _ = await execute_with_fallback(
             cmd.args,
             fallback=cmd.fallback,
@@ -144,16 +146,16 @@ async def get_disk_usage(
 @disallow_local_execution_in_containers
 async def get_hardware_information(
     host: Host | None = None,
+    cmd_group: CommandGroup = Depends(get_command_group("hardware_info")),
 ) -> str:
     """
     Get hardware information.
     """
     try:
-        group = get_command_group("hardware_info")
         results = {}
 
         # Execute all commands in the group
-        for name, cmd in group.commands.items():
+        for name, cmd in cmd_group.commands.items():
             try:
                 returncode, stdout, stderr = await execute_command(cmd.args, host=host)
                 if returncode == 0:

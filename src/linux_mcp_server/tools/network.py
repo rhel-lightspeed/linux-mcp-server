@@ -1,9 +1,13 @@
 """Network diagnostic tools."""
 
+from fastmcp.dependencies import Depends
 from mcp.types import ToolAnnotations
 
 from linux_mcp_server.audit import log_tool_call
+from linux_mcp_server.commands import CommandGroup
+from linux_mcp_server.commands import CommandSpec
 from linux_mcp_server.commands import get_command
+from linux_mcp_server.commands import get_command_group
 from linux_mcp_server.connection.ssh import execute_with_fallback
 from linux_mcp_server.formatters import format_listening_ports
 from linux_mcp_server.formatters import format_network_connections
@@ -26,6 +30,7 @@ from linux_mcp_server.utils.types import Host
 @disallow_local_execution_in_containers
 async def get_network_interfaces(
     host: Host | None = None,
+    cmd_group: CommandGroup = Depends(get_command_group("network_interfaces")),
 ) -> str:
     """
     Get network interface information.
@@ -35,7 +40,7 @@ async def get_network_interfaces(
         stats = {}
 
         # Get brief interface info
-        brief_cmd = get_command("network_interfaces", "brief")
+        brief_cmd = cmd_group.commands["brief"]
         returncode, stdout, _ = await execute_with_fallback(
             brief_cmd.args,
             fallback=brief_cmd.fallback,
@@ -46,7 +51,7 @@ async def get_network_interfaces(
             interfaces = parse_ip_brief(stdout)
 
         # Get network statistics from /proc/net/dev
-        stats_cmd = get_command("network_interfaces", "stats")
+        stats_cmd = cmd_group.commands["stats"]
         returncode, stdout, _ = await execute_with_fallback(
             stats_cmd.args,
             fallback=stats_cmd.fallback,
@@ -70,13 +75,12 @@ async def get_network_interfaces(
 @disallow_local_execution_in_containers
 async def get_network_connections(
     host: Host | None = None,
+    cmd: CommandSpec = Depends(get_command("network_connections")),
 ) -> str:
     """
     Get active network connections.
     """
     try:
-        cmd = get_command("network_connections")
-
         returncode, stdout, stderr = await execute_with_fallback(
             cmd.args,
             fallback=cmd.fallback,
@@ -100,13 +104,12 @@ async def get_network_connections(
 @disallow_local_execution_in_containers
 async def get_listening_ports(
     host: Host | None = None,
+    cmd: CommandSpec = Depends(get_command("listening_ports")),
 ) -> str:
     """
     Get listening ports.
     """
     try:
-        cmd = get_command("listening_ports")
-
         returncode, stdout, stderr = await execute_with_fallback(
             cmd.args,
             fallback=cmd.fallback,

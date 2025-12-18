@@ -5,11 +5,13 @@ import typing as t
 
 from pathlib import Path
 
+from fastmcp.dependencies import Depends
 from mcp.types import ToolAnnotations
 from pydantic import Field
 
 from linux_mcp_server.audit import log_tool_call
 from linux_mcp_server.commands import build_journal_command
+from linux_mcp_server.commands import CommandSpec
 from linux_mcp_server.commands import get_command
 from linux_mcp_server.commands import substitute_command_args
 from linux_mcp_server.config import CONFIG
@@ -84,6 +86,7 @@ async def get_journal_logs(
 async def get_audit_logs(
     lines: t.Annotated[int, Field(description="Number of log lines to retrieve.")] = 100,
     host: Host | None = None,
+    cmd: CommandSpec = Depends(get_command("audit_logs")),
 ) -> str:
     """
     Get audit logs.
@@ -98,7 +101,6 @@ async def get_audit_logs(
         if not host and not os.path.exists(audit_log_path):
             return f"Audit log file not found at {audit_log_path}. Audit logging may not be enabled."
 
-        cmd = get_command("audit_logs")
         args = substitute_command_args(cmd.args, lines=lines)
 
         returncode, stdout, stderr = await execute_command(args, host=host)
@@ -129,6 +131,7 @@ async def read_log_file(  # noqa: C901
     log_path: t.Annotated[str, Field(description="Path to the log file")],
     lines: t.Annotated[int, Field(description="Number of lines to retrieve from the end.")] = 100,
     host: Host | None = None,
+    cmd: CommandSpec = Depends(get_command("read_log_file")),
 ) -> str:
     """
     Read a specific log file.
@@ -189,7 +192,6 @@ async def read_log_file(  # noqa: C901
                 )  # nofmt
             log_path_str = log_path
 
-        cmd = get_command("read_log_file")
         args = substitute_command_args(cmd.args, lines=lines, log_path=log_path_str)
 
         returncode, stdout, stderr = await execute_command(args, host=host)

@@ -84,14 +84,14 @@ class TestGetCommandGroup:
     )
     def test_get_existing_group(self, name, expected_subcommands):
         """Test retrieving existing command groups."""
-        group = get_command_group(name)
+        group = get_command_group(name)()
         for subcommand in expected_subcommands:
             assert subcommand in group.commands
 
     def test_nonexistent_group_raises_with_available(self):
         """Test that nonexistent group raises KeyError listing available commands."""
         with pytest.raises(KeyError, match=r"Command 'nonexistent' not found.*Available:.*system_info"):
-            get_command_group("nonexistent")
+            get_command_group("nonexistent")()
 
 
 class TestGetCommand:
@@ -106,15 +106,15 @@ class TestGetCommand:
     )
     def test_get_command_success(self, name, subcommand, expected_in_args):
         """Test retrieving commands with default and named subcommands."""
-        cmd = get_command(name, subcommand)
+        cmd = get_command(name, subcommand)()
         assert expected_in_args in cmd.args
 
     def test_invalid_command_raises_with_available(self):
         """Test that invalid command raises KeyError listing available commands."""
         with pytest.raises(KeyError, match=r"Command 'invalid' not found.*Available:"):
-            get_command("invalid")
+            get_command("invalid")()
 
     def test_invalid_subcommand_raises_with_available(self):
         """Test that invalid subcommand raises KeyError listing available subcommands."""
         with pytest.raises(KeyError, match=r"Subcommand 'invalid' not found for 'system_info'.*Available:.*hostname"):
-            get_command("system_info", "invalid")
+            get_command("system_info", "invalid")()
