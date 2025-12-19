@@ -4,6 +4,8 @@ This module provides functions to parse raw command output into
 structured data that can be used by formatters.
 """
 
+from pathlib import Path
+
 from linux_mcp_server.utils.types import CpuInfo
 from linux_mcp_server.utils.types import ListeningPort
 from linux_mcp_server.utils.types import MemoryInfo
@@ -470,23 +472,23 @@ def parse_directory_listing(
     """
     entries = []
     lines = stdout.strip().split("\n")
-
+    max_length = -1
     for line in lines:
         if not line.strip():
             continue
 
         if sort_by == "size":
             # Format: SIZE\tNAME (from du -b)
-            parts = line.split("\t", 1)
-            if len(parts) == 2:
-                try:
-                    size = int(parts[0])
-                    # Extract just the directory name from the path
-                    name = parts[1].rstrip("/").split("/")[-1]
-                    if name:  # Skip empty names (current dir)
-                        entries.append(NodeEntry(size=size, name=name))
-                except ValueError:
-                    continue
+            size, path = line.split("\t", 1)
+            size = int(size)
+
+            # Get the length of parts in order to exclude the parent directory
+            # which will have one fewer part than the sub directories.
+            path = Path(path)
+            path_length = len(path.parts)
+            max_length = max(max_length, path_length)
+            if path_length >= max_length:
+                entries.append(NodeEntry(size=size, name=path.name))
         elif sort_by == "modified":
             # Format: TIMESTAMP\tNAME (from find -printf "%T@\t%f\n")
             parts = line.split("\t", 1)
