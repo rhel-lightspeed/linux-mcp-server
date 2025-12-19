@@ -472,8 +472,9 @@ def parse_directory_listing(
     """
     entries = []
     lines = stdout.strip().split("\n")
-    max_length = -1
-    for line in lines:
+    last = len(lines)
+
+    for idx, line in enumerate(lines, 1):
         if not line.strip():
             continue
 
@@ -481,13 +482,9 @@ def parse_directory_listing(
             # Format: SIZE\tNAME (from du -b)
             size, path = line.split("\t", 1)
             size = int(size)
-
-            # Get the length of parts in order to exclude the parent directory
-            # which will have one fewer part than the sub directories.
             path = Path(path)
-            path_length = len(path.parts)
-            max_length = max(max_length, path_length)
-            if path_length >= max_length:
+            # Omit the last line since it containers the parent directory
+            if idx < last:
                 entries.append(NodeEntry(size=size, name=path.name))
         elif sort_by == "modified":
             # Format: TIMESTAMP\tNAME (from find -printf "%T@\t%f\n")
