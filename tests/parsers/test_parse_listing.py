@@ -14,7 +14,19 @@ from linux_mcp_server.parsers import parse_file_listing
             "result == []",
         ),
         (
-            "4096\t/path/alpha\n8192\t/path/beta\n2048\t/path/gamma",
+            """4096\t/path/alpha
+            8192\t/path/beta
+            2048\t/path/gamma
+            12448\t/path/""",
+            "size",
+            3,
+            "result[0].size == 4096 and result[0].name == 'alpha' and result[1].size == 8192 and result[1].name == 'beta'",
+        ),
+        (
+            """4096\t/path/subdir/alpha
+            8192\t/path/subdir/beta
+            2048\t/path/subdir/gamma
+            12448\t/path/subdir/""",
             "size",
             3,
             "result[0].size == 4096 and result[0].name == 'alpha' and result[1].size == 8192 and result[1].name == 'beta'",
@@ -26,6 +38,7 @@ from linux_mcp_server.parsers import parse_file_listing
             "result[0].modified == 1700000000.0 and result[0].name == 'alpha'",
         ),
     ],
+    ids=["name", "size", "size_subdirs", "modified"],
 )
 def test_parse_directory_listing(stdout, order_by, expected_count, expected):
     result = parse_directory_listing(stdout, order_by)
