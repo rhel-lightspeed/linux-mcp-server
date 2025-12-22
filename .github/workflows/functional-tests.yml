@@ -1,0 +1,37 @@
+name: Functional Tests
+
+on:
+  push:
+    branches:
+      - main
+
+  pull_request:
+    branches:
+      - main
+
+
+jobs:
+  tmt-test:
+    name: Functional Tests (Testing Farm)
+    runs-on: ubuntu-latest
+    container:
+      image: quay.io/testing-farm/cli
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v5.0.0
+
+      - name: Show environment
+        run: |
+          set -x
+          testing-farm --help
+          testing-farm version
+          whoami
+          pwd
+          ls -la
+
+      # TODO: Add your TMT test steps here, we need to pass a git commit hash to the TF request
+      - name: Run TF request tests
+        run: |
+          echo "TODO: Run TF request tests"
+          echo "git commit hash: ${{ github.event.pull_request.head.sha }}"
