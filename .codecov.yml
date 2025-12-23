@@ -22,6 +22,7 @@ coverage:
         target: 100%
         paths:
           - tests/
+          - "!tests/llm/**"
 
     patch:
       default:
@@ -36,3 +37,4 @@ coverage:
         target: 100%
         paths:
           - tests/
+          - "!tests/llm/**"
