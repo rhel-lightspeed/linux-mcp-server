@@ -1,0 +1,55 @@
+apiVersion: tekton.dev/v1
+kind: Task
+metadata:
+  name: mcp-protocol-audit
+spec:
+  params:
+    - name: image_url
+      type: string
+  steps:
+    - name: validate-tool-discovery
+      image: $(params.image_url)
+      script: |
+        #!/usr/bin/env bash
+        set -euo pipefail
+
+        # 1. Simulate the MCP 'tools/list' request
+        LIST_REQ='{"jsonrpc":"2.0","id":1,"method":"tools/list","params":{}}'
+        
+        # 2. Capture response, ignoring logs on stderr
+        RESPONSE=$(echo "$LIST_REQ" | linux-mcp-server 2>/dev/null)
+        
+        # 3. Verify the core tools exist in the response
+        if echo "$RESPONSE" | grep -q "inspect_linux"; then
+          echo "✅ Tool Discovery: 'inspect_linux' found."
+        else
+          echo "❌ Tool Discovery: Failed to find expected tools. Response: $RESPONSE"
+          exit 1
+        fi
+
+        # 4. Verify JSON Schema compliance
+        echo "$RESPONSE" | grep -E '"name":".+"' | grep -q '"inputSchema":' || {
+          echo "❌ Protocol: Response missing mandatory Tool metadata fields."
+          exit 1
+        }
+
+    - name: verify-stdout-hygiene
+      image: $(params.image_url)
+      script: |
+        #!/usr/bin/env bash
+        
+        # Start server and capture the VERY FIRST line of stdout
+        FIRST_LINE=$(echo '{"jsonrpc":"2.0","id":1,"method":"ping"}' | linux-mcp-server 2>/dev/null | head -n 1)
+        
+        # 1. Ensure the first line is valid JSON
+        if [[ ! "$FIRST_LINE" =~ ^\{ ]]; then
+          echo "❌ Hygiene: Stdout is polluted with non-JSON text: $FIRST_LINE"
+          exit 1
+        fi
+        
+        # 2. Ensure it's a valid JSON-RPC response object
+        if [[ ! "$FIRST_LINE" == *"jsonrpc"* ]]; then
+          echo "❌ Hygiene: Valid JSON found, but it's not a JSON-RPC 2.0 message."
+          exit 1
+        fi
+        echo "✅ Hygiene: Stdout is pure JSON-RPC."
