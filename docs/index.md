@@ -19,6 +19,26 @@ pip install --user linux-mcp-server
 
 See the [Installation Guide](install.md) for container installs, SSH setup, and more.
 
+## How It Works
+
+```mermaid
+flowchart TB
+    subgraph clients["MCP Clients"]
+        direction LR
+        C1[Claude Code] ~~~ C2[Goose] ~~~ C3[Other Clients]
+    end
+
+    MCP[Linux MCP Server]
+
+    subgraph targets["Target Systems"]
+        direction LR
+        L[Local System] ~~~ R1[Remote Host 1] ~~~ R2[Remote Host 2] ~~~ RN[Remote Host N]
+    end
+
+    clients <--> MCP
+    MCP <--> targets
+```
+
 ## Features
 
 - 🔒 **Read-Only Operations**: All tools are strictly read-only—diagnose with confidence knowing nothing will be modified. Perfect for production systems where you need answers without risk.
