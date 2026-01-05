@@ -132,9 +132,11 @@ output = "coverage/coverage.xml"
 [tool.gha-update]
 tag-only = [
     "actions/checkout",
+    "actions/deploy-pages",
     "actions/download-artifact",
     "actions/setup-python",
     "actions/upload-artifact",
+    "actions/upload-pages-artifact",
     "astral-sh/setup-uv",
     "codecov/codecov-action",
     "pypa/gh-action-pypi-publish",
