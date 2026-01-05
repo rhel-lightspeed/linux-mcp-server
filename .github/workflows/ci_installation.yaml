@@ -7,6 +7,7 @@ on:
     paths:
       - 'src/linux_mcp_server/**'
       - 'scripts/verify_installation.sh'
+      - 'scripts/verify_container_integration.sh'
 
   pull_request:
     branches:
@@ -14,6 +15,7 @@ on:
     paths:
       - 'src/linux_mcp_server/**'
       - 'scripts/verify_installation.sh'
+      - 'scripts/verify_container_integration.sh'
 
 env:
   PIP_DISABLE_PIP_VERSION_CHECK: 1
@@ -67,7 +69,7 @@ jobs:
     name: Container Integration - Linux
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v5.0.0
+      - uses: actions/checkout@v6.0.1
       - name: Run Container Integration Test
         run: |
           chmod +x scripts/verify_container_integration.sh
