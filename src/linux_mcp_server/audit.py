@@ -88,7 +88,7 @@ def sanitize_parameters(params: dict[str, t.Any]) -> dict[str, t.Any]:
 
 
 @contextmanager
-def AuditContext(**extra_fields):
+def AuditContext(**extra_fields: t.Any) -> t.Generator[logging.LoggerAdapter, None, None]:
     """
     Context manager for adding extra fields to all log records.
 
@@ -97,10 +97,10 @@ def AuditContext(**extra_fields):
             logger.info("Starting operation")
 
     Args:
-        **extra_fields: Additional fields to add to log records
+        **extra_fields: Additional fields to add to log records.
 
     Yields:
-        Logger with extra fields
+        logging.LoggerAdapter: Logger adapter with extra fields attached.
     """
     logger = logging.getLogger()
 
