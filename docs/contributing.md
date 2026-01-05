@@ -1,190 +1,291 @@
 # Contributing to Linux MCP Server
 
-Thank you for your interest in contributing! This document provides guidelines for contributing to the Linux MCP Server project.
+Thank you for your interest in contributing! This guide will help you set up your development environment and understand our workflow.
 
-### Prerequisites
+## Quick Start (TL;DR)
 
-- **Python 3.10 or higher**
-- **git**
-- **pip**
-- **uv** - https://github.com/astral-sh/uv#installation
-
-### Method 1: Setup with pip and a virtual environment
-
-**Step 1: Clone the repository**
+Experienced developers can get started in 60 seconds:
 
 ```bash
 git clone https://github.com/rhel-lightspeed/linux-mcp-server.git
 cd linux-mcp-server
+uv sync                    # Install dependencies
+uv run pytest              # Verify everything works
+uv run linux-mcp-server    # Run the server
 ```
 
-**Step 2: Create and activate virtual environment**
+Read on for detailed setup and contribution guidelines.
+
+---
+
+## Prerequisites
+
+| Requirement | Version | Notes |
+|-------------|---------|-------|
+| Python | 3.10+ | Check with `python3 --version` |
+| git | Any | For cloning and version control |
+| uv | Latest | [Installation guide](https://github.com/astral-sh/uv#installation) (recommended) |
+
+---
+
+## Development Setup
+
+### Option 1: Using uv (Recommended)
+
+[uv](https://github.com/astral-sh/uv) is the fastest way to set up your environment.
 
 ```bash
-python -m venv .venv
-source .venv/bin/activate  # On Linux/macOS
-# OR
-.venv\Scripts\activate     # On Windows
-```
-
-**Step 3: Install the package in editable mode with dev dependencies**
-
-```bash
-pip install -e . --group dev
-```
-
-**Step 4: Verify the installation**
-
-```bash
-python -m linux_mcp_server
-```
-
-**Step 5: Run the tests**
-
-```bash
-pytest
-```
-
-All tests should pass.
-
-### Method 2: Setup with uv
-
-**Step 1: Clone the repository**
-
-```bash
+# Clone the repository
 git clone https://github.com/rhel-lightspeed/linux-mcp-server.git
 cd linux-mcp-server
-```
 
-**Step 2: Create virtual environment and install dev dependencies**
-
-Note that by default `uv` creates an editable install as well as installs all packages in the `dev` dependency group.
-
-```bash
+# Create virtual environment and install all dependencies (dev + lint + test)
 uv sync
-```
 
-**Step 3: Verify the installation**
+# Verify installation
+uv run linux-mcp-server --help
 
-```bash
-uv run linux-mcp-server
-```
-
-**Step 5: Run the tests**
-
-```bash
+# Run tests
 uv run pytest
 ```
 
-All tests should pass.
+### Option 2: Using pip
 
+```bash
+# Clone the repository
+git clone https://github.com/rhel-lightspeed/linux-mcp-server.git
+cd linux-mcp-server
+
+# Create and activate virtual environment
+python3 -m venv .venv
+source .venv/bin/activate  # Linux/macOS
+# .venv\Scripts\activate   # Windows
+
+# Install in editable mode with dev dependencies
+pip install -e ".[dev]"
+
+# Verify installation
+python -m linux_mcp_server --help
+
+# Run tests
+pytest
+```
+
+---
+
+## Project Structure
+
+```
+linux-mcp-server/
+├── src/linux_mcp_server/
+│   ├── tools/              # MCP tool implementations
+│   │   ├── logs.py         # Log reading tools
+│   │   ├── network.py      # Network diagnostic tools
+│   │   ├── processes.py    # Process management tools
+│   │   ├── services.py     # Systemd service tools
+│   │   ├── storage.py      # Storage/disk tools
+│   │   └── system_info.py  # System information tools
+│   ├── connection/         # SSH connection handling
+│   ├── utils/              # Shared utilities
+│   ├── audit.py            # Audit logging
+│   ├── commands.py         # Command definitions
+│   ├── config.py           # Configuration management
+│   ├── formatters.py       # Output formatting
+│   ├── parsers.py          # Command output parsing
+│   └── server.py           # FastMCP server setup
+├── tests/                  # Test suite (mirrors src structure)
+├── docs/                   # Documentation
+└── pyproject.toml          # Project configuration
+```
+
+---
 
 ## Development Workflow
 
-We follow Test-Driven Development (TDD) principles:
+We follow Test-Driven Development (TDD):
 
-### 1. RED - Write a Failing Test
+### 1. RED: Write a Failing Test
+
 ```python
-# tests/test_new_feature.py
+# tests/tools/test_my_feature.py
 import pytest
-from linux_mcp_server.tools import new_module
 
-async def test_new_feature():
-    result = await new_module.new_function()
+async def test_my_feature_returns_expected_format():
+    from linux_mcp_server.tools import my_module
+    result = await my_module.my_function()
     assert "expected" in result
 ```
 
-### 2. GREEN - Implement Minimal Code to Pass
+### 2. GREEN: Write Minimal Code to Pass
+
 ```python
-# src/linux_mcp_server/tools/new_module.py
-async def new_function():
+# src/linux_mcp_server/tools/my_module.py
+async def my_function() -> str:
     return "expected result"
 ```
 
-### 3. REFACTOR - Improve Code Quality
-- Improve readability
+### 3. REFACTOR: Improve Without Breaking Tests
+
+- Clean up code structure
 - Remove duplication
 - Ensure all tests still pass
 
-### 4. Commit
-```bash
-git add .
-git commit -m "feat: add new feature
-
-- Detailed description of what was added
-- Tests included
-- All tests passing"
-```
-
-## Code Standards
-
-### Style Guidelines
-- Follow PEP 8 for Python code
-- Use type hints for function parameters and return values
-- Use async/await for I/O operations
-- Maximum line length: 120 characters
-
-### Documentation
-- Add docstrings to all public functions
-- Use clear, descriptive variable names
-- Comment complex logic
-
-### Testing
-- Write tests for all new features
-- Maintain project test coverage above 70%, patch test coverage must be 100%.
-- Use descriptive test names that explain what is being tested
+---
 
 ## Adding New Tools
 
-When adding a new diagnostic tool:
+Tools are the core functionality of the MCP server. Here's how to add a new diagnostic tool:
 
-1. **Create the tool function in appropriate module:**
-   ```python
-    # src/linux_mcp_server/tools/my_tool.py
-    import typing as t
+### 1. Create the Tool
 
-    @mcp.tool(
-      title="Useful Tool",
-      description="Description for LLM to understand the tool.",
-      annotations=ToolAnnotations(readOnlyHint=True),
-    )
-    @log_tool_call
-    async def my_tool_name(
-        param1: str,
-    ) -> str:
-        """Documentation string further describing the tool if necessary.
-        """
-        returncode, stdout, _ = await execute_command(["ps", "aux", "--sort=-%cpu"], host=host)
-        if returncode != 0:
-          raise ToolError
+```python
+# src/linux_mcp_server/tools/my_tool.py
+import typing as t
 
-        return stdout
-    ```
+from mcp.types import ToolAnnotations
+from pydantic import Field
 
-2. **Write tests:**
-   ```python
-   # tests/test_my_tool.py
-   import pytest
-   from linux_mcp_server.tools import my_tool
+from linux_mcp_server.audit import log_tool_call
+from linux_mcp_server.commands import get_command
+from linux_mcp_server.server import mcp
+from linux_mcp_server.utils.decorators import disallow_local_execution_in_containers
+from linux_mcp_server.utils.types import Host
 
-   async def test_my_tool():
-       result = await my_tool.my_diagnostic_function()
-       assert isinstance(result, str)
-       assert "expected content" in result.lower()
 
-   # Test server integration
-   async def test_server_has_my_tool():
-       from linux_mcp_server.server import mcp
-       tools = await mcp.list_tools()
-       tool_names = [t.name for t in tools]
-       assert "my_tool_name" in tool_names
-   ```
+@mcp.tool(
+    title="My Tool Title",
+    description="Brief description for LLM to understand when to use this tool.",
+    annotations=ToolAnnotations(readOnlyHint=True),
+)
+@log_tool_call
+@disallow_local_execution_in_containers
+async def my_tool_name(
+    param1: t.Annotated[str, Field(description="Parameter description")],
+    host: Host | None = None,
+) -> str:
+    """Extended documentation if needed."""
+    cmd = get_command("my_command")
+    returncode, stdout, stderr = await cmd.run(host=host)
 
-3. **Update documentation:**
-   - Add tool description to README.md
-   - Add usage examples to USAGE.md
+    if returncode != 0:
+        return f"Error: {stderr}"
 
-## Commit Message Format
+    return stdout
+```
+
+### 2. Register the Command
+
+Add the command definition to `src/linux_mcp_server/commands.py`:
+
+```python
+"my_command": Command(cmd=["my-binary", "--option"], sudo=False),
+```
+
+### 3. Write Tests
+
+```python
+# tests/tools/test_my_tool.py
+import pytest
+from unittest.mock import AsyncMock, patch
+
+async def test_my_tool_returns_output():
+    with patch("linux_mcp_server.tools.my_tool.get_command") as mock_cmd:
+        mock_cmd.return_value.run = AsyncMock(return_value=(0, "output", ""))
+
+        from linux_mcp_server.tools.my_tool import my_tool_name
+        result = await my_tool_name(param1="value")
+
+        assert "output" in result
+
+async def test_server_exposes_my_tool():
+    from linux_mcp_server.server import mcp
+    tools = await mcp.list_tools()
+    tool_names = [t.name for t in tools]
+    assert "my_tool_name" in tool_names
+```
+
+### 4. Update Documentation
+
+- Add tool description to the [Usage Guide](usage.md)
+- Update the README if it's a significant feature
+
+---
+
+## Code Quality
+
+### Linting and Type Checking
+
+We use **ruff** for linting and **pyright** for type checking:
+
+```bash
+# Run linter
+uv run ruff check src tests
+
+# Auto-fix lint issues
+uv run ruff check --fix src tests
+
+# Run type checker
+uv run pyright
+```
+
+### Style Guidelines
+
+- **PEP 8** compliance (enforced by ruff)
+- **Type hints** for all function parameters and return values
+- **async/await** for I/O operations
+- **120 character** max line length
+- **Docstrings** for public functions
+
+### Testing Requirements
+
+- Write tests for all new features
+- **Patch coverage**: 100% for new code
+- **Project coverage**: Maintain above 70%
+- Use descriptive test names explaining what's being tested
+
+```bash
+# Run all tests with coverage
+uv run pytest
+
+# Run specific test file
+uv run pytest tests/tools/test_processes.py
+
+# Run with verbose output
+uv run pytest -v
+
+# Skip coverage (faster iteration)
+uv run pytest --no-cov
+```
+
+Coverage reports are generated in `coverage/htmlcov/index.html`.
+
+---
+
+## Security Guidelines
+
+### Read-Only Operations Only
+
+All tools **must** be read-only. This project is designed for safe diagnostics:
+
+- Never implement functions that modify system state
+- Use subprocess with validated inputs only
+- Always include `readOnlyHint=True` in tool annotations
+
+### Input Validation
+
+- Validate all user-provided input
+- Use allowlists for file paths (see `read_log_file` implementation)
+- Sanitize parameters before passing to shell commands
+
+### Error Handling
+
+- Never expose sensitive information in error messages
+- Use try/except at the function level
+- Return user-friendly error messages
+
+---
+
+## Commit Messages
 
 We use [Conventional Commits](https://www.conventionalcommits.org/):
 
@@ -196,20 +297,24 @@ We use [Conventional Commits](https://www.conventionalcommits.org/):
 <footer>
 ```
 
-### Types:
-- `feat`: New feature
-- `fix`: Bug fix
-- `docs`: Documentation only changes
-- `test`: Adding missing tests
-- `refactor`: Code change that neither fixes a bug nor adds a feature
-- `perf`: Performance improvement
-- `chore`: Changes to build process or auxiliary tools
+### Types
 
-### Examples:
+| Type | Description |
+|------|-------------|
+| `feat` | New feature |
+| `fix` | Bug fix |
+| `docs` | Documentation changes |
+| `test` | Adding or updating tests |
+| `refactor` | Code change that doesn't fix a bug or add a feature |
+| `perf` | Performance improvement |
+| `chore` | Build process or tooling changes |
+
+### Examples
+
 ```
-feat(tools): add disk smart status tool
+feat(tools): add disk SMART status tool
 
-- Implement smart status checking
+- Implement SMART status checking via smartctl
 - Add tests for SMART data parsing
 - Update documentation
 
@@ -219,123 +324,52 @@ Closes #123
 ```
 fix(network): handle missing network interfaces gracefully
 
-Previously crashed when network interface disappeared
-during enumeration. Now catches exception and continues.
+Previously crashed when a network interface disappeared during
+enumeration. Now catches the exception and continues with
+remaining interfaces.
 ```
 
-## Security Guidelines
-
-### Read-Only Operations
-- All tools MUST be read-only
-- Never implement any function that modifies system state
-- Use subprocess with caution; validate all inputs
-
-### Input Validation
-- Always validate user input
-- Use whitelists for file paths (see `read_log_file`)
-- Sanitize parameters passed to shell commands
-
-### Error Handling
-- Never expose sensitive information in error messages
-- Catch broad exceptions at the function level
-- Return user-friendly error messages
-
-## Testing Guidelines
-
-### Unit Tests
-Test individual functions in isolation:
-```python
-async def test_function_returns_correct_format():
-    result = await module.function()
-    assert isinstance(result, str)
-    assert "expected" in result
-```
-
-### Integration Tests
-Test that tools work with the MCP server:
-```python
-async def test_server_has_tool():
-    from linux_mcp_server.server import mcp
-    tools = await mcp.list_tools()
-    tool_names = [t.name for t in tools]
-    assert "tool_name" in tool_names
-
-async def test_server_calls_tool():
-    from linux_mcp_server.server import mcp
-    result = await mcp.call_tool("tool_name", {})
-    assert isinstance(result, str)
-```
-
-### Running Tests
-Coverage is enabled by default. Coverage reports can be found in `coverage/html/index.html`.
-
-```bash
-# Run all tests
-pytest
-
-# Run specific test file
-pytest tests/test_services.py
-
-# Run with verbose output
-pytest -v
-
-# Run tests without coverage
-pytest --no-cov
-```
-
-## Documentation
-
-### Code Documentation
-- Use docstrings for all public functions
-- Include parameter descriptions
-- Document return values
-- Add usage examples for complex functions
-
-### User Documentation
-- Update README.md for new features
-- Add examples to USAGE.md
-- Document configuration options
-- Include troubleshooting tips
+---
 
 ## Pull Request Process
 
-1. **Create a feature branch:**
-   ```bash
-   git checkout -b feature/my-new-feature
-   ```
+### 1. Create a Feature Branch
 
-2. **Make changes following TDD:**
-   - Write tests first
-   - Implement feature
-   - Ensure all tests pass
+```bash
+git checkout -b feature/my-new-feature
+```
 
-3. **Update documentation:**
-   - Update README.md if needed
-   - Update USAGE.md with examples
-   - Update CONTRIBUTING.md if changing development process
+### 2. Develop Using TDD
 
-4. **Run all tests:**
-   ```bash
-   pytest
-   ```
+- Write tests first
+- Implement the feature
+- Ensure all tests pass
+- Run linting: `uv run ruff check src tests`
+- Run type checking: `uv run pyright`
 
-5. **Commit with conventional commit messages:**
-   ```bash
-   git commit -m "feat: add new diagnostic tool"
-   ```
+### 3. Commit Your Changes
 
-6. **Push and create pull request:**
-   ```bash
-   git push origin feature/my-new-feature
-   ```
+```bash
+git add .
+git commit -m "feat(tools): add my new feature"
+```
 
-7. **PR Description should include:**
-   - What the change does
-   - Why it's needed
-   - How to test it
-   - Screenshots/examples if applicable
+### 4. Push and Create PR
 
-## Code Review Checklist
+```bash
+git push origin feature/my-new-feature
+```
+
+### 5. PR Description Checklist
+
+Your PR should include:
+
+- [ ] What the change does
+- [ ] Why it's needed
+- [ ] How to test it
+- [ ] Screenshots/examples (if applicable)
+
+### Code Review Checklist
 
 - [ ] Tests added and passing
 - [ ] Code follows style guidelines
@@ -346,17 +380,29 @@ pytest --no-cov
 - [ ] Error handling is appropriate
 - [ ] Input validation is present
 
-## Questions or Issues?
+---
 
-- Open an issue on GitHub
-- Check existing issues first
-- Provide detailed information:
-  - System information (OS, version)
-  - Steps to reproduce
-  - Expected vs actual behavior
-  - Relevant logs
+## Related Documentation
+
+- **[Installation Guide](install.md)**: Setting up the server for end users
+- **[Usage Guide](usage.md)**: Available tools and examples
+- **[Architecture](architecture.md)**: System design overview
+- **[API Reference](api/index.md)**: Detailed API documentation
+- **[Troubleshooting](troubleshooting.md)**: Common issues and solutions
+
+---
+
+## Getting Help
+
+- **Search existing issues** before opening a new one
+- **Open an issue** on [GitHub](https://github.com/rhel-lightspeed/linux-mcp-server/issues) with:
+    - System information (OS, Python version)
+    - Steps to reproduce
+    - Expected vs actual behavior
+    - Relevant logs or error messages
+
+---
 
 ## License
 
 By contributing, you agree that your contributions will be licensed under the Apache 2.0 License.
-
