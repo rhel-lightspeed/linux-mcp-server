@@ -44,12 +44,6 @@ The Linux MCP Server can be installed using pip, uv, or containers. Choose the m
 pip install --user linux-mcp-server
 ```
 
-**Verify installation:**
-
-```bash
-~/.local/bin/linux-mcp-server --help
-```
-
 ??? failure "Command not found?"
 
     The `~/.local/bin` directory may not be in your PATH.
