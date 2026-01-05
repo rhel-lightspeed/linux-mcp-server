@@ -69,10 +69,12 @@ nav:
   - Home: index.md
   - Getting Started:
       - Installation: install.md
+      - Client Configuration: clients.md
       - Usage: usage.md
+      - Troubleshooting: troubleshooting.md
   - Reference:
       - Architecture: architecture.md
-      - Debugging: debugging.md
+      - Debug Logging: debugging.md
   - API Reference:
       - api/index.md
       - Core:
