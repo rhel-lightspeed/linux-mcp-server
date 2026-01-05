@@ -313,9 +313,35 @@ Edit `~/.gemini/settings.json`:
 
 ## Goose
 
-[Goose](https://block.github.io/goose/) is Block's open-source AI agent.
+[Goose](https://block.github.io/goose/) is Block's open-source AI agent. You can configure extensions via the GUI wizard or by editing the YAML config file directly.
 
-### Configuration Examples
+### GUI Wizard (Desktop App)
+
+The Goose desktop app provides a wizard for adding extensions:
+
+1. Open Goose and click the **three dots menu** (⋯) in the top-right corner
+2. Select **Settings** → **Extensions**
+3. Click **Add custom extension**
+4. Fill in the fields:
+
+    | Field | Value |
+    |-------|-------|
+    | **Type** | `Standard IO` |
+    | **ID** | `linux-tools` |
+    | **Name** | `linux-tools` |
+    | **Description** | `Linux system diagnostics` |
+    | **Command** | `~/.local/bin/linux-mcp-server` |
+    | **Arguments** | *(leave empty)* |
+    | **Environment Variables** | `LINUX_MCP_USER=your-ssh-username` |
+
+5. Click **Add** to save the extension
+
+!!! tip "Container Installation"
+    For container-based installs, set **Command** to `podman` and add the container arguments in the **Arguments** field (one per line).
+
+### YAML Configuration (CLI)
+
+If you prefer editing config files directly, add to `~/.config/goose/config.yaml`:
 
 === "pip/uv (Recommended)"
 
