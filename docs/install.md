@@ -397,10 +397,9 @@ This section explains issues that may be present when using the MCP server to in
 
 ## Additional Resources
 
-- **[Usage Guide](Usage.md):** Detailed guide on using all available tools
-- **[Contributing](CONTRIBUTING.md):** Development workflow and guidelines
-- **[Debugging](Debugging.md):** Information for debugging and fixing common problems
-- **Main [README](../README.md):** Project overview and architecture
+- **[Usage Guide](usage.md):** Detailed guide on using all available tools
+- **[Contributing](contributing.md):** Development workflow and guidelines
+- **[Debugging](debugging.md):** Information for debugging and fixing common problems
 - **[MCP Documentation](https://modelcontextprotocol.io/)**
 - **[MCP Inspector](https://github.com/modelcontextprotocol/inspector)**
 
