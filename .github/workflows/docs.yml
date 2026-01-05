@@ -51,6 +51,7 @@ jobs:
           path: site
 
   deploy:
+    if: github.event.repository.fork == false
     environment:
       name: github-pages
       url: ${{ steps.deployment.outputs.page_url }}
