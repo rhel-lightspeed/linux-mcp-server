@@ -40,6 +40,12 @@ plugins:
       handlers:
         python:
           paths: [src]
+          options:
+            docstring_style: google
+            show_signature_annotations: true
+            separate_signature: true
+          import:
+            - https://docs.python.org/3/objects.inv
 
 markdown_extensions:
   - admonition
@@ -67,6 +73,24 @@ nav:
   - Reference:
       - Architecture: architecture.md
       - Debugging: debugging.md
+  - API Reference:
+      - api/index.md
+      - Core:
+          - Server: api/server.md
+          - Config: api/config.md
+          - Commands: api/commands.md
+          - Audit: api/audit.md
+      - Tools:
+          - System Info: api/tools/system_info.md
+          - Services: api/tools/services.md
+          - Processes: api/tools/processes.md
+          - Logs: api/tools/logs.md
+          - Network: api/tools/network.md
+          - Storage: api/tools/storage.md
+      - Utilities:
+          - Connection: api/connection.md
+          - Formatters: api/formatters.md
+          - Parsers: api/parsers.md
   - Development:
       - Contributing: contributing.md
 

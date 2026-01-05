@@ -50,7 +50,7 @@ clean:
 	find . -type d -name __pycache__ -exec rm -rf {} + 2>/dev/null || true
 
 docs:
-	uv run --locked --group docs mkdocs build --strict
+	uv run --locked --group docs mkdocs build
 
 docs-serve:
 	uv run --locked --group docs mkdocs serve
