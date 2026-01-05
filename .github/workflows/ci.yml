@@ -38,15 +38,15 @@ jobs:
 
     steps:
       - name: Checkout
-        uses: actions/checkout@v5.0.0
+        uses: actions/checkout@v6.0.1
 
       - name: Install Python
-        uses: actions/setup-python@v6.0.0
+        uses: actions/setup-python@v6.1.0
         with:
           python-version-file: pyproject.toml
 
       - name: Install uv
-        uses: astral-sh/setup-uv@v7.1.0
+        uses: astral-sh/setup-uv@v7.1.6
         with:
           enable-cache: true
           prune-cache: false
@@ -83,15 +83,15 @@ jobs:
 
     steps:
       - name: Checkout
-        uses: actions/checkout@v5.0.0
+        uses: actions/checkout@v6.0.1
 
       - name: Install Python
-        uses: actions/setup-python@v6.0.0
+        uses: actions/setup-python@v6.1.0
         with:
           python-version-file: pyproject.toml
 
       - name: Install uv
-        uses: astral-sh/setup-uv@v7.1.0
+        uses: astral-sh/setup-uv@v7.1.6
         with:
           enable-cache: true
           prune-cache: false
@@ -112,7 +112,7 @@ jobs:
         run: uv run --locked pytest --cov-report=xml
 
       - name: Upload coverage report
-        uses: codecov/codecov-action@v5.5.1
+        uses: codecov/codecov-action@v5.5.2
         with:
           env_vars: OS,PYTHON
           disable_search: true
