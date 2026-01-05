@@ -68,6 +68,12 @@ test = [
     "pytest>=8.0.0",
 ]
 
+docs = [
+    "mkdocs>=1.6.1",
+    "mkdocs-material>=9.7.1",
+    "mkdocstrings[python]>=1.0.0",
+]
+
 [tool.hatch.build.targets.wheel]
 packages = ["src/linux_mcp_server"]
 

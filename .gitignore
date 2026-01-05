@@ -37,6 +37,9 @@ coverage/
 htmlcov/
 .tox/
 
+# Documentation build
+site/
+
 # IDEs
 .vscode/
 .idea/
