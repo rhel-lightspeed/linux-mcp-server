@@ -248,19 +248,250 @@ sudo pacman -S python python-pip
 
 ### macOS
 
-**Installing Python:**
-- **Official Installer:** https://www.python.org/downloads/macos/
+#### Installing Python
 
-**Note:** The MCP server is optimized for Linux systems. Some tools may have limited functionality on macOS and will not work on Windows.
+=== "Homebrew (Recommended)"
+
+    [Homebrew](https://brew.sh/) is the most popular package manager for macOS:
+
+    ```bash
+    # Install Homebrew if you don't have it
+    /bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"
+
+    # Install Python
+    brew install python
+    ```
+
+=== "Official Installer"
+
+    Download from [python.org/downloads/macos](https://www.python.org/downloads/macos/) and run the installer.
+
+=== "pyenv"
+
+    For managing multiple Python versions:
+
+    ```bash
+    brew install pyenv
+    echo 'eval "$(pyenv init -)"' >> ~/.zshrc
+    source ~/.zshrc
+    pyenv install 3.12
+    pyenv global 3.12
+    ```
+
+**Verify installation:**
+
+```bash
+python3 --version
+```
+
+#### Installing linux-mcp-server
+
+=== "pip"
+
+    ```bash
+    pip3 install --user linux-mcp-server
+    ```
+
+=== "uv (Recommended)"
+
+    ```bash
+    # Install uv via Homebrew
+    brew install uv
+
+    # Install linux-mcp-server
+    uv tool install linux-mcp-server
+    ```
+
+??? failure "Command not found after installation?"
+
+    On macOS (which uses zsh by default since Catalina), add the install location to your PATH:
+
+    ```bash
+    echo 'export PATH="$HOME/.local/bin:$PATH"' >> ~/.zshrc
+    source ~/.zshrc
+    ```
+
+    For uv installations, also run:
+    ```bash
+    uv tool update-shell
+    ```
+
+#### SSH Setup on macOS
+
+macOS includes OpenSSH by default. To set up key-based authentication:
+
+```bash
+# Generate a key (if you don't have one)
+ssh-keygen -t ed25519 -C "your_email@example.com"
+
+# Copy to remote host
+ssh-copy-id user@hostname
+```
+
+??? tip "Using macOS Keychain for SSH keys"
+
+    macOS can store your SSH key passphrase in the system Keychain, so you don't need to enter it repeatedly:
+
+    ```bash
+    # Add your key to the ssh-agent with Keychain storage
+    ssh-add --apple-use-keychain ~/.ssh/id_ed25519
+    ```
+
+    Add this to `~/.ssh/config` to automatically load keys:
+
+    ```
+    Host *
+      AddKeysToAgent yes
+      UseKeychain yes
+      IdentityFile ~/.ssh/id_ed25519
+    ```
+
+#### macOS Limitations
+
+!!! warning "Local vs Remote Usage"
+
+    **Local execution** (no `host` parameter): Most tools will have limited functionality since macOS doesn't use systemd, journalctl, or standard Linux paths.
+
+    | Tool | Local (macOS) | Remote (Linux) |
+    |------|---------------|----------------|
+    | `get_system_information` | ✅ Works | ✅ Works |
+    | `list_processes` | ✅ Works | ✅ Works |
+    | `get_network_interfaces` | ✅ Works | ✅ Works |
+    | `list_services` | ❌ No systemd | ✅ Works |
+    | `get_journal_logs` | ❌ No journald | ✅ Works |
+    | `get_disk_usage` | ✅ Works | ✅ Works |
+
+    **Remote execution** (with `host` parameter): Full functionality when connecting to Linux servers via SSH.
 
 ### Windows
 
-**Installing Python:**
-- **Official Installer:** https://www.python.org/downloads/windows/ (check "Add Python to PATH")
+#### Installing Python
 
-Verify: `python --version` in Command Prompt or PowerShell
+=== "Microsoft Store (Easiest)"
 
-**Important:** This MCP server requires Linux-specific tools (systemd, journalctl) and has **limited functionality** on Windows. Primarily useful for remote SSH execution to manage Linux servers.
+    Search for "Python" in the Microsoft Store and install Python 3.12 or later. This automatically handles PATH configuration.
+
+=== "winget"
+
+    Using Windows Package Manager (built into Windows 11, available for Windows 10):
+
+    ```powershell
+    winget install Python.Python.3.12
+    ```
+
+=== "Official Installer"
+
+    Download from [python.org/downloads/windows](https://www.python.org/downloads/windows/).
+
+    !!! warning "Important"
+        Check **"Add Python to PATH"** during installation, or you'll need to configure it manually.
+
+=== "scoop"
+
+    [Scoop](https://scoop.sh/) is a command-line installer for Windows:
+
+    ```powershell
+    scoop install python
+    ```
+
+**Verify installation** (in PowerShell or Command Prompt):
+
+```powershell
+python --version
+```
+
+#### Installing linux-mcp-server
+
+=== "pip"
+
+    ```powershell
+    pip install --user linux-mcp-server
+    ```
+
+=== "uv"
+
+    ```powershell
+    # Install uv
+    powershell -ExecutionPolicy ByPass -c "irm https://astral.sh/uv/install.ps1 | iex"
+
+    # Install linux-mcp-server
+    uv tool install linux-mcp-server
+    ```
+
+??? failure "Command not found after installation?"
+
+    The default pip user install location on Windows is:
+    ```
+    %APPDATA%\Python\Python3X\Scripts
+    ```
+
+    **Add to PATH via PowerShell:**
+    ```powershell
+    # Find Python user scripts directory
+    python -c "import site; print(site.USER_SITE.replace('site-packages', 'Scripts'))"
+
+    # Add to your PATH (replace X with your Python version)
+    [Environment]::SetEnvironmentVariable("Path", $env:Path + ";$env:APPDATA\Python\Python312\Scripts", "User")
+    ```
+
+    Restart your terminal after making PATH changes.
+
+#### SSH Setup on Windows
+
+Windows 10/11 includes OpenSSH as an optional feature.
+
+**Enable OpenSSH Client:**
+
+=== "Settings UI"
+
+    1. Open **Settings** → **Apps** → **Optional features**
+    2. Click **Add a feature**
+    3. Search for **OpenSSH Client** and install it
+
+=== "PowerShell (Admin)"
+
+    ```powershell
+    Add-WindowsCapability -Online -Name OpenSSH.Client~~~~0.0.1.0
+    ```
+
+**Generate and copy SSH keys:**
+
+```powershell
+# Generate a key
+ssh-keygen -t ed25519 -C "your_email@example.com"
+
+# Copy to remote host (Windows doesn't have ssh-copy-id by default)
+type $env:USERPROFILE\.ssh\id_ed25519.pub | ssh user@hostname "cat >> ~/.ssh/authorized_keys"
+```
+
+??? tip "Using ssh-agent on Windows"
+
+    Start the ssh-agent service to manage your keys:
+
+    ```powershell
+    # Start the service (run as Administrator)
+    Get-Service ssh-agent | Set-Service -StartupType Automatic
+    Start-Service ssh-agent
+
+    # Add your key
+    ssh-add $env:USERPROFILE\.ssh\id_ed25519
+    ```
+
+#### Windows Limitations
+
+!!! warning "Remote-Only Usage Recommended"
+
+    This MCP server is designed for Linux systems. On Windows, **local execution will not work** for most tools since Windows lacks systemd, journalctl, and Linux-specific paths.
+
+    **Supported use case:** Use Windows as a client to manage remote Linux servers via SSH.
+
+    | Tool | Local (Windows) | Remote (Linux) |
+    |------|-----------------|----------------|
+    | `get_system_information` | ❌ Fails | ✅ Works |
+    | `list_processes` | ❌ Fails | ✅ Works |
+    | `list_services` | ❌ No systemd | ✅ Works |
+    | `get_journal_logs` | ❌ No journald | ✅ Works |
+    | All other tools | ❌ Fails | ✅ Works |
 
 ---
 
