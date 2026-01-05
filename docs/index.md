@@ -10,8 +10,7 @@ A Model Context Protocol (MCP) server for read-only Linux system administration,
 
 1. Install via pip
 ```bash
-pip install --user linux-mcp-server      # Install the MCP server
-~/.local/bin/linux-mcp-server --help     # Verify installation
+pip install --user linux-mcp-server
 ```
 
 2. [Configure your favorite MCP client](clients.md)
