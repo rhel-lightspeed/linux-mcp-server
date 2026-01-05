@@ -31,7 +31,7 @@ class CommandSpec(BaseModel):
     fallback: tuple[str, ...] | None = None
     optional_flags: Mapping[str, tuple[str, ...]] | None = None
 
-    async def run(self, host: str | None = None, **kwargs) -> tuple[int, str, str]:
+    async def run(self, host: str | None = None, **kwargs: object) -> tuple[int, str, str]:
         """Run the command with optional fallback.
 
         Args:
@@ -287,7 +287,7 @@ def get_command(name: str, subcommand: str = "default") -> CommandSpec:
         raise KeyError(f"Subcommand '{subcommand}' not found for '{name}'. Available: {available}") from e
 
 
-def substitute_command_args(args: Sequence[str], **kwargs) -> tuple[str, ...]:
+def substitute_command_args(args: Sequence[str], **kwargs: object) -> tuple[str, ...]:
     """Substitute placeholder values in command arguments.
 
     Args:
