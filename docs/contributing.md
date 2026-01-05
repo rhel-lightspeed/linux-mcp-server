@@ -75,7 +75,7 @@ pytest
 
 ## Project Structure
 
-```
+```text
 linux-mcp-server/
 ├── src/linux_mcp_server/
 │   ├── tools/              # MCP tool implementations
@@ -289,7 +289,7 @@ All tools **must** be read-only. This project is designed for safe diagnostics:
 
 We use [Conventional Commits](https://www.conventionalcommits.org/):
 
-```
+```text
 <type>(<scope>): <subject>
 
 <body>
@@ -311,7 +311,7 @@ We use [Conventional Commits](https://www.conventionalcommits.org/):
 
 ### Examples
 
-```
+```text
 feat(tools): add disk SMART status tool
 
 - Implement SMART status checking via smartctl
@@ -321,7 +321,7 @@ feat(tools): add disk SMART status tool
 Closes #123
 ```
 
-```
+```text
 fix(network): handle missing network interfaces gracefully
 
 Previously crashed when a network interface disappeared during
@@ -396,10 +396,10 @@ Your PR should include:
 
 - **Search existing issues** before opening a new one
 - **Open an issue** on [GitHub](https://github.com/rhel-lightspeed/linux-mcp-server/issues) with:
-    - System information (OS, Python version)
-    - Steps to reproduce
-    - Expected vs actual behavior
-    - Relevant logs or error messages
+  - System information (OS, Python version)
+  - Steps to reproduce
+  - Expected vs actual behavior
+  - Relevant logs or error messages
 
 ---
 
