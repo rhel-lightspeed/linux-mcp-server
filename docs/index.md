@@ -4,22 +4,28 @@
 [![Coverage](https://codecov.io/gh/rhel-lightspeed/linux-mcp-server/graph/badge.svg?token=TtUkG1y0rx)](https://codecov.io/gh/rhel-lightspeed/linux-mcp-server)
 [![PyPI](https://img.shields.io/pypi/v/linux-mcp-server?label=PyPI)](https://pypi.org/project/linux-mcp-server)
 
-A Model Context Protocol (MCP) server for read-only Linux system administration, diagnostics, and troubleshooting on RHEL-based systems.
+A Model Context Protocol (MCP) server for read-only Linux system administration, diagnostics, and troubleshooting on Linux systems.
 
 ## Features
 
-- **Read-Only Operations**: All tools are strictly read-only for safe diagnostics
-- **Remote SSH Execution**: Execute commands on remote systems via SSH with key-based authentication
-- **Multi-Host Management**: Connect to different remote hosts in the same session
-- **Comprehensive Diagnostics**: System info, services, processes, logs, network, and storage
-- **Configurable Log Access**: Control which log files can be accessed via environment variables
-- **RHEL/systemd Focused**: Optimized for Red Hat Enterprise Linux systems
+- 🔒 **Read-Only Operations**: All tools are strictly read-only—diagnose with confidence knowing nothing will be modified. Perfect for production systems where you need answers without risk.
+
+- 🌐 **Remote SSH Execution**: Troubleshoot remote servers from your local machine using secure SSH key-based authentication. No need to hop between terminals or remember complex command syntax.
+
+- 🖥️ **Multi-Host Management**: Connect to your home lab, cloud VMs, or an entire data center in a single session. Seamlessly switch between hosts without reconfiguring.
+
+- 🔍 **Comprehensive Diagnostics**: Get the full picture—system info, services, processes, logs, network connections, and storage—all through natural language queries. Ask "why is my system slow?" instead of memorizing `ps`, `journalctl`, and `ss` flags.
+
+- 📋 **Configurable Log Access**: Control exactly which log files can be accessed via environment variables. Enterprise teams can enforce security policies while still enabling effective troubleshooting.
+
+- 🎯 **RHEL/systemd Focused**: Built for Red Hat Enterprise Linux, Fedora, CentOS Stream, and other systemd-based distributions. Whether you're managing a personal Fedora workstation or a fleet of RHEL servers, this tool speaks your system's language.
 
 ## Quick Start
 
 **1. Install**
 ```bash
-pip install --user linux-mcp-server
+pip install --user linux-mcp-server      # Install the MCP server
+~/.local/bin/linux-mcp-server --help     # Verify installation
 ```
 
 **2. Configure your MCP client** ([details](clients.md))
