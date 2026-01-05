@@ -32,7 +32,7 @@ pip install linux-mcp-server
 For the best experience, integrate the MCP server with an AI Agent of your preference.
 
 #### For Claude Desktop
-See [Claude Desktop Integration](install.md#claude-desktop-integration).
+See [Client Configuration](clients.md#claude-desktop).
 
 ## Available Tools
 
@@ -209,7 +209,7 @@ Lists immediate subdirectories under a specified path with flexible sorting opti
 
 ## Configuration
 
-See the [Installation Guide](install.md#configuration-file-location) for configuration details including environment variables and AI agent integration.
+See [Client Configuration](clients.md) for environment variables and AI agent integration details.
 
 ## Example Troubleshooting Sessions
 
@@ -267,7 +267,7 @@ Run the MCP server with the minimum required privileges. Consider:
 
 ## Troubleshooting
 
-See [Troubleshooting](install.md#troubleshooting) for detailed troubleshooting, security considerations, and permission setup.
+See the [Troubleshooting Guide](troubleshooting.md) for detailed solutions, debugging steps, and permission setup.
 
 ## Best Practices
 

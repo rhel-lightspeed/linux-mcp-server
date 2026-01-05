@@ -17,12 +17,16 @@ A Model Context Protocol (MCP) server for read-only Linux system administration,
 
 ## Quick Start
 
+**1. Install**
 ```bash
-pip install linux-mcp-server
-linux-mcp-server
+pip install --user linux-mcp-server
 ```
 
-See the [Installation Guide](install.md) for detailed setup instructions.
+**2. Configure your MCP client** ([details](clients.md))
+
+**3. Start diagnosing Linux systems!**
+
+See the [Installation Guide](install.md) for container installs, SSH setup, and more.
 
 ## Available Tools
 
