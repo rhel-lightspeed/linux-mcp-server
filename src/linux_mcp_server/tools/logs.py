@@ -1,6 +1,5 @@
 """Log and audit tools."""
 
-import os
 import typing as t
 
 from pathlib import Path
@@ -18,6 +17,44 @@ from linux_mcp_server.server import mcp
 from linux_mcp_server.utils.decorators import disallow_local_execution_in_containers
 from linux_mcp_server.utils.types import Host
 from linux_mcp_server.utils.validation import is_empty_output
+
+
+async def _get_journal_logs(
+    lines: int,
+    host: Host | None = None,
+    unit: str | None = None,
+    priority: str | None = None,
+    since: str | None = None,
+    transport: str | None = None,
+) -> tuple[int, str, str]:
+    """Execute journalctl command with optional filters.
+
+    This is the shared implementation used by both get_journal_logs and
+    get_audit_logs (as a fallback).
+
+    Args:
+        lines: Number of log lines to retrieve.
+        host: Optional remote host address.
+        unit: Filter by systemd unit name.
+        priority: Filter by priority level.
+        since: Filter entries since specified time.
+        transport: Filter by journal transport (e.g., 'audit', 'kernel').
+
+    Returns:
+        Tuple of (returncode, stdout, stderr) from the command execution.
+
+    Raises:
+        FileNotFoundError: If journalctl command is not available.
+    """
+    cmd = get_command("journal_logs")
+    return await cmd.run(
+        host=host,
+        lines=lines,
+        unit=unit,
+        priority=priority,
+        since=since,
+        transport=transport,
+    )
 
 
 @mcp.tool(
@@ -46,9 +83,9 @@ async def get_journal_logs(
     priority level, and time range. Returns timestamped log messages.
     """
     try:
-        # Get command from registry
-        cmd = get_command("journal_logs")
-        returncode, stdout, stderr = await cmd.run(host=host, lines=lines, unit=unit, priority=priority, since=since)
+        returncode, stdout, stderr = await _get_journal_logs(
+            lines=lines, host=host, unit=unit, priority=priority, since=since
+        )
 
         if returncode != 0:
             return f"Error reading journal logs: {stderr}"
@@ -65,7 +102,7 @@ async def get_journal_logs(
 
 @mcp.tool(
     title="Get audit logs",
-    description="Read the system audit logs. This requires root privileges.",
+    description="Read the system audit logs from the systemd journal.",
     annotations=ToolAnnotations(readOnlyHint=True),
 )
 @log_tool_call
@@ -76,23 +113,17 @@ async def get_audit_logs(
 ) -> str:
     """Get Linux audit logs.
 
-    Retrieves entries from /var/log/audit/audit.log containing security-relevant
-    events such as authentication, authorization, and system call auditing.
-    Requires root privileges to read.
+    Retrieves audit log entries from the systemd journal containing
+    security-relevant events such as authentication, authorization,
+    and system call auditing.
+
+    Requires appropriate permissions to read the journal (typically
+    members of the 'wheel', 'adm', or 'systemd-journal' groups).
     """
-    audit_log_path = "/var/log/audit/audit.log"
-
     try:
-        # For local execution, check if file exists
-        if not host and not os.path.exists(audit_log_path):
-            return f"Audit log file not found at {audit_log_path}. Audit logging may not be enabled."
-
-        cmd = get_command("audit_logs")
-        returncode, stdout, stderr = await cmd.run(host=host, lines=lines)
+        returncode, stdout, stderr = await _get_journal_logs(lines=lines, host=host, transport="audit")
 
         if returncode != 0:
-            if "Permission denied" in stderr:
-                return f"Permission denied reading audit logs. This tool requires elevated privileges (root) to read {audit_log_path}."
             return f"Error reading audit logs: {stderr}"
 
         if is_empty_output(stdout):
@@ -100,7 +131,7 @@ async def get_audit_logs(
 
         return format_audit_logs(stdout, lines)
     except FileNotFoundError:
-        return "Error: tail command not found."
+        return "Error: journalctl command not found. This tool requires systemd."
     except Exception as e:
         return f"Error reading audit logs: {str(e)}"
 

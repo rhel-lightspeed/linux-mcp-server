@@ -121,13 +121,9 @@ COMMANDS: Mapping[str, CommandGroup] = MappingProxyType(
                         "unit": ("--unit", "{unit}"),
                         "priority": ("--priority", "{priority}"),
                         "since": ("--since", "{since}"),
+                        "transport": ("_TRANSPORT={transport}",),
                     },
                 ),
-            }
-        ),
-        "audit_logs": CommandGroup(
-            commands={
-                "default": CommandSpec(args=("tail", "-n", "{lines}", "/var/log/audit/audit.log")),
             }
         ),
         "read_log_file": CommandGroup(
