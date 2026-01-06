@@ -99,7 +99,15 @@ nobody     100  1.5  2.0  50000 20000 ?        S    Dec11   5:00 /usr/bin/app"""
 
         result = await mcp_client.call_tool("list_processes", arguments={"host": "remote.host"})
 
-        assert "error" in result.content[0].text.casefold()
+        assert "error executing" in result.content[0].text.casefold()
+
+    async def test_list_processes_handles_command_exception(self, mcp_client, mocker):
+        """Test that list_processes handles command excetions."""
+        mocker.patch("linux_mcp_server.tools.processes.get_command", side_effect=ValueError("Raised intentionally"))
+
+        result = await mcp_client.call_tool("list_processes", arguments={"host": "remote.host"})
+
+        assert "error listing" in result.content[0].text.casefold()
 
     async def test_get_process_info_handles_nonexistent_process(self, mcp_client, mock_execute_with_fallback):
         """Test that get_process_info handles non-existent process."""
@@ -146,3 +154,22 @@ VmRSS:	    11892 kB"""
 
         assert "process information for pid 1" in result_text
         assert "detailed status" not in result_text
+
+    async def test_get_process_info_handles_empty_output(self, mcp_client, mock_execute_with_fallback):
+        """Test that get_process_info works non-existent PID."""
+        mock_execute_with_fallback.return_value = (0, "", "")
+
+        result = await mcp_client.call_tool("get_process_info", arguments={"pid": 1, "host": "remote.host"})
+        result_text = result.content[0].text.casefold()
+
+        assert "does not exist" in result_text
+
+    async def test_get_process_info_command_exception(self, mcp_client, mocker):
+        """Test that get_process_info handles command execptions."""
+        mocker.patch("linux_mcp_server.tools.processes.get_command", side_effect=ValueError("Raised intentionally"))
+
+        result = await mcp_client.call_tool("get_process_info", arguments={"pid": 1, "host": "remote.host"})
+        result_text = result.content[0].text.casefold()
+
+        assert "error getting process information" in result_text
+        assert "raised intentionally" in result_text
