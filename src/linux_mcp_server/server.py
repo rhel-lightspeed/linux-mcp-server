@@ -1,11 +1,6 @@
 """Core MCP server for Linux diagnostics using FastMCP."""
 
-import logging
-
 from fastmcp import FastMCP
-
-
-logger = logging.getLogger("linux-mcp-server")
 
 
 # Initialize FastMCP server

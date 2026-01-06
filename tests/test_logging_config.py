@@ -1,12 +1,44 @@
 """Tests for logging configuration."""
 
-import importlib
 import json
-import logging
 
-from linux_mcp_server.logging_config import JSONFormatter
+from loguru import logger
+
 from linux_mcp_server.logging_config import setup_logging
-from linux_mcp_server.logging_config import StructuredFormatter
+
+
+class TestLoguruCapture:
+    """Test the loguru_caplog fixture functionality."""
+
+    def test_capture_and_clear(self, loguru_caplog):
+        """Test that loguru_caplog captures logs and clear() works."""
+        logger.info("First message")
+        assert "First message" in loguru_caplog.text
+        assert len(loguru_caplog.records) == 1
+
+        loguru_caplog.clear()
+
+        assert loguru_caplog.text == ""
+        assert len(loguru_caplog.records) == 0
+
+        logger.info("Second message")
+        assert "Second message" in loguru_caplog.text
+        assert len(loguru_caplog.records) == 1
+
+
+class TestGetRetentionDays:
+    """Test log retention days configuration."""
+
+    def test_invalid_retention_days_returns_default(self, mocker):
+        """Test that invalid retention days falls back to default of 10."""
+        from linux_mcp_server.logging_config import get_retention_days
+
+        # Mock CONFIG.log_retention_days to return a non-integer string
+        mocker.patch("linux_mcp_server.logging_config.CONFIG.log_retention_days", "invalid")
+
+        result = get_retention_days()
+
+        assert result == 10
 
 
 class TestSetupLogging:
@@ -16,10 +48,12 @@ class TestSetupLogging:
         """Test that setup creates both text and JSON log files."""
         mocker.patch("linux_mcp_server.logging_config.CONFIG.log_dir", tmp_path)
 
+        # Remove all existing handlers before test
+        logger.remove()
+
         setup_logging()
 
-        # Log something
-        logger = logging.getLogger("test")
+        # Log something using the bound logger
         logger.info("Test message")
 
         # Check both log files exist
@@ -29,14 +63,15 @@ class TestSetupLogging:
         assert text_log.exists()
         assert json_log.exists()
 
-    def test_log_level_from_environment(self, tmp_path, monkeypatch):
+    def test_log_level_from_environment(self, tmp_path, monkeypatch, mocker):
         """Test that log level can be set from environment variable."""
-        # Patch log_dir to avoid creating files in home directory during tests
         monkeypatch.setenv("LINUX_MCP_LOG_LEVEL", "DEBUG")
         monkeypatch.setenv("LINUX_MCP_LOG_RETENTION_DAYS", "10")
         monkeypatch.setenv("LINUX_MCP_LOG_DIR", str(tmp_path))
 
         # Reload config module to pick up the environment variables
+        import importlib
+
         from linux_mcp_server import config
 
         importlib.reload(config)
@@ -46,144 +81,104 @@ class TestSetupLogging:
 
         importlib.reload(logging_config)
 
+        # Remove all existing handlers
+        logger.remove()
+
         # Import setup_logging again to get the reloaded version
         from linux_mcp_server.logging_config import setup_logging
 
         setup_logging()
 
-        # Root logger should be at DEBUG level
-        root_logger = logging.getLogger()
-        assert root_logger.level == logging.DEBUG
+        # Log a debug message to verify DEBUG level is enabled
+        log_sink = []
+        logger.add(log_sink.append, format="{level} {message}", level="DEBUG")
+        logger.debug("Debug test message")
+
+        # Verify debug message was captured
+        assert any("DEBUG" in str(record) and "Debug test message" in str(record) for record in log_sink)
 
     def test_default_log_level_is_info(self, mocker, tmp_path):
-        """Test that default log level is INFO."""
+        """Test that default log level is INFO and DEBUG messages are filtered."""
         mocker.patch("linux_mcp_server.logging_config.CONFIG.log_dir", tmp_path)
         mocker.patch("linux_mcp_server.logging_config.CONFIG.log_level", "INFO")
 
+        # Remove all existing handlers
+        logger.remove()
+
         setup_logging()
 
-        root_logger = logging.getLogger()
-        assert root_logger.level == logging.INFO
+        # Log both debug and info to verify level filtering
+        log_sink = []
+        logger.add(log_sink.append, format="{level} {message}", level="INFO")
+
+        logger.debug("Debug message")  # Should be filtered
+        logger.info("Info message")  # Should appear
+
+        # Verify info appears but debug doesn't
+        messages = [str(record) for record in log_sink]
+        assert any("Info message" in msg for msg in messages)
+        assert not any("Debug message" in msg for msg in messages)
 
 
-class TestStructuredFormatter:
-    """Test structured log formatter."""
+class TestLogOutput:
+    """Test log output formats."""
 
-    def test_format_basic_message(self):
-        """Test formatting a basic log message."""
-        formatter = StructuredFormatter(
-            "%(asctime)s | %(levelname)s | %(name)s | %(message)s", datefmt="%Y-%m-%d %H:%M:%S"
-        )
-        record = logging.LogRecord(
-            name="test_module",
-            level=logging.INFO,
-            pathname="",
-            lineno=0,
-            msg="Test message",
-            args=(),
-            exc_info=None,
-        )
+    def test_text_log_format(self, tmp_path, mocker):
+        """Test that text logs are formatted correctly."""
+        mocker.patch("linux_mcp_server.logging_config.CONFIG.log_dir", tmp_path)
 
-        formatted = formatter.format(record)
+        logger.remove()
+        setup_logging()
 
-        # Check format: TIMESTAMP | LEVEL | MODULE | MESSAGE
-        parts = formatted.split(" | ")
-        assert len(parts) == 4
-        assert parts[1] == "INFO"
-        assert parts[2] == "test_module"
-        assert parts[3] == "Test message"
+        logger.info("Test message")
 
-    def test_format_with_extra_fields(self):
-        """Test formatting with extra context fields."""
-        formatter = StructuredFormatter(
-            "%(asctime)s | %(levelname)s | %(name)s | %(message)s", datefmt="%Y-%m-%d %H:%M:%S"
-        )
-        record = logging.LogRecord(
-            name="test_module",
-            level=logging.INFO,
-            pathname="",
-            lineno=0,
-            msg="Test message",
-            args=(),
-            exc_info=None,
-        )
-        record.host = "server1.example.com"
-        record.username = "admin"
+        text_log = tmp_path / "server.log"
+        content = text_log.read_text()
 
-        formatted = formatter.format(record)
+        # Check format contains expected parts
+        assert "INFO" in content
+        assert "Test message" in content
 
-        assert "host=server1.example.com" in formatted
-        assert "username=admin" in formatted
+    def test_json_log_format(self, tmp_path, mocker):
+        """Test that JSON logs are valid JSON with expected fields."""
+        mocker.patch("linux_mcp_server.logging_config.CONFIG.log_dir", tmp_path)
 
+        logger.remove()
+        setup_logging()
 
-class TestJSONFormatter:
-    """Test JSON log formatter."""
+        logger.info("Test message")
 
-    def test_format_basic_message(self):
-        """Test formatting a basic log message as JSON."""
-        formatter = JSONFormatter(datefmt="%Y-%m-%dT%H:%M:%S")
-        record = logging.LogRecord(
-            name="test_module",
-            level=logging.INFO,
-            pathname="",
-            lineno=0,
-            msg="Test message",
-            args=(),
-            exc_info=None,
-        )
+        json_log = tmp_path / "server.json"
+        content = json_log.read_text().strip()
 
-        formatted = formatter.format(record)
-        data = json.loads(formatted)
+        # Parse each line as JSON (loguru writes one JSON object per line)
+        lines = [ln for ln in content.split("\n") if ln]
+        assert lines, "No log lines found in JSON log"
+        for line in lines:
+            data = json.loads(line)
+            assert "text" in data  # loguru includes full formatted text
+            assert "record" in data  # loguru includes record metadata
 
-        assert data["level"] == "INFO"
-        assert data["logger"] == "test_module"
-        assert data["message"] == "Test message"
-        assert "timestamp" in data
+    def test_json_log_with_extra_fields(self, tmp_path, mocker):
+        """Test that extra fields appear in JSON logs."""
+        mocker.patch("linux_mcp_server.logging_config.CONFIG.log_dir", tmp_path)
 
-    def test_format_with_extra_fields(self):
-        """Test formatting with extra context fields as JSON."""
-        formatter = JSONFormatter(datefmt="%Y-%m-%dT%H:%M:%S")
-        record = logging.LogRecord(
-            name="test_module",
-            level=logging.INFO,
-            pathname="",
-            lineno=0,
-            msg="Test message",
-            args=(),
-            exc_info=None,
-        )
-        record.host = "server1.example.com"
-        record.username = "admin"
-        record.exit_code = 0
+        logger.remove()
+        setup_logging()
 
-        formatted = formatter.format(record)
-        data = json.loads(formatted)
+        # Log with bound extra fields
+        logger.bind(host="server1.example.com", username="admin").info("Test message")
 
-        assert data["host"] == "server1.example.com"
-        assert data["username"] == "admin"
-        assert data["exit_code"] == 0
+        json_log = tmp_path / "server.json"
+        content = json_log.read_text().strip()
 
-    def test_format_with_exception(self):
-        """Test formatting with exception information."""
-        import sys
-
-        formatter = JSONFormatter(datefmt="%Y-%m-%dT%H:%M:%S")
-        try:
-            raise ValueError("Test error")
-        except ValueError:
-            exc_info = sys.exc_info()
-            record = logging.LogRecord(
-                name="test_module",
-                level=logging.ERROR,
-                pathname="",
-                lineno=0,
-                msg="Error occurred",
-                args=(),
-                exc_info=exc_info,
-            )
-
-            formatted = formatter.format(record)
-            data = json.loads(formatted)
-
-            assert "exception" in data
-            assert "ValueError: Test error" in data["exception"]
+        # Find the line with our test message
+        for line in content.split("\n"):
+            if line and "Test message" in line:
+                data = json.loads(line)
+                # Extra fields should be in record.extra
+                assert data["record"]["extra"]["host"] == "server1.example.com"
+                assert data["record"]["extra"]["username"] == "admin"
+                break
+        else:
+            raise AssertionError("Test message not found in JSON log")

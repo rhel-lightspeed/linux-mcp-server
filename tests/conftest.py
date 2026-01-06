@@ -1,9 +1,58 @@
 import pytest
 
 from fastmcp.client import Client
+from loguru import logger
 
 from linux_mcp_server.audit import log_tool_call
 from linux_mcp_server.server import mcp
+
+
+class LoguruCapture:
+    """Capture loguru log records for testing."""
+
+    def __init__(self):
+        self.records: list = []
+
+    def sink(self, message):
+        """Sink function for loguru."""
+        self.records.append(message.record)
+
+    @property
+    def text(self) -> str:
+        """Get all captured log text as a single string."""
+        return "\n".join(r["message"] for r in self.records)
+
+    def clear(self):
+        """Clear captured records."""
+        self.records.clear()
+
+
+@pytest.fixture
+def loguru_caplog():
+    """Fixture to capture loguru logs, similar to pytest's caplog.
+
+    Usage:
+        def test_something(loguru_caplog):
+            logger.info("test message")
+            assert "test message" in loguru_caplog.text
+            assert loguru_caplog.records[0]["extra"]["key"] == "value"
+    """
+    capture = LoguruCapture()
+    handler_id = logger.add(capture.sink, format="{message}", level="DEBUG")
+    yield capture
+    logger.remove(handler_id)
+
+
+@pytest.fixture(autouse=True)
+def reset_loguru_for_tests():
+    """Reset loguru handlers before each test for isolation."""
+    # Remove any existing handlers from previous tests
+    logger.remove()
+
+    yield
+
+    # Cleanup after test
+    logger.remove()
 
 
 @pytest.fixture
