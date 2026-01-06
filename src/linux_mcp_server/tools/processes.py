@@ -27,6 +27,11 @@ from linux_mcp_server.utils.validation import validate_pid
 async def list_processes(
     host: Host | None = None,
 ) -> str:
+    """List all running processes.
+
+    Retrieves a snapshot of all running processes with details including PID,
+    user, CPU/memory usage, process state, start time, and command line.
+    """
     try:
         cmd = get_command("list_processes")
         returncode, stdout, _ = await cmd.run(host=host)
@@ -51,6 +56,12 @@ async def get_process_info(
     pid: t.Annotated[int, Field(description="Process ID")],
     host: Host | None = None,
 ) -> str:
+    """Get detailed information about a specific process.
+
+    Retrieves comprehensive process details including CPU/memory usage, process
+    state, virtual/resident memory size, controlling terminal, and additional
+    metadata from /proc/<pid>/status when available.
+    """
     # Validate PID (accepts floats from LLMs)
     validated_pid, error = validate_pid(pid)
     if error:
