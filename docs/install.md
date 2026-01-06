@@ -2,31 +2,14 @@
 
 Get the Linux MCP Server running quickly with your favorite LLM client.
 
+!!! note "Architecture Requirement"
+    This setup requires a **Control VM**, where the MCP server and AI assistant run—this can be your local machine, and a **Target VM** - the Linux system you wish to troubleshoot, which can be a local or remote host.
+
 **Table of Contents**
 
-- [Quick Start](#quick-start)
 - [Installation Options](#installation-options)
 - [SSH Configuration](#ssh-configuration)
 - [Platform Specific Notes](#platform-specific-notes)
-
----
-
-## Quick Start
-
-Get up and running in three steps:
-
-**1. Install**
-```bash
-pip install --user linux-mcp-server
-```
-
-**2. Configure SSH** (for remote hosts)
-
-Ensure SSH key-based authentication is set up for any remote hosts you want to manage. See [SSH Configuration](#ssh-configuration) for details.
-
-**3. Configure your MCP client**
-
-Add the server to your client configuration. See [Client Configuration](clients.md) for Claude Desktop, Goose, and other clients.
 
 ---
 
@@ -83,7 +66,7 @@ uv tool install linux-mcp-server
 **Verify installation:**
 
 ```bash
-linux-mcp-server --help
+linux-mcp-server
 ```
 
 !!! tip
@@ -150,8 +133,8 @@ sudo chown -R 1001:1001 ~/.local/share/linux-mcp-server/
 
 ### Quick Setup
 
-1. Ensure passwordless SSH works: `ssh user@hostname "echo success"`
-2. Add host aliases to `~/.ssh/config` for convenience
+1. Verify passwordless SSH access to the target VM: `ssh user@hostname "echo success"`
+2. Add host aliases to the `~/.ssh/config` file on your Control VM for easier access
 3. Set `LINUX_MCP_USER` environment variable if using a consistent username
 
 ??? info "SSH Key Prerequisites"
@@ -187,7 +170,6 @@ When using MCP tools, the `host` parameter accepts several formats:
 | Format | Example | Description |
 |--------|---------|-------------|
 | SSH alias | `webserver` | Uses settings from `~/.ssh/config` |
-| user@host | `admin@10.0.0.50` | Direct connection with username |
 | hostname | `server.example.com` | Uses `LINUX_MCP_USER` for username |
 
 ### Per-Host Configuration
