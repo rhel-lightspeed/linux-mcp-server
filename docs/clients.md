@@ -1,6 +1,6 @@
 # Client Configuration
 
-Configure your MCP client to use the Linux MCP Server.
+Configure your MCP client - an AI application, to use the Linux MCP Server.
 
 !!! tip "Environment Variables"
     Most configurations require environment variables for SSH connections and features. See [Environment Variables](#environment-variables) for the full reference.
@@ -269,9 +269,11 @@ Edit `~/.gemini/settings.json`:
 
     ```json
     {
+      // your other settings
+      ,
       "mcpServers": {
         "linux-mcp-server": {
-          "command": "~/.local/bin/linux-mcp-server",
+          "command": "/home/$USER/.local/bin/linux-mcp-server",
           "args": [],
           "env": {
             "LINUX_MCP_USER": "your-ssh-username"
@@ -314,6 +316,8 @@ Edit `~/.gemini/settings.json`:
 ## Goose
 
 [Goose](https://block.github.io/goose/) is Block's open-source AI agent. You can configure extensions via the GUI wizard or by editing the YAML config file directly.
+
+
 
 ### GUI Wizard (Desktop App)
 
