@@ -53,7 +53,7 @@ async def test_known_hosts_configuration(
     ssh_manager,
     mock_asyncssh_connect,
     tmp_path,
-    caplog,
+    loguru_caplog,
     verify_host_keys,
     use_custom_path,
     expect_none,
@@ -66,8 +66,7 @@ async def test_known_hosts_configuration(
     mocker.patch("linux_mcp_server.connection.ssh.CONFIG.known_hosts_path", custom_path)
     mocker.patch("pathlib.Path.home", return_value=tmp_path)
 
-    with caplog.at_level("WARNING"):
-        await ssh_manager.get_connection("testhost")
+    await ssh_manager.get_connection("testhost")
 
     if expect_none:
         assert mock_asyncssh_connect["known_hosts"] is None
@@ -77,7 +76,7 @@ async def test_known_hosts_configuration(
         assert mock_asyncssh_connect["known_hosts"] == str(tmp_path / ".ssh" / "known_hosts")
 
     if expect_warning:
-        assert "host key verification disabled" in caplog.text.lower()
-        assert "mitm" in caplog.text.lower()
+        assert "host key verification disabled" in loguru_caplog.text.lower()
+        assert "mitm" in loguru_caplog.text.lower()
     else:
-        assert "mitm" not in caplog.text.lower()
+        assert "mitm" not in loguru_caplog.text.lower()

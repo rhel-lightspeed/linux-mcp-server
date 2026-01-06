@@ -6,7 +6,6 @@ either local or remote execution based on the provided parameters.
 """
 
 import asyncio
-import logging
 import os
 import shlex
 import shutil
@@ -19,15 +18,14 @@ from typing import Optional
 
 import asyncssh
 
+from loguru import logger
+
 from linux_mcp_server.audit import Event
 from linux_mcp_server.audit import log_ssh_command
 from linux_mcp_server.audit import log_ssh_connect
 from linux_mcp_server.audit import Status
 from linux_mcp_server.config import CONFIG
 from linux_mcp_server.utils.types import Host
-
-
-logger = logging.getLogger("linux-mcp-server")
 
 
 def discover_ssh_key() -> str | None:
@@ -223,16 +221,13 @@ class SSHConnectionManager:
                 result = await conn.run(cmd_str, check=False, timeout=timeout, encoding=encoding)
             except asyncssh.TimeoutError:
                 duration = time.time() - start_time
-                logger.error(
-                    f"Command timed out after {timeout}s",
-                    extra={
-                        "event": Event.REMOTE_EXEC_ERROR,
-                        "command": cmd_str,
-                        "host": host,
-                        "duration": f"{duration:.3f}s",
-                        "error": "timeout",
-                    },
-                )
+                logger.bind(
+                    event=Event.REMOTE_EXEC_ERROR,
+                    command=cmd_str,
+                    host=host,
+                    duration=f"{duration:.3f}s",
+                    error="timeout",
+                ).error(f"Command timed out after {timeout}s")
                 raise ConnectionError(
                     f"Command timed out after {timeout}s on {conn._username}@{host}: {cmd_str}"
                 ) from None
@@ -251,16 +246,13 @@ class SSHConnectionManager:
 
         except asyncssh.Error as e:
             duration = time.time() - start_time
-            logger.error(
-                f"Error executing command on {host}: {e}",
-                extra={
-                    "event": Event.REMOTE_EXEC_ERROR,
-                    "command": cmd_str,
-                    "host": host,
-                    "duration": f"{duration:.3f}s",
-                    "error": str(e),
-                },
-            )
+            logger.bind(
+                event=Event.REMOTE_EXEC_ERROR,
+                command=cmd_str,
+                host=host,
+                duration=f"{duration:.3f}s",
+                error=str(e),
+            ).error(f"Error executing command on {host}: {e}")
             raise ConnectionError(f"Failed to execute command on {host}: {e}") from e
 
     async def close_all(self):
@@ -460,13 +452,10 @@ async def _execute_local(
 
     except Exception as e:
         duration = time.time() - start_time
-        logger.error(
-            f"Error executing local command: {cmd_str}",
-            extra={
-                "event": Event.LOCAL_EXEC_ERROR,
-                "command": cmd_str,
-                "duration": f"{duration:.3f}s",
-                "error": str(e),
-            },
-        )
+        logger.bind(
+            event=Event.LOCAL_EXEC_ERROR,
+            command=cmd_str,
+            duration=f"{duration:.3f}s",
+            error=str(e),
+        ).error(f"Error executing local command: {cmd_str}")
         return 1, "", str(e)

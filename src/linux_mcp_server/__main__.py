@@ -1,7 +1,8 @@
 """Main entry point for the Linux MCP Server."""
 
-import logging
 import sys
+
+from loguru import logger
 
 from linux_mcp_server import __version__
 from linux_mcp_server.logging_config import setup_logging
@@ -12,7 +13,6 @@ def cli():
     """Console script entry point for the Linux MCP Server."""
     setup_logging()
 
-    logger = logging.getLogger("linux-mcp-server")
     logger.info(f"Running Linux MCP Server {__version__}. Press Ctrl+C, Enter to stop the server.")
 
     try:

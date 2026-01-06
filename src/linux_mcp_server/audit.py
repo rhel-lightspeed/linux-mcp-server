@@ -7,14 +7,20 @@ that can be output in both human-readable and JSON formats.
 
 import functools
 import inspect
-import logging
 import time
 import typing as t
 
 from contextlib import contextmanager
 from datetime import timedelta
+from typing import TYPE_CHECKING
+
+from loguru import logger
 
 from linux_mcp_server.utils import StrEnum
+
+
+if TYPE_CHECKING:
+    from loguru import Logger
 
 
 Function: t.TypeAlias = t.Callable[..., t.Any]
@@ -88,40 +94,25 @@ def sanitize_parameters(params: dict[str, t.Any]) -> dict[str, t.Any]:
 
 
 @contextmanager
-def AuditContext(**extra_fields: t.Any) -> t.Generator[logging.LoggerAdapter, None, None]:
+def AuditContext(**extra_fields: t.Any) -> t.Generator["Logger", None, None]:
     """
     Context manager for adding extra fields to all log records.
 
     Usage:
-        with AuditContext(tool="list_services", host="server1.com") as logger:
-            logger.info("Starting operation")
+        with AuditContext(tool="list_services", host="testhost") as log:
+            log.info("Starting operation")
 
     Args:
         **extra_fields: Additional fields to add to log records.
 
     Yields:
-        logging.LoggerAdapter: Logger adapter with extra fields attached.
+        Logger: The loguru logger with extra fields bound via contextualize().
     """
-    logger = logging.getLogger()
-
-    # Create adapter with extra fields
-    class ContextAdapter(logging.LoggerAdapter):
-        def process(self, msg, kwargs):
-            # Add extra fields to the record
-            if "extra" not in kwargs:
-                kwargs["extra"] = {}
-
-            if isinstance(self.extra, t.Iterable):
-                kwargs["extra"].update(self.extra)
-
-            return msg, kwargs
-
-    adapter = ContextAdapter(logger, extra_fields)
-    yield adapter
+    with logger.contextualize(**extra_fields):
+        yield logger
 
 
 def _log_event_start(
-    logger: logging.Logger,
     tool_name: str,
     params: dict[t.Any, t.Any],
 ) -> int:
@@ -134,15 +125,13 @@ def _log_event_start(
     execution_mode = ExecutionMode.REMOTE if params.get("host") else ExecutionMode.LOCAL
     safe_params = sanitize_parameters(params)
 
-    extra = {
-        "tool": tool_name,
-        "execution_mode": execution_mode,
-    }
+    bound_logger = logger.bind(tool=tool_name, execution_mode=execution_mode)
+
     if "host" in params:
-        extra["host"] = params["host"]
+        bound_logger = bound_logger.bind(host=params["host"])
 
     if "username" in params:
-        extra["username"] = params["username"]
+        bound_logger = bound_logger.bind(username=params["username"])
 
     message = f"{Event.TOOL_CALL}: {tool_name}"
 
@@ -150,13 +139,12 @@ def _log_event_start(
     if params_str:
         message += f" | {params_str}"
 
-    logger.info(message, extra=extra)
+    bound_logger.info(message)
 
     return time.perf_counter_ns()
 
 
 def _log_event_complete(
-    logger: logging.Logger,
     tool_name: str,
     start_time: int,
     error: Exception | None = None,
@@ -167,20 +155,15 @@ def _log_event_complete(
     stop_time = time.perf_counter_ns()
     duration = timedelta(microseconds=(stop_time - start_time) / 1_000)
     status = Status.error if error else Status.success
-    extra = {
-        "tool": tool_name,
-        "status": status,
-        "duration": f"{duration}s",
-    }
+
+    bound_logger = logger.bind(tool=tool_name, status=status, duration=f"{duration}s")
 
     message = f"{Event.TOOL_COMPLETE}: {tool_name}"
 
     if error:
-        extra["error"] = str(error)
-        message += f" | error: {error}"
-        logger.error(message, extra=extra)
+        bound_logger.bind(error=str(error)).error(f"{message} | error: {error}")
     else:
-        logger.info(message, extra=extra)
+        bound_logger.info(message)
 
 
 def log_tool_call(func: t.Callable) -> Function:
@@ -188,12 +171,11 @@ def log_tool_call(func: t.Callable) -> Function:
 
     Works with sync or async functions.
     """
-    logger = logging.getLogger("linux-mcp-server")
     tool_name = func.__name__
 
     @functools.wraps(func)
     def wrapper(*args, **kwargs):
-        start_time = _log_event_start(logger, tool_name, kwargs)
+        start_time = _log_event_start(tool_name, kwargs)
         error = None
         result = None
 
@@ -201,16 +183,16 @@ def log_tool_call(func: t.Callable) -> Function:
             result = func(*args, **kwargs)
         except Exception as exc:
             error = exc
-            _log_event_complete(logger, tool_name, start_time, error)
+            _log_event_complete(tool_name, start_time, error)
             raise
 
-        _log_event_complete(logger, tool_name, start_time, error)
+        _log_event_complete(tool_name, start_time, error)
 
         return result
 
     @functools.wraps(func)
     async def awrapper(*args, **kwargs):
-        start_time = _log_event_start(logger, tool_name, kwargs)
+        start_time = _log_event_start(tool_name, kwargs)
         error = None
         result = None
 
@@ -218,10 +200,10 @@ def log_tool_call(func: t.Callable) -> Function:
             result = await func(*args, **kwargs)
         except Exception as exc:
             error = exc
-            _log_event_complete(logger, tool_name, start_time, error)
+            _log_event_complete(tool_name, start_time, error)
             raise
 
-        _log_event_complete(logger, tool_name, start_time, error)
+        _log_event_complete(tool_name, start_time, error)
 
         return result
 
@@ -233,7 +215,7 @@ def log_tool_call(func: t.Callable) -> Function:
 
 def log_ssh_connect(
     host: str,
-    status: str,
+    status: Status,
     username: str = "",
     reused: bool = False,
     key_path: str | None = None,
@@ -242,55 +224,39 @@ def log_ssh_connect(
     """
     Log SSH connection event.
 
-    Verbosity is tiered based on log level:
-    - INFO: Basic connection success/failure
-    - DEBUG: Detailed information including key path, reuse status
-
     Args:
         host: Remote host
+        status: Connection status (Status.success or Status.failed)
         username: SSH username
-        status: Connection status ("success" or "failed")
-        reused: Whether connection was reused (shown at DEBUG level)
-        key_path: Path to SSH key used (shown at DEBUG level)
+        reused: Whether connection was reused (included in structured log extra at all levels)
+        key_path: Path to SSH key used (included in structured log extra at all levels)
         error: Optional error message
     """
-    logger = logging.getLogger(__name__)
-
     if status == Status.success:
-        extra = {
-            "host": host,
-            "username": username,
-            "status": status,
-        }
+        bound_logger = logger.bind(host=host, username=username, status=status)
 
-        # At INFO level, just log basic success
-        message = f"{Event.SSH_CONNECT}: {host}@{username}"
+        message = f"{Event.SSH_CONNECT}: {username}@{host}"
 
-        # At DEBUG level, add more details
-        if logger.isEnabledFor(logging.DEBUG):
-            if reused is not None:
-                extra["reused"] = str(reused)
-            if key_path:
-                extra["key"] = key_path
+        # Additional details are bound for structured logging
+        if reused is not None:
+            bound_logger = bound_logger.bind(reused=str(reused))
+        if key_path:
+            bound_logger = bound_logger.bind(key=key_path)
 
-        logger.info(message, extra=extra)
+        bound_logger.info(message)
 
     else:
         # Connection failed
-        extra = {
-            "host": host,
-            "username": username,
-            "status": "failed",
-        }
+        bound_logger = logger.bind(host=host, username=username, status="failed")
 
         if error:
-            extra["reason"] = error
+            bound_logger = bound_logger.bind(reason=error)
 
-        message = f"{Event.SSH_AUTH_FAILED}: {host}@{username}"
+        message = f"{Event.SSH_AUTH_FAILED}: {username}@{host}"
         if error:
             message += f" | reason: {error}"
 
-        logger.warning(message, extra=extra)
+        bound_logger.warning(message)
 
 
 def log_ssh_command(
@@ -302,29 +268,19 @@ def log_ssh_command(
     """
     Log SSH command execution.
 
-    Verbosity is tiered based on log level:
-    - INFO: Command and exit code
-    - DEBUG: Also includes execution duration
-
     Args:
         command: Command that was executed
         host: Remote host
         exit_code: Command exit code
-        duration: Optional execution duration in seconds (shown at DEBUG level)
+        duration: Optional execution duration in seconds (included in message and structured log extra at all levels)
     """
-    logger = logging.getLogger(__name__)
-
-    extra = {
-        "command": command,
-        "host": host,
-        "exit_code": exit_code,
-    }
+    bound_logger = logger.bind(command=command, host=host, exit_code=exit_code)
 
     message = f"{Event.REMOTE_EXEC}: {command} | host={host} | exit_code={exit_code}"
 
-    # At DEBUG level, include duration
-    if duration is not None and logger.isEnabledFor(logging.DEBUG):
-        extra["duration"] = f"{duration:.3f}s"
+    # Duration is included in both message and structured log extra when provided
+    if duration is not None:
+        bound_logger = bound_logger.bind(duration=f"{duration:.3f}s")
         message += f" | duration={duration:.3f}s"
 
-    logger.info(message, extra=extra)
+    bound_logger.info(message)
