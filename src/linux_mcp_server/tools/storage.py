@@ -96,13 +96,9 @@ async def list_block_devices(
 @log_tool_call
 @disallow_local_execution_in_containers
 async def list_directories(
-    path: t.Annotated[str, Field(description="The directory path to analyze")],
-    order_by: t.Annotated[
-        OrderBy, Field(description="Sort order - 'size', 'name', or 'modified' (default: 'name')")
-    ] = OrderBy.NAME,
-    sort: t.Annotated[
-        SortBy, Field(description="Sort direction - 'ascending' or 'descending' (default: 'ascending')")
-    ] = SortBy.ASCENDING,
+    path: t.Annotated[str, "The directory path to analyze"],
+    order_by: t.Annotated[OrderBy, "Sort order - 'size', 'name', or 'modified' (default: 'name')"] = OrderBy.NAME,
+    sort: t.Annotated[SortBy, "Sort direction - 'ascending' or 'descending' (default: 'ascending')"] = SortBy.ASCENDING,
     top_n: t.Annotated[
         int | None,
         Field(
@@ -159,13 +155,9 @@ async def list_directories(
 @log_tool_call
 @disallow_local_execution_in_containers
 async def list_files(
-    path: t.Annotated[str, Field(description="The path to analyze")],
-    order_by: t.Annotated[
-        OrderBy, Field(description="Sort order - 'size', 'name', or 'modified' (default: 'name')")
-    ] = OrderBy.NAME,
-    sort: t.Annotated[
-        SortBy, Field(description="Sort direction - 'ascending' or 'descending' (default: 'ascending')")
-    ] = SortBy.ASCENDING,
+    path: t.Annotated[str, "The path to analyze"],
+    order_by: t.Annotated[OrderBy, "Sort order - 'size', 'name', or 'modified' (default: 'name')"] = OrderBy.NAME,
+    sort: t.Annotated[SortBy, "Sort direction - 'ascending' or 'descending' (default: 'ascending')"] = SortBy.ASCENDING,
     top_n: t.Annotated[
         int | None,
         Field(
@@ -224,7 +216,7 @@ async def list_files(
 @log_tool_call
 @disallow_local_execution_in_containers
 async def read_file(
-    path: t.Annotated[str, Field(description="The file path to read")],
+    path: t.Annotated[str, "The file path to read"],
     host: Host = None,
 ) -> str:
     """Read the contents of a file.

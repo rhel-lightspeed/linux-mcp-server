@@ -29,20 +29,14 @@ from linux_mcp_server.utils.validation import validate_line_count
 @log_tool_call
 @disallow_local_execution_in_containers
 async def get_journal_logs(
-    unit: t.Annotated[
-        str | None, Field(description="Filter by systemd unit name or pattern (e.g., 'nginx.service', 'ssh*')")
-    ] = None,
+    unit: t.Annotated[str | None, "Filter by systemd unit name or pattern (e.g., 'nginx.service', 'ssh*')"] = None,
     priority: t.Annotated[
         str | None,
-        Field(
-            description="Filter by priority. Possible values: priority level (0-7), syslog level name ('emerg' to 'debug'), or range (e.g., 'err..info')"
-        ),
+        "Filter by priority. Possible values: priority level (0-7), syslog level name ('emerg' to 'debug'), or range (e.g., 'err..info')",
     ] = None,
     since: t.Annotated[
         str | None,
-        Field(
-            description="Filter entries since specified time. Date/time filter (format: 'YYYY-MM-DD HH:MM:SS', 'today', 'yesterday', 'now', or relative like '-1h')"
-        ),
+        "Filter entries since specified time. Date/time filter (format: 'YYYY-MM-DD HH:MM:SS', 'today', 'yesterday', 'now', or relative like '-1h')",
     ] = None,
     lines: t.Annotated[int, Field(description="Number of log lines to retrieve. Default: 100")] = 100,
     host: Host = None,
@@ -81,7 +75,7 @@ async def get_journal_logs(
 @log_tool_call
 @disallow_local_execution_in_containers
 async def get_audit_logs(
-    lines: t.Annotated[int, Field(description="Number of log lines to retrieve.")] = 100,
+    lines: t.Annotated[int, "Number of log lines to retrieve."] = 100,
     host: Host = None,
 ) -> str:
     """Get Linux audit logs.
@@ -126,8 +120,8 @@ async def get_audit_logs(
 @log_tool_call
 @disallow_local_execution_in_containers
 async def read_log_file(  # noqa: C901
-    log_path: t.Annotated[str, Field(description="Path to the log file")],
-    lines: t.Annotated[int, Field(description="Number of lines to retrieve from the end.")] = 100,
+    log_path: t.Annotated[str, "Path to the log file"],
+    lines: t.Annotated[int, "Number of lines to retrieve from the end."] = 100,
     host: Host = None,
 ) -> str:
     """Read a specific log file.
