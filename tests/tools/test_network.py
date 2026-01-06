@@ -66,6 +66,18 @@ class TestGetNetworkInterfaces:
         assert "network interfaces" in result_text
         assert "eth0" in result_text
 
+    async def test_get_network_interfaces_full_failure(self, mcp_client, mock_execute):
+        """Test getting network interfaces with full failures."""
+        mock_execute.side_effect = [
+            (1, "", "Command failed"),
+            (1, "", "Command failed"),
+        ]
+
+        result = await mcp_client.call_tool("get_network_interfaces")
+        result_text = result.content[0].text.casefold()
+
+        assert "network interfaces" in result_text
+
     async def test_get_network_interfaces_error(self, mcp_client, mock_execute):
         """Test getting network interfaces with error."""
         mock_execute.side_effect = Exception("Network error")
