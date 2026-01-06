@@ -1,0 +1,15 @@
+apiVersion: appstudio.redhat.com/v1alpha1
+kind: IntegrationTestScenario
+metadata:
+  name: mcp-protocol-audit
+spec:
+  application: linux-mcp-server
+  resolverRef:
+    resolver: git
+    params:
+      - name: url
+        value: https://github.com/rhel-lightspeed/linux-mcp-server.git
+      - name: revision
+        value: main
+      - name: pathInRepo
+        value: .tekton/task-mcp-protocol-audit.yaml

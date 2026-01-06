@@ -62,8 +62,7 @@ jobs:
           METHOD: ${{ matrix.method }}
           UV_PYTHON: python
         run: |
-          chmod +x scripts/verify_installation.sh
-          ./scripts/verify_installation.sh
+          bash ./scripts/verify_installation.sh
 
   container_integration_qa:
     name: Container Integration - Linux
@@ -72,5 +71,4 @@ jobs:
       - uses: actions/checkout@v6.0.1
       - name: Run Container Integration Test
         run: |
-          chmod +x scripts/verify_container_integration.sh
-          ./scripts/verify_container_integration.sh
+          bash ./scripts/verify_container_integration.sh
