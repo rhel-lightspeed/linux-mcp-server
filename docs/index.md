@@ -6,6 +6,16 @@
 
 A Model Context Protocol (MCP) server for read-only Linux system administration, diagnostics, and troubleshooting on Linux systems.
 
+## 🚀 New to MCP?
+
+**[Start Here: Getting Started Guide](getting-started.md)**  
+Learn what MCP is, how to set it up, and run your first command in 5 minutes.
+
+## ⚡ Quick Reference
+
+**[Cheatsheet](cheatsheet.md)**  
+A fast lookup guide for common tasks and tools.
+
 ## Quick Start
 
 1. Install via pip
