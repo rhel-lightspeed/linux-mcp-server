@@ -16,6 +16,7 @@ from linux_mcp_server.parsers import parse_system_info
 from linux_mcp_server.server import mcp
 from linux_mcp_server.utils.decorators import disallow_local_execution_in_containers
 from linux_mcp_server.utils.types import Host
+from linux_mcp_server.utils.validation import is_successful_output
 
 
 @mcp.tool(
@@ -40,7 +41,7 @@ async def get_system_information(
         # Execute all commands in the group
         for name, cmd in group.commands.items():
             returncode, stdout, _ = await cmd.run(host=host)
-            if returncode == 0 and stdout:
+            if is_successful_output(returncode, stdout):
                 results[name] = stdout
 
         info = parse_system_info(results)
@@ -71,7 +72,7 @@ async def get_cpu_information(
         # Execute all commands in the group
         for name, cmd in group.commands.items():
             returncode, stdout, _ = await cmd.run(host=host)
-            if returncode == 0 and stdout:
+            if is_successful_output(returncode, stdout):
                 results[name] = stdout
 
         info = parse_cpu_info(results)
@@ -100,7 +101,7 @@ async def get_memory_information(
         free_cmd = get_command("memory_info", "free")
         returncode, stdout, _ = await free_cmd.run(host=host)
 
-        if returncode == 0 and stdout:
+        if is_successful_output(returncode, stdout):
             memory = parse_free_output(stdout)
             return format_memory_info(memory)
 
@@ -129,7 +130,7 @@ async def get_disk_usage(
 
         returncode, stdout, _ = await cmd.run(host=host)
 
-        if returncode == 0 and stdout:
+        if is_successful_output(returncode, stdout):
             return format_disk_usage(stdout)
 
         return "Error: Unable to retrieve disk usage information"

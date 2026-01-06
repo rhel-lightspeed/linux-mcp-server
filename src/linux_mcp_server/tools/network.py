@@ -14,6 +14,7 @@ from linux_mcp_server.parsers import parse_ss_listening
 from linux_mcp_server.server import mcp
 from linux_mcp_server.utils.decorators import disallow_local_execution_in_containers
 from linux_mcp_server.utils.types import Host
+from linux_mcp_server.utils.validation import is_successful_output
 
 
 @mcp.tool(
@@ -39,14 +40,14 @@ async def get_network_interfaces(
         brief_cmd = get_command("network_interfaces", "brief")
         returncode, stdout, _ = await brief_cmd.run(host=host)
 
-        if returncode == 0 and stdout:
+        if is_successful_output(returncode, stdout):
             interfaces = parse_ip_brief(stdout)
 
         # Get network statistics from /proc/net/dev
         stats_cmd = get_command("network_interfaces", "stats")
         returncode, stdout, _ = await stats_cmd.run(host=host)
 
-        if returncode == 0 and stdout:
+        if is_successful_output(returncode, stdout):
             stats = parse_proc_net_dev(stdout)
 
         return format_network_interfaces(interfaces, stats)
@@ -74,7 +75,7 @@ async def get_network_connections(
 
         returncode, stdout, stderr = await cmd.run(host=host)
 
-        if returncode == 0 and stdout:
+        if is_successful_output(returncode, stdout):
             connections = parse_ss_connections(stdout)
             return format_network_connections(connections)
         return f"Error getting network connections: return code {returncode}, stderr: {stderr}"
@@ -102,7 +103,7 @@ async def get_listening_ports(
 
         returncode, stdout, stderr = await cmd.run(host=host)
 
-        if returncode == 0 and stdout:
+        if is_successful_output(returncode, stdout):
             ports = parse_ss_listening(stdout)
             return format_listening_ports(ports)
         return f"Error getting listening ports: return code {returncode}, stderr: {stderr}"
