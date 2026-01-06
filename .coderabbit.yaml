@@ -15,6 +15,7 @@ reviews:
   high_level_summary: false
   high_level_summary_placeholder: "@coderabbitai summary"
   abort_on_close: true
+  review_status: false
 
   auto_review:
     enabled: false
