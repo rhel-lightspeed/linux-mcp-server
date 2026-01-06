@@ -364,6 +364,7 @@ If you prefer editing config files directly, add to `~/.config/goose/config.yaml
         timeout: 30
         bundled: null
         available_tools: []
+        args: []
     ```
 
 === "Container (Podman)"
