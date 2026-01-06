@@ -38,7 +38,7 @@ A quick reference guide for common tasks and the tools to use.
 |-------------------|---------------|----------------|
 | **Disk Partitions** | `list_block_devices` | "Show me the partition layout." |
 | **Large Folders** | `list_directories` | "Find the largest folders in /var." |
-| **Recent Changes** | `list_directories` | "What folders in /etc changed recently?" |
+| **Recent Changes** | `list_files` | "What files in /etc changed recently?" |
 
 ## 💡 Pro Tips
 
