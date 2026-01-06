@@ -3,6 +3,7 @@
 import os
 import typing as t
 
+from dataclasses import dataclass
 from pathlib import Path
 
 from fastmcp.exceptions import ToolError
@@ -20,6 +21,7 @@ from linux_mcp_server.server import mcp
 from linux_mcp_server.utils import StrEnum
 from linux_mcp_server.utils.decorators import disallow_local_execution_in_containers
 from linux_mcp_server.utils.types import Host
+from linux_mcp_server.utils.types import NodeEntry
 
 
 class OrderBy(StrEnum):
@@ -31,6 +33,16 @@ class OrderBy(StrEnum):
 class SortBy(StrEnum):
     ASCENDING = "ascending"
     DESCENDING = "descending"
+
+
+@dataclass(frozen=True)
+class ListingConfig:
+    """Configuration for directory/file listing operations."""
+
+    commands: dict[OrderBy, str]
+    parser: t.Callable[[str, OrderBy], list[NodeEntry]]
+    formatter: t.Callable[[list[NodeEntry], str, OrderBy, bool], str]
+    entity_name: str  # "directories" or "files" for error messages
 
 
 # Map OrderBy enum to command names
@@ -46,6 +58,20 @@ FILE_COMMANDS: dict[OrderBy, str] = {
     OrderBy.MODIFIED: "list_files_modified",
 }
 
+DIRECTORY_CONFIG = ListingConfig(
+    commands=DIRECTORY_COMMANDS,
+    parser=parse_directory_listing,
+    formatter=format_directory_listing,
+    entity_name="directories",
+)
+
+FILE_CONFIG = ListingConfig(
+    commands=FILE_COMMANDS,
+    parser=parse_file_listing,
+    formatter=format_file_listing,
+    entity_name="files",
+)
+
 
 def _validate_path(path: str) -> str:
     """Validate path for command and flag injection."""
@@ -56,6 +82,52 @@ def _validate_path(path: str) -> str:
     if not Path(path).is_absolute():
         raise ToolError("Invalid path (must be absolute).")
     return Path(path).as_posix()
+
+
+def _sort_and_limit(entries: list[NodeEntry], order_by: OrderBy, sort: SortBy, top_n: int) -> list[NodeEntry]:
+    """Sort entries and apply limit."""
+    reverse = sort == SortBy.DESCENDING
+    if order_by == OrderBy.SIZE:
+        entries = sorted(entries, key=lambda e: e.size, reverse=reverse)
+    elif order_by == OrderBy.MODIFIED:
+        entries = sorted(entries, key=lambda e: e.modified, reverse=reverse)
+    else:
+        entries = sorted(entries, key=lambda e: e.name.lower(), reverse=reverse)
+    return entries[:top_n]
+
+
+async def _list_entries(
+    path: str,
+    order_by: OrderBy,
+    sort: SortBy,
+    top_n: int | None,
+    host: Host | None,
+    config: ListingConfig,
+) -> str:
+    """Generic listing implementation for directories and files."""
+    if not host:
+        path = _validate_path(path)
+
+    cmd_name = config.commands[order_by]
+    cmd = get_command(cmd_name)
+
+    try:
+        returncode, stdout, stderr = await cmd.run(host=host, path=path)
+
+        if returncode != 0:
+            raise ToolError(f"Error running command: command failed with return code {returncode}: {stderr}")
+
+        entries = config.parser(stdout, order_by)
+
+        if top_n:
+            entries = _sort_and_limit(entries, order_by, sort, top_n)
+
+        return config.formatter(entries, path, order_by, sort == SortBy.DESCENDING)
+
+    except ToolError:
+        raise
+    except Exception as e:
+        raise ToolError(f"Error listing {config.entity_name}: {str(e)}") from e
 
 
 @mcp.tool(
@@ -111,40 +183,8 @@ async def list_directories(
     ] = None,
     host: Host | None = None,
 ) -> str:
-    """
-    List directories under a specified path.
-    """
-    path = _validate_path(path)
-
-    # Get the appropriate command for the order_by field
-    cmd_name = DIRECTORY_COMMANDS[order_by]
-    cmd = get_command(cmd_name)
-
-    try:
-        returncode, stdout, stderr = await cmd.run(host=host, path=path)
-
-        if returncode != 0:
-            raise ToolError(f"Error running command: command failed with return code {returncode}: {stderr}")
-
-        # Parse the output
-        entries = parse_directory_listing(stdout, order_by)
-
-        # Apply top_n limit if specified
-        if top_n:
-            # Sort first if we need to limit
-            if order_by == OrderBy.SIZE:
-                entries = sorted(entries, key=lambda e: e.size, reverse=sort == SortBy.DESCENDING)
-            elif order_by == OrderBy.MODIFIED:
-                entries = sorted(entries, key=lambda e: e.modified, reverse=sort == SortBy.DESCENDING)
-            else:
-                entries = sorted(entries, key=lambda e: e.name.lower(), reverse=sort == SortBy.DESCENDING)
-            entries = entries[:top_n]
-
-        # Format the output
-        return format_directory_listing(entries, path, order_by, reverse=sort == SortBy.DESCENDING)
-
-    except Exception as e:
-        raise ToolError(f"Error listing directories: {str(e)}") from e
+    """List directories under a specified path."""
+    return await _list_entries(path, order_by, sort, top_n, host, DIRECTORY_CONFIG)
 
 
 @mcp.tool(
@@ -172,42 +212,8 @@ async def list_files(
     ] = None,
     host: Host | None = None,
 ) -> str:
-    """
-    List files under a specified path.
-    """
-    # For local execution, validate path
-    if not host:
-        path = _validate_path(path)
-
-    # Get the appropriate command for the order_by field
-    cmd_name = FILE_COMMANDS[order_by]
-    cmd = get_command(cmd_name)
-
-    try:
-        returncode, stdout, stderr = await cmd.run(host=host, path=path)
-
-        if returncode != 0:
-            raise ToolError(f"Error running command: command failed with return code {returncode}: {stderr}")
-
-        # Parse the output
-        entries = parse_file_listing(stdout, order_by)
-
-        # Apply top_n limit if specified
-        if top_n:
-            # Sort first if we need to limit
-            if order_by == OrderBy.SIZE:
-                entries = sorted(entries, key=lambda e: e.size, reverse=sort == SortBy.DESCENDING)
-            elif order_by == OrderBy.MODIFIED:
-                entries = sorted(entries, key=lambda e: e.modified, reverse=sort == SortBy.DESCENDING)
-            else:
-                entries = sorted(entries, key=lambda e: e.name.lower(), reverse=sort == SortBy.DESCENDING)
-            entries = entries[:top_n]
-
-        # Format the output
-        return format_file_listing(entries, path, order_by, reverse=sort == SortBy.DESCENDING)
-
-    except Exception as e:
-        raise ToolError(f"Error listing files: {str(e)}") from e
+    """List files under a specified path."""
+    return await _list_entries(path, order_by, sort, top_n, host, FILE_CONFIG)
 
 
 @mcp.tool(
