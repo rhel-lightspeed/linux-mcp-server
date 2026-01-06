@@ -1,6 +1,7 @@
 [![CI](https://github.com/rhel-lightspeed/linux-mcp-server/actions/workflows/ci.yml/badge.svg)](https://github.com/rhel-lightspeed/linux-mcp-server/actions/workflows/ci.yml)
 [![Coverage](https://codecov.io/gh/rhel-lightspeed/linux-mcp-server/graph/badge.svg?token=TtUkG1y0rx)](https://codecov.io/gh/rhel-lightspeed/linux-mcp-server)
 [![PyPI](https://img.shields.io/pypi/v/linux-mcp-server?label=PyPI)](https://pypi.org/project/linux-mcp-server)
+[![Docs](https://img.shields.io/badge/Docs-Linux%20MCP%20Server-red)](https://rhel-lightspeed.github.io/linux-mcp-server/)
 
 
 # Linux MCP Server
@@ -22,7 +23,7 @@ A Model Context Protocol (MCP) server for read-only Linux system administration,
 
 For detailed instructions on setting up and using the Linux MCP Server, please refer to our official documentation:
 
-- **[Installation Guide](https://rhel-lightspeed.github.io/linux-mcp-server/install/)**: Detailed steps for pip, uv, and container-based deployments.
+- **[Installation Guide](https://rhel-lightspeed.github.io/linux-mcp-server/install/)**: Detailed steps for `pip`, `uv`, and container-based deployments.
 - **[Usage Guide](https://rhel-lightspeed.github.io/linux-mcp-server/usage/)**: Information on running the server, configuring AI agents (Claude, Goose), and troubleshooting.
 
 ## Available Tools
