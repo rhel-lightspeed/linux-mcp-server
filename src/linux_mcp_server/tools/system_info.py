@@ -28,8 +28,10 @@ from linux_mcp_server.utils.types import Host
 async def get_system_information(
     host: Host | None = None,
 ) -> str:
-    """
-    Get basic system information.
+    """Get basic system information.
+
+    Retrieves hostname, OS name/version, kernel version, architecture,
+    system uptime, and last boot time.
     """
     try:
         group = get_command_group("system_info")
@@ -57,8 +59,10 @@ async def get_system_information(
 async def get_cpu_information(
     host: Host | None = None,
 ) -> str:
-    """
-    Get CPU information.
+    """Get CPU information.
+
+    Retrieves CPU model, core counts (logical and physical), frequency,
+    and current load averages (1, 5, and 15 minute).
     """
     try:
         group = get_command_group("cpu_info")
@@ -86,8 +90,10 @@ async def get_cpu_information(
 async def get_memory_information(
     host: Host | None = None,
 ) -> str:
-    """
-    Get memory information.
+    """Get memory information.
+
+    Retrieves physical RAM and swap usage including total, used, free,
+    shared, buffers, cached, and available memory.
     """
     try:
         # Execute free command
@@ -113,8 +119,10 @@ async def get_memory_information(
 async def get_disk_usage(
     host: Host | None = None,
 ) -> str:
-    """
-    Get disk usage information.
+    """Get disk usage information.
+
+    Retrieves filesystem usage for all mounted volumes including size,
+    used/available space, utilization percentage, and mount points.
     """
     try:
         cmd = get_command("disk_usage")
@@ -139,8 +147,11 @@ async def get_disk_usage(
 async def get_hardware_information(
     host: Host | None = None,
 ) -> str:
-    """
-    Get hardware information.
+    """Get hardware information.
+
+    Retrieves detailed hardware inventory including CPU specifications,
+    PCI devices, USB devices, and DMI/SMBIOS data (system manufacturer,
+    model, BIOS version, etc.). Some information may require root privileges.
     """
     try:
         group = get_command_group("hardware_info")
