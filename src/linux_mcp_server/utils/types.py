@@ -8,7 +8,7 @@ from pydantic import StringConstraints
 
 
 # Annotated types
-Host = t.Annotated[str, Field(description="Remote host to connect to via SSH")]
+Host = t.Annotated[str | None, Field(description="Remote host to connect to via SSH")]
 UpperCase = t.Annotated[str, StringConstraints(to_upper=True)]
 
 
