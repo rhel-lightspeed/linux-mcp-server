@@ -14,6 +14,7 @@ from linux_mcp_server.parsers import parse_service_count
 from linux_mcp_server.server import mcp
 from linux_mcp_server.utils.decorators import disallow_local_execution_in_containers
 from linux_mcp_server.utils.types import Host
+from linux_mcp_server.utils.validation import is_empty_output
 from linux_mcp_server.utils.validation import validate_line_count
 
 
@@ -119,7 +120,7 @@ async def get_service_logs(
                 return f"No logs found for service '{service_name}'. The service may not exist or has no log entries."
             return f"Error getting service logs: {stderr}"
 
-        if not stdout or stdout.strip() == "":
+        if is_empty_output(stdout):
             return f"No log entries found for service '{service_name}'."
 
         return format_service_logs(stdout, service_name, lines)
