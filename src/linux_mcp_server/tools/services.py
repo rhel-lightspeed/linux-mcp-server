@@ -28,8 +28,10 @@ from linux_mcp_server.utils.validation import validate_line_count
 async def list_services(
     host: Host | None = None,
 ) -> str:
-    """
-    List all systemd services.
+    """List all systemd services.
+
+    Retrieves all systemd service units with their load state, active state,
+    sub-state, and description. Also includes a count of currently running services.
     """
     try:
         cmd = get_command("list_services")
@@ -64,8 +66,10 @@ async def get_service_status(
     service_name: t.Annotated[str, Field(description="Name of the service")],
     host: Host | None = None,
 ) -> str:
-    """
-    Get status of a specific service.
+    """Get status of a specific systemd service.
+
+    Retrieves detailed service information including active/enabled state,
+    main PID, memory usage, CPU time, and recent log entries from the journal.
     """
     try:
         # Ensure service name has .service suffix if not present
@@ -101,8 +105,10 @@ async def get_service_logs(
     lines: t.Annotated[int, Field(description="Number of log lines to retrieve.")] = 50,
     host: Host | None = None,
 ) -> str:
-    """
-    Get logs for a specific service.
+    """Get recent logs for a specific systemd service.
+
+    Retrieves journal entries for the specified service unit, including
+    timestamps, priority levels, and log messages.
     """
     try:
         # Validate lines parameter (accepts floats from LLMs)

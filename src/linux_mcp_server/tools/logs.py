@@ -47,8 +47,10 @@ async def get_journal_logs(
     lines: t.Annotated[int, Field(description="Number of log lines to retrieve. Default: 100")] = 100,
     host: Host | None = None,
 ) -> str:
-    """
-    Get systemd journal logs.
+    """Get systemd journal logs.
+
+    Retrieves entries from the systemd journal with optional filtering by unit,
+    priority level, and time range. Returns timestamped log messages.
     """
     try:
         # Validate lines parameter (accepts floats from LLMs)
@@ -82,8 +84,11 @@ async def get_audit_logs(
     lines: t.Annotated[int, Field(description="Number of log lines to retrieve.")] = 100,
     host: Host | None = None,
 ) -> str:
-    """
-    Get audit logs.
+    """Get Linux audit logs.
+
+    Retrieves entries from /var/log/audit/audit.log containing security-relevant
+    events such as authentication, authorization, and system call auditing.
+    Requires root privileges to read.
     """
     # Validate lines parameter (accepts floats from LLMs)
     lines, _ = validate_line_count(lines, default=100)
@@ -125,8 +130,10 @@ async def read_log_file(  # noqa: C901
     lines: t.Annotated[int, Field(description="Number of lines to retrieve from the end.")] = 100,
     host: Host | None = None,
 ) -> str:
-    """
-    Read a specific log file.
+    """Read a specific log file.
+
+    Retrieves the last N lines from a log file. The file path must be in the
+    allowed list configured via LINUX_MCP_ALLOWED_LOG_PATHS environment variable.
     """
     try:
         # Validate lines parameter (accepts floats from LLMs)
