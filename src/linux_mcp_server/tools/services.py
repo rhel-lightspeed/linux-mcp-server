@@ -3,7 +3,6 @@
 import typing as t
 
 from mcp.types import ToolAnnotations
-from pydantic import Field
 
 from linux_mcp_server.audit import log_tool_call
 from linux_mcp_server.commands import get_command
@@ -63,7 +62,7 @@ async def list_services(
 @log_tool_call
 @disallow_local_execution_in_containers
 async def get_service_status(
-    service_name: t.Annotated[str, Field(description="Name of the service")],
+    service_name: t.Annotated[str, "Name of the service"],
     host: Host = None,
 ) -> str:
     """Get status of a specific systemd service.
@@ -101,8 +100,8 @@ async def get_service_status(
 @log_tool_call
 @disallow_local_execution_in_containers
 async def get_service_logs(
-    service_name: t.Annotated[str, Field(description="Name of the service")],
-    lines: t.Annotated[int, Field(description="Number of log lines to retrieve.")] = 50,
+    service_name: t.Annotated[str, "Name of the service"],
+    lines: t.Annotated[int, "Number of log lines to retrieve."] = 50,
     host: Host = None,
 ) -> str:
     """Get recent logs for a specific systemd service.
