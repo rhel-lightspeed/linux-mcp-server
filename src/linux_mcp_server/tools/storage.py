@@ -66,7 +66,7 @@ def _validate_path(path: str) -> str:
 @log_tool_call
 @disallow_local_execution_in_containers
 async def list_block_devices(
-    host: Host | None = None,
+    host: Host = None,
 ) -> str:
     """List block devices.
 
@@ -111,7 +111,7 @@ async def list_directories(
             le=1_000,
         ),
     ] = None,
-    host: Host | None = None,
+    host: Host = None,
 ) -> str:
     """List directories under a specified path.
 
@@ -174,7 +174,7 @@ async def list_files(
             le=1_000,
         ),
     ] = None,
-    host: Host | None = None,
+    host: Host = None,
 ) -> str:
     """List files under a specified path.
 
@@ -225,7 +225,7 @@ async def list_files(
 @disallow_local_execution_in_containers
 async def read_file(
     path: t.Annotated[str, Field(description="The file path to read")],
-    host: Host | None = None,
+    host: Host = None,
 ) -> str:
     """Read the contents of a file.
 

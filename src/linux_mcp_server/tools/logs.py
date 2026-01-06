@@ -45,7 +45,7 @@ async def get_journal_logs(
         ),
     ] = None,
     lines: t.Annotated[int, Field(description="Number of log lines to retrieve. Default: 100")] = 100,
-    host: Host | None = None,
+    host: Host = None,
 ) -> str:
     """Get systemd journal logs.
 
@@ -82,7 +82,7 @@ async def get_journal_logs(
 @disallow_local_execution_in_containers
 async def get_audit_logs(
     lines: t.Annotated[int, Field(description="Number of log lines to retrieve.")] = 100,
-    host: Host | None = None,
+    host: Host = None,
 ) -> str:
     """Get Linux audit logs.
 
@@ -128,7 +128,7 @@ async def get_audit_logs(
 async def read_log_file(  # noqa: C901
     log_path: t.Annotated[str, Field(description="Path to the log file")],
     lines: t.Annotated[int, Field(description="Number of lines to retrieve from the end.")] = 100,
-    host: Host | None = None,
+    host: Host = None,
 ) -> str:
     """Read a specific log file.
 

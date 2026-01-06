@@ -24,7 +24,7 @@ from linux_mcp_server.utils.types import Host
 @log_tool_call
 @disallow_local_execution_in_containers
 async def get_network_interfaces(
-    host: Host | None = None,
+    host: Host = None,
 ) -> str:
     """Get network interface information.
 
@@ -62,7 +62,7 @@ async def get_network_interfaces(
 @log_tool_call
 @disallow_local_execution_in_containers
 async def get_network_connections(
-    host: Host | None = None,
+    host: Host = None,
 ) -> str:
     """Get active network connections.
 
@@ -90,7 +90,7 @@ async def get_network_connections(
 @log_tool_call
 @disallow_local_execution_in_containers
 async def get_listening_ports(
-    host: Host | None = None,
+    host: Host = None,
 ) -> str:
     """Get listening ports.
 

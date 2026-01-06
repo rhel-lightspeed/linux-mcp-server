@@ -25,7 +25,7 @@ from linux_mcp_server.utils.validation import validate_pid
 @log_tool_call
 @disallow_local_execution_in_containers
 async def list_processes(
-    host: Host | None = None,
+    host: Host = None,
 ) -> str:
     """List all running processes.
 
@@ -54,7 +54,7 @@ async def list_processes(
 @disallow_local_execution_in_containers
 async def get_process_info(
     pid: t.Annotated[int, Field(description="Process ID")],
-    host: Host | None = None,
+    host: Host = None,
 ) -> str:
     """Get detailed information about a specific process.
 

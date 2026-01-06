@@ -26,7 +26,7 @@ from linux_mcp_server.utils.types import Host
 @log_tool_call
 @disallow_local_execution_in_containers
 async def get_system_information(
-    host: Host | None = None,
+    host: Host = None,
 ) -> str:
     """Get basic system information.
 
@@ -57,7 +57,7 @@ async def get_system_information(
 @log_tool_call
 @disallow_local_execution_in_containers
 async def get_cpu_information(
-    host: Host | None = None,
+    host: Host = None,
 ) -> str:
     """Get CPU information.
 
@@ -88,7 +88,7 @@ async def get_cpu_information(
 @log_tool_call
 @disallow_local_execution_in_containers
 async def get_memory_information(
-    host: Host | None = None,
+    host: Host = None,
 ) -> str:
     """Get memory information.
 
@@ -117,7 +117,7 @@ async def get_memory_information(
 @log_tool_call
 @disallow_local_execution_in_containers
 async def get_disk_usage(
-    host: Host | None = None,
+    host: Host = None,
 ) -> str:
     """Get disk usage information.
 
@@ -145,7 +145,7 @@ async def get_disk_usage(
 @log_tool_call
 @disallow_local_execution_in_containers
 async def get_hardware_information(
-    host: Host | None = None,
+    host: Host = None,
 ) -> str:
     """Get hardware information.
 

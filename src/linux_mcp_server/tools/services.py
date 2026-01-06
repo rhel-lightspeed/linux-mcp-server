@@ -26,7 +26,7 @@ from linux_mcp_server.utils.validation import validate_line_count
 @log_tool_call
 @disallow_local_execution_in_containers
 async def list_services(
-    host: Host | None = None,
+    host: Host = None,
 ) -> str:
     """List all systemd services.
 
@@ -64,7 +64,7 @@ async def list_services(
 @disallow_local_execution_in_containers
 async def get_service_status(
     service_name: t.Annotated[str, Field(description="Name of the service")],
-    host: Host | None = None,
+    host: Host = None,
 ) -> str:
     """Get status of a specific systemd service.
 
@@ -103,7 +103,7 @@ async def get_service_status(
 async def get_service_logs(
     service_name: t.Annotated[str, Field(description="Name of the service")],
     lines: t.Annotated[int, Field(description="Number of log lines to retrieve.")] = 50,
-    host: Host | None = None,
+    host: Host = None,
 ) -> str:
     """Get recent logs for a specific systemd service.
 
