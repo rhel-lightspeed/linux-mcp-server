@@ -18,7 +18,6 @@ from linux_mcp_server.server import mcp
 from linux_mcp_server.utils.decorators import disallow_local_execution_in_containers
 from linux_mcp_server.utils.types import Host
 from linux_mcp_server.utils.validation import is_empty_output
-from linux_mcp_server.utils.validation import validate_line_count
 
 
 @mcp.tool(
@@ -38,7 +37,7 @@ async def get_journal_logs(
         str | None,
         "Filter entries since specified time. Date/time filter (format: 'YYYY-MM-DD HH:MM:SS', 'today', 'yesterday', 'now', or relative like '-1h')",
     ] = None,
-    lines: t.Annotated[int, Field(description="Number of log lines to retrieve. Default: 100")] = 100,
+    lines: t.Annotated[int, Field(description="Number of log lines to retrieve. Default: 100", ge=1, le=10_000)] = 100,
     host: Host = None,
 ) -> str:
     """Get systemd journal logs.
@@ -47,9 +46,6 @@ async def get_journal_logs(
     priority level, and time range. Returns timestamped log messages.
     """
     try:
-        # Validate lines parameter (accepts floats from LLMs)
-        lines, _ = validate_line_count(lines, default=100)
-
         # Get command from registry
         cmd = get_command("journal_logs")
         returncode, stdout, stderr = await cmd.run(host=host, lines=lines, unit=unit, priority=priority, since=since)
@@ -75,7 +71,7 @@ async def get_journal_logs(
 @log_tool_call
 @disallow_local_execution_in_containers
 async def get_audit_logs(
-    lines: t.Annotated[int, "Number of log lines to retrieve."] = 100,
+    lines: t.Annotated[int, Field(description="Number of log lines to retrieve.", ge=1, le=10_0000)] = 100,
     host: Host = None,
 ) -> str:
     """Get Linux audit logs.
@@ -84,9 +80,6 @@ async def get_audit_logs(
     events such as authentication, authorization, and system call auditing.
     Requires root privileges to read.
     """
-    # Validate lines parameter (accepts floats from LLMs)
-    lines, _ = validate_line_count(lines, default=100)
-
     audit_log_path = "/var/log/audit/audit.log"
 
     try:
@@ -121,7 +114,7 @@ async def get_audit_logs(
 @disallow_local_execution_in_containers
 async def read_log_file(  # noqa: C901
     log_path: t.Annotated[str, "Path to the log file"],
-    lines: t.Annotated[int, "Number of lines to retrieve from the end."] = 100,
+    lines: t.Annotated[int, Field(description="Number of lines to retrieve from the end.", ge=1, le=10_000)] = 100,
     host: Host = None,
 ) -> str:
     """Read a specific log file.
@@ -130,9 +123,6 @@ async def read_log_file(  # noqa: C901
     allowed list configured via LINUX_MCP_ALLOWED_LOG_PATHS environment variable.
     """
     try:
-        # Validate lines parameter (accepts floats from LLMs)
-        lines, _ = validate_line_count(lines, default=100)
-
         # Get allowed log paths from environment variable
         allowed_paths_env = CONFIG.allowed_log_paths
 
