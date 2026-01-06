@@ -68,8 +68,10 @@ def _validate_path(path: str) -> str:
 async def list_block_devices(
     host: Host | None = None,
 ) -> str:
-    """
-    List block devices.
+    """List block devices.
+
+    Retrieves all block devices (disks, partitions, LVM volumes) with their
+    name, size, type, mount point, and filesystem information.
     """
     try:
         cmd = get_command("list_block_devices")
@@ -111,8 +113,10 @@ async def list_directories(
     ] = None,
     host: Host | None = None,
 ) -> str:
-    """
-    List directories under a specified path.
+    """List directories under a specified path.
+
+    Retrieves subdirectories with their size (when ordered by size) or
+    modification time, supporting flexible sorting and result limiting.
     """
     path = _validate_path(path)
 
@@ -172,8 +176,10 @@ async def list_files(
     ] = None,
     host: Host | None = None,
 ) -> str:
-    """
-    List files under a specified path.
+    """List files under a specified path.
+
+    Retrieves files with their size or modification time, supporting flexible
+    sorting and result limiting. Useful for finding large or recently modified files.
     """
     # For local execution, validate path
     if not host:
@@ -221,8 +227,10 @@ async def read_file(
     path: t.Annotated[str, Field(description="The file path to read")],
     host: Host | None = None,
 ) -> str:
-    """
-    Read the contents of a file using cat.
+    """Read the contents of a file.
+
+    Retrieves the full contents of a text file. The path must be absolute
+    and the file must exist. Binary files may not display correctly.
     """
     # For local execution, validate path
     if not host:
