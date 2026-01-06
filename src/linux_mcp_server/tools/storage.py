@@ -232,21 +232,23 @@ async def read_file(
     Retrieves the full contents of a text file. The path must be absolute
     and the file must exist. Binary files may not display correctly.
     """
-    # For local execution, validate path
-    if not host:
-        path = _validate_path(path)
 
+    # Validate path
+    path = _validate_path(path)
+
+    if not host:
+        # For local execution, check early if file exists
         if not os.path.isfile(path):
             raise ToolError(f"Path is not a file: {path}")
 
     cmd = get_command("read_file")
 
     try:
-        returncode, stdout, stderr = await cmd.run(host=host, path=path)
+        returncode, stdout, stderr = await cmd.run_bytes(host=host, path=path)
 
         if returncode != 0:
             raise ToolError(f"Error running command: command failed with return code {returncode}: {stderr}")
 
-        return stdout
+        return stdout.decode("utf-8")
     except Exception as e:
         raise ToolError(f"Error reading file: {str(e)}") from e

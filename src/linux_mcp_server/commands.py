@@ -44,7 +44,30 @@ class CommandSpec(BaseModel):
                 if kwargs.get(param_name):
                     args.extend(substitute_command_args(flag_args, **kwargs))
 
-        return await execute_with_fallback(tuple(args), fallback=self.fallback, host=host)
+        returncode, stdout, stderr = await execute_with_fallback(tuple(args), fallback=self.fallback, host=host)
+        stdout = stdout if isinstance(stdout, str) else stdout.decode("utf-8", errors="replace")
+        stderr = stderr if isinstance(stderr, str) else stderr.decode("utf-8", errors="replace")
+        return returncode, stdout, stderr
+
+    async def run_bytes(self, host: str | None = None, **kwargs: object) -> tuple[int, bytes, bytes]:
+        """Run the command with optional fallback and return raw bytes.
+
+        Args:
+            host: Optional remote host address.
+            **kwargs: Additional arguments passed to substitute_command_args.
+        """
+        args = list(substitute_command_args(self.args, **kwargs))
+        if self.optional_flags:
+            for param_name, flag_args in self.optional_flags.items():
+                if kwargs.get(param_name):
+                    args.extend(substitute_command_args(flag_args, **kwargs))
+
+        returncode, stdout, stderr = await execute_with_fallback(
+            tuple(args), fallback=self.fallback, host=host, encoding=None
+        )
+        stdout = stdout if isinstance(stdout, bytes) else stdout.encode("utf-8")
+        stderr = stderr if isinstance(stderr, bytes) else stderr.encode("utf-8")
+        return returncode, stdout, stderr
 
 
 class CommandGroup(BaseModel):
