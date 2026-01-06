@@ -17,6 +17,7 @@ from linux_mcp_server.formatters import format_log_file
 from linux_mcp_server.server import mcp
 from linux_mcp_server.utils.decorators import disallow_local_execution_in_containers
 from linux_mcp_server.utils.types import Host
+from linux_mcp_server.utils.validation import is_empty_output
 from linux_mcp_server.utils.validation import validate_line_count
 
 
@@ -60,7 +61,7 @@ async def get_journal_logs(
         if returncode != 0:
             return f"Error reading journal logs: {stderr}"
 
-        if not stdout or stdout.strip() == "":
+        if is_empty_output(stdout):
             return "No journal entries found matching the criteria."
 
         return format_journal_logs(stdout, lines, unit, priority, since)
@@ -102,7 +103,7 @@ async def get_audit_logs(
                 return f"Permission denied reading audit logs. This tool requires elevated privileges (root) to read {audit_log_path}."
             return f"Error reading audit logs: {stderr}"
 
-        if not stdout or stdout.strip() == "":
+        if is_empty_output(stdout):
             return "No audit log entries found."
 
         return format_audit_logs(stdout, lines)
@@ -191,7 +192,7 @@ async def read_log_file(  # noqa: C901
                 return f"Permission denied reading log file: {log_path}"
             return f"Error reading log file: {stderr}"
 
-        if not stdout or stdout.strip() == "":
+        if is_empty_output(stdout):
             return f"Log file is empty: {log_path}"
 
         return format_log_file(stdout, log_path, lines)
