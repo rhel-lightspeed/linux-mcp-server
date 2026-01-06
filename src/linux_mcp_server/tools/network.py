@@ -26,8 +26,10 @@ from linux_mcp_server.utils.types import Host
 async def get_network_interfaces(
     host: Host | None = None,
 ) -> str:
-    """
-    Get network interface information.
+    """Get network interface information.
+
+    Retrieves all network interfaces with their operational state, IP addresses,
+    and traffic statistics (bytes/packets sent/received, errors, dropped packets).
     """
     try:
         interfaces = {}
@@ -62,8 +64,10 @@ async def get_network_interfaces(
 async def get_network_connections(
     host: Host | None = None,
 ) -> str:
-    """
-    Get active network connections.
+    """Get active network connections.
+
+    Retrieves all established and pending network connections including protocol,
+    state, local/remote addresses and ports, and associated process information.
     """
     try:
         cmd = get_command("network_connections")
@@ -88,8 +92,10 @@ async def get_network_connections(
 async def get_listening_ports(
     host: Host | None = None,
 ) -> str:
-    """
-    Get listening ports.
+    """Get listening ports.
+
+    Retrieves all ports with services actively listening for connections,
+    including protocol (TCP/UDP), bind address, port number, and process name.
     """
     try:
         cmd = get_command("listening_ports")
