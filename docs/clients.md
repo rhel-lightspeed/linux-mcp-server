@@ -97,7 +97,7 @@ The value for `command` will vary depending on how `linux-mcp-server` was instal
           "command": "/home/YOUR_USER/.local/bin/linux-mcp-server",
           "args": [],
           "env": {
-            "LINUX_MCP_ALLOWED_LOG_PATHS": "/var/log/messages,/var/log/secure,/var/log/audit/audit.log"
+            "LINUX_MCP_ALLOWED_LOG_PATHS": "/var/log/messages,/var/log/lastlog"
           }
         }
       }
@@ -113,7 +113,7 @@ The value for `command` will vary depending on how `linux-mcp-server` was instal
           "command": "/home/YOUR_USER/.local/bin/linux-mcp-server",
           "args": [],
           "env": {
-            "LINUX_MCP_ALLOWED_LOG_PATHS": "/var/log/messages,/var/log/secure,/var/log/audit/audit.log"
+            "LINUX_MCP_ALLOWED_LOG_PATHS": "/var/log/messages,/var/log/lastlog"
           }
         }
       }
