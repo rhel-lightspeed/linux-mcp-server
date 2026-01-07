@@ -179,7 +179,8 @@ class SSHConnectionManager:
         command: Sequence[str],
         host: str,
         timeout: int = CONFIG.command_timeout,
-    ) -> tuple[int, str, str]:
+        encoding: str | None = "utf-8",
+    ) -> tuple[int, str | bytes, str | bytes]:
         """
         Execute a command on a remote host via SSH.
 
@@ -192,9 +193,13 @@ class SSHConnectionManager:
             username: SSH username
             timeout: Command timeout in seconds. Defaults to CONFIG.command_timeout.
                 Use for commands that need longer execution time.
+            encoding: Character encoding for stdout/stderr. Defaults to "utf-8".
+                Set to None to receive raw bytes for commands that may output
+                binary content.
 
         Returns:
-            Tuple of (return_code, stdout, stderr)
+            Tuple of (return_code, stdout, stderr) where stdout and stderr are strings
+            if encoding is not None, otherwise bytes.
 
         Raises:
             ConnectionError: If SSH connection fails or command times out
@@ -215,7 +220,7 @@ class SSHConnectionManager:
 
         try:
             try:
-                result = await conn.run(cmd_str, check=False, timeout=timeout)
+                result = await conn.run(cmd_str, check=False, timeout=timeout, encoding=encoding)
             except asyncssh.TimeoutError:
                 duration = time.time() - start_time
                 logger.error(
@@ -234,12 +239,8 @@ class SSHConnectionManager:
 
             return_code = result.exit_status if result.exit_status is not None else 0
 
-            # Ensure stdout and stderr are strings (asyncssh can return bytes or str)
-            stdout_raw = result.stdout if result.stdout else ""
-            stderr_raw = result.stderr if result.stderr else ""
-            stdout = stdout_raw if isinstance(stdout_raw, str) else stdout_raw.decode("utf-8", errors="replace")
-            stderr = stderr_raw if isinstance(stderr_raw, str) else stderr_raw.decode("utf-8", errors="replace")
-
+            stdout = result.stdout if result.stdout else b"" if encoding is None else ""
+            stderr = result.stderr if result.stderr else b"" if encoding is None else ""
             # Calculate duration
             duration = time.time() - start_time
 
@@ -327,8 +328,9 @@ async def get_remote_bin_path(
 async def execute_command(
     command: Sequence[str],
     host: str | None = None,
+    encoding: str | None = "utf-8",
     **kwargs,
-) -> tuple[int, str, str]:
+) -> tuple[int, str | bytes, str | bytes]:
     """
     Execute a command locally or remotely.
 
@@ -340,10 +342,14 @@ async def execute_command(
         command: Command and arguments to execute. If the command is not an absolute path
                  it will be resolved to the full path before execution.
         host: Optional remote host address
+        encoding: Character encoding for stdout/stderr. Defaults to "utf-8".
+            Set to None to receive raw bytes for commands that may output
+            binary content.
         **kwargs: Additional arguments (reserved for future use)
 
     Returns:
-        Tuple of (return_code, stdout, stderr)
+        Tuple of (return_code, stdout, stderr) where stdout and stderr are strings
+        if encoding is not None, otherwise bytes.
 
     Raises:
         ValueError: If host is provided without username
@@ -365,18 +371,19 @@ async def execute_command(
 
     if host:
         logger.debug(f"Routing to remote execution: {host} | command={cmd_str}")
-        return await _connection_manager.execute_remote(command, host)
+        return await _connection_manager.execute_remote(command, host, encoding=encoding)
 
     logger.debug(f"LOCAL_EXEC: {cmd_str}")
-    return await _execute_local(command)
+    return await _execute_local(command, encoding=encoding)
 
 
 async def execute_with_fallback(
     args: Sequence[str],
     fallback: Sequence[str] | None = None,
     host: str | None = None,
+    encoding: str | None = "utf-8",
     **kwargs,
-) -> tuple[int, str, str]:
+) -> tuple[int, str | bytes, str | bytes]:
     """
     Execute a command with optional fallback if primary command fails.
 
@@ -389,6 +396,9 @@ async def execute_with_fallback(
         fallback: Optional fallback command if primary fails
         host: Optional remote host address
         username: Optional SSH username (required if host is provided)
+        encoding: Character encoding for stdout/stderr. Defaults to "utf-8".
+            Set to None to receive raw bytes for commands that may output
+            binary content.
         **kwargs: Additional arguments passed to execute_command
 
     Returns:
@@ -402,17 +412,19 @@ async def execute_with_fallback(
         ...     host="server.example.com"
         ... )
     """
-    returncode, stdout, stderr = await execute_command(args, host=host, **kwargs)
+    returncode, stdout, stderr = await execute_command(args, host=host, encoding=encoding, **kwargs)
 
     # If primary command failed and we have a fallback, try it
     if returncode != 0 and fallback:
         logger.debug(f"Primary command failed (exit={returncode}), trying fallback: {' '.join(fallback)}")
-        returncode, stdout, stderr = await execute_command(fallback, host=host, **kwargs)
+        returncode, stdout, stderr = await execute_command(fallback, host=host, encoding=encoding, **kwargs)
 
     return returncode, stdout, stderr
 
 
-async def _execute_local(command: Sequence[str]) -> tuple[int, str, str]:
+async def _execute_local(
+    command: Sequence[str], encoding: str | None = "utf-8"
+) -> tuple[int, str | bytes, str | bytes]:
     """
     Execute a command locally using subprocess.
 
@@ -420,7 +432,8 @@ async def _execute_local(command: Sequence[str]) -> tuple[int, str, str]:
         command: Command and arguments to execute
 
     Returns:
-        Tuple of (return_code, stdout, stderr)
+        Tuple of (return_code, stdout, stderr) where stdout and stderr are strings
+        if encoding is not None, otherwise bytes.
     """
     cmd_str = " ".join(command)
     start_time = time.time()
@@ -435,8 +448,8 @@ async def _execute_local(command: Sequence[str]) -> tuple[int, str, str]:
         stdout_bytes, stderr_bytes = await proc.communicate()
 
         return_code = proc.returncode if proc.returncode is not None else 0
-        stdout = stdout_bytes.decode("utf-8", errors="replace")
-        stderr = stderr_bytes.decode("utf-8", errors="replace")
+        stdout = stdout_bytes if encoding is None else stdout_bytes.decode(encoding, errors="replace")
+        stderr = stderr_bytes if encoding is None else stderr_bytes.decode(encoding, errors="replace")
 
         duration = time.time() - start_time
 
