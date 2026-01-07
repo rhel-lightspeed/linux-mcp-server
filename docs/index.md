@@ -11,9 +11,10 @@ A Model Context Protocol (MCP) server for read-only Linux system administration,
 Python 3.10 or later and `pip` are required.
 
 1. Install using `pip`. This will install to `~/.local/` on Linux and macOS and `%APPDATA%\Python` on Windows.
-```bash
-pip install --user linux-mcp-server
-```
+
+    ```bash
+    pip install --user linux-mcp-server
+    ```
 
 1. Make sure [SSH connectivity is properly configured](install.md#ssh-configuration) between the system running the Linux MCP Server and the remote hosts you want to inspect.
 
