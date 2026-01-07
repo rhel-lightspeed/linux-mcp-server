@@ -15,6 +15,9 @@ on:
       - 'src/linux_mcp_server/**'
       - 'scripts/verify_installation.sh'
 
+permissions:
+  contents: read
+
 env:
   PIP_DISABLE_PIP_VERSION_CHECK: 1
   FORCE_COLOR: 1
