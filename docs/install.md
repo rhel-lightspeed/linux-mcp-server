@@ -19,7 +19,9 @@ The Linux MCP Server can be installed using `pip`, `uv`, or run in a container. 
 
 ### Prerequisites
 
-- Python 3.10 or later - See [Platform Specific Notes](#platform-specific-notes) for installation instructions
+Python 3.10 or later.
+
+See [Platform Specific Notes](#platform-specific-notes) for installation instructions
 
 ### Install with pip (Recommended)
 
@@ -227,19 +229,7 @@ sudo pacman -S python python-pip
 
 #### Installing Python
 
-=== "Homebrew (Recommended)"
-
-    [Homebrew](https://brew.sh/) is the most popular package manager for macOS:
-
-    ```bash
-    # Install Homebrew if you don't have it
-    /bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"
-
-    # Install Python
-    brew install python
-    ```
-
-=== "Official Installer"
+=== "Official Python Installer (Recommended)"
 
     Download from [python.org/downloads/macos](https://www.python.org/downloads/macos/) and run the installer.
 
@@ -255,11 +245,6 @@ sudo pacman -S python python-pip
     pyenv global 3.12
     ```
 
-**Verify installation:**
-
-```bash
-python3 --version
-```
 
 #### Installing linux-mcp-server
 
@@ -269,19 +254,19 @@ python3 --version
     pip3 install --user linux-mcp-server
     ```
 
-=== "uv (Recommended)"
+=== "uv"
+
+    Install [uv](https://docs.astral.sh/uv/#installation).
+
+    Install `linux-mcp-server`.
 
     ```bash
-    # Install uv via Homebrew
-    brew install uv
-
-    # Install linux-mcp-server
     uv tool install linux-mcp-server
     ```
 
 ??? failure "Command not found after installation?"
 
-    On macOS (which uses zsh by default since Catalina), add the install location to your PATH:
+    On macOS (which uses `zsh` by default), add the install location to your `PATH`:
 
     ```bash
     echo 'export PATH="$HOME/.local/bin:$PATH"' >> ~/.zshrc
