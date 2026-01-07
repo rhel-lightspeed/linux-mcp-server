@@ -33,7 +33,7 @@ Edit `~/.claude.json`:
     {
       "mcpServers": {
         "linux-mcp-server": {
-          "command": "~/.local/bin/linux-mcp-server",
+          "command": "/home/YOUR_USER/.local/bin/linux-mcp-server",
           "args": [],
           "env": {
             "LINUX_MCP_USER": "your-ssh-username"
@@ -56,6 +56,7 @@ Edit `~/.claude.json`:
             "-e", "LINUX_MCP_KEY_PASSPHRASE",
             "-e", "LINUX_MCP_USER",
             "-v", "/home/YOUR_USER/.ssh/id_ed25519:/var/lib/mcp/.ssh/id_ed25519:ro,Z",
+            "-v", "/home/YOUR_USER/.ssh/config:/var/lib/mcp/.ssh/config:ro,Z",
             "-v", "/home/YOUR_USER/.local/share/linux-mcp-server/logs:/var/lib/mcp/.local/share/linux-mcp-server/logs:rw,Z",
             "quay.io/redhat-services-prod/rhel-lightspeed-tenant/linux-mcp-server:latest"
           ],
@@ -93,10 +94,10 @@ The value for `command` will vary depending on how `linux-mcp-server` was instal
     {
       "mcpServers": {
         "linux-diagnostics": {
-          "command": "~/.local/bin/linux-mcp-server",
+          "command": "/home/YOUR_USER/.local/bin/linux-mcp-server",
           "args": [],
           "env": {
-            "LINUX_MCP_ALLOWED_LOG_PATHS": "/var/log/messages,/var/log/secure,/var/log/audit/audit.log"
+            "LINUX_MCP_ALLOWED_LOG_PATHS": "/var/log/messages,/var/log/lastlog"
           }
         }
       }
@@ -109,10 +110,10 @@ The value for `command` will vary depending on how `linux-mcp-server` was instal
     {
       "mcpServers": {
         "linux-diagnostics": {
-          "command": "~/.local/bin/linux-mcp-server",
+          "command": "/home/YOUR_USER/.local/bin/linux-mcp-server",
           "args": [],
           "env": {
-            "LINUX_MCP_ALLOWED_LOG_PATHS": "/var/log/messages,/var/log/secure,/var/log/audit/audit.log"
+            "LINUX_MCP_ALLOWED_LOG_PATHS": "/var/log/messages,/var/log/lastlog"
           }
         }
       }
@@ -134,6 +135,7 @@ The value for `command` will vary depending on how `linux-mcp-server` was instal
             "-e", "LINUX_MCP_KEY_PASSPHRASE",
             "-e", "LINUX_MCP_USER",
             "-v", "/home/YOUR_USER/.ssh/id_ed25519:/var/lib/mcp/.ssh/id_ed25519:ro,Z",
+            "-v", "/home/YOUR_USER/.ssh/config:/var/lib/mcp/.ssh/config:ro,Z",
             "-v", "/home/YOUR_USER/.local/share/linux-mcp-server/logs:/var/lib/mcp/.local/share/linux-mcp-server/logs:rw,Z",
             "quay.io/redhat-services-prod/rhel-lightspeed-tenant/linux-mcp-server:latest"
           ],
@@ -171,7 +173,7 @@ Edit `~/.codex/config.toml`:
 
     ```toml
     [mcp_servers.linux-mcp-server]
-    command = "~/.local/bin/linux-mcp-server"
+    command = "/home/YOUR_USER/.local/bin/linux-mcp-server"
     args = []
 
     [mcp_servers.linux-mcp-server.env]
@@ -189,6 +191,7 @@ Edit `~/.codex/config.toml`:
       "-e", "LINUX_MCP_KEY_PASSPHRASE",
       "-e", "LINUX_MCP_USER",
       "-v", "/home/YOUR_USER/.ssh/id_ed25519:/var/lib/mcp/.ssh/id_ed25519:ro,Z",
+      "-v", "/home/YOUR_USER/.ssh/config:/var/lib/mcp/.ssh/config:ro,Z",
       "-v", "/home/YOUR_USER/.local/share/linux-mcp-server/logs:/var/lib/mcp/.local/share/linux-mcp-server/logs:rw,Z",
       "quay.io/redhat-services-prod/rhel-lightspeed-tenant/linux-mcp-server:latest"
     ]
@@ -217,7 +220,7 @@ Edit `~/.cursor/mcp.json`:
     {
       "mcpServers": {
         "linux-mcp-server": {
-          "command": "~/.local/bin/linux-mcp-server",
+          "command": "/home/YOUR_USER/.local/bin/linux-mcp-server",
           "args": [],
           "env": {
             "LINUX_MCP_USER": "your-ssh-username"
@@ -240,6 +243,7 @@ Edit `~/.cursor/mcp.json`:
             "-e", "LINUX_MCP_KEY_PASSPHRASE",
             "-e", "LINUX_MCP_USER",
             "-v", "/home/YOUR_USER/.ssh/id_ed25519:/var/lib/mcp/.ssh/id_ed25519:ro,Z",
+            "-v", "/home/YOUR_USER/.ssh/config:/var/lib/mcp/.ssh/config:ro,Z",
             "-v", "/home/YOUR_USER/.local/share/linux-mcp-server/logs:/var/lib/mcp/.local/share/linux-mcp-server/logs:rw,Z",
             "quay.io/redhat-services-prod/rhel-lightspeed-tenant/linux-mcp-server:latest"
           ],
@@ -296,6 +300,7 @@ Edit `~/.gemini/settings.json`:
             "-e", "LINUX_MCP_KEY_PASSPHRASE",
             "-e", "LINUX_MCP_USER",
             "-v", "/home/YOUR_USER/.ssh/id_ed25519:/var/lib/mcp/.ssh/id_ed25519:ro,Z",
+            "-v", "/home/YOUR_USER/.ssh/config:/var/lib/mcp/.ssh/config:ro,Z",
             "-v", "/home/YOUR_USER/.local/share/linux-mcp-server/logs:/var/lib/mcp/.local/share/linux-mcp-server/logs:rw,Z",
             "quay.io/redhat-services-prod/rhel-lightspeed-tenant/linux-mcp-server:latest"
           ],
@@ -334,7 +339,7 @@ The Goose desktop app provides a wizard for adding extensions:
     | **ID** | `linux-tools` |
     | **Name** | `linux-tools` |
     | **Description** | `Linux system diagnostics` |
-    | **Command** | `~/.local/bin/linux-mcp-server` |
+    | **Command** | `/home/YOUR_USER/.local/bin/linux-mcp-server` |
     | **Arguments** | *(leave empty)* |
     | **Environment Variables** | `LINUX_MCP_USER=your-ssh-username` |
 
@@ -356,7 +361,7 @@ If you prefer editing config files directly, add to `~/.config/goose/config.yaml
         type: stdio
         name: linux-tools
         description: Linux tools
-        cmd: ~/.local/bin/linux-mcp-server
+        cmd: /home/YOUR_USER/.local/bin/linux-mcp-server
         envs: {}
         env_keys:
           - LINUX_MCP_KEY_PASSPHRASE
@@ -390,6 +395,8 @@ If you prefer editing config files directly, add to `~/.config/goose/config.yaml
           - -v
           - /home/YOUR_USER/.ssh/id_ed25519:/var/lib/mcp/.ssh/id_ed25519:ro
           - -v
+          - /home/YOUR_USER/.ssh/config:/var/lib/mcp/.ssh/config:ro,Z
+          - -v
           - /home/YOUR_USER/.local/share/linux-mcp-server/logs:/var/lib/mcp/.local/share/linux-mcp-server/logs:rw
           - quay.io/redhat-services-prod/rhel-lightspeed-tenant/linux-mcp-server:latest
         envs: {}
@@ -422,7 +429,7 @@ Edit `~/.config/opencode/opencode.json`:
       "mcp": {
         "linux-mcp-server": {
           "type": "local",
-          "command": ["~/.local/bin/linux-mcp-server"],
+          "command": ["/home/YOUR_USER/.local/bin/linux-mcp-server"],
           "enabled": true,
           "env": {
             "LINUX_MCP_USER": "your-ssh-username"
@@ -446,6 +453,7 @@ Edit `~/.config/opencode/opencode.json`:
             "-e", "LINUX_MCP_KEY_PASSPHRASE",
             "-e", "LINUX_MCP_USER",
             "-v", "/home/YOUR_USER/.ssh/id_ed25519:/var/lib/mcp/.ssh/id_ed25519:ro,Z",
+            "-v", "/home/YOUR_USER/.ssh/config:/var/lib/mcp/.ssh/config:ro,Z",
             "-v", "/home/YOUR_USER/.local/share/linux-mcp-server/logs:/var/lib/mcp/.local/share/linux-mcp-server/logs:rw,Z",
             "quay.io/redhat-services-prod/rhel-lightspeed-tenant/linux-mcp-server:latest"
           ],
@@ -479,7 +487,7 @@ Add to your VS Code `settings.json`:
       "mcp": {
         "servers": {
           "linux-mcp-server": {
-            "command": "~/.local/bin/linux-mcp-server",
+            "command": "/home/YOUR_USER/.local/bin/linux-mcp-server",
             "args": [],
             "env": {
               "LINUX_MCP_USER": "your-ssh-username"
@@ -504,6 +512,7 @@ Add to your VS Code `settings.json`:
               "-e", "LINUX_MCP_KEY_PASSPHRASE",
               "-e", "LINUX_MCP_USER",
               "-v", "/home/YOUR_USER/.ssh/id_ed25519:/var/lib/mcp/.ssh/id_ed25519:ro,Z",
+              "-v", "/home/YOUR_USER/.ssh/config:/var/lib/mcp/.ssh/config:ro,Z",
               "-v", "/home/YOUR_USER/.local/share/linux-mcp-server/logs:/var/lib/mcp/.local/share/linux-mcp-server/logs:rw,Z",
               "quay.io/redhat-services-prod/rhel-lightspeed-tenant/linux-mcp-server:latest"
             ],
@@ -539,7 +548,7 @@ Edit `~/.codeium/windsurf/mcp_config.json`:
     {
       "mcpServers": {
         "linux-mcp-server": {
-          "command": "~/.local/bin/linux-mcp-server",
+          "command": "/home/YOUR_USER/.local/bin/linux-mcp-server",
           "args": [],
           "env": {
             "LINUX_MCP_USER": "your-ssh-username"
@@ -562,6 +571,7 @@ Edit `~/.codeium/windsurf/mcp_config.json`:
             "-e", "LINUX_MCP_KEY_PASSPHRASE",
             "-e", "LINUX_MCP_USER",
             "-v", "/home/YOUR_USER/.ssh/id_ed25519:/var/lib/mcp/.ssh/id_ed25519:ro,Z",
+            "-v", "/home/YOUR_USER/.ssh/config:/var/lib/mcp/.ssh/config:ro,Z",
             "-v", "/home/YOUR_USER/.local/share/linux-mcp-server/logs:/var/lib/mcp/.local/share/linux-mcp-server/logs:rw,Z",
             "quay.io/redhat-services-prod/rhel-lightspeed-tenant/linux-mcp-server:latest"
           ],
@@ -610,7 +620,7 @@ Configure these environment variables in the `env` section of your client config
 
 | Variable | Default | Description |
 |----------|---------|-------------|
-| `LINUX_MCP_LOG_DIR` | `~/.local/share/linux-mcp-server/logs` | Server log directory |
+| `LINUX_MCP_LOG_DIR` | `/home/YOUR_USER/.local/share/linux-mcp-server/logs` | Server log directory |
 | `LINUX_MCP_LOG_LEVEL` | `INFO` | Log verbosity (`DEBUG`, `INFO`, `WARNING`) |
 | `LINUX_MCP_LOG_RETENTION_DAYS` | `10` | Days to keep log files |
 

@@ -73,6 +73,7 @@ nav:
       - Usage: usage.md
       - Troubleshooting: troubleshooting.md
   - Reference:
+      - Cheatsheet: cheatsheet.md
       - Architecture: architecture.md
       - Debug Logging: debugging.md
   - API Reference:
