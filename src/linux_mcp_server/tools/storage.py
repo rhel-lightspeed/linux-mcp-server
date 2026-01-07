@@ -20,6 +20,7 @@ from linux_mcp_server.server import mcp
 from linux_mcp_server.utils import StrEnum
 from linux_mcp_server.utils.decorators import disallow_local_execution_in_containers
 from linux_mcp_server.utils.types import Host
+from linux_mcp_server.utils.validation import is_successful_output
 
 
 class OrderBy(StrEnum):
@@ -77,7 +78,7 @@ async def list_block_devices(
         cmd = get_command("list_block_devices")
         returncode, stdout, _ = await cmd.run(host=host)
 
-        if returncode == 0 and stdout:
+        if is_successful_output(returncode, stdout):
             return format_block_devices(stdout)
 
         # Fallback message if lsblk fails

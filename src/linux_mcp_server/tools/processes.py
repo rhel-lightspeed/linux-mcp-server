@@ -14,6 +14,7 @@ from linux_mcp_server.parsers import parse_ps_output
 from linux_mcp_server.server import mcp
 from linux_mcp_server.utils.decorators import disallow_local_execution_in_containers
 from linux_mcp_server.utils.types import Host
+from linux_mcp_server.utils.validation import is_successful_output
 
 
 @mcp.tool(
@@ -35,11 +36,10 @@ async def list_processes(
         cmd = get_command("list_processes")
         returncode, stdout, _ = await cmd.run(host=host)
 
-        if returncode == 0 and stdout:
+        if is_successful_output(returncode, stdout):
             processes = parse_ps_output(stdout)
             return format_process_list(processes)
-        else:
-            return "Error executing ps command"
+        return "Error executing ps command"
     except Exception as e:
         return f"Error listing processes: {str(e)}"
 
@@ -77,7 +77,7 @@ async def get_process_info(
         status_cmd = get_command("process_info", "proc_status")
         status_code, status_stdout, _ = await status_cmd.run(host=host, pid=pid)
 
-        if status_code == 0 and status_stdout:
+        if is_successful_output(status_code, status_stdout):
             proc_status = parse_proc_status(status_stdout)
 
         return format_process_detail(stdout, proc_status, pid)
