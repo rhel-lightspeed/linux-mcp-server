@@ -6,28 +6,74 @@
 
 A Model Context Protocol (MCP) server for read-only Linux system administration, diagnostics, and troubleshooting on Linux systems.
 
-## 🚀 New to MCP?
-
-**[Start Here: Getting Started Guide](getting-started.md)**  
-Learn what MCP is, how to set it up, and run your first command in 5 minutes.
-
-## ⚡ Quick Reference
-
-**[Cheatsheet](cheatsheet.md)**  
-A fast lookup guide for common tasks and tools.
-
 ## Quick Start
 
-1. Install via pip
+Python 3.10 or later and `pip` are required.
+
+1. Install using `pip`. This will install to `~/.local/` on Linux and macOS and `%APPDATA%\Python` on Windows.
 ```bash
 pip install --user linux-mcp-server
 ```
 
-2. [Configure your favorite MCP client](clients.md)
+1. Make sure [SSH connectivity is properly configured](install.md#ssh-configuration) between the system running the Linux MCP Server and the remote hosts you want to inspect.
 
-3. Start diagnosing Linux systems!
+1. [Configure your favorite MCP client](clients.md)
 
-See the [Installation Guide](install.md) for container installs, SSH setup, and more.
+    On macOS, the path will be `/Users/YOUR_USER/.local/bin/linux-mcp-server`.
+
+    On Windows, the path will be `C:\Users\YOUR_USER\AppData\Local\Python\Python3X\Scripts\linux-mcp-server`.
+
+    Here is an example configuration for Claude Desktop. Make sure to replace `YOU_USER` with your actual username.
+
+
+    ```json
+    # Example claude_desktop_config.json
+    {
+      "mcpServers": {
+        "Linux Tools": {
+          "command": "/home/YOU_USER/.local/bin/linux-mcp-server",
+          "env": {
+            "LINUX_MCP_ALLOWED_LOG_PATHS": "/var/log/messages,/var/log/lastlog"
+            # Other options go here
+          }
+        }
+      }
+    }
+
+    ```
+
+    Here is an example configuration for goose. Run `goose configure` and select **Add Extension**.
+
+    ```yaml
+    # Example ~/.configure/goose/config.yaml
+    extensions:
+      linux-mcp-server:
+        enabled: true
+        type: stdio
+        name: linux-mcp-server
+        description: Linux troubleshooting tools
+        cmd: /home/YOUR_USER/.local/bin/linux-mcp-server
+        args: []
+        envs:
+          LINUX_MCP_ALLOWED_LOG_PATHS: /var/log/messages,/var/log/lastlog
+          # Other options go here
+        env_keys: []
+        timeout: 30
+    ```
+
+1. Start diagnosing Linux systems!
+
+For other installation methods, see the [Installation Guide](install.md).
+
+
+## 🚀 New to MCP?
+
+**[Start Here](getting-started.md)**
+Learn what MCP is, how to set it up, and run your first command in 5 minutes.
+
+**[Cheatsheet](cheatsheet.md)**
+A fast lookup guide for common tasks and tools.
+
 
 ## How It Works
 
