@@ -38,11 +38,11 @@ class CommandSpec(BaseModel):
             host: Optional remote host address.
             **kwargs: Additional arguments passed to substitute_command_args.
         """
-        args = list(substitute_command_args(self.args, **kwargs))
+        args = list(_substitute_command_args(self.args, **kwargs))
         if self.optional_flags:
             for param_name, flag_args in self.optional_flags.items():
                 if kwargs.get(param_name):
-                    args.extend(substitute_command_args(flag_args, **kwargs))
+                    args.extend(_substitute_command_args(flag_args, **kwargs))
 
         returncode, stdout, stderr = await execute_with_fallback(tuple(args), fallback=self.fallback, host=host)
         stdout = stdout if isinstance(stdout, str) else stdout.decode("utf-8", errors="replace")
@@ -56,11 +56,11 @@ class CommandSpec(BaseModel):
             host: Optional remote host address.
             **kwargs: Additional arguments passed to substitute_command_args.
         """
-        args = list(substitute_command_args(self.args, **kwargs))
+        args = list(_substitute_command_args(self.args, **kwargs))
         if self.optional_flags:
             for param_name, flag_args in self.optional_flags.items():
                 if kwargs.get(param_name):
-                    args.extend(substitute_command_args(flag_args, **kwargs))
+                    args.extend(_substitute_command_args(flag_args, **kwargs))
 
         returncode, stdout, stderr = await execute_with_fallback(
             tuple(args), fallback=self.fallback, host=host, encoding=None
@@ -310,7 +310,7 @@ def get_command(name: str, subcommand: str = "default") -> CommandSpec:
         raise KeyError(f"Subcommand '{subcommand}' not found for '{name}'. Available: {available}") from e
 
 
-def substitute_command_args(args: Sequence[str], **kwargs: object) -> tuple[str, ...]:
+def _substitute_command_args(args: Sequence[str], **kwargs: object) -> tuple[str, ...]:
     """Substitute placeholder values in command arguments.
 
     Args:

@@ -2,9 +2,9 @@
 
 import pytest
 
+from linux_mcp_server.commands import _substitute_command_args
 from linux_mcp_server.commands import get_command
 from linux_mcp_server.commands import get_command_group
-from linux_mcp_server.commands import substitute_command_args
 
 
 class TestSubstituteCommandArgs:
@@ -47,7 +47,7 @@ class TestSubstituteCommandArgs:
     )
     def test_substitution_success(self, args, kwargs, expected):
         """Test successful placeholder substitution."""
-        assert substitute_command_args(args, **kwargs) == expected
+        assert _substitute_command_args(args, **kwargs) == expected
 
     @pytest.mark.parametrize(
         ("args", "kwargs", "match"),
@@ -69,7 +69,7 @@ class TestSubstituteCommandArgs:
     def test_missing_placeholder_raises(self, args, kwargs, match):
         """Test that missing placeholders raise ValueError."""
         with pytest.raises(ValueError, match=match):
-            substitute_command_args(args, **kwargs)
+            _substitute_command_args(args, **kwargs)
 
 
 class TestGetCommandGroup:
