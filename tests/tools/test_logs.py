@@ -190,7 +190,7 @@ class TestGetAuditLogs:
         "returncode,stderr,expected_error",
         [
             # Permission denied
-            (1, "tail: cannot open '/var/log/audit/audit.log': permission denied", "permission denied"),
+            (1, "tail: cannot open '/var/log/audit/audit.log': Permission denied", "permission denied"),
             # General error
             (1, "tail: error reading file", "error reading audit logs"),
         ],
@@ -362,7 +362,7 @@ class TestReadLogFile:
         "returncode,stderr,expected_error",
         [
             # Permission denied
-            (1, "tail: cannot open: permission denied", "permission denied"),
+            (1, "tail: cannot open: Permission denied", "permission denied"),
             # general error
             (1, "tail: error reading file", "error reading log file"),
         ],

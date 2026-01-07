@@ -3,6 +3,7 @@
 import typing as t
 
 from mcp.types import ToolAnnotations
+from pydantic import Field
 
 from linux_mcp_server.audit import log_tool_call
 from linux_mcp_server.commands import get_command
@@ -14,7 +15,6 @@ from linux_mcp_server.server import mcp
 from linux_mcp_server.utils.decorators import disallow_local_execution_in_containers
 from linux_mcp_server.utils.types import Host
 from linux_mcp_server.utils.validation import is_empty_output
-from linux_mcp_server.utils.validation import validate_line_count
 
 
 @mcp.tool(
@@ -101,7 +101,7 @@ async def get_service_status(
 @disallow_local_execution_in_containers
 async def get_service_logs(
     service_name: t.Annotated[str, "Name of the service"],
-    lines: t.Annotated[int, "Number of log lines to retrieve."] = 50,
+    lines: t.Annotated[int, Field(description="Number of log lines to retrieve.", ge=1, le=10_000)] = 50,
     host: Host = None,
 ) -> str:
     """Get recent logs for a specific systemd service.
@@ -110,9 +110,6 @@ async def get_service_logs(
     timestamps, priority levels, and log messages.
     """
     try:
-        # Validate lines parameter (accepts floats from LLMs)
-        lines, _ = validate_line_count(lines, default=50)
-
         # Ensure service name has .service suffix if not present
         if not service_name.endswith(".service") and "." not in service_name:
             service_name = f"{service_name}.service"

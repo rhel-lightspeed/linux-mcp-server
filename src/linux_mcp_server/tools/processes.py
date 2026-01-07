@@ -14,7 +14,6 @@ from linux_mcp_server.parsers import parse_ps_output
 from linux_mcp_server.server import mcp
 from linux_mcp_server.utils.decorators import disallow_local_execution_in_containers
 from linux_mcp_server.utils.types import Host
-from linux_mcp_server.utils.validation import validate_pid
 
 
 @mcp.tool(
@@ -53,7 +52,7 @@ async def list_processes(
 @log_tool_call
 @disallow_local_execution_in_containers
 async def get_process_info(
-    pid: t.Annotated[int, Field(description="Process ID")],
+    pid: t.Annotated[int, Field(description="Process ID", ge=1)],
     host: Host = None,
 ) -> str:
     """Get detailed information about a specific process.
@@ -62,33 +61,25 @@ async def get_process_info(
     state, virtual/resident memory size, controlling terminal, and additional
     metadata from /proc/<pid>/status when available.
     """
-    # Validate PID (accepts floats from LLMs)
-    validated_pid, error = validate_pid(pid)
-    if error:
-        return error
-
-    if validated_pid is None:
-        return "Invalid PID"
-
     try:
         # Get process details with ps
         ps_cmd = get_command("process_info", "ps_detail")
-        returncode, stdout, _ = await ps_cmd.run(host=host, pid=validated_pid)
+        returncode, stdout, _ = await ps_cmd.run(host=host, pid=pid)
 
         if returncode != 0:
-            return f"Process with PID {validated_pid} does not exist."
+            return f"Process with PID {pid} does not exist."
 
         if not stdout:
-            return f"Process with PID {validated_pid} does not exist."
+            return f"Process with PID {pid} does not exist."
 
         # Try to get more details from /proc
         proc_status = None
         status_cmd = get_command("process_info", "proc_status")
-        status_code, status_stdout, _ = await status_cmd.run(host=host, pid=validated_pid)
+        status_code, status_stdout, _ = await status_cmd.run(host=host, pid=pid)
 
         if status_code == 0 and status_stdout:
             proc_status = parse_proc_status(status_stdout)
 
-        return format_process_detail(stdout, proc_status, validated_pid)
+        return format_process_detail(stdout, proc_status, pid)
     except Exception as e:
         return f"Error getting process information: {str(e)}"
