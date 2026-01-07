@@ -2,27 +2,32 @@ apiVersion: tekton.dev/v1
 kind: Task
 metadata:
   name: verify-container-lifecycle
-  namespace: rhel-lightspeed-tenant
 spec:
-  description: Verifies that the MCP server container starts, has correct user permissions, and responds to JSON-RPC.
+  [cite_start]description: Verifies MCP server startup, permissions, and handshake via sidecar. [cite: 4]
   params:
     - name: image_url
-      description: The URL of the image to verify.
       type: string
+    - name: qa_image_url
+      default: "quay.io/redhat-user-workloads/rhel-lightspeed-tenant/linux-mcp-server-test-suite:latest"
 
-    - name: startup_timeout
-      description: Time to wait for server statup
-      type: string
-      default: "30s"
+  sidecars:
+    - name: server
+      image: $(params.image_url)
+      command: ["/bin/sh", "-c"]
+      args:
+        - |
+          socat TCP-LISTEN:8080,reuseaddr,fork EXEC:linux-mcp-server,stderr 
+
   steps:
     - name: verify-user-and-startup
-      image: $(params.image_url)
-      workingDir: $(workspaces.source.path)
+      image: $(params.qa_image_url)
       script: |
-        ./scripts/verify_container_lifecycle.sh
+        #!/usr/bin/env bash
+        # The QA container probes the sidecar's network port
+        /usr/local/bin/scripts/verify_container_lifecycle.sh
 
     - name: verify-mcp-handshake
-      image: $(params.image_url)
-      workingDir: $(workspaces.source.path)
+      image: $(params.qa_image_url)
       script: |
-        ./scripts/verify_mcp_handshake.sh
+        #!/usr/bin/env bash
+        /usr/local/bin/scripts/verify_mcp_handshake.sh

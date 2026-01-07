@@ -226,6 +226,28 @@ spec:
       taskRef:
         name: get-version
 
+    - name: build-qa-toolbox
+      params:
+        - name: IMAGE
+          # We use the same output-image param but append a suffix
+          value: $(params.output-image)-test-suite
+        - name: DOCKERFILE
+          value: Containerfile.qa
+        - name: CONTEXT
+          value: .
+        - name: SOURCE_ARTIFACT
+          value: $(tasks.clone-repository.results.SOURCE_ARTIFACT)
+      runAfter:
+        - clone-repository
+      taskRef:
+        resolver: bundles
+        params:
+          - name: name
+            value: buildah-remote-oci-ta
+          - name: bundle
+            # Using the same bundle version you use for build-images 
+            value: quay.io/konflux-ci/tekton-catalog/task-buildah-remote-oci-ta:0.7@sha256:ee5e01eb59a3f70bb1012950fbc4081bac96d3f3517e6d204314484cd2e0059b
+
     - name: build-images
       matrix:
         params:

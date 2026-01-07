@@ -7,16 +7,28 @@ spec:
   params:
     - name: image_url
       type: string
-      description: The URL of the image to audit.
+      [cite_start]description: The URL of the image to audit. [cite: 4]
+    - name: qa_image_url
+      default: "quay.io/redhat-user-workloads/rhel-lightspeed-tenant/linux-mcp-server-test-suite:latest"
+
+  sidecars:
+    - name: mcp-server
+      [cite_start]image: $(params.image_url) [cite: 1]
+      command: ["/bin/sh", "-c"]
+      args:
+        - |
+          microdnf install -y socat
+          socat TCP-LISTEN:8080,reuseaddr,fork EXEC:linux-mcp-server,stderr
+
   steps:
     - name: validate-tool-discovery
-      image: $(params.image_url)
-      workingDir: $(workspaces.source.path)
+      image: $(params.qa_image_url)
       script: |
-        ./scripts/mcp_protocol_audit.sh
+        #!/usr/bin/env bash
+        /usrl/local/bin/scripts/mcp_protocol_audit.sh [cite: 4]
 
     - name: verify-stdout-hygiene
-      image: $(params.image_url)
-      workingDir: $(workspaces.source.path)
+      image: $(params.qa_image_url)
       script: |
-        ./scripts/verify_stdout_hygiene.sh
+        #!/usr/bin/env bash
+        /usr/local/bin/scripts/verify_stdout_hygiene.sh [cite: 4]

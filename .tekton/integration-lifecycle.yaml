@@ -13,3 +13,6 @@ spec:
         value: main
       - name: pathInRepo
         value: .tekton/task-verify-container.yaml
+  params:
+    - name: qa_image_url
+      value: "quay.io/redhat-user-workloads/rhel-lightspeed-tenant/linux-mcp-server-test-suite:latest"
