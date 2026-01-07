@@ -11,9 +11,13 @@ Think of this setup as giving your AI assistant a pair of "hands" to interact wi
 - **The Protocol (MCP):** The language they use to talk to each other.
 
 When you ask: *"Why is my system slow?"*
+
 1. The **Client** thinks: *"I should check CPU and memory."*
+
 2. The **Client** asks the **Server**: *"Run `get_cpu_information` and `get_memory_information`."*
+
 3. The **Server** runs those commands and sends the data back.
+
 4. The **Client** reads the data and tells you: *"Your CPU is at 99% usage because of process 'ffmpeg'."*
 
 ---
