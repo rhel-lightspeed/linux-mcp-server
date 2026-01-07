@@ -15,7 +15,7 @@ Get the Linux MCP Server running quickly with your favorite LLM client.
 
 ## Installation Options
 
-The Linux MCP Server can be installed using pip, uv, or containers. Choose the method that best suits your environment.
+The Linux MCP Server can be installed using `pip`, `uv`, or run in a container. Choose the method that best suits your environment.
 
 ### Prerequisites
 
@@ -75,7 +75,7 @@ linux-mcp-server
 !!! note
     It is not necessary to run `linux-mcp-server` directly for normal use. The LLM client will handle starting and stopping the server.
 
-### Install with Container (Podman)
+### Run in a container (Podman)
 
 A container runtime such as [Podman](https://podman-desktop.io) is required.
 
@@ -131,11 +131,11 @@ sudo chown -R 1001:1001 ~/.local/share/linux-mcp-server/
 
 ## SSH Configuration
 
-### Quick Setup
+### Setup
 
-1. Verify passwordless SSH access to the target VM: `ssh user@hostname "echo success"`
-2. Add host aliases to the `~/.ssh/config` file on your Control VM for easier access
-3. Set `LINUX_MCP_USER` environment variable if using a consistent username
+1. Verify passwordless SSH access to the target system: `ssh user@hostname "echo success"`.
+1. Add host aliases to the `~/.ssh/config` file for easier access.
+1. (Optional) Set the `LINUX_MCP_USER` environment variable if the remote user name is the same on all hosts and not using `~/.ssh/config`.
 
 ??? info "SSH Key Prerequisites"
 
@@ -165,16 +165,11 @@ sudo chown -R 1001:1001 ~/.local/share/linux-mcp-server/
 
 ### Specifying Remote Hosts
 
-When using MCP tools, the `host` parameter accepts several formats:
-
-| Format | Example | Description |
-|--------|---------|-------------|
-| SSH alias | `webserver` | Uses settings from `~/.ssh/config` |
-| hostname | `server.example.com` | Uses `LINUX_MCP_USER` for username |
+When using MCP tools, the `host` parameter may be a fully qualified domain name (FQDN), an alias from `~/.ssh/config`, or an IP address.
 
 ### Per-Host Configuration
 
-Use `~/.ssh/config` for per-host connection settings:
+If per-host connection settings are required, use `~/.ssh/config` and **do not** set `LINUX_MCP_USER`.
 
 ```
 # ~/.ssh/config
