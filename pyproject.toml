@@ -38,6 +38,11 @@ classifiers = [
     "Topic :: Utilities",
 ]
 
+[project.optional-dependencies]
+kerberos = [
+	"asyncssh[gssapi]"
+]
+
 [project.url]
 "Source code" = "https://github.com/rhel-lightspeed/linux-mcp-server"
 "Bug Tracker" = "https://github.com/rhel-lightspeed/linux-mcp-server/issues"
