@@ -19,12 +19,11 @@ dependencies = [
 dynamic = ["version"]
 license-files = ["LICENSE", "licenses/GPL-3.0.txt"]
 classifiers = [
-    "Development Status :: 2 - Pre-Alpha",
+    "Development Status :: 5 - Production/Stable",
     "Environment :: Console",
     "Intended Audience :: Developers",
     "Intended Audience :: Information Technology",
     "Intended Audience :: System Administrators",
-    "License :: OSI Approved :: Apache Software License",
     "Natural Language :: English",
     "Operating System :: POSIX :: Linux",
     "Programming Language :: Python :: 3",
@@ -38,7 +37,7 @@ classifiers = [
     "Topic :: Utilities",
 ]
 
-[project.url]
+[project.urls]
 "Source code" = "https://github.com/rhel-lightspeed/linux-mcp-server"
 "Bug Tracker" = "https://github.com/rhel-lightspeed/linux-mcp-server/issues"
 "Documentation" = "https://rhel-lightspeed.github.io/linux-mcp-server/"
