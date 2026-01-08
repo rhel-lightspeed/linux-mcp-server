@@ -15,4 +15,4 @@ from linux_mcp_server.tools import *  # noqa: E402, F403
 
 
 def main():
-    mcp.run()
+    mcp.run(show_banner=False)
