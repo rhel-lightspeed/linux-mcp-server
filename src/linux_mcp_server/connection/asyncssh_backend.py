@@ -220,7 +220,7 @@ class SSHAsyncSSHManager:
             stderr = result.stderr if result.stderr else b"" if encoding is None else ""
             duration = time.time() - start_time
 
-            log_ssh_command(cmd_str, host, exit_code=return_code, duration=duration)
+            log_ssh_command(cmd_str, host, exit_code=return_code, duration=duration, backend="asyncssh")
 
             return return_code, stdout, stderr
 

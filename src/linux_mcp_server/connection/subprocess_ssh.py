@@ -178,7 +178,7 @@ class SSHSubprocessConnection:
                 self._connected = True
                 log_ssh_connect(self._host, username=CONFIG.user, status=Status.success, reused=False)
             duration = time.time() - start_time
-            log_ssh_command(remote_cmd, self._host, exit_code=return_code, duration=duration)
+            log_ssh_command(remote_cmd, self._host, exit_code=return_code, duration=duration, backend="subprocess")
 
             if encoding is None:
                 return return_code, stdout_bytes, stderr_bytes

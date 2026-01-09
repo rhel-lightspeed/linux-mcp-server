@@ -298,6 +298,7 @@ def log_ssh_command(
     host: str,
     exit_code: int,
     duration: float | None = None,
+    backend: str | None = None,
 ):
     """
     Log SSH command execution.
@@ -311,6 +312,7 @@ def log_ssh_command(
         host: Remote host
         exit_code: Command exit code
         duration: Optional execution duration in seconds (shown at DEBUG level)
+        backend: SSH backend used ("subprocess" or "asyncssh")
     """
     logger = logging.getLogger(__name__)
 
@@ -321,6 +323,10 @@ def log_ssh_command(
     }
 
     message = f"{Event.REMOTE_EXEC}: {command} | host={host} | exit_code={exit_code}"
+
+    if backend:
+        extra["backend"] = backend
+        message += f" | backend={backend}"
 
     # At DEBUG level, include duration
     if duration is not None and logger.isEnabledFor(logging.DEBUG):

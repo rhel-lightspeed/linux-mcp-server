@@ -4,6 +4,8 @@ import logging
 
 from fastmcp import FastMCP
 
+from linux_mcp_server.config import CONFIG
+
 
 logger = logging.getLogger("linux-mcp-server")
 
@@ -40,4 +42,5 @@ from linux_mcp_server.tools import *  # noqa: E402, F403
 
 
 def main():
+    logger.info(f"SSH backend: {CONFIG.effective_ssh_backend}")
     mcp.run(show_banner=False)
