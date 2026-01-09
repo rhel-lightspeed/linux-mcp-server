@@ -4,7 +4,7 @@ from unittest.mock import Mock
 
 import pytest
 
-from linux_mcp_server.connection.ssh import SSHConnectionManager
+from linux_mcp_server.connection.asyncssh_backend import SSHConnectionManager
 
 
 @pytest.fixture

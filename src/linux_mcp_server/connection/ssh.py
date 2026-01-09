@@ -4,11 +4,15 @@ This module provides functionality to execute commands on remote systems via SSH
 with connection pooling and SSH key discovery. It seamlessly routes commands to
 either local or remote execution based on the provided parameters.
 
-The module acts as a facade, delegating to the appropriate SSH backend based on
-platform and configuration:
-- subprocess backend (default on Unix): Uses native ssh command for full
-  ~/.ssh/config support including ProxyJump, Kerberos, smartcards, ControlMaster
-- asyncssh backend (default on Windows): Uses asyncssh library
+The module acts as a facade, delegating to the appropriate SSH backend:
+
+Backend selection (automatic):
+- Linux/macOS: subprocess backend (native ssh command)
+- Windows: asyncssh backend (asyncssh library)
+
+Override via environment variable:
+    LINUX_MCP_SSH_BACKEND=asyncssh  # Force asyncssh on any platform
+    LINUX_MCP_SSH_BACKEND=subprocess  # Force subprocess (requires ssh binary)
 """
 
 import asyncio
@@ -24,13 +28,44 @@ from typing import TYPE_CHECKING
 
 from linux_mcp_server.audit import Event
 from linux_mcp_server.config import CONFIG
-from linux_mcp_server.connection.asyncssh_backend import discover_ssh_key
-from linux_mcp_server.connection.asyncssh_backend import get_remote_bin_path
-from linux_mcp_server.connection.asyncssh_backend import SSHConnectionManager
 
 
 if TYPE_CHECKING:
     from linux_mcp_server.connection.base import SSHManagerProtocol  # pragma: no cover
+
+# Lazy imports for backwards compatibility - only loaded when accessed
+_asyncssh_backend_loaded = False
+_SSHConnectionManager = None
+_discover_ssh_key = None
+_get_remote_bin_path = None
+
+
+def _load_asyncssh_backend():
+    """Lazily load asyncssh backend to avoid import errors when asyncssh is not installed."""
+    global _asyncssh_backend_loaded, _SSHConnectionManager, _discover_ssh_key, _get_remote_bin_path
+    if not _asyncssh_backend_loaded:
+        from linux_mcp_server.connection.asyncssh_backend import discover_ssh_key as _dsk
+        from linux_mcp_server.connection.asyncssh_backend import get_remote_bin_path as _grbp
+        from linux_mcp_server.connection.asyncssh_backend import SSHConnectionManager as _SCM
+
+        _discover_ssh_key = _dsk
+        _get_remote_bin_path = _grbp
+        _SSHConnectionManager = _SCM
+        _asyncssh_backend_loaded = True
+
+
+def __getattr__(name: str):
+    """Lazy attribute access for backwards compatibility."""
+    if name == "SSHConnectionManager":
+        _load_asyncssh_backend()
+        return _SSHConnectionManager
+    elif name == "discover_ssh_key":
+        _load_asyncssh_backend()
+        return _discover_ssh_key
+    elif name == "get_remote_bin_path":
+        _load_asyncssh_backend()
+        return _get_remote_bin_path
+    raise AttributeError(f"module {__name__!r} has no attribute {name!r}")
 
 
 logger = logging.getLogger("linux-mcp-server")
@@ -210,7 +245,6 @@ __all__ = [
     "execute_command",
     "execute_with_fallback",
     "get_bin_path",
-    "SSHConnectionManager",
-    "discover_ssh_key",
-    "get_remote_bin_path",
+    # Lazy-loaded for backwards compatibility (requires asyncssh):
+    # "SSHConnectionManager", "discover_ssh_key", "get_remote_bin_path"
 ]

@@ -7,7 +7,7 @@ import pytest
 
 from asyncssh import SSHClientConnection
 
-from linux_mcp_server.connection.ssh import SSHConnectionManager
+from linux_mcp_server.connection.asyncssh_backend import SSHConnectionManager
 
 
 def _make_success_mock():
