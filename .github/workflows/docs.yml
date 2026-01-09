@@ -26,7 +26,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
-        uses: actions/checkout@v6.0.1
+        uses: actions/checkout@v6.0.2
 
       - name: Install Python
         uses: actions/setup-python@v6.1.0
@@ -34,7 +34,7 @@ jobs:
           python-version-file: pyproject.toml
 
       - name: Install uv
-        uses: astral-sh/setup-uv@v7.1.6
+        uses: astral-sh/setup-uv@v7.2.0
         with:
           enable-cache: true
           prune-cache: false
