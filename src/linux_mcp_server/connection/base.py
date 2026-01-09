@@ -63,11 +63,11 @@ class SSHConnectionProtocol(Protocol):
         Returns:
             Tuple of (return_code, stdout, stderr).
         """
-        ...
+        ...  # pragma: no cover
 
     async def close(self) -> None:
         """Close the SSH connection and release resources."""
-        ...
+        ...  # pragma: no cover
 
     def is_connected(self) -> bool:
         """Check if the connection is still active.
@@ -75,7 +75,7 @@ class SSHConnectionProtocol(Protocol):
         Returns:
             True if connection is active, False otherwise.
         """
-        ...
+        ...  # pragma: no cover
 
 
 @runtime_checkable
@@ -90,7 +90,7 @@ class SSHManagerProtocol(Protocol):
         self,
         command: Sequence[str],
         host: str,
-        timeout: int = 30,
+        timeout: int,
         encoding: str | None = "utf-8",
     ) -> tuple[int, str | bytes, str | bytes]:
         """Execute a command on a remote host.
@@ -107,8 +107,8 @@ class SSHManagerProtocol(Protocol):
         Raises:
             ConnectionError: If SSH connection fails or command times out.
         """
-        ...
+        ...  # pragma: no cover
 
     async def close_all(self) -> None:
         """Close all managed SSH connections."""
-        ...
+        ...  # pragma: no cover

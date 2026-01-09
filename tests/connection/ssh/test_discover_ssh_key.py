@@ -30,21 +30,21 @@ def ssh_ed25519(ssh_dir):
 @pytest.fixture
 def config_search(tmp_path, mocker):
     mocker.patch("pathlib.Path.home", return_value=tmp_path)
-    mocker.patch("linux_mcp_server.connection.ssh.CONFIG.ssh_key_path", None)
-    mocker.patch("linux_mcp_server.connection.ssh.CONFIG.search_for_ssh_key", True)
+    mocker.patch("linux_mcp_server.connection.asyncssh_backend.CONFIG.ssh_key_path", None)
+    mocker.patch("linux_mcp_server.connection.asyncssh_backend.CONFIG.search_for_ssh_key", True)
 
 
 @pytest.fixture
 def config_specify_key(ssh_ed25519, mocker):
     mocker.patch("pathlib.Path.home", return_value=ssh_ed25519.parent)
-    mocker.patch("linux_mcp_server.connection.ssh.CONFIG.ssh_key_path", ssh_ed25519)
+    mocker.patch("linux_mcp_server.connection.asyncssh_backend.CONFIG.ssh_key_path", ssh_ed25519)
 
 
 def test_discover_ssh_key_env_var_not_exists(tmp_path, mocker):
     """Test SSH key discovery with non-existent env var path."""
     key_path = tmp_path / "nonexistent_key"
 
-    mocker.patch("linux_mcp_server.connection.ssh.CONFIG.ssh_key_path", key_path)
+    mocker.patch("linux_mcp_server.connection.asyncssh_backend.CONFIG.ssh_key_path", key_path)
 
     result = discover_ssh_key()
 
@@ -66,7 +66,7 @@ def test_discover_ssh_key_no_keys_found(tmp_path, ssh_dir, config_search):
 
 
 def test_discover_ssh_specify_key_path(tmp_path, ssh_ed25519, config_specify_key):
-    """Test SSH key discovery whene the path to the key is specified in config"""
+    """Test SSH key discovery when the path to the key is specified in config."""
     result = discover_ssh_key()
 
     assert result == str(ssh_ed25519)

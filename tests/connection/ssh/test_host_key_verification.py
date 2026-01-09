@@ -62,8 +62,8 @@ async def test_known_hosts_configuration(
     """Test known_hosts is configured correctly based on verify_host_keys and path settings."""
     custom_path = tmp_path / "custom_known_hosts" if use_custom_path else None
 
-    mocker.patch("linux_mcp_server.connection.ssh.CONFIG.verify_host_keys", verify_host_keys)
-    mocker.patch("linux_mcp_server.connection.ssh.CONFIG.known_hosts_path", custom_path)
+    mocker.patch("linux_mcp_server.connection.asyncssh_backend.CONFIG.verify_host_keys", verify_host_keys)
+    mocker.patch("linux_mcp_server.connection.asyncssh_backend.CONFIG.known_hosts_path", custom_path)
     mocker.patch("pathlib.Path.home", return_value=tmp_path)
 
     with caplog.at_level("WARNING"):
