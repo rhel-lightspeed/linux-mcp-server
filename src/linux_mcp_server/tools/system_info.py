@@ -112,7 +112,7 @@ async def get_memory_information(
 
 @mcp.tool(
     title="Get disk usage",
-    description="Get detailed disk space information including size, mount points, and utilization..",
+    description="Get detailed disk space information including size, mount points, and utilization.",
     annotations=ToolAnnotations(readOnlyHint=True),
 )
 @log_tool_call
