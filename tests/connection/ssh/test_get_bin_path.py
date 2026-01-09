@@ -1,8 +1,8 @@
 import asyncssh
 import pytest
 
+from linux_mcp_server.connection.asyncssh_backend import get_remote_bin_path
 from linux_mcp_server.connection.ssh import get_bin_path
-from linux_mcp_server.connection.ssh import get_remote_bin_path
 
 
 def test_get_bin_path_not_found(mocker):

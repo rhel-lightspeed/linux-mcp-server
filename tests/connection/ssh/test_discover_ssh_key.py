@@ -1,6 +1,6 @@
 import pytest
 
-from linux_mcp_server.connection.ssh import discover_ssh_key
+from linux_mcp_server.connection.asyncssh_backend import discover_ssh_key
 
 
 @pytest.fixture

@@ -1,13 +1,11 @@
 """Tests for the subprocess SSH backend."""
 
 import asyncio
-import hashlib
 import tempfile
 
 from pathlib import Path
 from unittest.mock import AsyncMock
 from unittest.mock import Mock
-from unittest.mock import patch
 
 import pytest
 
