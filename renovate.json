@@ -1,4 +1,26 @@
 {
   "$schema": "https://docs.renovatebot.com/renovate-schema.json",
-  "enabled": false
+  "extends": ["config:recommended", "helpers:pinGitHubActionDigests"],
+  "labels": ["dependencies"],
+  "minimumReleaseAge": "7 days",
+  "vulnerabilityAlerts": {
+    "labels": ["security"],
+    "minimumReleaseAge": "0 days"
+  },
+  "packageRules": [
+    {
+      "matchManagers": ["pep621", "pip_requirements", "pip-compile", "poetry", "pipenv"],
+      "rangeStrategy": "pin"
+    },
+    {
+      "matchDepNames": ["python"],
+      "enabled": false
+    },
+    {
+      "matchManagers": ["github-actions"],
+      "matchUpdateTypes": ["digest"],
+      "automerge": true,
+      "automergeType": "pr"
+    }
+  ]
 }
