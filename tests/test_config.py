@@ -2,6 +2,8 @@
 
 from pathlib import Path
 
+import pytest
+
 from pydantic import SecretStr
 
 from linux_mcp_server.config import Config
@@ -195,6 +197,33 @@ class TestEffectiveKnownHostsPath:
         config = Config(user="testuser")
 
         assert config.effective_known_hosts_path == Path("/home/testuser/.ssh/known_hosts")
+
+
+class TestEffectiveSSHBackend:
+    """Test cases for the effective_ssh_backend property."""
+
+    @pytest.mark.parametrize("backend", ["subprocess", "asyncssh"])
+    def test_returns_explicit_backend_when_set(self, backend):
+        """Test that explicit backend is returned when configured."""
+        config = Config(ssh_backend=backend)
+
+        assert config.effective_ssh_backend == backend
+
+    @pytest.mark.parametrize(
+        ("platform", "expected_backend"),
+        [
+            pytest.param("win32", "asyncssh", id="windows_uses_asyncssh"),
+            pytest.param("linux", "subprocess", id="linux_uses_subprocess"),
+            pytest.param("darwin", "subprocess", id="macos_uses_subprocess"),
+        ],
+    )
+    def test_auto_selects_backend_by_platform(self, mocker, platform, expected_backend):
+        """Test that appropriate backend is auto-selected based on platform."""
+        mocker.patch("linux_mcp_server.config.sys.platform", platform)
+
+        config = Config(ssh_backend=None)
+
+        assert config.effective_ssh_backend == expected_backend
 
 
 class TestConfigEdgeCases:

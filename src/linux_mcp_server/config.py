@@ -1,6 +1,9 @@
 """Settings for linux-mcp-server"""
 
+import sys
+
 from pathlib import Path
+from typing import Literal
 
 from pydantic import SecretStr
 from pydantic_settings import BaseSettings
@@ -35,6 +38,24 @@ class Config(BaseSettings):
 
     # Command execution timeout (applies to remote SSH commands)
     command_timeout: int = 30  # Timeout in seconds; prevents hung SSH operations
+
+    # SSH connection timeout (separate from command execution timeout)
+    ssh_connect_timeout: int = 10  # Timeout for establishing SSH connection
+
+    # SSH backend selection (auto-detected by default)
+    ssh_backend: Literal["subprocess", "asyncssh"] | None = None
+    ssh_control_persist: int = 300  # ControlMaster persist time in seconds (subprocess backend)
+
+    @property
+    def effective_ssh_backend(self) -> Literal["subprocess", "asyncssh"]:
+        """Determine SSH backend based on explicit config or platform."""
+        if self.ssh_backend:
+            return self.ssh_backend
+        # Windows requires asyncssh (no ControlMaster support)
+        if sys.platform == "win32":
+            return "asyncssh"
+        # Unix-likes use subprocess for full SSH config inheritance
+        return "subprocess"
 
     @property
     def effective_known_hosts_path(self) -> Path:
