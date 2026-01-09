@@ -25,7 +25,7 @@ For detailed instructions on setting up and using the Linux MCP Server, please r
 
 - **[Installation Guide]**: Detailed steps for `pip`, `uv`, and container-based deployments.
 - **[Usage Guide]**: Information on running the server, configuring LLM clients, and troubleshooting.
-- **[Cheatsheet]**: A reference for what propmts to use to invoke variaous tools.
+- **[Cheatsheet]**: A reference for what prompts to use to invoke various tools.
 
 
 [Installation Guide]: https://rhel-lightspeed.github.io/linux-mcp-server/install/
