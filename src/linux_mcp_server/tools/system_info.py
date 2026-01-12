@@ -6,7 +6,6 @@ from mcp.types import ToolAnnotations
 from linux_mcp_server.audit import log_tool_call
 from linux_mcp_server.commands import get_command
 from linux_mcp_server.commands import get_command_group
-from linux_mcp_server.formatters import format_hardware_info
 from linux_mcp_server.parsers import parse_cpu_info
 from linux_mcp_server.parsers import parse_df_output
 from linux_mcp_server.parsers import parse_free_output
@@ -122,14 +121,12 @@ async def get_disk_usage(
     """
     cmd = get_command("disk_usage")
 
-        returncode, stdout, _ = await cmd.run(host=host)
+    returncode, stdout, _ = await cmd.run(host=host)
 
-        if is_successful_output(returncode, stdout):
-            return format_disk_usage(stdout)
+    if not is_successful_output(returncode, stdout):
+        raise ToolError("Unable to retrieve disk usage information")
 
-        return "Error: Unable to retrieve disk usage information"
-    except Exception as e:
-        return f"Error gathering disk usage information: {str(e)}"
+    return parse_df_output(stdout)
 
 
 @mcp.tool(
@@ -142,7 +139,7 @@ async def get_disk_usage(
 @disallow_local_execution_in_containers
 async def get_hardware_information(
     host: Host = None,
-) -> str:
+) -> dict[str, str | list[str]]:
     """Get hardware information.
 
     Retrieves detailed hardware inventory including CPU specifications,
@@ -150,15 +147,15 @@ async def get_hardware_information(
     model, BIOS version, etc.). Some information may require root privileges.
     """
     group = get_command_group("hardware_info")
-    results = {}
+    results: dict[str, str | list[str]] = {}
 
     # Execute all commands in the group
     for name, cmd in group.commands.items():
         try:
             returncode, stdout, stderr = await cmd.run(host=host)
             if returncode == 0:
-                results[name] = stdout
+                results[name] = stdout if name == "lscpu" else stdout.splitlines()
         except FileNotFoundError:
             results[name] = f"{name} command not available"
 
-    return format_hardware_info(results)
+    return results
