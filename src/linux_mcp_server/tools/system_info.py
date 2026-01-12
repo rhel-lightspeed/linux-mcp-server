@@ -8,7 +8,6 @@ from linux_mcp_server.commands import get_command
 from linux_mcp_server.commands import get_command_group
 from linux_mcp_server.formatters import format_disk_usage
 from linux_mcp_server.formatters import format_hardware_info
-from linux_mcp_server.formatters import format_memory_info
 from linux_mcp_server.parsers import parse_cpu_info
 from linux_mcp_server.parsers import parse_free_output
 from linux_mcp_server.parsers import parse_system_info
@@ -17,6 +16,7 @@ from linux_mcp_server.utils.decorators import disallow_local_execution_in_contai
 from linux_mcp_server.utils.types import CpuInfo
 from linux_mcp_server.utils.types import Host
 from linux_mcp_server.utils.types import SystemInfo
+from linux_mcp_server.utils.types import SystemMemory
 from linux_mcp_server.utils.validation import is_successful_output
 
 
@@ -89,7 +89,7 @@ async def get_cpu_information(
 @disallow_local_execution_in_containers
 async def get_memory_information(
     host: Host = None,
-) -> str:
+) -> SystemMemory:
     """Get memory information.
 
     Retrieves physical RAM and swap usage including total, used, free,
@@ -98,15 +98,14 @@ async def get_memory_information(
     try:
         # Execute free command
         free_cmd = get_command("memory_info", "free")
-        returncode, stdout, _ = await free_cmd.run(host=host)
+        returncode, stdout, stderr = await free_cmd.run(host=host)
 
         if is_successful_output(returncode, stdout):
-            memory = parse_free_output(stdout)
-            return format_memory_info(memory)
-
-        return "Error: Unable to retrieve memory information"
+            return parse_free_output(stdout)
+        else:
+            raise ToolError(f"An error occurred while retrieving memory information: {stderr}")
     except Exception as e:
-        return f"Error gathering memory information: {str(e)}"
+        raise ToolError(f"Error gathering memory information: {str(e)}") from e
 
 
 @mcp.tool(
