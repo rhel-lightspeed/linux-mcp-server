@@ -6,14 +6,15 @@ from mcp.types import ToolAnnotations
 from linux_mcp_server.audit import log_tool_call
 from linux_mcp_server.commands import get_command
 from linux_mcp_server.commands import get_command_group
-from linux_mcp_server.formatters import format_disk_usage
 from linux_mcp_server.formatters import format_hardware_info
 from linux_mcp_server.parsers import parse_cpu_info
+from linux_mcp_server.parsers import parse_df_output
 from linux_mcp_server.parsers import parse_free_output
 from linux_mcp_server.parsers import parse_system_info
 from linux_mcp_server.server import mcp
 from linux_mcp_server.utils.decorators import disallow_local_execution_in_containers
 from linux_mcp_server.utils.types import CpuInfo
+from linux_mcp_server.utils.types import DiskUsage
 from linux_mcp_server.utils.types import Host
 from linux_mcp_server.utils.types import SystemInfo
 from linux_mcp_server.utils.types import SystemMemory
@@ -113,7 +114,7 @@ async def get_memory_information(
 @disallow_local_execution_in_containers
 async def get_disk_usage(
     host: Host = None,
-) -> str:
+) -> list[DiskUsage]:
     """Get disk usage information.
 
     Retrieves filesystem usage for all mounted volumes including size,
@@ -121,12 +122,14 @@ async def get_disk_usage(
     """
     cmd = get_command("disk_usage")
 
-    returncode, stdout, _ = await cmd.run(host=host)
+        returncode, stdout, _ = await cmd.run(host=host)
 
-    if not is_successful_output(returncode, stdout):
-        raise ToolError("Unable to retrieve disk usage information")
+        if is_successful_output(returncode, stdout):
+            return format_disk_usage(stdout)
 
-    return format_disk_usage(stdout)
+        return "Error: Unable to retrieve disk usage information"
+    except Exception as e:
+        return f"Error gathering disk usage information: {str(e)}"
 
 
 @mcp.tool(
