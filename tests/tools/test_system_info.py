@@ -103,10 +103,133 @@ async def test_system_info_tools_unsuccessful(
     mock_execute.return_value = return_value
     mock_execute.side_effect = side_effect
 
-    result_text = None
-    with expected:
-        result = await mcp_client.call_tool(tool)
-        result_text = result.content[0].text.casefold()
+    # These tools now raise ToolError when output is unsuccessful
+    # The MCP client's raise_on_error=True (default) causes it to raise an exception
+    with pytest.raises(Exception) as exc_info:
+        await mcp_client.call_tool(tool)
 
-    if result_text:
-        assert eval(assertion)
+    # Verify the error message contains expected text
+    assert "error" in str(exc_info.value).casefold()
+
+
+@pytest.mark.parametrize(
+    "tool",
+    (
+        "get_system_information",
+        "get_cpu_information",
+    ),
+)
+async def test_system_info_tools_unsuccessful_empty(tool, mcp_client, mock_execute):
+    mock_execute.return_value = (0, "", "")
+
+    result = await mcp_client.call_tool(tool)
+
+    # These tools now return structured output (JSON), so check for structured content
+    # When commands return empty output, the parsers return objects with default/empty values
+    assert result.structured_content is not None
+
+
+async def test_get_hardware_information_success(mcp_client, mock_execute):
+    """Test get_hardware_information with successful command execution."""
+    # Mock successful command outputs
+    lscpu_output = """Architecture:        x86_64
+CPU op-mode(s):      32-bit, 64-bit
+Model name:          Intel(R) Core(TM) i7-8565U CPU @ 1.80GHz"""
+
+    lspci_output = """00:00.0 Host bridge: Intel Corporation
+00:02.0 VGA compatible controller: Intel Corporation
+00:14.0 USB controller: Intel Corporation"""
+
+    lsusb_output = """Bus 001 Device 001: ID 1d6b:0002 Linux Foundation 2.0 root hub
+Bus 002 Device 001: ID 1d6b:0003 Linux Foundation 3.0 root hub"""
+
+    # Mock execute to return different output based on command
+    def mock_execute_side_effect(*args, **_kwargs):
+        cmd = args[0]
+        if cmd[0] == "lscpu":
+            return (0, lscpu_output, "")
+        elif cmd[0] == "lspci":
+            return (0, lspci_output, "")
+        elif cmd[0] == "lsusb":
+            return (0, lsusb_output, "")
+        return (1, "", "Unknown command")
+
+    mock_execute.side_effect = mock_execute_side_effect
+
+    result = await mcp_client.call_tool("get_hardware_information")
+
+    # Verify structured content exists
+    assert result.structured_content is not None
+    content = result.structured_content
+
+    # Check that all expected keys are present (lscpu, lspci, lsusb)
+    assert "lscpu" in content
+    assert "lspci" in content
+    assert "lsusb" in content
+
+    # lscpu should be a string
+    assert isinstance(content["lscpu"], str)
+    assert "Intel(R) Core(TM) i7-8565U" in content["lscpu"]
+
+    # lspci and lsusb should be lists
+    assert isinstance(content["lspci"], list)
+    assert isinstance(content["lsusb"], list)
+
+    # Check list contents
+    assert any("Host bridge" in line for line in content["lspci"])
+    assert any("Linux Foundation" in line for line in content["lsusb"])
+
+
+async def test_get_hardware_information_command_not_found(mcp_client, mock_execute):
+    """Test get_hardware_information when a command is not available."""
+    lscpu_output = "Architecture:        x86_64"
+
+    # Mock execute to simulate FileNotFoundError for some commands
+    def mock_execute_side_effect(*args, **_kwargs):
+        cmd = args[0]
+        if cmd[0] == "lscpu":
+            return (0, lscpu_output, "")
+        elif cmd[0] == "lspci":
+            raise FileNotFoundError("lspci not found")
+        elif cmd[0] == "lsusb":
+            raise FileNotFoundError("lsusb not found")
+        return (1, "", "Unknown command")
+
+    mock_execute.side_effect = mock_execute_side_effect
+
+    result = await mcp_client.call_tool("get_hardware_information")
+
+    assert result.structured_content is not None
+    content = result.structured_content
+
+    # lscpu should have output
+    assert "Architecture" in content["lscpu"]
+
+    # lspci and lsusb should have "command not available" messages
+    assert "lspci command not available" in content["lspci"]
+    assert "lsusb command not available" in content["lsusb"]
+
+
+async def test_get_hardware_information_command_failure(mcp_client, mock_execute):
+    """Test get_hardware_information when a command fails."""
+    mock_execute.return_value = (1, "", "Permission denied")
+
+    # The tool raises ToolError when a command fails
+    with pytest.raises(Exception) as exc_info:
+        await mcp_client.call_tool("get_hardware_information")
+
+    assert "error" in str(exc_info.value).casefold()
+
+
+async def test_get_hardware_information_remote_execution(mcp_client, mock_execute):
+    """Test get_hardware_information with remote host parameter."""
+    mock_execute.return_value = (0, "Remote hardware output", "")
+
+    result = await mcp_client.call_tool("get_hardware_information", {"host": "remote.host.com"})
+
+    assert result.structured_content is not None
+
+    # Verify execute was called with host parameter
+    mock_execute.assert_called()
+    call_kwargs = mock_execute.call_args[1]
+    assert call_kwargs["host"] == "remote.host.com"

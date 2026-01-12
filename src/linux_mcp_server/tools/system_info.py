@@ -10,13 +10,13 @@ from linux_mcp_server.formatters import format_cpu_info
 from linux_mcp_server.formatters import format_disk_usage
 from linux_mcp_server.formatters import format_hardware_info
 from linux_mcp_server.formatters import format_memory_info
-from linux_mcp_server.formatters import format_system_info
 from linux_mcp_server.parsers import parse_cpu_info
 from linux_mcp_server.parsers import parse_free_output
 from linux_mcp_server.parsers import parse_system_info
 from linux_mcp_server.server import mcp
 from linux_mcp_server.utils.decorators import disallow_local_execution_in_containers
 from linux_mcp_server.utils.types import Host
+from linux_mcp_server.utils.types import SystemInfo
 from linux_mcp_server.utils.validation import is_successful_output
 
 
@@ -30,7 +30,7 @@ from linux_mcp_server.utils.validation import is_successful_output
 @disallow_local_execution_in_containers
 async def get_system_information(
     host: Host = None,
-) -> str:
+) -> SystemInfo:
     """Get basic system information.
 
     Retrieves hostname, OS name/version, kernel version, architecture,
@@ -46,7 +46,7 @@ async def get_system_information(
             results[name] = stdout
 
     info = parse_system_info(results)
-    return format_system_info(info)
+    return info
 
 
 @mcp.tool(
