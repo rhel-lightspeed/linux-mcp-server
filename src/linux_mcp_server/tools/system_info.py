@@ -8,7 +8,6 @@ from linux_mcp_server.commands import get_command
 from linux_mcp_server.commands import get_command_group
 from linux_mcp_server.formatters import format_disk_usage
 from linux_mcp_server.formatters import format_hardware_info
-from linux_mcp_server.formatters import format_memory_info
 from linux_mcp_server.parsers import parse_cpu_info
 from linux_mcp_server.parsers import parse_free_output
 from linux_mcp_server.parsers import parse_system_info
@@ -17,6 +16,7 @@ from linux_mcp_server.utils.decorators import disallow_local_execution_in_contai
 from linux_mcp_server.utils.types import CpuInfo
 from linux_mcp_server.utils.types import Host
 from linux_mcp_server.utils.types import SystemInfo
+from linux_mcp_server.utils.types import SystemMemory
 from linux_mcp_server.utils.validation import is_successful_output
 
 
@@ -87,7 +87,7 @@ async def get_cpu_information(
 @disallow_local_execution_in_containers
 async def get_memory_information(
     host: Host = None,
-) -> str:
+) -> SystemMemory:
     """Get memory information.
 
     Retrieves physical RAM and swap usage including total, used, free,
@@ -100,8 +100,7 @@ async def get_memory_information(
     if not is_successful_output(returncode, stdout):
         raise ToolError("Unable to retrieve memory information")
 
-    memory = parse_free_output(stdout)
-    return format_memory_info(memory)
+    return parse_free_output(stdout)
 
 
 @mcp.tool(
