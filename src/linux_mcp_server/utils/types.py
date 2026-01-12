@@ -121,6 +121,17 @@ class CpuInfo(BaseModel):
     cpu_line: str = ""  # Raw CPU usage line from top
 
 
+class DiskUsage(BaseModel):
+    """Parsed disk usage information."""
+
+    filesystem: str = ""
+    size_gb: float = 0.0
+    used_gb: float = 0.0
+    available_gb: float = 0.0
+    use_percent: float = 0.0
+    mount_point: str = ""
+
+
 # Storage types
 class NodeEntry(BaseModel):
     """A node entry model that is used by both directories and files listing."""
