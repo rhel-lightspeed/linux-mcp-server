@@ -478,24 +478,22 @@ VS Code with GitHub Copilot supports MCP servers in agent mode.
 
 ### Configuration
 
-Add to your VS Code `settings.json`:
+Add to your VS Code `mcp.json`:
 
 === "pip/uv (Recommended)"
 
     ```json
-    {
-      "mcp": {
-        "servers": {
-          "linux-mcp-server": {
-            "command": "/home/YOUR_USER/.local/bin/linux-mcp-server",
-            "args": [],
-            "env": {
-              "LINUX_MCP_USER": "your-ssh-username"
-            }
-          }
-        }
+{
+  "servers": {
+    "linux-mcp-server": {
+      "command": "/home/YOUR_USER/.local/bin/linux-mcp-server",
+      "args": [],
+      "env": {
+        "LINUX_MCP_USER": "your-ssh-username" 
       }
     }
+  }
+}
     ```
 
 === "Container (Podman)"
