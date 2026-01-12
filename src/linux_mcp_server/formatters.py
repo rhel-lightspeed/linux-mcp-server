@@ -364,8 +364,8 @@ def format_audit_logs(stdout: str, lines_count: int) -> str:
     """Format audit logs output.
 
     Args:
-        stdout: Raw output from tail on audit.log.
-        lines_count: Number of log lines.
+        stdout: Raw output from journalctl with transport="audit" filter.
+        lines_count: Number of log lines requested.
 
     Returns:
         Formatted string representation.

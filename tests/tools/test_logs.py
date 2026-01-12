@@ -153,14 +153,11 @@ class TestGetAuditLogs:
             (50, "50"),  # Custom
         ],
     )
-    async def test_get_audit_logs_success(
-        self, mcp_client, mocker, mock_execute_with_fallback, lines, expected_line_count
-    ):
+    async def test_get_audit_logs_success(self, mcp_client, mock_execute_with_fallback, lines, expected_line_count):
         """Test get_audit_logs with various line counts."""
-        mocker.patch("linux_mcp_server.tools.logs.os.path.exists", return_value=True)
         mock_execute_with_fallback.return_value = (
             0,
-            "type=SYSCALL msg=audit(1234567890.123:456): arch=c000003e syscall=1\n" * int(expected_line_count),
+            "Jan 01 12:00:00 host audit[1]: SERVICE_START unit=test\n" * int(expected_line_count),
             "",
         )
 
@@ -169,47 +166,17 @@ class TestGetAuditLogs:
         result_text = result.content[0].text.casefold()
 
         assert f"last {expected_line_count} entries" in result_text
-        assert "type=syscall" in result_text
+        assert "service_start" in result_text
 
-        # Verify command arguments
+        # Verify journalctl command with transport filter
         cmd_args = mock_execute_with_fallback.call_args[0][0]
-        assert cmd_args == ("tail", "-n", expected_line_count, "/var/log/audit/audit.log")
+        assert cmd_args[0] == "journalctl"
+        assert "_TRANSPORT=audit" in cmd_args
+        assert "-n" in cmd_args
+        assert expected_line_count in cmd_args
 
-    async def test_get_audit_logs_file_not_found_local(self, mcp_client, mocker):
-        """Test get_audit_logs when audit log file doesn't exist locally."""
-        mocker.patch("linux_mcp_server.tools.logs.os.path.exists", return_value=False)
-
-        result = await mcp_client.call_tool("get_audit_logs", {})
-        result_text = result.content[0].text.casefold()
-
-        assert "audit log file not found" in result_text
-        assert "/var/log/audit/audit.log" in result_text
-        assert "may not be enabled" in result_text
-
-    @pytest.mark.parametrize(
-        "returncode,stderr,expected_error",
-        [
-            # Permission denied
-            (1, "tail: cannot open '/var/log/audit/audit.log': Permission denied", "permission denied"),
-            # General error
-            (1, "tail: error reading file", "error reading audit logs"),
-        ],
-    )
-    async def test_get_audit_logs_errors(
-        self, mcp_client, mocker, mock_execute_with_fallback, returncode, stderr, expected_error
-    ):
-        """Test get_audit_logs error handling."""
-        mocker.patch("linux_mcp_server.tools.logs.os.path.exists", return_value=True)
-        mock_execute_with_fallback.return_value = (returncode, "", stderr)
-
-        result = await mcp_client.call_tool("get_audit_logs", {})
-        result_text = result.content[0].text.casefold()
-
-        assert expected_error in result_text
-
-    async def test_get_audit_logs_no_entries(self, mcp_client, mocker, mock_execute_with_fallback):
+    async def test_get_audit_logs_no_entries(self, mcp_client, mock_execute_with_fallback):
         """Test get_audit_logs when no entries found."""
-        mocker.patch("linux_mcp_server.tools.logs.os.path.exists", return_value=True)
         mock_execute_with_fallback.return_value = (0, "", "")
 
         result = await mcp_client.call_tool("get_audit_logs", {})
@@ -217,30 +184,41 @@ class TestGetAuditLogs:
 
         assert "no audit log entries found" in result_text
 
-    @pytest.mark.parametrize(
-        "side_effect",
-        (
-            FileNotFoundError("tail command not found"),
-            ValueError("raised intentionally"),
-        ),
-    )
-    async def test_get_audit_logs_tail_not_found(self, mcp_client, mocker, side_effect):
-        """Test get_audit_logs when tail command is not available."""
-        mock_exists = mocker.patch("linux_mcp_server.tools.logs.os.path.exists", autospec=True)
-        mock_execute_with_fallback = mocker.patch("linux_mcp_server.commands.execute_with_fallback", autospec=True)
-        mock_exists.return_value = True
-        mock_execute_with_fallback.side_effect = side_effect
+    async def test_get_audit_logs_error(self, mcp_client, mock_execute_with_fallback):
+        """Test get_audit_logs error handling."""
+        mock_execute_with_fallback.return_value = (1, "", "Failed to access journal")
 
         result = await mcp_client.call_tool("get_audit_logs", {})
         result_text = result.content[0].text.casefold()
 
-        assert str(side_effect) in result_text.casefold()
+        assert "error reading audit logs" in result_text
+        assert "failed to access journal" in result_text
+
+    async def test_get_audit_logs_journalctl_not_found(self, mcp_client, mocker):
+        """Test get_audit_logs when journalctl command is not available."""
+        mock_execute = mocker.patch("linux_mcp_server.commands.execute_with_fallback", autospec=True)
+        mock_execute.side_effect = FileNotFoundError("journalctl not found")
+
+        result = await mcp_client.call_tool("get_audit_logs", {})
+        result_text = result.content[0].text.casefold()
+
+        assert "journalctl command not found" in result_text
+
+    async def test_get_audit_logs_exception(self, mcp_client, mocker):
+        """Test get_audit_logs handles unexpected exceptions."""
+        mock_execute = mocker.patch("linux_mcp_server.commands.execute_with_fallback", autospec=True)
+        mock_execute.side_effect = ValueError("unexpected error")
+
+        result = await mcp_client.call_tool("get_audit_logs", {})
+        result_text = result.content[0].text.casefold()
+
+        assert "unexpected error" in result_text
 
     async def test_get_audit_logs_remote_execution(self, mcp_client, mock_execute_with_fallback):
         """Test get_audit_logs with remote execution."""
         mock_execute_with_fallback.return_value = (
             0,
-            "type=SYSCALL msg=audit(1234567890.123:456): remote audit entry",
+            "Jan 01 12:00:00 remote audit[1]: remote audit entry",
             "",
         )
 
@@ -249,9 +227,12 @@ class TestGetAuditLogs:
 
         assert "remote audit entry" in result_text
 
-        # Verify host parameter was passed
+        # Verify host parameter was passed and journalctl used
         call_kwargs = mock_execute_with_fallback.call_args[1]
         assert call_kwargs["host"] == "remote.server.com"
+        cmd_args = mock_execute_with_fallback.call_args[0][0]
+        assert cmd_args[0] == "journalctl"
+        assert "_TRANSPORT=audit" in cmd_args
 
 
 class TestReadLogFile:
