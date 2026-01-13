@@ -1,6 +1,6 @@
 {
   "$schema": "https://docs.renovatebot.com/renovate-schema.json",
-  "extends": ["config:recommended", "helpers:pinGitHubActionDigests"],
+  "extends": ["config:recommended"],
   "labels": ["dependencies"],
   "minimumReleaseAge": "7 days",
   "vulnerabilityAlerts": {
@@ -15,12 +15,6 @@
     {
       "matchDepNames": ["python"],
       "enabled": false
-    },
-    {
-      "matchManagers": ["github-actions"],
-      "matchUpdateTypes": ["digest"],
-      "automerge": true,
-      "automergeType": "pr"
     }
   ]
 }
