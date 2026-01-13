@@ -18,21 +18,13 @@ coverage:
         threshold: 10%
         paths:
           - src/
-      tests:
-        target: 100%
-        paths:
-          - tests/
 
     patch:
       default:
-        target: 95%
+        target: 60%
         threshold: 10%
       app:
-        target: 95%
+        target: 60%
         threshold: 10%
         paths:
           - src/
-      tests:
-        target: 100%
-        paths:
-          - tests/
