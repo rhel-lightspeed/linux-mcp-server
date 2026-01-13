@@ -146,7 +146,7 @@ Bus 002 Device 001: ID 1d6b:0003 Linux Foundation 3.0 root hub"""
     # Mock execute to return different output based on command
     def mock_execute_side_effect(*args, **_kwargs):
         cmd = args[0]
-        match cmd[0]:
+        match cmd[0]:  # pragma: no branch
             case "lscpu":
                 return (0, lscpu_output, "")
             case "lspci":
@@ -189,7 +189,7 @@ async def test_get_hardware_information_command_not_found(mcp_client, mock_execu
     # Mock execute to simulate FileNotFoundError for some commands
     def mock_execute_side_effect(*args, **_kwargs):
         cmd = args[0]
-        match cmd[0]:
+        match cmd[0]:  # pragma: no branch
             case "lscpu":
                 return (0, lscpu_output, "")
             case "lspci":
