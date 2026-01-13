@@ -565,8 +565,6 @@ def parse_df_output(stdout: str) -> list[DiskUsage]:
     lines = stdout.strip().split("\n")[1:]  # Skip header line
 
     for line in lines:
-        if not line.strip():
-            continue
         parts = line.split()
         if len(parts) < 6:
             continue
