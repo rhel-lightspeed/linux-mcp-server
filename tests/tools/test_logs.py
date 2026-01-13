@@ -65,6 +65,24 @@ class TestGetJournalLogs:
                 ["--unit", "nginx.service", "--priority", "err", "--since", "today", "-n", "50"],
                 ["last 50 entries", "unit=nginx.service", "priority=err", "since=today"],
             ),
+            # Transport filter (audit)
+            (
+                {"transport": "audit"},
+                ["_TRANSPORT=audit"],
+                ["audit logs", "last 100 entries"],
+            ),
+            # Transport filter (kernel)
+            (
+                {"transport": "kernel"},
+                ["_TRANSPORT=kernel"],
+                ["kernel logs", "last 100 entries"],
+            ),
+            # Transport with other filters
+            (
+                {"transport": "audit", "priority": "err", "lines": 50},
+                ["_TRANSPORT=audit", "--priority", "err", "-n", "50"],
+                ["audit logs", "last 50 entries"],
+            ),
         ],
     )
     async def test_get_journal_logs_filters(
@@ -124,6 +142,14 @@ class TestGetJournalLogs:
         result_text = result.content[0].text.casefold()
 
         assert str(side_effect) in result_text
+
+    async def test_get_journal_logs_invalid_transport(self, mcp_client, mock_execute_with_fallback):
+        """Test get_journal_logs rejects invalid transport values via MCP validation."""
+        with pytest.raises(Exception) as exc_info:
+            await mcp_client.call_tool("get_journal_logs", {"transport": "invalid"})
+
+        assert "validation error" in str(exc_info.value).casefold() or "invalid" in str(exc_info.value).casefold()
+        mock_execute_with_fallback.assert_not_called()
 
     async def test_get_journal_logs_remote_execution(self, mcp_client, mock_execute_with_fallback):
         """Test get_journal_logs with remote execution."""

@@ -388,6 +388,28 @@ class TestFormatJournalLogs:
         assert "priority=err" in result
         assert "since=today" in result
 
+    def test_format_with_transport_audit(self):
+        """Test formatting with transport=audit uses Audit Logs header."""
+        stdout = "Dec 12 10:00:00 host audit[1234]: SYSCALL"
+        result = format_journal_logs(stdout, 100, transport="audit")
+        assert "=== Audit Logs (last 100 entries" in result
+        assert "SYSCALL" in result
+
+    def test_format_with_transport_audit_and_other_filters(self):
+        """Test formatting with transport=audit combined with other filters includes all filters."""
+        stdout = "Dec 12 10:00:00 host audit[1234]: Error message"
+        result = format_journal_logs(stdout, 50, transport="audit", priority="err", since="today")
+        assert "=== Audit Logs (last 50 entries" in result
+        assert "priority=err" in result
+        assert "since=today" in result
+
+    def test_format_with_transport_kernel(self):
+        """Test formatting with transport=kernel uses Journal Logs header."""
+        stdout = "Dec 12 10:00:00 host kernel: Kernel message"
+        result = format_journal_logs(stdout, 100, transport="kernel")
+        assert "=== Journal Logs (last 100 entries" in result
+        assert "transport=kernel" in result
+
 
 class TestFormatAuditLogs:
     """Tests for format_audit_logs function."""
