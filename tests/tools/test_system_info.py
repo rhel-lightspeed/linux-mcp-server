@@ -153,6 +153,8 @@ Bus 002 Device 001: ID 1d6b:0003 Linux Foundation 3.0 root hub"""
                 return (0, lspci_output, "")
             case "lsusb":
                 return (0, lsusb_output, "")
+            case _:
+                raise AssertionError(f"Unexpected command in test mock: {cmd[0]}")
 
     mock_execute.side_effect = mock_execute_side_effect
 
@@ -194,6 +196,8 @@ async def test_get_hardware_information_command_not_found(mcp_client, mock_execu
                 raise FileNotFoundError("lspci not found")
             case "lsusb":
                 raise FileNotFoundError("lsusb not found")
+            case _:
+                raise AssertionError(f"Unexpected command in test mock: {cmd[0]}")
 
     mock_execute.side_effect = mock_execute_side_effect
 
