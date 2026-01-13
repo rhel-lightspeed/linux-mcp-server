@@ -10,7 +10,7 @@
   "packageRules": [
     {
       "matchManagers": ["pep621", "pip_requirements", "pip-compile", "poetry", "pipenv"],
-      "rangeStrategy": "pin"
+      "rangeStrategy": "bump"
     },
     {
       "matchDepNames": ["python"],
