@@ -23,25 +23,21 @@ class Transport(StrEnum):
     """Valid journalctl transport types for filtering journal entries.
 
     Transports identify the source/mechanism that submitted log messages to the journal.
+
+    AUDIT - Linux audit subsystem messages (security events, syscall auditing)
+    DRIVER - Kernel driver messages logged via dev_printk().
+    JOURNAL - Messages logged directly to the journal via sd_journal_* APIs.
+    KERNEL - Kernel ring buffer messages (dmesg/printk).
+    STDOUT - stdout/stderr from services with StandardOutput/StandardError=journal.
+    SYSLOG - Messages received via the syslog socket (/dev/log).
     """
 
     AUDIT = "audit"
-    """Linux audit subsystem messages (security events, syscall auditing)."""
-
     DRIVER = "driver"
-    """Kernel driver messages logged via dev_printk()."""
-
     JOURNAL = "journal"
-    """Messages logged directly to the journal via sd_journal_* APIs."""
-
     KERNEL = "kernel"
-    """Kernel ring buffer messages (dmesg/printk)."""
-
     STDOUT = "stdout"
-    """stdout/stderr from services with StandardOutput/StandardError=journal."""
-
     SYSLOG = "syslog"
-    """Messages received via the syslog socket (/dev/log)."""
 
 
 async def _get_journal_logs(
