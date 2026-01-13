@@ -552,7 +552,7 @@ def parse_file_listing(
 
 
 def parse_df_output(stdout: str) -> list[DiskUsage]:
-    """Parse df output into DiskUsage objects. Sizes are assumed to be in 1K
+    """Parse df output into DiskUsage objects. Sizes are assumed to be in 1M
     blocks.
 
     Args:
@@ -571,9 +571,9 @@ def parse_df_output(stdout: str) -> list[DiskUsage]:
         if len(parts) < 6:
             continue
         filesystem = parts[0]
-        size_gb = float(parts[1]) / (1024 * 1024 * 1024)
-        used_gb = float(parts[2]) / (1024 * 1024 * 1024)
-        available_gb = float(parts[3]) / (1024 * 1024 * 1024)
+        size_gb = float(parts[1]) / 1024
+        used_gb = float(parts[2]) / 1024
+        available_gb = float(parts[3]) / 1024
         use_percent = float(parts[4].rstrip("%"))
         mount_point = parts[5]
 
