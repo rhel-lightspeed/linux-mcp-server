@@ -14,9 +14,35 @@ from linux_mcp_server.formatters import format_audit_logs
 from linux_mcp_server.formatters import format_journal_logs
 from linux_mcp_server.formatters import format_log_file
 from linux_mcp_server.server import mcp
+from linux_mcp_server.utils import StrEnum
 from linux_mcp_server.utils.decorators import disallow_local_execution_in_containers
 from linux_mcp_server.utils.types import Host
 from linux_mcp_server.utils.validation import is_empty_output
+
+
+class Transport(StrEnum):
+    """Valid journalctl transport types for filtering journal entries.
+
+    Transports identify the source/mechanism that submitted log messages to the journal.
+    """
+
+    AUDIT = "audit"
+    """Linux audit subsystem messages (security events, syscall auditing)."""
+
+    DRIVER = "driver"
+    """Kernel driver messages logged via dev_printk()."""
+
+    JOURNAL = "journal"
+    """Messages logged directly to the journal via sd_journal_* APIs."""
+
+    KERNEL = "kernel"
+    """Kernel ring buffer messages (dmesg/printk)."""
+
+    STDOUT = "stdout"
+    """stdout/stderr from services with StandardOutput/StandardError=journal."""
+
+    SYSLOG = "syslog"
+    """Messages received via the syslog socket (/dev/log)."""
 
 
 async def _get_journal_logs(
@@ -25,7 +51,7 @@ async def _get_journal_logs(
     unit: str | None = None,
     priority: str | None = None,
     since: str | None = None,
-    transport: str | None = None,
+    transport: Transport | None = None,
 ) -> tuple[int, str, str]:
     """Execute journalctl command with optional filters.
 
@@ -38,7 +64,7 @@ async def _get_journal_logs(
         unit: Filter by systemd unit name.
         priority: Filter by priority level.
         since: Filter entries since specified time.
-        transport: Filter by journal transport (e.g., 'audit', 'kernel').
+        transport: Filter by journal transport.
 
     Returns:
         Tuple of (returncode, stdout, stderr) from the command execution.
@@ -46,6 +72,7 @@ async def _get_journal_logs(
     Raises:
         FileNotFoundError: If journalctl command is not available.
     """
+
     cmd = get_command("journal_logs")
     return await cmd.run(
         host=host,
@@ -74,17 +101,23 @@ async def get_journal_logs(
         str | None,
         "Filter entries since specified time. Date/time filter (format: 'YYYY-MM-DD HH:MM:SS', 'today', 'yesterday', 'now', or relative like '-1h')",
     ] = None,
+    transport: t.Annotated[
+        Transport | None,
+        "Filter by journal transport (e.g., 'audit' for audit logs, 'kernel' for kernel messages, 'syslog' for syslog messages)",
+    ] = None,
     lines: t.Annotated[int, Field(description="Number of log lines to retrieve. Default: 100", ge=1, le=10_000)] = 100,
     host: Host = None,
 ) -> str:
     """Get systemd journal logs.
 
     Retrieves entries from the systemd journal with optional filtering by unit,
-    priority level, and time range. Returns timestamped log messages.
+    priority level, time range, and transport. Returns timestamped log messages.
+
+    To get audit logs, use transport='audit'.
     """
     try:
         returncode, stdout, stderr = await _get_journal_logs(
-            lines=lines, host=host, unit=unit, priority=priority, since=since
+            lines=lines, host=host, unit=unit, priority=priority, since=since, transport=transport
         )
 
         if returncode != 0:
@@ -93,9 +126,11 @@ async def get_journal_logs(
         if is_empty_output(stdout):
             return "No journal entries found matching the criteria."
 
-        return format_journal_logs(stdout, lines, unit, priority, since)
+        return format_journal_logs(stdout, lines, unit, priority, since, transport)
     except FileNotFoundError:
         return "Error: journalctl command not found. This tool requires systemd."
+    except ValueError as e:
+        return f"Error: {e}"
     except Exception as e:
         return f"Error reading journal logs: {str(e)}"
 

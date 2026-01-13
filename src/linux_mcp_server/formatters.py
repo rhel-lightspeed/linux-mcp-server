@@ -332,6 +332,7 @@ def format_journal_logs(
     unit: str | None = None,
     priority: str | None = None,
     since: str | None = None,
+    transport: str | None = None,
 ) -> str:
     """Format journal logs output.
 
@@ -341,6 +342,7 @@ def format_journal_logs(
         unit: Optional unit filter.
         priority: Optional priority filter.
         since: Optional time filter.
+        transport: Optional transport filter (e.g., 'audit', 'kernel').
 
     Returns:
         Formatted string representation.
@@ -352,10 +354,23 @@ def format_journal_logs(
         filters.append(f"priority={priority}")
     if since:
         filters.append(f"since={since}")
+    if transport:
+        filters.append(f"transport={transport}")
 
     filter_desc = ", ".join(filters) if filters else "no filters"
 
-    lines = [f"=== Journal Logs (last {lines_count} entries, {filter_desc}) ===\n"]
+    # Use "Audit Logs" header when transport=audit for clarity
+    if transport == "audit":
+        non_transport_filters = [f for f in filters if not f.startswith("transport=")]
+        if non_transport_filters:
+            extra_filters = ", ".join(non_transport_filters)
+            header = f"=== Audit Logs (last {lines_count} entries, {extra_filters}) ===\n"
+        else:
+            header = f"=== Audit Logs (last {lines_count} entries) ===\n"
+    else:
+        header = f"=== Journal Logs (last {lines_count} entries, {filter_desc}) ===\n"
+
+    lines = [header]
     lines.append(stdout)
     return "\n".join(lines)
 
