@@ -332,6 +332,7 @@ def format_journal_logs(
     unit: str | None = None,
     priority: str | None = None,
     since: str | None = None,
+    transport: str | None = None,
 ) -> str:
     """Format journal logs output.
 
@@ -341,6 +342,7 @@ def format_journal_logs(
         unit: Optional unit filter.
         priority: Optional priority filter.
         since: Optional time filter.
+        transport: Optional transport filter (e.g., 'audit', 'kernel').
 
     Returns:
         Formatted string representation.
@@ -353,24 +355,11 @@ def format_journal_logs(
     if since:
         filters.append(f"since={since}")
 
-    filter_desc = ", ".join(filters) if filters else "no filters"
+    log_type = f"{transport.title()} Logs" if transport else "Journal Logs"
+    filter_str = f", {', '.join(filters)}" if filters else (", no filters" if not transport else "")
+    header = f"=== {log_type} (last {lines_count} entries{filter_str}) ===\n"
 
-    lines = [f"=== Journal Logs (last {lines_count} entries, {filter_desc}) ===\n"]
-    lines.append(stdout)
-    return "\n".join(lines)
-
-
-def format_audit_logs(stdout: str, lines_count: int) -> str:
-    """Format audit logs output.
-
-    Args:
-        stdout: Raw output from journalctl with transport="audit" filter.
-        lines_count: Number of log lines requested.
-
-    Returns:
-        Formatted string representation.
-    """
-    lines = [f"=== Audit Logs (last {lines_count} entries) ===\n"]
+    lines = [header]
     lines.append(stdout)
     return "\n".join(lines)
 

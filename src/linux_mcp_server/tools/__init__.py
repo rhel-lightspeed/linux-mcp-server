@@ -1,5 +1,4 @@
 # logs
-from linux_mcp_server.tools.logs import get_audit_logs
 from linux_mcp_server.tools.logs import get_journal_logs
 from linux_mcp_server.tools.logs import read_log_file
 
@@ -32,7 +31,6 @@ from linux_mcp_server.tools.system_info import get_system_information
 
 
 __all__ = [
-    "get_audit_logs",
     "get_cpu_information",
     "get_disk_usage",
     "get_hardware_information",

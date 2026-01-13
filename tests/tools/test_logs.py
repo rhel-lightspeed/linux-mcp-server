@@ -65,6 +65,24 @@ class TestGetJournalLogs:
                 ["--unit", "nginx.service", "--priority", "err", "--since", "today", "-n", "50"],
                 ["last 50 entries", "unit=nginx.service", "priority=err", "since=today"],
             ),
+            # Transport filter (audit)
+            (
+                {"transport": "audit"},
+                ["_TRANSPORT=audit"],
+                ["audit logs", "last 100 entries"],
+            ),
+            # Transport filter (kernel)
+            (
+                {"transport": "kernel"},
+                ["_TRANSPORT=kernel"],
+                ["kernel logs", "last 100 entries"],
+            ),
+            # Transport with other filters
+            (
+                {"transport": "audit", "priority": "err", "lines": 50},
+                ["_TRANSPORT=audit", "--priority", "err", "-n", "50"],
+                ["audit logs", "last 50 entries"],
+            ),
         ],
     )
     async def test_get_journal_logs_filters(
@@ -125,6 +143,14 @@ class TestGetJournalLogs:
 
         assert str(side_effect) in result_text
 
+    async def test_get_journal_logs_invalid_transport(self, mcp_client, mock_execute_with_fallback):
+        """Test get_journal_logs rejects invalid transport values via MCP validation."""
+        with pytest.raises(Exception) as exc_info:
+            await mcp_client.call_tool("get_journal_logs", {"transport": "invalid"})
+
+        assert "validation error" in str(exc_info.value).casefold() or "invalid" in str(exc_info.value).casefold()
+        mock_execute_with_fallback.assert_not_called()
+
     async def test_get_journal_logs_remote_execution(self, mcp_client, mock_execute_with_fallback):
         """Test get_journal_logs with remote execution."""
         mock_execute_with_fallback.return_value = (
@@ -141,98 +167,6 @@ class TestGetJournalLogs:
         # Verify host parameter was passed
         call_kwargs = mock_execute_with_fallback.call_args[1]
         assert call_kwargs["host"] == "remote.server.com"
-
-
-class TestGetAuditLogs:
-    """Tests for get_audit_logs tool."""
-
-    @pytest.mark.parametrize(
-        "lines,expected_line_count",
-        [
-            (100, "100"),  # Default
-            (50, "50"),  # Custom
-        ],
-    )
-    async def test_get_audit_logs_success(self, mcp_client, mock_execute_with_fallback, lines, expected_line_count):
-        """Test get_audit_logs with various line counts."""
-        mock_execute_with_fallback.return_value = (
-            0,
-            "Jan 01 12:00:00 host audit[1]: SERVICE_START unit=test\n" * int(expected_line_count),
-            "",
-        )
-
-        params = {"lines": lines} if lines != 100 else {}
-        result = await mcp_client.call_tool("get_audit_logs", params)
-        result_text = result.content[0].text.casefold()
-
-        assert f"last {expected_line_count} entries" in result_text
-        assert "service_start" in result_text
-
-        # Verify journalctl command with transport filter
-        cmd_args = mock_execute_with_fallback.call_args[0][0]
-        assert cmd_args[0] == "journalctl"
-        assert "_TRANSPORT=audit" in cmd_args
-        assert "-n" in cmd_args
-        assert expected_line_count in cmd_args
-
-    async def test_get_audit_logs_no_entries(self, mcp_client, mock_execute_with_fallback):
-        """Test get_audit_logs when no entries found."""
-        mock_execute_with_fallback.return_value = (0, "", "")
-
-        result = await mcp_client.call_tool("get_audit_logs", {})
-        result_text = result.content[0].text.casefold()
-
-        assert "no audit log entries found" in result_text
-
-    async def test_get_audit_logs_error(self, mcp_client, mock_execute_with_fallback):
-        """Test get_audit_logs error handling."""
-        mock_execute_with_fallback.return_value = (1, "", "Failed to access journal")
-
-        result = await mcp_client.call_tool("get_audit_logs", {})
-        result_text = result.content[0].text.casefold()
-
-        assert "error reading audit logs" in result_text
-        assert "failed to access journal" in result_text
-
-    async def test_get_audit_logs_journalctl_not_found(self, mcp_client, mocker):
-        """Test get_audit_logs when journalctl command is not available."""
-        mock_execute = mocker.patch("linux_mcp_server.commands.execute_with_fallback", autospec=True)
-        mock_execute.side_effect = FileNotFoundError("journalctl not found")
-
-        result = await mcp_client.call_tool("get_audit_logs", {})
-        result_text = result.content[0].text.casefold()
-
-        assert "journalctl command not found" in result_text
-
-    async def test_get_audit_logs_exception(self, mcp_client, mocker):
-        """Test get_audit_logs handles unexpected exceptions."""
-        mock_execute = mocker.patch("linux_mcp_server.commands.execute_with_fallback", autospec=True)
-        mock_execute.side_effect = ValueError("unexpected error")
-
-        result = await mcp_client.call_tool("get_audit_logs", {})
-        result_text = result.content[0].text.casefold()
-
-        assert "unexpected error" in result_text
-
-    async def test_get_audit_logs_remote_execution(self, mcp_client, mock_execute_with_fallback):
-        """Test get_audit_logs with remote execution."""
-        mock_execute_with_fallback.return_value = (
-            0,
-            "Jan 01 12:00:00 remote audit[1]: remote audit entry",
-            "",
-        )
-
-        result = await mcp_client.call_tool("get_audit_logs", {"host": "remote.server.com"})
-        result_text = result.content[0].text.casefold()
-
-        assert "remote audit entry" in result_text
-
-        # Verify host parameter was passed and journalctl used
-        call_kwargs = mock_execute_with_fallback.call_args[1]
-        assert call_kwargs["host"] == "remote.server.com"
-        cmd_args = mock_execute_with_fallback.call_args[0][0]
-        assert cmd_args[0] == "journalctl"
-        assert "_TRANSPORT=audit" in cmd_args
 
 
 class TestReadLogFile:
