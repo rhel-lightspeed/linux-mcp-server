@@ -354,38 +354,12 @@ def format_journal_logs(
         filters.append(f"priority={priority}")
     if since:
         filters.append(f"since={since}")
-    if transport:
-        filters.append(f"transport={transport}")
 
-    filter_desc = ", ".join(filters) if filters else "no filters"
-
-    # Use "Audit Logs" header when transport=audit for clarity
-    if transport == "audit":
-        non_transport_filters = [f for f in filters if not f.startswith("transport=")]
-        if non_transport_filters:
-            extra_filters = ", ".join(non_transport_filters)
-            header = f"=== Audit Logs (last {lines_count} entries, {extra_filters}) ===\n"
-        else:
-            header = f"=== Audit Logs (last {lines_count} entries) ===\n"
-    else:
-        header = f"=== Journal Logs (last {lines_count} entries, {filter_desc}) ===\n"
+    log_type = f"{transport.title()} Logs" if transport else "Journal Logs"
+    filter_str = f", {', '.join(filters)}" if filters else (", no filters" if not transport else "")
+    header = f"=== {log_type} (last {lines_count} entries{filter_str}) ===\n"
 
     lines = [header]
-    lines.append(stdout)
-    return "\n".join(lines)
-
-
-def format_audit_logs(stdout: str, lines_count: int) -> str:
-    """Format audit logs output.
-
-    Args:
-        stdout: Raw output from journalctl with transport="audit" filter.
-        lines_count: Number of log lines requested.
-
-    Returns:
-        Formatted string representation.
-    """
-    lines = [f"=== Audit Logs (last {lines_count} entries) ===\n"]
     lines.append(stdout)
     return "\n".join(lines)
 

@@ -10,7 +10,6 @@ from pydantic import Field
 from linux_mcp_server.audit import log_tool_call
 from linux_mcp_server.commands import get_command
 from linux_mcp_server.config import CONFIG
-from linux_mcp_server.formatters import format_audit_logs
 from linux_mcp_server.formatters import format_journal_logs
 from linux_mcp_server.formatters import format_log_file
 from linux_mcp_server.server import mcp
@@ -54,9 +53,6 @@ async def _get_journal_logs(
     transport: Transport | None = None,
 ) -> tuple[int, str, str]:
     """Execute journalctl command with optional filters.
-
-    This is the shared implementation used by both get_journal_logs and
-    get_audit_logs (as a fallback).
 
     Args:
         lines: Number of log lines to retrieve.
@@ -133,42 +129,6 @@ async def get_journal_logs(
         return f"Error: {e}"
     except Exception as e:
         return f"Error reading journal logs: {str(e)}"
-
-
-@mcp.tool(
-    title="Get audit logs",
-    description="Read the system audit logs from the systemd journal.",
-    annotations=ToolAnnotations(readOnlyHint=True),
-)
-@log_tool_call
-@disallow_local_execution_in_containers
-async def get_audit_logs(
-    lines: t.Annotated[int, Field(description="Number of log lines to retrieve.", ge=1, le=10_0000)] = 100,
-    host: Host = None,
-) -> str:
-    """Get Linux audit logs.
-
-    Retrieves audit log entries from the systemd journal containing
-    security-relevant events such as authentication, authorization,
-    and system call auditing.
-
-    Requires appropriate permissions to read the journal (typically
-    members of the 'wheel', 'adm', or 'systemd-journal' groups).
-    """
-    try:
-        returncode, stdout, stderr = await _get_journal_logs(lines=lines, host=host, transport="audit")
-
-        if returncode != 0:
-            return f"Error reading audit logs: {stderr}"
-
-        if is_empty_output(stdout):
-            return "No audit log entries found."
-
-        return format_audit_logs(stdout, lines)
-    except FileNotFoundError:
-        return "Error: journalctl command not found. This tool requires systemd."
-    except Exception as e:
-        return f"Error reading audit logs: {str(e)}"
 
 
 @mcp.tool(

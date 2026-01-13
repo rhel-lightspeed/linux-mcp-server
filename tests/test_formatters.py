@@ -1,6 +1,5 @@
 """Tests for formatters module."""
 
-from linux_mcp_server.formatters import format_audit_logs
 from linux_mcp_server.formatters import format_block_devices
 from linux_mcp_server.formatters import format_cpu_info
 from linux_mcp_server.formatters import format_directory_listing
@@ -404,22 +403,11 @@ class TestFormatJournalLogs:
         assert "since=today" in result
 
     def test_format_with_transport_kernel(self):
-        """Test formatting with transport=kernel uses Journal Logs header."""
+        """Test formatting with transport=kernel uses Kernel Logs header."""
         stdout = "Dec 12 10:00:00 host kernel: Kernel message"
         result = format_journal_logs(stdout, 100, transport="kernel")
-        assert "=== Journal Logs (last 100 entries" in result
-        assert "transport=kernel" in result
-
-
-class TestFormatAuditLogs:
-    """Tests for format_audit_logs function."""
-
-    def test_format_audit_logs(self):
-        """Test formatting audit logs."""
-        stdout = "type=SYSCALL msg=audit(1702389600.123:1234)"
-        result = format_audit_logs(stdout, 100)
-        assert "=== Audit Logs (last 100 entries) ===" in result
-        assert "type=SYSCALL" in result
+        assert "=== Kernel Logs (last 100 entries)" in result
+        assert "Kernel message" in result
 
 
 class TestFormatLogFile:
