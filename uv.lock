@@ -1084,10 +1084,10 @@ test = [
 
 [package.metadata]
 requires-dist = [
-    { name = "asyncssh", extras = ["bcrypt"], specifier = "==2.22.0" },
+    { name = "asyncssh", extras = ["bcrypt"], specifier = ">=2.22.0" },
     { name = "fastmcp" },
-    { name = "pydantic", specifier = "==2.12.5" },
-    { name = "pydantic-settings", specifier = "==2.12.0" },
+    { name = "pydantic", specifier = ">=2.12.5" },
+    { name = "pydantic-settings", specifier = ">=2.12.0" },
 ]
 
 [package.metadata.requires-dev]
@@ -1095,26 +1095,26 @@ dev = [
     { name = "ipdb" },
     { name = "ipython" },
     { name = "pyright" },
-    { name = "pytest", specifier = "==9.0.2" },
-    { name = "pytest-asyncio", specifier = "==1.3.0" },
-    { name = "pytest-cov", specifier = "==7.0.0" },
+    { name = "pytest", specifier = ">=9.0.2" },
+    { name = "pytest-asyncio", specifier = ">=1.3.0" },
+    { name = "pytest-cov", specifier = ">=7.0.0" },
     { name = "pytest-mock" },
     { name = "pytest-randomly" },
     { name = "ruff" },
 ]
 docs = [
-    { name = "mkdocs", specifier = "==1.6.1" },
-    { name = "mkdocs-material", specifier = "==9.7.1" },
-    { name = "mkdocstrings", extras = ["python"], specifier = "==1.0.0" },
+    { name = "mkdocs", specifier = ">=1.6.1" },
+    { name = "mkdocs-material", specifier = ">=9.7.1" },
+    { name = "mkdocstrings", extras = ["python"], specifier = ">=1.0.0" },
 ]
 lint = [
     { name = "pyright" },
     { name = "ruff" },
 ]
 test = [
-    { name = "pytest", specifier = "==9.0.2" },
-    { name = "pytest-asyncio", specifier = "==1.3.0" },
-    { name = "pytest-cov", specifier = "==7.0.0" },
+    { name = "pytest", specifier = ">=9.0.2" },
+    { name = "pytest-asyncio", specifier = ">=1.3.0" },
+    { name = "pytest-cov", specifier = ">=7.0.0" },
     { name = "pytest-mock" },
     { name = "pytest-randomly" },
 ]
