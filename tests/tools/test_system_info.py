@@ -150,6 +150,23 @@ async def test_system_info_tools_unsuccessful_empty(tool, mcp_client, mock_execu
     assert result.structured_content is not None
 
 
+@pytest.mark.parametrize(
+    "tool, failing_command",
+    [
+        ("get_system_information", "hostname"),
+        ("get_cpu_information", "model"),
+    ],
+)
+async def test_system_info_tools_exception(tool, failing_command, mcp_client, mock_execute):
+    command_responses = {failing_command: Exception("Command failed")}
+    mock_execute.side_effect = create_mock_execute_side_effect(command_responses)
+
+    with pytest.raises(Exception) as exc_info:
+        await mcp_client.call_tool(tool)
+
+    assert "error gathering" in str(exc_info.value).casefold()
+
+
 async def test_get_hardware_information_success(mcp_client, mock_execute):
     """Test get_hardware_information with successful command execution."""
     # Mock successful command outputs
