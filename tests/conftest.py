@@ -1,3 +1,5 @@
+from enum import Enum
+
 import pytest
 
 from fastmcp.client import Client
@@ -73,3 +75,9 @@ def mock_execute_with_fallback_for(mocker):
         )
 
     return _mock
+
+
+class MockGetHardwaredCommandName(Enum):
+    LSCpu = "lscpu"
+    LSPci = "lspci"
+    LSUsb = "lsusb"
