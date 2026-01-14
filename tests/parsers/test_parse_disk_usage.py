@@ -97,3 +97,17 @@ def test_parse_df_output_100_percent():
     assert len(result) == 1
     assert result[0].use_percent == 100.0
     assert result[0].available_gb == 0.0
+
+
+def test_parse_df_output_with_invalid_values():
+    """Test parsing df output with invalid values."""
+    stdout = """
+    Filesystem     1M-blocks      Used Available Use% Mounted on
+    /dev/sda1         None       51200     46080  53% /
+    /dev/sdb1         204800    102400     92160  53% /home
+    """
+    result = parse_df_output(textwrap.dedent(stdout))
+
+    assert len(result) == 1
+    assert result[0].filesystem == "/dev/sdb1"
+    assert result[0].mount_point == "/home"

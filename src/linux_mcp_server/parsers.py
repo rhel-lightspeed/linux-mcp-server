@@ -568,22 +568,26 @@ def parse_df_output(stdout: str) -> list[DiskUsage]:
         parts = line.split()
         if len(parts) < 6:
             continue
-        filesystem = parts[0]
-        size_gb = float(parts[1]) / 1024
-        used_gb = float(parts[2]) / 1024
-        available_gb = float(parts[3]) / 1024
-        use_percent = float(parts[4].rstrip("%"))
-        mount_point = parts[5]
+        try:
+            filesystem = parts[0]
+            size_gb = float(parts[1]) / 1024
+            used_gb = float(parts[2]) / 1024
+            available_gb = float(parts[3]) / 1024
+            use_percent = float(parts[4].rstrip("%"))
+            mount_point = parts[5]
 
-        entries.append(
-            DiskUsage(
-                filesystem=filesystem,
-                size_gb=size_gb,
-                used_gb=used_gb,
-                available_gb=available_gb,
-                use_percent=use_percent,
-                mount_point=mount_point,
+            entries.append(
+                DiskUsage(
+                    filesystem=filesystem,
+                    size_gb=size_gb,
+                    used_gb=used_gb,
+                    available_gb=available_gb,
+                    use_percent=use_percent,
+                    mount_point=mount_point,
+                )
             )
-        )
+        except ValueError:
+            # Silently skip invalid lines
+            continue
 
     return entries
