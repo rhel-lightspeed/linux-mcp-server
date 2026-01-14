@@ -14,6 +14,27 @@ def mock_execute(mock_execute_with_fallback_for):
     return mock_execute_with_fallback_for("linux_mcp_server.commands")
 
 
+def create_mock_execute_side_effect(command_responses):
+    """Create a mock execute side effect function based on command responses.
+
+    command_responses: dict of command_name -> output_string or Exception
+    """
+
+    def mock_execute_side_effect(*args, **_kwargs):
+        cmd = args[0]
+        match cmd[0]:
+            case cmd_name if cmd_name in command_responses:
+                response = command_responses[cmd_name]
+                if isinstance(response, Exception):
+                    raise response
+                else:
+                    return (0, response, "")
+            case _:
+                raise AssertionError(f"Unexpected command in test mock: {cmd[0]}")
+
+    return mock_execute_side_effect
+
+
 @pytest.mark.skipif(sys.platform != "linux", reason="requires Linux commands")
 @pytest.mark.parametrize(
     "tool, expected",
@@ -143,20 +164,13 @@ Model name:          Intel(R) Core(TM) i7-8565U CPU @ 1.80GHz"""
     lsusb_output = """Bus 001 Device 001: ID 1d6b:0002 Linux Foundation 2.0 root hub
 Bus 002 Device 001: ID 1d6b:0003 Linux Foundation 3.0 root hub"""
 
-    # Mock execute to return different output based on command
-    def mock_execute_side_effect(*args, **_kwargs):
-        cmd = args[0]
-        match cmd[0]:
-            case "lscpu":
-                return (0, lscpu_output, "")
-            case "lspci":
-                return (0, lspci_output, "")
-            case "lsusb":
-                return (0, lsusb_output, "")
-            case _:  # pragma: no branch
-                raise AssertionError(f"Unexpected command in test mock: {cmd[0]}")
+    command_responses = {
+        "lscpu": lscpu_output,
+        "lspci": lspci_output,
+        "lsusb": lsusb_output,
+    }
 
-    mock_execute.side_effect = mock_execute_side_effect
+    mock_execute.side_effect = create_mock_execute_side_effect(command_responses)
 
     result = await mcp_client.call_tool("get_hardware_information")
 
@@ -186,20 +200,13 @@ async def test_get_hardware_information_command_not_found(mcp_client, mock_execu
     """Test get_hardware_information when a command is not available."""
     lscpu_output = "Architecture:        x86_64"
 
-    # Mock execute to simulate FileNotFoundError for some commands
-    def mock_execute_side_effect(*args, **_kwargs):
-        cmd = args[0]
-        match cmd[0]:
-            case "lscpu":
-                return (0, lscpu_output, "")
-            case "lspci":
-                raise FileNotFoundError("lspci not found")
-            case "lsusb":
-                raise FileNotFoundError("lsusb not found")
-            case _:  # pragma: no branch
-                raise AssertionError(f"Unexpected command in test mock: {cmd[0]}")
+    command_responses = {
+        "lscpu": lscpu_output,
+        "lspci": FileNotFoundError("lspci not found"),
+        "lsusb": FileNotFoundError("lsusb not found"),
+    }
 
-    mock_execute.side_effect = mock_execute_side_effect
+    mock_execute.side_effect = create_mock_execute_side_effect(command_responses)
 
     result = await mcp_client.call_tool("get_hardware_information")
 
@@ -237,3 +244,22 @@ async def test_get_hardware_information_remote_execution(mcp_client, mock_execut
     mock_execute.assert_called()
     call_kwargs = mock_execute.call_args[1]
     assert call_kwargs["host"] == "remote.host.com"
+
+
+def test_mock_execute_unexpected_command():
+    """Test that the mock execute raises AssertionError for unexpected commands."""
+    lscpu_output = "Architecture: x86_64"
+    lspci_output = "00:00.0 Host bridge"
+    lsusb_output = "Bus 001 Device 001"
+
+    command_responses = {
+        "lscpu": lscpu_output,
+        "lspci": lspci_output,
+        "lsusb": lsusb_output,
+    }
+
+    mock_execute_side_effect = create_mock_execute_side_effect(command_responses)
+
+    # This should raise AssertionError, covering the default case
+    with pytest.raises(AssertionError, match="Unexpected command in test mock: unexpected"):
+        mock_execute_side_effect(["unexpected"])
