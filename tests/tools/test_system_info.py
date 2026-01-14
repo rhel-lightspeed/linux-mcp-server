@@ -4,8 +4,6 @@ import sys
 
 import pytest
 
-from tests.conftest import MockGetHardwaredCommandName
-
 
 @pytest.fixture
 def mock_execute(mock_execute_with_fallback_for):
@@ -108,14 +106,16 @@ Bus 002 Device 001: ID 1d6b:0003 Linux Foundation 3.0 root hub"""
 
     # Mock execute to return different output based on command
     def mock_execute_side_effect(*args, **_kwargs):
-        cmd: MockGetHardwaredCommandName = args[0]
-        match cmd:
-            case MockGetHardwaredCommandName.LSCpu:
+        cmd = args[0]
+        match cmd[0]:
+            case "lscpu":
                 return (0, lscpu_output, "")
-            case MockGetHardwaredCommandName.LSPci:
+            case "lspci":
                 return (0, lspci_output, "")
-            case MockGetHardwaredCommandName.LSUsb:
+            case "lsusb":
                 return (0, lsusb_output, "")
+            case _:  # pragma: no branch
+                raise AssertionError(f"Unexpected command in test mock: {cmd[0]}")
 
     mock_execute.side_effect = mock_execute_side_effect
 
@@ -149,14 +149,16 @@ async def test_get_hardware_information_command_not_found(mcp_client, mock_execu
 
     # Mock execute to simulate FileNotFoundError for some commands
     def mock_execute_side_effect(*args, **_kwargs):
-        cmd: MockGetHardwaredCommandName = args[0]
-        match cmd:
-            case MockGetHardwaredCommandName.LSCpu:
+        cmd = args[0]
+        match cmd[0]:
+            case "lscpu":
                 return (0, lscpu_output, "")
-            case MockGetHardwaredCommandName.LSPci:
+            case "lspci":
                 raise FileNotFoundError("lspci not found")
-            case MockGetHardwaredCommandName.LSUsb:
+            case "lsusb":
                 raise FileNotFoundError("lsusb not found")
+            case _:  # pragma: no branch
+                raise AssertionError(f"Unexpected command in test mock: {cmd[0]}")
 
     mock_execute.side_effect = mock_execute_side_effect
 
