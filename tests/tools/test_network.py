@@ -1,6 +1,10 @@
 """Tests for network diagnostic tools."""
 
+import re
+
 import pytest
+
+from fastmcp.exceptions import ToolError
 
 
 @pytest.fixture
@@ -80,13 +84,11 @@ class TestGetNetworkInterfaces:
 
     async def test_get_network_interfaces_error(self, mcp_client, mock_execute):
         """Test getting network interfaces with error."""
-        mock_execute.side_effect = Exception("Network error")
+        mock_execute.side_effect = ValueError("Raised intentionally")
+        match = re.compile(r"error calling tool.*raised intentionally", flags=re.I)
 
-        result = await mcp_client.call_tool("get_network_interfaces")
-        result_text = result.content[0].text.casefold()
-
-        assert "error getting network interface information" in result_text
-        assert "network error" in result_text
+        with pytest.raises(ToolError, match=match):
+            await mcp_client.call_tool("get_network_interfaces")
 
 
 class TestGetNetworkConnections:
@@ -143,15 +145,10 @@ tcp    ESTAB      0      0      10.0.0.5:443         10.0.0.1:12345""",
 
     async def test_get_network_connections_error(self, mcp_client, mock_execute):
         """Test getting network connections with general error."""
-        mock_execute.side_effect = Exception("Network error")
-        result = await mcp_client.call_tool("get_network_connections")
-        result_text = result.content[0].text.casefold()
-        expected = (
-            "error getting network connections",
-            "network error",
-        )
-
-        assert all(content.casefold() in result_text for content in expected), "Did not find all expected values"
+        mock_execute.side_effect = ValueError("Raised intentionally")
+        match = re.compile(r"error calling tool.*raised intentionally", flags=re.I)
+        with pytest.raises(ToolError, match=match):
+            await mcp_client.call_tool("get_network_connections")
 
 
 class TestGetListeningPorts:
@@ -210,14 +207,7 @@ tcp    LISTEN     0      128    0.0.0.0:22           0.0.0.0:*""",
 
     async def test_get_listening_ports_error(self, mcp_client, mock_execute):
         """Test getting listening ports with general error."""
-        mock_execute.side_effect = Exception("Network error")
-        result = await mcp_client.call_tool("get_listening_ports")
-        result_text = result.content[0].text.casefold()
-        expected_content = (
-            "error getting listening ports",
-            "network error",
-        )
-
-        assert all(content.casefold() in result_text for content in expected_content), (
-            "Did not find all expected values"
-        )
+        mock_execute.side_effect = ValueError("Raised intentionally")
+        match = re.compile(r"error calling tool.*raised intentionally", flags=re.I)
+        with pytest.raises(ToolError, match=match):
+            await mcp_client.call_tool("get_listening_ports")

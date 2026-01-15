@@ -1,6 +1,7 @@
 """Tests for storage tools."""
 
 import os
+import re
 import sys
 
 from collections.abc import Callable
@@ -118,11 +119,6 @@ class TestListBlockDevices:
                 ["=== Block Devices ===", "sda", "sda1"],
                 id="lsblk_success",
             ),
-            pytest.param(
-                "",
-                ["Error: Unable to list block devices"],
-                id="lsblk_empty_output",
-            ),
         ],
     )
     async def test_list_block_devices_lsblk_success(
@@ -147,14 +143,21 @@ class TestListBlockDevices:
         assert "-o" in args
 
     @pytest.mark.parametrize(
-        "side_effect, expected",
+        "side_effect, expected_match",
         (
-            (AsyncMock(return_value=(1, "", "command failed")), ["error", "unable"]),
-            (FileNotFoundError("lsblk not found"), ["not found"]),
-            (ValueError("Raised intentionally"), ["error", "raised intentionally"]),
+            (
+                AsyncMock(return_value=(1, "", "command failed")),
+                re.compile(r"Unable to list block devices", flags=re.I),
+            ),
+            (FileNotFoundError("lsblk not found"), re.compile("not found", flags=re.I)),
+            (ValueError("Raised intentionally"), re.compile(r"error.*raised intentionally", flags=re.I)),
+            (
+                AsyncMock(return_value=(1, "", "Unable to list block devices")),
+                re.compile("Unable to list block devices"),
+            ),
         ),
     )
-    async def test_list_block_devices_command_failure(self, side_effect, expected, mocker, mcp_client):
+    async def test_list_block_devices_command_failure(self, side_effect, expected_match, mocker, mcp_client):
         """Test list_block_devices failure."""
         mocker.patch(
             "linux_mcp_server.commands.execute_with_fallback",
@@ -162,10 +165,8 @@ class TestListBlockDevices:
             autospec=True,
         )
 
-        result = await mcp_client.call_tool("list_block_devices", {})
-        result_text = result.content[0].text.casefold()
-
-        assert all(case in result_text for case in expected), "Did not find all expected values"
+        with pytest.raises(ToolError, match=expected_match):
+            await mcp_client.call_tool("list_block_devices", {})
 
     async def test_list_block_devices_remote_execution(self, mock_execute_with_fallback, mcp_client):
         """Test list_block_devices with remote execution."""

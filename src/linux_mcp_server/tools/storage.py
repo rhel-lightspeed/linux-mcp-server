@@ -71,13 +71,12 @@ async def list_block_devices(
     name, size, type, mount point, and filesystem information.
     """
     cmd = get_command("list_block_devices")
-    returncode, stdout, _ = await cmd.run(host=host)
+    returncode, stdout, stderr = await cmd.run(host=host)
 
-    if is_successful_output(returncode, stdout):
-        return format_block_devices(stdout)
+    if not is_successful_output(returncode, stdout):
+        raise ToolError(f"Unable to list block devices. lsblk command may not be available. {returncode}: {stderr}")
 
-    # Fallback message if lsblk fails
-    return "Error: Unable to list block devices. lsblk command may not be available."
+    return format_block_devices(stdout)
 
 
 @mcp.tool(
