@@ -38,7 +38,7 @@ classifiers = [
 ]
 
 [project.optional-dependencies]
-gssapi = ["gssapi >= 1.2.0"]
+gssapi = ["gssapi >=1.10.1"]
 
 [project.urls]
 "Source code" = "https://github.com/rhel-lightspeed/linux-mcp-server"
