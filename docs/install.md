@@ -78,7 +78,7 @@ linux-mcp-server
     It is not necessary to run `linux-mcp-server` directly for normal use. The LLM client will handle starting and stopping the server.
 
 !!! note
-    The python libary `asyncssh[gssapi]` is needed in order to for the server to connect via SSH authentication to Kerberos registered systems
+    The `gssapi` package is needed for the server to connect via SSH authentication to Kerberos registered systems. It may be installed as an optional dependency with `linux_mcp_server[gssapi]`.
 
 ### Run in a container (Podman)
 
