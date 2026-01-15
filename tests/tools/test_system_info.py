@@ -167,6 +167,40 @@ async def test_system_info_tools_exception(tool, failing_command, mcp_client, mo
     assert "error gathering" in str(exc_info.value).casefold()
 
 
+async def test_get_memory_information_parse_error(mcp_client, mock_execute):
+    """Test get_memory_information with malformed output that causes parsing to fail."""
+    # Return output that will cause int() to fail in parse_free_output
+    malformed_output = "Mem: invalid total used free"
+    mock_execute.return_value = (0, malformed_output, "")
+
+    with pytest.raises(Exception) as exc_info:
+        await mcp_client.call_tool("get_memory_information")
+
+    assert "error gathering memory information" in str(exc_info.value).casefold()
+
+
+async def test_get_disk_usage_parse_error(mcp_client, mock_execute):
+    """Test get_disk_usage with unexpected exception during execution."""
+    # Mock cmd.run to raise an unexpected exception
+    mock_execute.side_effect = RuntimeError("Unexpected error")
+
+    with pytest.raises(Exception) as exc_info:
+        await mcp_client.call_tool("get_disk_usage")
+
+    assert "error gathering disk usage information" in str(exc_info.value).casefold()
+
+
+async def test_get_hardware_information_unexpected_exception(mcp_client, mock_execute):
+    """Test get_hardware_information with unexpected exception from command execution."""
+    # Mock cmd.run to raise an unexpected exception (not FileNotFoundError)
+    mock_execute.side_effect = RuntimeError("Unexpected error")
+
+    with pytest.raises(Exception) as exc_info:
+        await mcp_client.call_tool("get_hardware_information")
+
+    assert "error gathering hardware information" in str(exc_info.value).casefold()
+
+
 async def test_get_hardware_information_success(mcp_client, mock_execute):
     """Test get_hardware_information with successful command execution."""
     # Mock successful command outputs
@@ -242,11 +276,15 @@ async def test_get_hardware_information_command_failure(mcp_client, mock_execute
     """Test get_hardware_information when a command fails."""
     mock_execute.return_value = (1, "", "Permission denied")
 
-    # The tool raises ToolError when a command fails
-    with pytest.raises(Exception) as exc_info:
-        await mcp_client.call_tool("get_hardware_information")
+    result = await mcp_client.call_tool("get_hardware_information")
 
-    assert "error" in str(exc_info.value).casefold()
+    assert result.structured_content is not None
+    content = result.structured_content
+
+    # Check that error messages are included for failed commands
+    for cmd_name in ["lscpu", "lspci", "lsusb"]:
+        assert cmd_name in content
+        assert "Error retrieving" in content[cmd_name]
 
 
 async def test_get_hardware_information_remote_execution(mcp_client, mock_execute):
