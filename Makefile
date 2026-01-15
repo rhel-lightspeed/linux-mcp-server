@@ -53,4 +53,4 @@ docs:
 	uv run --locked --group docs mkdocs build
 
 docs-serve:
-	uv run --locked --group docs mkdocs serve
+	uv run --locked --group docs mkdocs serve --dev-addr localhost:8010 --livereload
