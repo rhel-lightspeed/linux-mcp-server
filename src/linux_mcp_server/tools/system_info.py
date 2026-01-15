@@ -4,19 +4,22 @@ from fastmcp.exceptions import ToolError
 from mcp.types import ToolAnnotations
 
 from linux_mcp_server.audit import log_tool_call
-from linux_mcp_server.commands import get_command
-from linux_mcp_server.commands import get_command_group
-from linux_mcp_server.parsers import parse_cpu_info
-from linux_mcp_server.parsers import parse_df_output
-from linux_mcp_server.parsers import parse_free_output
-from linux_mcp_server.parsers import parse_system_info
+from linux_mcp_server.commands import get_command, get_command_group
+from linux_mcp_server.parsers import (
+    parse_cpu_info,
+    parse_df_output,
+    parse_free_output,
+    parse_system_info,
+)
 from linux_mcp_server.server import mcp
 from linux_mcp_server.utils.decorators import disallow_local_execution_in_containers
-from linux_mcp_server.utils.types import CpuInfo
-from linux_mcp_server.utils.types import DiskUsage
-from linux_mcp_server.utils.types import Host
-from linux_mcp_server.utils.types import SystemInfo
-from linux_mcp_server.utils.types import SystemMemory
+from linux_mcp_server.utils.types import (
+    CpuInfo,
+    DiskUsage,
+    Host,
+    SystemInfo,
+    SystemMemory,
+)
 from linux_mcp_server.utils.validation import is_successful_output
 
 
@@ -173,7 +176,5 @@ async def get_hardware_information(
                 results[name] = f"{name} command not available"
 
         return results
-    except ToolError:
-        raise
     except Exception as e:
         raise ToolError(f"Error gathering hardware information: {str(e)}") from e
