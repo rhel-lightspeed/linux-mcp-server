@@ -3,8 +3,6 @@
 import os
 import typing as t
 
-from pathlib import Path
-
 from fastmcp.exceptions import ToolError
 from mcp.types import ToolAnnotations
 from pydantic import Field
@@ -21,6 +19,8 @@ from linux_mcp_server.utils import StrEnum
 from linux_mcp_server.utils.decorators import disallow_local_execution_in_containers
 from linux_mcp_server.utils.types import Host
 from linux_mcp_server.utils.validation import is_successful_output
+from linux_mcp_server.utils.validation import PathValidationError
+from linux_mcp_server.utils.validation import validate_path
 
 
 class OrderBy(StrEnum):
@@ -34,7 +34,6 @@ class SortBy(StrEnum):
     DESCENDING = "descending"
 
 
-# Map OrderBy enum to command names
 DIRECTORY_COMMANDS: dict[OrderBy, str] = {
     OrderBy.SIZE: "list_directories_size",
     OrderBy.NAME: "list_directories_name",
@@ -49,14 +48,11 @@ FILE_COMMANDS: dict[OrderBy, str] = {
 
 
 def _validate_path(path: str) -> str:
-    """Validate path for command and flag injection."""
-    if not path or any(c in path for c in ["\n", "\r", "\x00"]):
-        raise ToolError("Invalid path (cannot contain newlines, carriage returns, or null bytes).")
-    if path.startswith("-"):
-        raise ToolError("Invalid path (cannot start with '-').")
-    if not Path(path).is_absolute():
-        raise ToolError("Invalid path (must be absolute).")
-    return Path(path).as_posix()
+    """Validate path, converting PathValidationError to ToolError for MCP compatibility."""
+    try:
+        return validate_path(path)
+    except PathValidationError as e:
+        raise ToolError(str(e)) from e
 
 
 @mcp.tool(
