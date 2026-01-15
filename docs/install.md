@@ -77,6 +77,9 @@ linux-mcp-server
 !!! note
     It is not necessary to run `linux-mcp-server` directly for normal use. The LLM client will handle starting and stopping the server.
 
+!!! note
+    The `gssapi` package is needed for the server to connect via SSH authentication to Kerberos registered systems. It may be installed as an optional dependency with `linux_mcp_server[gssapi]`.
+
 ### Run in a container (Podman)
 
 A container runtime such as [Podman](https://podman-desktop.io) is required.

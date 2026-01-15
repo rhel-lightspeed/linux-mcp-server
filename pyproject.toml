@@ -37,6 +37,9 @@ classifiers = [
     "Topic :: Utilities",
 ]
 
+[project.optional-dependencies]
+gssapi = ["gssapi >= 1.2.0"]
+
 [project.urls]
 "Source code" = "https://github.com/rhel-lightspeed/linux-mcp-server"
 "Bug Tracker" = "https://github.com/rhel-lightspeed/linux-mcp-server/issues"
