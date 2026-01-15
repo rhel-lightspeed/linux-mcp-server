@@ -109,24 +109,17 @@ async def get_journal_logs(
 
     To get audit logs, use transport='audit'.
     """
-    try:
-        returncode, stdout, stderr = await _get_journal_logs(
-            lines=lines, host=host, unit=unit, priority=priority, since=since, transport=transport
-        )
+    returncode, stdout, stderr = await _get_journal_logs(
+        lines=lines, host=host, unit=unit, priority=priority, since=since, transport=transport
+    )
 
-        if returncode != 0:
-            return f"Error reading journal logs: {stderr}"
+    if returncode != 0:
+        return f"Error reading journal logs: {stderr}"
 
-        if is_empty_output(stdout):
-            return "No journal entries found matching the criteria."
+    if is_empty_output(stdout):
+        return "No journal entries found matching the criteria."
 
-        return format_journal_logs(stdout, lines, unit, priority, since, transport)
-    except FileNotFoundError:
-        return "Error: journalctl command not found. This tool requires systemd."
-    except ValueError as e:
-        return f"Error: {e}"
-    except Exception as e:
-        return f"Error reading journal logs: {str(e)}"
+    return format_journal_logs(stdout, lines, unit, priority, since, transport)
 
 
 @mcp.tool(
@@ -146,73 +139,68 @@ async def read_log_file(  # noqa: C901
     Retrieves the last N lines from a log file. The file path must be in the
     allowed list configured via LINUX_MCP_ALLOWED_LOG_PATHS environment variable.
     """
+    # Get allowed log paths from environment variable
+    allowed_paths_env = CONFIG.allowed_log_paths
+
+    if not allowed_paths_env:
+        return (
+            "No log files are allowed. Set LINUX_MCP_ALLOWED_LOG_PATHS environment variable "
+            "with comma-separated list of allowed log file paths."
+        )
+
+    allowed_paths = [p.strip() for p in allowed_paths_env.split(",") if p.strip()]
+
+    # Validate path for injection attacks (applies to both local and remote)
     try:
-        # Get allowed log paths from environment variable
-        allowed_paths_env = CONFIG.allowed_log_paths
+        validated_path = validate_path(log_path)
+    except PathValidationError as e:
+        return f"Invalid log file path: {e}"
 
-        if not allowed_paths_env:
+    if not host:
+        # For local execution, resolve and check against allowlist
+        requested_path = Path(validated_path).resolve()
+
+        is_allowed = False
+        for allowed_path in allowed_paths:
+            try:
+                allowed_resolved = Path(allowed_path).resolve()
+                if requested_path == allowed_resolved:
+                    is_allowed = True
+                    break
+            except Exception:
+                continue
+
+        if not is_allowed:
             return (
-                "No log files are allowed. Set LINUX_MCP_ALLOWED_LOG_PATHS environment variable "
-                "with comma-separated list of allowed log file paths."
-            )
+                f"Access to log file '{log_path}' is not allowed.\n"
+                f"Allowed log files: {', '.join(allowed_paths)}"
+            )  # nofmt
 
-        allowed_paths = [p.strip() for p in allowed_paths_env.split(",") if p.strip()]
+        if not requested_path.exists():
+            return f"Log file not found: {log_path}"
 
-        # Validate path for injection attacks (applies to both local and remote)
-        try:
-            validated_path = validate_path(log_path)
-        except PathValidationError as e:
-            return f"Invalid log file path: {e}"
+        if not requested_path.is_file():
+            return f"Path is not a file: {log_path}"
 
-        if not host:
-            # For local execution, resolve and check against allowlist
-            requested_path = Path(validated_path).resolve()
+        log_path_str = str(requested_path)
+    else:
+        # For remote execution, check against allowlist without resolving
+        if validated_path not in allowed_paths:
+            return (
+                f"Access to log file '{log_path}' is not allowed.\n"
+                f"Allowed log files: {', '.join(allowed_paths)}"
+            )  # nofmt
+        log_path_str = validated_path
 
-            is_allowed = False
-            for allowed_path in allowed_paths:
-                try:
-                    allowed_resolved = Path(allowed_path).resolve()
-                    if requested_path == allowed_resolved:
-                        is_allowed = True
-                        break
-                except Exception:
-                    continue
+    cmd = get_command("read_log_file")
+    returncode, stdout, stderr = await cmd.run(host=host, lines=lines, log_path=log_path_str)
 
-            if not is_allowed:
-                return (
-                    f"Access to log file '{log_path}' is not allowed.\n"
-                    f"Allowed log files: {', '.join(allowed_paths)}"
-                )  # nofmt
+    if returncode != 0:
+        if "Permission denied" in stderr:
+            return f"Permission denied reading log file: {log_path}"
+        return f"Error reading log file: {stderr}"
 
-            if not requested_path.exists():
-                return f"Log file not found: {log_path}"
+    if is_empty_output(stdout):
+        return f"Log file is empty: {log_path}"
 
-            if not requested_path.is_file():
-                return f"Path is not a file: {log_path}"
-
-            log_path_str = str(requested_path)
-        else:
-            # For remote execution, check against allowlist without resolving
-            if validated_path not in allowed_paths:
-                return (
-                    f"Access to log file '{log_path}' is not allowed.\n"
-                    f"Allowed log files: {', '.join(allowed_paths)}"
-                )  # nofmt
-            log_path_str = validated_path
-
-        cmd = get_command("read_log_file")
-        returncode, stdout, stderr = await cmd.run(host=host, lines=lines, log_path=log_path_str)
-
-        if returncode != 0:
-            if "Permission denied" in stderr:
-                return f"Permission denied reading log file: {log_path}"
-            return f"Error reading log file: {stderr}"
-
-        if is_empty_output(stdout):
-            return f"Log file is empty: {log_path}"
-
-        return format_log_file(stdout, log_path, lines)
-    except FileNotFoundError:
-        return "Error: tail command not found."
-    except Exception as e:
-        return f"Error reading log file: {str(e)}"
+    return format_log_file(stdout, log_path, lines)

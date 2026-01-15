@@ -70,19 +70,14 @@ async def list_block_devices(
     Retrieves all block devices (disks, partitions, LVM volumes) with their
     name, size, type, mount point, and filesystem information.
     """
-    try:
-        cmd = get_command("list_block_devices")
-        returncode, stdout, _ = await cmd.run(host=host)
+    cmd = get_command("list_block_devices")
+    returncode, stdout, _ = await cmd.run(host=host)
 
-        if is_successful_output(returncode, stdout):
-            return format_block_devices(stdout)
+    if is_successful_output(returncode, stdout):
+        return format_block_devices(stdout)
 
-        # Fallback message if lsblk fails
-        return "Error: Unable to list block devices. lsblk command may not be available."
-    except FileNotFoundError:
-        return "Error: lsblk command not found."
-    except Exception as e:
-        return f"Error listing block devices: {str(e)}"
+    # Fallback message if lsblk fails
+    return "Error: Unable to list block devices. lsblk command may not be available."
 
 
 @mcp.tool(
@@ -117,31 +112,27 @@ async def list_directories(
     cmd_name = DIRECTORY_COMMANDS[order_by]
     cmd = get_command(cmd_name)
 
-    try:
-        returncode, stdout, stderr = await cmd.run(host=host, path=path)
+    returncode, stdout, stderr = await cmd.run(host=host, path=path)
 
-        if returncode != 0:
-            raise ToolError(f"Error running command: command failed with return code {returncode}: {stderr}")
+    if returncode != 0:
+        raise ToolError(f"Error running command: command failed with return code {returncode}: {stderr}")
 
-        # Parse the output
-        entries = parse_directory_listing(stdout, order_by)
+    # Parse the output
+    entries = parse_directory_listing(stdout, order_by)
 
-        # Apply top_n limit if specified
-        if top_n:
-            # Sort first if we need to limit
-            if order_by == OrderBy.SIZE:
-                entries = sorted(entries, key=lambda e: e.size, reverse=sort == SortBy.DESCENDING)
-            elif order_by == OrderBy.MODIFIED:
-                entries = sorted(entries, key=lambda e: e.modified, reverse=sort == SortBy.DESCENDING)
-            else:
-                entries = sorted(entries, key=lambda e: e.name.lower(), reverse=sort == SortBy.DESCENDING)
-            entries = entries[:top_n]
+    # Apply top_n limit if specified
+    if top_n:
+        # Sort first if we need to limit
+        if order_by == OrderBy.SIZE:
+            entries = sorted(entries, key=lambda e: e.size, reverse=sort == SortBy.DESCENDING)
+        elif order_by == OrderBy.MODIFIED:
+            entries = sorted(entries, key=lambda e: e.modified, reverse=sort == SortBy.DESCENDING)
+        else:
+            entries = sorted(entries, key=lambda e: e.name.lower(), reverse=sort == SortBy.DESCENDING)
+        entries = entries[:top_n]
 
-        # Format the output
-        return format_directory_listing(entries, path, order_by, reverse=sort == SortBy.DESCENDING)
-
-    except Exception as e:
-        raise ToolError(f"Error listing directories: {str(e)}") from e
+    # Format the output
+    return format_directory_listing(entries, path, order_by, reverse=sort == SortBy.DESCENDING)
 
 
 @mcp.tool(
@@ -178,31 +169,27 @@ async def list_files(
     cmd_name = FILE_COMMANDS[order_by]
     cmd = get_command(cmd_name)
 
-    try:
-        returncode, stdout, stderr = await cmd.run(host=host, path=path)
+    returncode, stdout, stderr = await cmd.run(host=host, path=path)
 
-        if returncode != 0:
-            raise ToolError(f"Error running command: command failed with return code {returncode}: {stderr}")
+    if returncode != 0:
+        raise ToolError(f"Error running command: command failed with return code {returncode}: {stderr}")
 
-        # Parse the output
-        entries = parse_file_listing(stdout, order_by)
+    # Parse the output
+    entries = parse_file_listing(stdout, order_by)
 
-        # Apply top_n limit if specified
-        if top_n:
-            # Sort first if we need to limit
-            if order_by == OrderBy.SIZE:
-                entries = sorted(entries, key=lambda e: e.size, reverse=sort == SortBy.DESCENDING)
-            elif order_by == OrderBy.MODIFIED:
-                entries = sorted(entries, key=lambda e: e.modified, reverse=sort == SortBy.DESCENDING)
-            else:
-                entries = sorted(entries, key=lambda e: e.name.lower(), reverse=sort == SortBy.DESCENDING)
-            entries = entries[:top_n]
+    # Apply top_n limit if specified
+    if top_n:
+        # Sort first if we need to limit
+        if order_by == OrderBy.SIZE:
+            entries = sorted(entries, key=lambda e: e.size, reverse=sort == SortBy.DESCENDING)
+        elif order_by == OrderBy.MODIFIED:
+            entries = sorted(entries, key=lambda e: e.modified, reverse=sort == SortBy.DESCENDING)
+        else:
+            entries = sorted(entries, key=lambda e: e.name.lower(), reverse=sort == SortBy.DESCENDING)
+        entries = entries[:top_n]
 
-        # Format the output
-        return format_file_listing(entries, path, order_by, reverse=sort == SortBy.DESCENDING)
-
-    except Exception as e:
-        raise ToolError(f"Error listing files: {str(e)}") from e
+    # Format the output
+    return format_file_listing(entries, path, order_by, reverse=sort == SortBy.DESCENDING)
 
 
 @mcp.tool(
@@ -232,12 +219,9 @@ async def read_file(
 
     cmd = get_command("read_file")
 
-    try:
-        returncode, stdout, stderr = await cmd.run_bytes(host=host, path=path)
+    returncode, stdout, stderr = await cmd.run_bytes(host=host, path=path)
 
-        if returncode != 0:
-            raise ToolError(f"Error running command: command failed with return code {returncode}: {stderr}")
+    if returncode != 0:
+        raise ToolError(f"Error running command: command failed with return code {returncode}: {stderr}")
 
-        return stdout.decode("utf-8")
-    except Exception as e:
-        raise ToolError(f"Error reading file: {str(e)}") from e
+    return stdout.decode("utf-8")

@@ -32,27 +32,24 @@ async def get_network_interfaces(
     Retrieves all network interfaces with their operational state, IP addresses,
     and traffic statistics (bytes/packets sent/received, errors, dropped packets).
     """
-    try:
-        interfaces = {}
-        stats = {}
+    interfaces = {}
+    stats = {}
 
-        # Get brief interface info
-        brief_cmd = get_command("network_interfaces", "brief")
-        returncode, stdout, _ = await brief_cmd.run(host=host)
+    # Get brief interface info
+    brief_cmd = get_command("network_interfaces", "brief")
+    returncode, stdout, _ = await brief_cmd.run(host=host)
 
-        if is_successful_output(returncode, stdout):
-            interfaces = parse_ip_brief(stdout)
+    if is_successful_output(returncode, stdout):
+        interfaces = parse_ip_brief(stdout)
 
-        # Get network statistics from /proc/net/dev
-        stats_cmd = get_command("network_interfaces", "stats")
-        returncode, stdout, _ = await stats_cmd.run(host=host)
+    # Get network statistics from /proc/net/dev
+    stats_cmd = get_command("network_interfaces", "stats")
+    returncode, stdout, _ = await stats_cmd.run(host=host)
 
-        if is_successful_output(returncode, stdout):
-            stats = parse_proc_net_dev(stdout)
+    if is_successful_output(returncode, stdout):
+        stats = parse_proc_net_dev(stdout)
 
-        return format_network_interfaces(interfaces, stats)
-    except Exception as e:
-        return f"Error getting network interface information: {str(e)}"
+    return format_network_interfaces(interfaces, stats)
 
 
 @mcp.tool(
@@ -70,17 +67,14 @@ async def get_network_connections(
     Retrieves all established and pending network connections including protocol,
     state, local/remote addresses and ports, and associated process information.
     """
-    try:
-        cmd = get_command("network_connections")
+    cmd = get_command("network_connections")
 
-        returncode, stdout, stderr = await cmd.run(host=host)
+    returncode, stdout, stderr = await cmd.run(host=host)
 
-        if is_successful_output(returncode, stdout):
-            connections = parse_ss_connections(stdout)
-            return format_network_connections(connections)
-        return f"Error getting network connections: return code {returncode}, stderr: {stderr}"
-    except Exception as e:
-        return f"Error getting network connections: {str(e)}"
+    if is_successful_output(returncode, stdout):
+        connections = parse_ss_connections(stdout)
+        return format_network_connections(connections)
+    return f"Error getting network connections: return code {returncode}, stderr: {stderr}"
 
 
 @mcp.tool(
@@ -98,14 +92,11 @@ async def get_listening_ports(
     Retrieves all ports with services actively listening for connections,
     including protocol (TCP/UDP), bind address, port number, and process name.
     """
-    try:
-        cmd = get_command("listening_ports")
+    cmd = get_command("listening_ports")
 
-        returncode, stdout, stderr = await cmd.run(host=host)
+    returncode, stdout, stderr = await cmd.run(host=host)
 
-        if is_successful_output(returncode, stdout):
-            ports = parse_ss_listening(stdout)
-            return format_listening_ports(ports)
-        return f"Error getting listening ports: return code {returncode}, stderr: {stderr}"
-    except Exception as e:
-        return f"Error getting listening ports: {str(e)}"
+    if is_successful_output(returncode, stdout):
+        ports = parse_ss_listening(stdout)
+        return format_listening_ports(ports)
+    return f"Error getting listening ports: return code {returncode}, stderr: {stderr}"
