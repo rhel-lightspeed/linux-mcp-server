@@ -104,6 +104,8 @@ async def get_memory_information(
             return parse_free_output(stdout)
         else:
             raise ToolError(f"An error occurred while retrieving memory information: {stderr}")
+    except ToolError:
+        raise
     except Exception as e:
         raise ToolError(f"Error gathering memory information: {str(e)}") from e
 
@@ -132,6 +134,8 @@ async def get_disk_usage(
             return parse_df_output(stdout)
         else:
             raise ToolError(f"An error occurred while retrieving disk usage information. {stderr}")
+    except ToolError:
+        raise
     except Exception as e:
         raise ToolError(f"Error gathering disk usage information: {str(e)}") from e
 
@@ -163,10 +167,12 @@ async def get_hardware_information(
                 if is_successful_output(returncode, stdout):
                     results[name] = stdout if name == "lscpu" else stdout.splitlines()
                 else:
-                    raise ToolError(f"An error occurred while retrieving {name} information: {stderr}")
+                    results[name] = f"Error retrieving {name}: {stderr}"
             except FileNotFoundError:
                 results[name] = f"{name} command not available"
 
         return results
+    except ToolError:
+        raise
     except Exception as e:
         raise ToolError(f"Error gathering hardware information: {str(e)}") from e
