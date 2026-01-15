@@ -143,7 +143,7 @@ class SSHConnectionManager:
             connect_kwargs = {
                 "host": host,
                 "known_hosts": known_hosts,
-                "passphrase": CONFIG.key_passphrase,
+                "passphrase": CONFIG.key_passphrase.get_secret_value() or None,
             }
 
             if self._ssh_key:

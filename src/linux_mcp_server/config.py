@@ -2,6 +2,7 @@
 
 from pathlib import Path
 
+from pydantic import SecretStr
 from pydantic_settings import BaseSettings
 from pydantic_settings import SettingsConfigDict
 
@@ -25,7 +26,7 @@ class Config(BaseSettings):
 
     # SSH configuration
     ssh_key_path: Path | None = None
-    key_passphrase: str | None = None
+    key_passphrase: SecretStr = SecretStr("")
     search_for_ssh_key: bool = False
 
     # SSH host key verification (security)

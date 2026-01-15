@@ -2,6 +2,8 @@
 
 from pathlib import Path
 
+from pydantic import SecretStr
+
 from linux_mcp_server.config import Config
 
 
@@ -19,7 +21,7 @@ class TestConfig:
             log_retention_days=30,
             allowed_log_paths="/var/log:/tmp",
             ssh_key_path=Path("/home/user/.ssh/id_rsa"),
-            key_passphrase="secret",
+            key_passphrase=SecretStr("secret"),
             search_for_ssh_key=True,
         )
 
@@ -29,7 +31,7 @@ class TestConfig:
         assert config.log_retention_days == 30
         assert config.allowed_log_paths == "/var/log:/tmp"
         assert config.ssh_key_path == Path("/home/user/.ssh/id_rsa")
-        assert config.key_passphrase == "secret"
+        assert config.key_passphrase.get_secret_value() == "secret"
         assert config.search_for_ssh_key is True
 
     def test_env_var_override_log_level(self, mocker, monkeypatch):
@@ -84,7 +86,7 @@ class TestConfig:
 
         config = Config()
 
-        assert config.key_passphrase == "my_secret_passphrase"
+        assert config.key_passphrase.get_secret_value() == "my_secret_passphrase"
 
     def test_env_var_override_search_for_ssh_key(self, mocker, monkeypatch):
         """Test that LINUX_MCP_SEARCH_FOR_SSH_KEY environment variable works"""
@@ -205,12 +207,10 @@ class TestConfigEdgeCases:
         config = Config(
             allowed_log_paths=None,
             ssh_key_path=None,
-            key_passphrase=None,
         )
 
         assert config.allowed_log_paths is None
         assert config.ssh_key_path is None
-        assert config.key_passphrase is None
 
     def test_empty_string_log_level_validation(self, mocker):
         """Test log_level validator with empty string"""
