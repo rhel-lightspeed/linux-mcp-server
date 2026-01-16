@@ -17,6 +17,8 @@ from linux_mcp_server.utils import StrEnum
 from linux_mcp_server.utils.decorators import disallow_local_execution_in_containers
 from linux_mcp_server.utils.types import Host
 from linux_mcp_server.utils.validation import is_empty_output
+from linux_mcp_server.utils.validation import PathValidationError
+from linux_mcp_server.utils.validation import validate_path
 
 
 class Transport(StrEnum):
@@ -156,14 +158,16 @@ async def read_log_file(  # noqa: C901
 
         allowed_paths = [p.strip() for p in allowed_paths_env.split(",") if p.strip()]
 
-        # For local execution, validate path
-        if not host:
-            try:
-                requested_path = Path(log_path).resolve()
-            except Exception:
-                return f"Invalid log file path: {log_path}"
+        # Validate path for injection attacks (applies to both local and remote)
+        try:
+            validated_path = validate_path(log_path)
+        except PathValidationError as e:
+            return f"Invalid log file path: {e}"
 
-            # Check if the requested path is in the allowed list
+        if not host:
+            # For local execution, resolve and check against allowlist
+            requested_path = Path(validated_path).resolve()
+
             is_allowed = False
             for allowed_path in allowed_paths:
                 try:
@@ -180,7 +184,6 @@ async def read_log_file(  # noqa: C901
                     f"Allowed log files: {', '.join(allowed_paths)}"
                 )  # nofmt
 
-            # Check if file exists
             if not requested_path.exists():
                 return f"Log file not found: {log_path}"
 
@@ -189,13 +192,13 @@ async def read_log_file(  # noqa: C901
 
             log_path_str = str(requested_path)
         else:
-            # For remote execution, just check against whitelist without resolving
-            if log_path not in allowed_paths:
+            # For remote execution, check against allowlist without resolving
+            if validated_path not in allowed_paths:
                 return (
                     f"Access to log file '{log_path}' is not allowed.\n"
                     f"Allowed log files: {', '.join(allowed_paths)}"
                 )  # nofmt
-            log_path_str = log_path
+            log_path_str = validated_path
 
         cmd = get_command("read_log_file")
         returncode, stdout, stderr = await cmd.run(host=host, lines=lines, log_path=log_path_str)
