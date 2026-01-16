@@ -2,7 +2,11 @@
 
 import sys
 
+from contextlib import nullcontext
+
 import pytest
+
+from fastmcp.exceptions import ToolError
 
 
 @pytest.fixture
@@ -45,6 +49,10 @@ def mock_execute(mock_execute_with_fallback_for):
                 ("/",),
             ),
         ),
+        (
+            "get_hardware_information",
+            [("hardware information", "cpu architecture")],
+        ),
     ),
 )
 async def test_system_info_tools(tool, expected, mcp_client):
@@ -55,32 +63,50 @@ async def test_system_info_tools(tool, expected, mcp_client):
 
 
 @pytest.mark.parametrize(
-    "tool",
+    "tool, return_value, side_effect, expected, assertion",
     (
-        "get_memory_information",
-        "get_disk_usage",
+        (
+            "get_memory_information",
+            (0, "", ""),
+            None,
+            pytest.raises(ToolError, match="Unable to retrieve"),
+            "result_text == ''",
+        ),
+        (
+            "get_disk_usage",
+            (0, "", ""),
+            None,
+            pytest.raises(ToolError, match="Unable to retrieve"),
+            "result_text == ''",
+        ),
+        ("get_system_information", (0, "", ""), None, nullcontext(), "result_text == ''"),
+        ("get_cpu_information", (0, "", ""), None, nullcontext(), "result_text == ''"),
+        (
+            "get_hardware_information",
+            (1, "", ""),
+            None,
+            nullcontext(),
+            "'no hardware information tools available' in result_text",
+        ),
+        (
+            "get_hardware_information",
+            (1, "", ""),
+            FileNotFoundError,
+            nullcontext(),
+            "'command not available' in result_text",
+        ),
     ),
 )
-async def test_system_info_tools_unsuccessful(tool, mcp_client, mock_execute):
-    mock_execute.return_value = (0, "", "")
+async def test_system_info_tools_unsuccessful(
+    tool, return_value, side_effect, expected, assertion, mcp_client, mock_execute
+):
+    mock_execute.return_value = return_value
+    mock_execute.side_effect = side_effect
 
-    result = await mcp_client.call_tool(tool)
-    result_text = result.content[0].text.casefold()
+    result_text = None
+    with expected:
+        result = await mcp_client.call_tool(tool)
+        result_text = result.content[0].text.casefold()
 
-    assert "error" in result_text
-
-
-@pytest.mark.parametrize(
-    "tool",
-    (
-        "get_system_information",
-        "get_cpu_information",
-    ),
-)
-async def test_system_info_tools_unsuccessful_empty(tool, mcp_client, mock_execute):
-    mock_execute.return_value = (0, "", "")
-
-    result = await mcp_client.call_tool(tool)
-    result_text = result.content[0].text.casefold()
-
-    assert result_text == ""
+    if result_text:
+        assert eval(assertion)
