@@ -1,5 +1,6 @@
 """System information tools."""
 
+from fastmcp.exceptions import ToolError
 from mcp.types import ToolAnnotations
 
 from linux_mcp_server.audit import log_tool_call
@@ -94,11 +95,11 @@ async def get_memory_information(
     free_cmd = get_command("memory_info", "free")
     returncode, stdout, _ = await free_cmd.run(host=host)
 
-    if is_successful_output(returncode, stdout):
-        memory = parse_free_output(stdout)
-        return format_memory_info(memory)
+    if not is_successful_output(returncode, stdout):
+        raise ToolError("Unable to retrieve memory information")
 
-    return "Error: Unable to retrieve memory information"
+    memory = parse_free_output(stdout)
+    return format_memory_info(memory)
 
 
 @mcp.tool(
@@ -120,10 +121,10 @@ async def get_disk_usage(
 
     returncode, stdout, _ = await cmd.run(host=host)
 
-    if is_successful_output(returncode, stdout):
-        return format_disk_usage(stdout)
+    if not is_successful_output(returncode, stdout):
+        raise ToolError("Unable to retrieve disk usage information")
 
-    return "Error: Unable to retrieve disk usage information"
+    return format_disk_usage(stdout)
 
 
 @mcp.tool(
