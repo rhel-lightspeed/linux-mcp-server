@@ -1,0 +1,33 @@
+apiVersion: tekton.dev/v1
+kind: Task
+metadata:
+  name: verify-container-lifecycle
+spec:
+  [cite_start]description: Verifies MCP server startup, permissions, and handshake via sidecar. [cite: 4]
+  params:
+    - name: image_url
+      type: string
+    - name: qa_image_url
+      default: "quay.io/redhat-user-workloads/rhel-lightspeed-tenant/linux-mcp-server-test-suite:latest"
+
+  sidecars:
+    - name: server
+      image: $(params.image_url)
+      command: ["/bin/sh", "-c"]
+      args:
+        - |
+          socat TCP-LISTEN:8080,reuseaddr,fork EXEC:linux-mcp-server,stderr 
+
+  steps:
+    - name: verify-user-and-startup
+      image: $(params.qa_image_url)
+      script: |
+        #!/usr/bin/env bash
+        # The QA container probes the sidecar's network port
+        /usr/local/bin/scripts/verify_container_lifecycle.sh
+
+    - name: verify-mcp-handshake
+      image: $(params.qa_image_url)
+      script: |
+        #!/usr/bin/env bash
+        /usr/local/bin/scripts/verify_mcp_handshake.sh

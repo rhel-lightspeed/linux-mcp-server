@@ -1,0 +1,18 @@
+apiVersion: appstudio.redhat.com/v1alpha1
+kind: IntegrationTestScenario
+metadata:
+  name: container-lifecycle-test
+spec:
+  application: linux-mcp-server
+  resolverRef:
+    resolver: git
+    params:
+      - name: url
+        value: https://github.com/rhel-lightspeed/linux-mcp-server.git
+      - name: revision
+        value: main
+      - name: pathInRepo
+        value: .tekton/task-verify-container.yaml
+  params:
+    - name: qa_image_url
+      value: "quay.io/redhat-user-workloads/rhel-lightspeed-tenant/linux-mcp-server-test-suite:latest"
