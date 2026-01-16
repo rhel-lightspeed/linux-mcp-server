@@ -262,7 +262,8 @@ class TestListDirectories:
         positions = [result_text.find(name) for name in expected_order]
         assert positions[0] < positions[1] < positions[2]
 
-    async def test_list_directories_with_top_n(self, setup_test_directory, mcp_client):
+    @pytest.mark.parametrize("order", ("size", "modified", "name"))
+    async def test_list_directories_with_top_n(self, setup_test_directory, mcp_client, order):
         """Test that list_directories limits results with top_n."""
         dir_specs = [
             ("alpha", 100, 1000.0),
@@ -272,7 +273,7 @@ class TestListDirectories:
         test_path, _ = setup_test_directory(dir_specs)
 
         result = await mcp_client.call_tool(
-            "list_directories", arguments={"path": str(test_path), "order_by": "name", "top_n": 2}
+            "list_directories", arguments={"path": str(test_path), "order_by": order, "top_n": 2}
         )
 
         assert "Total directories: 2" in result.content[0].text
@@ -384,7 +385,8 @@ class TestListFiles:
         alpha_pos = result_text.find("alpha.txt")
         assert gamma_pos < beta_pos < alpha_pos
 
-    async def test_list_files_with_top_n(self, setup_test_files, mcp_client):
+    @pytest.mark.parametrize("order", ("size", "modified", "name"))
+    async def test_list_files_with_top_n(self, setup_test_files, mcp_client, order):
         """Test that list_files limits results with top_n."""
         file_specs = [
             ("file1.txt", 100, 1000.0),
@@ -393,7 +395,7 @@ class TestListFiles:
         ]
         test_path, _ = setup_test_files(file_specs)
         result = await mcp_client.call_tool(
-            "list_files", arguments={"path": str(test_path), "order_by": "name", "top_n": 2}
+            "list_files", arguments={"path": str(test_path), "order_by": order, "top_n": 2}
         )
 
         assert "Total files: 2" in result.content[0].text
