@@ -4,13 +4,15 @@ import sys
 
 import pytest
 
+from fastmcp import exceptions
+
 
 @pytest.fixture
 def mock_execute(mock_execute_with_fallback_for):
     return mock_execute_with_fallback_for("linux_mcp_server.commands")
 
 
-def create_mock_execute_side_effect(command_responses):
+def create_mock_execute_side_effect(command_responses: dict[str, str | Exception]):
     """Create a mock execute side effect function based on command responses.
 
     command_responses: dict of command_name -> output_string or Exception
@@ -76,22 +78,19 @@ async def test_system_info_tools(tool, expected, mcp_client):
 
 
 @pytest.mark.parametrize(
-    "tool",
-    (
-        "get_memory_information",
-        "get_disk_usage",
-    ),
+    "tool, error_message",
+    [
+        ("get_memory_information", "An error occurred while retrieving memory information"),
+        ("get_disk_usage", "An error occurred while retrieving disk usage information"),
+    ],
 )
-async def test_system_info_tools_unsuccessful(tool, mcp_client, mock_execute):
+async def test_system_info_tools_unsuccessful(tool, error_message, mcp_client, mock_execute):
     mock_execute.return_value = (0, "", "")
 
     # These tools now raise ToolError when output is unsuccessful
     # The MCP client's raise_on_error=True (default) causes it to raise an exception
-    with pytest.raises(Exception) as exc_info:
+    with pytest.raises(exceptions.ToolError, match=error_message):
         await mcp_client.call_tool(tool)
-
-    # Verify the error message contains expected text
-    assert "error" in str(exc_info.value).casefold()
 
 
 @pytest.mark.parametrize(
@@ -119,13 +118,11 @@ async def test_system_info_tools_unsuccessful_empty(tool, mcp_client, mock_execu
     ],
 )
 async def test_system_info_tools_exception(tool, failing_command, mcp_client, mock_execute):
-    command_responses = {failing_command: Exception("Command failed")}
+    command_responses: dict[str, str | Exception] = {failing_command: Exception("Command failed")}
     mock_execute.side_effect = create_mock_execute_side_effect(command_responses)
 
-    with pytest.raises(Exception) as exc_info:
+    with pytest.raises(exceptions.ToolError, match="Error gathering.*information"):
         await mcp_client.call_tool(tool)
-
-    assert "error gathering" in str(exc_info.value).casefold()
 
 
 async def test_get_memory_information_parse_error(mcp_client, mock_execute):
@@ -134,21 +131,17 @@ async def test_get_memory_information_parse_error(mcp_client, mock_execute):
     malformed_output = "Mem: invalid total used free"
     mock_execute.return_value = (0, malformed_output, "")
 
-    with pytest.raises(Exception) as exc_info:
+    with pytest.raises(exceptions.ToolError, match="Error gathering memory information"):
         await mcp_client.call_tool("get_memory_information")
-
-    assert "error gathering memory information" in str(exc_info.value).casefold()
 
 
 async def test_get_disk_usage_parse_error(mcp_client, mock_execute):
     """Test get_disk_usage with unexpected exception during execution."""
     # Mock cmd.run to raise an unexpected exception
-    mock_execute.side_effect = RuntimeError("Unexpected error")
+    mock_execute.side_effect = ValueError("Raised intentionally")
 
-    with pytest.raises(Exception) as exc_info:
+    with pytest.raises(exceptions.ToolError, match="Error gathering disk usage information"):
         await mcp_client.call_tool("get_disk_usage")
-
-    assert "error gathering disk usage information" in str(exc_info.value).casefold()
 
 
 async def test_get_hardware_information_unexpected_exception(mcp_client, mock_execute):
@@ -156,10 +149,8 @@ async def test_get_hardware_information_unexpected_exception(mcp_client, mock_ex
     # Mock cmd.run to raise an unexpected exception (not FileNotFoundError)
     mock_execute.side_effect = RuntimeError("Unexpected error")
 
-    with pytest.raises(Exception) as exc_info:
+    with pytest.raises(exceptions.ToolError, match="Error gathering hardware information"):
         await mcp_client.call_tool("get_hardware_information")
-
-    assert "error gathering hardware information" in str(exc_info.value).casefold()
 
 
 async def test_get_hardware_information_success(mcp_client, mock_execute):

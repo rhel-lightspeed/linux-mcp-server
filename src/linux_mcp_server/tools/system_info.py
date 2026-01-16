@@ -133,7 +133,7 @@ async def get_disk_usage(
         if is_successful_output(returncode, stdout):
             return parse_df_output(stdout)
         else:
-            raise ToolError(f"An error occurred while retrieving disk usage information. {stderr}")
+            raise ToolError(f"An error occurred while retrieving disk usage information: {stderr}")
     except ToolError:
         raise
     except Exception as e:
