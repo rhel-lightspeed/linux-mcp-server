@@ -175,7 +175,7 @@ Model name:          Intel(R) Core(TM) i7-8565U CPU @ 1.80GHz"""
     lsusb_output = """Bus 001 Device 001: ID 1d6b:0002 Linux Foundation 2.0 root hub
 Bus 002 Device 001: ID 1d6b:0003 Linux Foundation 3.0 root hub"""
 
-    command_responses = {
+    command_responses: dict[str, str | Exception] = {
         "lscpu": lscpu_output,
         "lspci": lspci_output,
         "lsusb": lsusb_output,
@@ -267,7 +267,7 @@ def test_mock_execute_unexpected_command():
     lspci_output = "00:00.0 Host bridge"
     lsusb_output = "Bus 001 Device 001"
 
-    command_responses = {
+    command_responses: dict[str, str | Exception] = {
         "lscpu": lscpu_output,
         "lspci": lspci_output,
         "lsusb": lsusb_output,
