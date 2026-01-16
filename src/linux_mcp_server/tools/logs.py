@@ -162,13 +162,10 @@ async def read_log_file(  # noqa: C901
 
         is_allowed = False
         for allowed_path in allowed_paths:
-            try:
-                allowed_resolved = Path(allowed_path).resolve()
-                if requested_path == allowed_resolved:
-                    is_allowed = True
-                    break
-            except Exception:
-                continue
+            allowed_resolved = Path(allowed_path).resolve()
+            if requested_path == allowed_resolved:
+                is_allowed = True
+                break
 
         if not is_allowed:
             return (
