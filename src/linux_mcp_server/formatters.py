@@ -457,7 +457,7 @@ def format_hardware_info(results: dict[str, str]) -> str:
 
 def format_directory_listing(
     entries: list[NodeEntry],
-    path: str,
+    path: str | Path,
     sort_by: str,
     reverse: bool = False,
 ) -> str:
@@ -497,7 +497,7 @@ def format_directory_listing(
 
 def format_file_listing(
     entries: list[NodeEntry],
-    path: str,
+    path: str | Path,
     sort_by: str,
     reverse: bool = False,
 ) -> str:
