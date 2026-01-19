@@ -108,7 +108,7 @@ source = [
 ]
 omit = [
     "src/linux_mcp_server/_vendor/*/*",
-    ".venv/*"
+    ".venv/*"  # VS Code is including these files in reports for an unknown reason
 ]
 
 [tool.coverage.report]
