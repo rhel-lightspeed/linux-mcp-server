@@ -20,6 +20,7 @@ from linux_mcp_server.utils.validation import is_successful_output
 @mcp.tool(
     title="Get network interfaces",
     description="Get detailed information about network interfaces including address and traffic statistics.",
+    tags={"connectivity", "interfaces", "network"},
     annotations=ToolAnnotations(readOnlyHint=True),
 )
 @log_tool_call
@@ -58,6 +59,7 @@ async def get_network_interfaces(
 @mcp.tool(
     title="Get network connections",
     description="Get detailed information about active network connections.",
+    tags={"connections", "connectivity", "network"},
     annotations=ToolAnnotations(readOnlyHint=True),
 )
 @log_tool_call
@@ -86,6 +88,7 @@ async def get_network_connections(
 @mcp.tool(
     title="Get listening ports",
     description="Get details on listening port, protocols, and services.",
+    tags={"connectivity", "network", "ports"},
     annotations=ToolAnnotations(readOnlyHint=True),
 )
 @log_tool_call
