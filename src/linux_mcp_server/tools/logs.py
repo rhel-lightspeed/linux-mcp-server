@@ -6,6 +6,7 @@ from pathlib import Path
 
 from mcp.types import ToolAnnotations
 from pydantic import Field
+from pydantic.functional_validators import BeforeValidator
 
 from linux_mcp_server.audit import log_tool_call
 from linux_mcp_server.commands import get_command
@@ -17,7 +18,6 @@ from linux_mcp_server.utils import StrEnum
 from linux_mcp_server.utils.decorators import disallow_local_execution_in_containers
 from linux_mcp_server.utils.types import Host
 from linux_mcp_server.utils.validation import is_empty_output
-from linux_mcp_server.utils.validation import PathValidationError
 from linux_mcp_server.utils.validation import validate_path
 
 
@@ -143,9 +143,10 @@ async def get_journal_logs(
 )
 @log_tool_call
 @disallow_local_execution_in_containers
-async def read_log_file(  # noqa: C901
+async def read_log_file(
     log_path: t.Annotated[
-        str,
+        Path,
+        BeforeValidator(validate_path),
         Field(
             description="Absolute path to the log file (must be in allowed list)",
             examples=["/var/log/messages", "/var/log/secure", "/var/log/audit/audit.log", "/var/log/dnf.log"],
@@ -178,7 +179,7 @@ async def read_log_file(  # noqa: C901
 
     if not host:
         # For local execution, resolve and check against allowlist
-        requested_path = Path(validated_path).resolve()
+        requested_path = log_path.resolve()
 
         is_allowed = False
         for allowed_path in allowed_paths:
