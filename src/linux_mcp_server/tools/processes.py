@@ -20,6 +20,7 @@ from linux_mcp_server.utils.validation import is_successful_output
 @mcp.tool(
     title="List processes",
     description="List running processes",
+    tags={"performance", "processes"},
     annotations=ToolAnnotations(readOnlyHint=True),
 )
 @log_tool_call
@@ -44,6 +45,7 @@ async def list_processes(
 @mcp.tool(
     title="Process details",
     description="Get information about a specific process.",
+    tags={"performance", "processes"},
     annotations=ToolAnnotations(readOnlyHint=True),
 )
 @log_tool_call

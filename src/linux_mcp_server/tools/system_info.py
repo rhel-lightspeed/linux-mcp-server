@@ -23,6 +23,7 @@ from linux_mcp_server.utils.validation import is_successful_output
 @mcp.tool(
     title="Get system information",
     description="Get basic system information such as operating system, distribution, kernel version, uptime, and last boot time.",
+    tags={"hardware", "system"},
     annotations=ToolAnnotations(readOnlyHint=True),
 )
 @log_tool_call
@@ -51,6 +52,7 @@ async def get_system_information(
 @mcp.tool(
     title="Get CPU information",
     description="Get CPU information.",
+    tags={"cpu", "hardware", "performance", "system"},
     annotations=ToolAnnotations(readOnlyHint=True),
 )
 @log_tool_call
@@ -79,6 +81,7 @@ async def get_cpu_information(
 @mcp.tool(
     title="Get memory information",
     description="Get detailed memory including physical and swap.",
+    tags={"hardware", "memory", "performance", "system"},
     annotations=ToolAnnotations(readOnlyHint=True),
 )
 @log_tool_call
@@ -105,6 +108,7 @@ async def get_memory_information(
 @mcp.tool(
     title="Get disk usage",
     description="Get detailed disk space information including size, mount points, and utilization.",
+    tags={"disk", "filesystem", "storage", "system"},
     annotations=ToolAnnotations(readOnlyHint=True),
 )
 @log_tool_call
@@ -130,6 +134,7 @@ async def get_disk_usage(
 @mcp.tool(
     title="Get hardware information",
     description="Get hardware information such as CPU details, PCI devices, USB devices, and hardware information from DMI.",
+    tags={"hardware", "system"},
     annotations=ToolAnnotations(readOnlyHint=True),
 )
 @log_tool_call

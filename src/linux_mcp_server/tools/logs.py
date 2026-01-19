@@ -81,6 +81,7 @@ async def _get_journal_logs(
 @mcp.tool(
     title="Get journal logs",
     description="Get systemd journal logs.",
+    tags={"journal", "logs", "systemd", "troubleshooting"},
     annotations=ToolAnnotations(readOnlyHint=True),
 )
 @log_tool_call
@@ -125,6 +126,7 @@ async def get_journal_logs(
 @mcp.tool(
     title="Read log file",
     description="Read a specific log file.",
+    tags={"files", "logs", "troubleshooting"},
     annotations=ToolAnnotations(readOnlyHint=True),
 )
 @log_tool_call
