@@ -198,7 +198,7 @@ class TestReadLogFile:
         log_file = setup_log_file()
         mock_execute_with_fallback.return_value = (0, "Test log content\nLine 2", "")
 
-        params = {"log_path": str(log_file)}
+        params = {"log_path": log_file}
         if lines != 100:
             params["lines"] = lines
 
@@ -217,23 +217,19 @@ class TestReadLogFile:
         """Test read_log_file when no allowed paths are configured."""
         mock_allowed_log_paths("")
 
-        result = await mcp_client.call_tool("read_log_file", {"log_path": "/var/log/test.log"})
-        result_text = result.content[0].text.casefold()
-
-        assert "no log files are allowed" in result_text
-        assert "linux_mcp_allowed_log_paths" in result_text
+        with pytest.raises(ToolError, match="No log files are allowed"):
+            await mcp_client.call_tool("read_log_file", {"log_path": "/var/log/test.log"})
 
     @pytest.mark.parametrize(
-        "test_scenario,path_resolver,expected_error",
+        "test_scenario,log_path,match",
         [
-            # Invalid path
-            ("invalid_path", lambda tp: "\x00invalid", "invalid log file path"),
-            # Path not in allowed list
-            ("not_allowed", lambda tp: str(tp / "restricted.log"), "not allowed"),
+            ("invalid_path", "\x00invalid", "Path contains invalid characters"),
+            ("not_allowed", "restricted.log", "not allowed"),
         ],
+        ids=["invalid-path", "path-not-in-list"],
     )
     async def test_read_log_file_path_validation(
-        self, mcp_client, mock_allowed_log_paths, tmp_path, test_scenario, path_resolver, expected_error
+        self, mcp_client, mock_allowed_log_paths, tmp_path, test_scenario, log_path, match
     ):
         """Test read_log_file path validation scenarios."""
         # Setup allowed path
@@ -241,26 +237,20 @@ class TestReadLogFile:
         allowed_file.write_text("allowed")
         mock_allowed_log_paths(str(allowed_file))
 
-        # Create restricted file for not_allowed scenario
-        if test_scenario == "not_allowed":
-            restricted_file = tmp_path / "restricted.log"
-            restricted_file.write_text("restricted")
+        restricted_file = tmp_path / "restricted.log"
+        restricted_file.write_text("restricted")
 
-        test_path = path_resolver(tmp_path)
-        result = await mcp_client.call_tool("read_log_file", {"log_path": test_path})
-        result_text = result.content[0].text.casefold()
-
-        assert expected_error in result_text
+        test_path = tmp_path / log_path
+        with pytest.raises(ToolError, match=match):
+            await mcp_client.call_tool("read_log_file", {"log_path": test_path})
 
     async def test_read_log_file_nonexistent_but_allowed(self, mcp_client, mock_allowed_log_paths, tmp_path):
         """Test read_log_file when path is allowed but file doesn't exist."""
         nonexistent_file = tmp_path / "nonexistent.log"
         mock_allowed_log_paths(str(nonexistent_file))
 
-        result = await mcp_client.call_tool("read_log_file", {"log_path": str(nonexistent_file)})
-        result_text = result.content[0].text.casefold()
-
-        assert "log file not found" in result_text
+        with pytest.raises(ToolError, match="Log file not found"):
+            await mcp_client.call_tool("read_log_file", {"log_path": nonexistent_file})
 
     async def test_read_log_file_path_is_directory(self, mcp_client, mock_allowed_log_paths, tmp_path):
         """Test read_log_file when path is a directory, not a file."""
@@ -268,41 +258,35 @@ class TestReadLogFile:
         log_dir.mkdir()
         mock_allowed_log_paths(str(log_dir))
 
-        result = await mcp_client.call_tool("read_log_file", {"log_path": str(log_dir)})
-        result_text = result.content[0].text.casefold()
-
-        assert "path is not a file" in result_text
+        with pytest.raises(ToolError, match="Path is not a file"):
+            await mcp_client.call_tool("read_log_file", {"log_path": log_dir})
 
     @pytest.mark.parametrize(
-        "returncode,stderr,expected_error",
+        "returncode,stderr,match",
         [
             # Permission denied
-            (1, "tail: cannot open: Permission denied", "permission denied"),
+            (1, "tail: cannot open: Permission denied", "Permission denied"),
             # general error
-            (1, "tail: error reading file", "error reading log file"),
+            (1, "tail: error reading file", "Error reading log file"),
         ],
     )
     async def test_read_log_file_command_errors(
-        self, mcp_client, mock_execute_with_fallback, setup_log_file, returncode, stderr, expected_error
+        self, mcp_client, mock_execute_with_fallback, setup_log_file, returncode, stderr, match
     ):
         """Test read_log_file command error handling."""
         log_file = setup_log_file()
         mock_execute_with_fallback.return_value = (returncode, "", stderr)
 
-        result = await mcp_client.call_tool("read_log_file", {"log_path": str(log_file)})
-        result_text = result.content[0].text.casefold()
-
-        assert expected_error in result_text
+        with pytest.raises(ToolError, match=match):
+            await mcp_client.call_tool("read_log_file", {"log_path": log_file})
 
     async def test_read_log_file_empty(self, mcp_client, mock_execute_with_fallback, setup_log_file):
         """Test read_log_file with empty log file."""
         log_file = setup_log_file(content="")
         mock_execute_with_fallback.return_value = (0, "", "")
 
-        result = await mcp_client.call_tool("read_log_file", {"log_path": str(log_file)})
-        result_text = result.content[0].text.casefold()
-
-        assert "log file is empty" in result_text
+        with pytest.raises(ToolError, match="Log file is empty"):
+            await mcp_client.call_tool("read_log_file", {"log_path": log_file})
 
     async def test_read_log_file_tail_not_found(self, mcp_client, mock_execute_with_fallback, setup_log_file):
         """Test read_log_file when tail command is not available."""
@@ -310,7 +294,7 @@ class TestReadLogFile:
         mock_execute_with_fallback.side_effect = FileNotFoundError("tail not found")
 
         with pytest.raises(ToolError, match="tail not found"):
-            await mcp_client.call_tool("read_log_file", {"log_path": str(log_file)})
+            await mcp_client.call_tool("read_log_file", {"log_path": log_file})
 
     async def test_read_log_file_multiple_allowed_paths(
         self, mcp_client, mock_execute_with_fallback, mock_allowed_log_paths, tmp_path
@@ -325,7 +309,7 @@ class TestReadLogFile:
         mock_allowed_log_paths(f"{log_file1},{log_file2}")
         mock_execute_with_fallback.return_value = (0, "content2", "")
 
-        result = await mcp_client.call_tool("read_log_file", {"log_path": str(log_file2)})
+        result = await mcp_client.call_tool("read_log_file", {"log_path": log_file2})
         result_text = result.content[0].text.casefold()
 
         assert "content2" in result_text
@@ -368,9 +352,5 @@ class TestReadLogFile:
 
         mock_allowed_log_paths(str(allowed_path))
 
-        result = await mcp_client.call_tool(
-            "read_log_file", {"log_path": str(restricted_path), "host": "remote.server.com"}
-        )
-        result_text = result.content[0].text.casefold()
-
-        assert "not allowed" in result_text
+        with pytest.raises(ToolError, match="not allowed"):
+            await mcp_client.call_tool("read_log_file", {"log_path": restricted_path, "host": "remote.server.com"})
