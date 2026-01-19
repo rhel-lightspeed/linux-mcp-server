@@ -59,7 +59,13 @@ async def list_services(
 @log_tool_call
 @disallow_local_execution_in_containers
 async def get_service_status(
-    service_name: t.Annotated[str, "Name of the service"],
+    service_name: t.Annotated[
+        str,
+        Field(
+            description="Name of the systemd service",
+            examples=["sshd", "NetworkManager", "auditd", "rsyslog", "crond", "firewalld"],
+        ),
+    ],
     host: Host = None,
 ) -> str:
     """Get status of a specific systemd service.
@@ -93,7 +99,13 @@ async def get_service_status(
 @log_tool_call
 @disallow_local_execution_in_containers
 async def get_service_logs(
-    service_name: t.Annotated[str, "Name of the service"],
+    service_name: t.Annotated[
+        str,
+        Field(
+            description="Name of the systemd service",
+            examples=["sshd", "NetworkManager", "auditd", "rsyslog", "crond", "firewalld"],
+        ),
+    ],
     lines: t.Annotated[int, Field(description="Number of log lines to retrieve.", ge=1, le=10_000)] = 50,
     host: Host = None,
 ) -> str:
