@@ -51,7 +51,10 @@ async def list_processes(
 @log_tool_call
 @disallow_local_execution_in_containers
 async def get_process_info(
-    pid: t.Annotated[int, Field(description="Process ID", ge=1)],
+    pid: t.Annotated[
+        int,
+        Field(description="Process ID", ge=1, examples=[1, 1234, 65535]),
+    ],
     host: Host = None,
 ) -> str:
     """Get detailed information about a specific process.

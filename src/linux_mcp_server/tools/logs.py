@@ -87,14 +87,26 @@ async def _get_journal_logs(
 @log_tool_call
 @disallow_local_execution_in_containers
 async def get_journal_logs(
-    unit: t.Annotated[str | None, "Filter by systemd unit name or pattern (e.g., 'nginx.service', 'ssh*')"] = None,
+    unit: t.Annotated[
+        str | None,
+        Field(
+            description="Filter by systemd unit name or pattern",
+            examples=["sshd.service", "nginx", "httpd", "systemd-*", "audit*"],
+        ),
+    ] = None,
     priority: t.Annotated[
         str | None,
-        "Filter by priority. Possible values: priority level (0-7), syslog level name ('emerg' to 'debug'), or range (e.g., 'err..info')",
+        Field(
+            description="Filter by syslog priority level (0-7), name, or range",
+            examples=["err", "warning", "info", "debug", "3", "err..warning"],
+        ),
     ] = None,
     since: t.Annotated[
         str | None,
-        "Filter entries since specified time. Date/time filter (format: 'YYYY-MM-DD HH:MM:SS', 'today', 'yesterday', 'now', or relative like '-1h')",
+        Field(
+            description="Filter entries since specified time (absolute or relative)",
+            examples=["today", "yesterday", "-1h", "-30m", "-7d", "2025-01-15 10:00:00"],
+        ),
     ] = None,
     transport: t.Annotated[
         Transport | None,
@@ -132,7 +144,13 @@ async def get_journal_logs(
 @log_tool_call
 @disallow_local_execution_in_containers
 async def read_log_file(  # noqa: C901
-    log_path: t.Annotated[str, "Path to the log file"],
+    log_path: t.Annotated[
+        str,
+        Field(
+            description="Absolute path to the log file (must be in allowed list)",
+            examples=["/var/log/messages", "/var/log/secure", "/var/log/audit/audit.log", "/var/log/dnf.log"],
+        ),
+    ],
     lines: t.Annotated[int, Field(description="Number of lines to retrieve from the end.", ge=1, le=10_000)] = 100,
     host: Host = None,
 ) -> str:

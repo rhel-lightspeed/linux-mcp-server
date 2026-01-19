@@ -89,7 +89,13 @@ async def list_block_devices(
 @log_tool_call
 @disallow_local_execution_in_containers
 async def list_directories(
-    path: t.Annotated[str, "The directory path to analyze"],
+    path: t.Annotated[
+        str,
+        Field(
+            description="Absolute path to the directory to analyze",
+            examples=["/var/log", "/etc", "/home", "/opt", "/tmp"],
+        ),
+    ],
     order_by: t.Annotated[OrderBy, "Sort order - 'size', 'name', or 'modified' (default: 'name')"] = OrderBy.NAME,
     sort: t.Annotated[SortBy, "Sort direction - 'ascending' or 'descending' (default: 'ascending')"] = SortBy.ASCENDING,
     top_n: t.Annotated[
@@ -145,7 +151,13 @@ async def list_directories(
 @log_tool_call
 @disallow_local_execution_in_containers
 async def list_files(
-    path: t.Annotated[str, "The path to analyze"],
+    path: t.Annotated[
+        str,
+        Field(
+            description="Absolute path to the directory to analyze",
+            examples=["/var/log", "/etc", "/home", "/opt", "/tmp"],
+        ),
+    ],
     order_by: t.Annotated[OrderBy, "Sort order - 'size', 'name', or 'modified' (default: 'name')"] = OrderBy.NAME,
     sort: t.Annotated[SortBy, "Sort direction - 'ascending' or 'descending' (default: 'ascending')"] = SortBy.ASCENDING,
     top_n: t.Annotated[
@@ -203,7 +215,13 @@ async def list_files(
 @log_tool_call
 @disallow_local_execution_in_containers
 async def read_file(
-    path: t.Annotated[str, "The file path to read"],
+    path: t.Annotated[
+        str,
+        Field(
+            description="Absolute path to the file to read",
+            examples=["/etc/hosts", "/etc/resolv.conf", "/etc/os-release", "/proc/cpuinfo"],
+        ),
+    ],
     host: Host = None,
 ) -> str:
     """Read the contents of a file.
