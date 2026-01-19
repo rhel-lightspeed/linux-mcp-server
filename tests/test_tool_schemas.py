@@ -18,7 +18,7 @@ def tool_properties(mcp_tools: dict):
     def _tool_properties(tool_name: str) -> dict:
         tool = mcp_tools.get(tool_name)
         if tool is None:
-            raise ValueError(f"Tool '{tool_name}' not found")
+            raise ValueError(f"Tool '{tool_name}' not found")  # pragma: no cover
         return tool.parameters.get("properties", {})
 
     return _tool_properties
