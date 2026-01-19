@@ -20,6 +20,7 @@ from linux_mcp_server.utils.validation import is_empty_output
 @mcp.tool(
     title="List services",
     description="List all systemd services.",
+    tags={"services", "systemd"},
     annotations=ToolAnnotations(readOnlyHint=True),
 )
 @log_tool_call
@@ -57,6 +58,7 @@ async def list_services(
 @mcp.tool(
     title="Get service status",
     description="Get detailed status of a specific systemd service.",
+    tags={"services", "systemd"},
     annotations=ToolAnnotations(readOnlyHint=True),
 )
 @log_tool_call
@@ -95,6 +97,7 @@ async def get_service_status(
 @mcp.tool(
     title="Get service logs",
     description="Get recent logs for a specific systemd service.",
+    tags={"logs", "services", "systemd", "troubleshooting"},
     annotations=ToolAnnotations(readOnlyHint=True),
 )
 @log_tool_call
