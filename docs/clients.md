@@ -273,11 +273,9 @@ Edit `~/.gemini/settings.json`:
 
     ```json
     {
-      // your other settings
-      ,
       "mcpServers": {
         "linux-mcp-server": {
-          "command": "/home/$USER/.local/bin/linux-mcp-server",
+          "command": "/home/YOUR_USER/.local/bin/linux-mcp-server",
           "args": [],
           "env": {
             "LINUX_MCP_USER": "your-ssh-username"
@@ -286,6 +284,9 @@ Edit `~/.gemini/settings.json`:
       }
     }
     ```
+
+    !!! note "Merging with Existing Settings"
+        If you have other settings in your `settings.json`, add the `mcpServers` object alongside them.
 
 === "Container (Podman)"
 
@@ -500,24 +501,22 @@ Add to your VS Code `mcp.json`:
 
     ```json
     {
-      "mcp": {
-        "servers": {
-          "linux-mcp-server": {
-            "command": "podman",
-            "args": [
-              "run", "--rm", "--interactive",
-              "--userns", "keep-id:uid=1001,gid=0",
-              "-e", "LINUX_MCP_KEY_PASSPHRASE",
-              "-e", "LINUX_MCP_USER",
-              "-v", "/home/YOUR_USER/.ssh/id_ed25519:/var/lib/mcp/.ssh/id_ed25519:ro,Z",
-              "-v", "/home/YOUR_USER/.ssh/config:/var/lib/mcp/.ssh/config:ro,Z",
-              "-v", "/home/YOUR_USER/.local/share/linux-mcp-server/logs:/var/lib/mcp/.local/share/linux-mcp-server/logs:rw,Z",
-              "quay.io/redhat-services-prod/rhel-lightspeed-tenant/linux-mcp-server:latest"
-            ],
-            "env": {
-              "LINUX_MCP_KEY_PASSPHRASE": "<secret>",
-              "LINUX_MCP_USER": "YOUR_USER"
-            }
+      "servers": {
+        "linux-mcp-server": {
+          "command": "podman",
+          "args": [
+            "run", "--rm", "--interactive",
+            "--userns", "keep-id:uid=1001,gid=0",
+            "-e", "LINUX_MCP_KEY_PASSPHRASE",
+            "-e", "LINUX_MCP_USER",
+            "-v", "/home/YOUR_USER/.ssh/id_ed25519:/var/lib/mcp/.ssh/id_ed25519:ro,Z",
+            "-v", "/home/YOUR_USER/.ssh/config:/var/lib/mcp/.ssh/config:ro,Z",
+            "-v", "/home/YOUR_USER/.local/share/linux-mcp-server/logs:/var/lib/mcp/.local/share/linux-mcp-server/logs:rw,Z",
+            "quay.io/redhat-services-prod/rhel-lightspeed-tenant/linux-mcp-server:latest"
+          ],
+          "env": {
+            "LINUX_MCP_KEY_PASSPHRASE": "<secret>",
+            "LINUX_MCP_USER": "YOUR_USER"
           }
         }
       }
