@@ -58,6 +58,7 @@ def _validate_path(path: str) -> str:
 @mcp.tool(
     title="List block devices",
     description="List block devices on the system",
+    tags={"devices", "storage"},
     annotations=ToolAnnotations(readOnlyHint=True),
 )
 @log_tool_call
@@ -88,6 +89,7 @@ async def list_block_devices(
 @mcp.tool(
     title="List directories",
     description="List directories under a specified path with various sorting options.",
+    tags={"directories", "filesystem", "storage"},
     annotations=ToolAnnotations(readOnlyHint=True),
 )
 @log_tool_call
@@ -147,6 +149,7 @@ async def list_directories(
 @mcp.tool(
     title="List files",
     description="List files under a specified path with various sorting options.",
+    tags={"files", "filesystem", "storage"},
     annotations=ToolAnnotations(readOnlyHint=True),
 )
 @log_tool_call
@@ -208,6 +211,7 @@ async def list_files(
 @mcp.tool(
     title="Read file",
     description="Read the contents of a file using cat",
+    tags={"files", "filesystem", "storage"},
     annotations=ToolAnnotations(readOnlyHint=True),
 )
 @log_tool_call
