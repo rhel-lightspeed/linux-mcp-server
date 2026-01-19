@@ -4,6 +4,8 @@ from contextlib import nullcontext as does_not_raise
 
 import pytest
 
+from fastmcp.exceptions import ToolError
+
 
 @pytest.fixture
 def mock_execute_with_fallback(mock_execute_with_fallback_for):
@@ -138,10 +140,8 @@ class TestGetJournalLogs:
         mock_execute_with_fallback = mocker.patch("linux_mcp_server.commands.execute_with_fallback", autospec=True)
         mock_execute_with_fallback.side_effect = side_effect
 
-        result = await mcp_client.call_tool("get_journal_logs", {})
-        result_text = result.content[0].text.casefold()
-
-        assert str(side_effect) in result_text
+        with pytest.raises(ToolError, match=side_effect.args[0]):
+            await mcp_client.call_tool("get_journal_logs", {})
 
     async def test_get_journal_logs_invalid_transport(self, mcp_client, mock_execute_with_fallback):
         """Test get_journal_logs rejects invalid transport values via MCP validation."""
@@ -309,10 +309,8 @@ class TestReadLogFile:
         log_file = setup_log_file()
         mock_execute_with_fallback.side_effect = FileNotFoundError("tail not found")
 
-        result = await mcp_client.call_tool("read_log_file", {"log_path": str(log_file)})
-        result_text = result.content[0].text.casefold()
-
-        assert "tail command not found" in result_text
+        with pytest.raises(ToolError, match="tail not found"):
+            await mcp_client.call_tool("read_log_file", {"log_path": str(log_file)})
 
     async def test_read_log_file_multiple_allowed_paths(
         self, mcp_client, mock_execute_with_fallback, mock_allowed_log_paths, tmp_path

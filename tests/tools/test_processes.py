@@ -5,6 +5,8 @@ import sys
 
 import pytest
 
+from fastmcp.exceptions import ToolError
+
 
 @pytest.fixture
 def mock_execute_with_fallback(mock_execute_with_fallback_for):
@@ -105,9 +107,8 @@ nobody     100  1.5  2.0  50000 20000 ?        S    Dec11   5:00 /usr/bin/app"""
         """Test that list_processes handles command excetions."""
         mocker.patch("linux_mcp_server.tools.processes.get_command", side_effect=ValueError("Raised intentionally"))
 
-        result = await mcp_client.call_tool("list_processes", arguments={"host": "remote.host"})
-
-        assert "error listing" in result.content[0].text.casefold()
+        with pytest.raises(ToolError, match="Raised intentionally"):
+            await mcp_client.call_tool("list_processes", arguments={"host": "remote.host"})
 
     async def test_get_process_info_handles_nonexistent_process(self, mcp_client, mock_execute_with_fallback):
         """Test that get_process_info handles non-existent process."""
@@ -168,8 +169,5 @@ VmRSS:	    11892 kB"""
         """Test that get_process_info handles command execptions."""
         mocker.patch("linux_mcp_server.tools.processes.get_command", side_effect=ValueError("Raised intentionally"))
 
-        result = await mcp_client.call_tool("get_process_info", arguments={"pid": 1, "host": "remote.host"})
-        result_text = result.content[0].text.casefold()
-
-        assert "error getting process information" in result_text
-        assert "raised intentionally" in result_text
+        with pytest.raises(ToolError, match="Raised intentionally"):
+            await mcp_client.call_tool("get_process_info", arguments={"pid": 1, "host": "remote.host"})
