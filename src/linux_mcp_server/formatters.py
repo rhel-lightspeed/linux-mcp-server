@@ -5,6 +5,7 @@ human-readable strings for tool output.
 """
 
 from datetime import datetime
+from pathlib import Path
 
 from linux_mcp_server.utils import format_bytes
 from linux_mcp_server.utils.types import CpuInfo
@@ -364,7 +365,7 @@ def format_journal_logs(
     return "\n".join(lines)
 
 
-def format_log_file(stdout: str, log_path: str, lines_count: int) -> str:
+def format_log_file(stdout: str, log_path: Path, lines_count: int) -> str:
     """Format log file output.
 
     Args:

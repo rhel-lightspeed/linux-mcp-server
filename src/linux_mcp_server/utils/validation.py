@@ -11,7 +11,7 @@ class PathValidationError(ValueError):
     pass
 
 
-def validate_path(path: str) -> str:
+def validate_path(path: str) -> Path:
     """Validate a filesystem path for security and correctness.
 
     Performs security checks to prevent command injection and path traversal attacks:
@@ -53,7 +53,7 @@ def validate_path(path: str) -> str:
     if not Path(path).is_absolute():
         raise PathValidationError(f"Path must be absolute: {path}")
 
-    return Path(path).as_posix()
+    return Path(path)
 
 
 def is_empty_output(stdout: str | None) -> bool:

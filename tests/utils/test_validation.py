@@ -1,5 +1,7 @@
 """Tests for input validation utilities."""
 
+from pathlib import Path
+
 import pytest
 
 from linux_mcp_server.utils.validation import is_empty_output
@@ -77,11 +79,11 @@ class TestValidatePath:
     @pytest.mark.parametrize(
         "path,expected",
         [
-            ("/var/log/messages", "/var/log/messages"),
-            ("/home/user/file.txt", "/home/user/file.txt"),
-            ("/", "/"),
-            ("/tmp", "/tmp"),
-            ("/path/with spaces/file.txt", "/path/with spaces/file.txt"),
+            ("/var/log/messages", Path("/var/log/messages")),
+            ("/home/user/file.txt", Path("/home/user/file.txt")),
+            ("/", Path("/")),
+            ("/tmp", Path("/tmp")),
+            ("/path/with spaces/file.txt", Path("/path/with spaces/file.txt")),
         ],
     )
     def test_valid_absolute_paths(self, path, expected):

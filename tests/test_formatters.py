@@ -1,5 +1,7 @@
 """Tests for formatters module."""
 
+from pathlib import Path
+
 from linux_mcp_server.formatters import format_block_devices
 from linux_mcp_server.formatters import format_cpu_info
 from linux_mcp_server.formatters import format_directory_listing
@@ -416,7 +418,7 @@ class TestFormatLogFile:
     def test_format_log_file(self):
         """Test formatting log file."""
         stdout = "2024-01-01 10:00:00 INFO Application started"
-        result = format_log_file(stdout, "/var/log/app.log", 100)
+        result = format_log_file(stdout, Path("/var/log/app.log"), 100)
         assert "=== Log File: /var/log/app.log (last 100 lines) ===" in result
         assert "Application started" in result
 
