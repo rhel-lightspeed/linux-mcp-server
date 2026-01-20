@@ -105,7 +105,7 @@ COMMANDS: Mapping[str, CommandGroup] = MappingProxyType(
         ),
         "service_status": CommandGroup(
             commands={
-                "default": CommandSpec(args=("systemctl", "status", "{service_name}", "--no-pager", "--full")),
+                "default": CommandSpec(args=("systemctl", "show", "{service_name}", "--no-pager")),
             }
         ),
         "service_logs": CommandGroup(
