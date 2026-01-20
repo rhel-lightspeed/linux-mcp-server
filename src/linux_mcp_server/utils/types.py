@@ -125,10 +125,10 @@ class DiskUsage(BaseModel):
     """Parsed disk usage information."""
 
     filesystem: str = ""
-    size_gb: float = 0.0
-    used_gb: float = 0.0
-    available_gb: float = 0.0
-    use_percent: float = 0.0
+    size_gb: t.Annotated[float, Field(ge=0.0)] = 0.0
+    used_gb: t.Annotated[float, Field(ge=0.0)] = 0.0
+    available_gb: t.Annotated[float, Field(ge=0.0)] = 0.0
+    use_percent: t.Annotated[float, Field(ge=0.0, le=100.0)] = 0.0
     mount_point: str = ""
 
 
