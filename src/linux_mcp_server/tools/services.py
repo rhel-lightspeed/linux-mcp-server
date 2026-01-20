@@ -10,7 +10,7 @@ from pydantic import Field
 from linux_mcp_server.audit import log_tool_call
 from linux_mcp_server.commands import get_command
 from linux_mcp_server.formatters import format_service_logs
-from linux_mcp_server.formatters import format_service_status
+from linux_mcp_server.parsers import parse_systemctl_show
 from linux_mcp_server.server import mcp
 from linux_mcp_server.utils.decorators import disallow_local_execution_in_containers
 from linux_mcp_server.utils.types import Host
@@ -65,27 +65,34 @@ async def get_service_status(
         ),
     ],
     host: Host = None,
-) -> str:
+) -> dict[str, str]:
     """Get status of a specific systemd service.
 
     Retrieves detailed service information including active/enabled state,
-    main PID, memory usage, CPU time, and recent log entries from the journal.
+    main PID, memory usage, etc.
+
+    Returns:
+        A dictionary containing the service status information.
+
+    Raises:
+        ToolError: If there was an error getting the service status.
     """
     # Ensure service name has .service suffix if not present
     if not service_name.endswith(".service") and "." not in service_name:
         service_name = f"{service_name}.service"
 
     cmd = get_command("service_status")
-    _, stdout, stderr = await cmd.run(host=host, service_name=service_name)
+    returncode, stdout, stderr = await cmd.run(host=host, service_name=service_name)
 
-    # Note: systemctl status returns non-zero for inactive services, but that's expected
-    if not stdout and stderr:
-        # Service not found
-        if "not found" in stderr.lower() or "could not be found" in stderr.lower():
-            return f"Service '{service_name}' not found on this system."
-        return f"Error getting service status: {stderr}"
+    if returncode != 0:
+        raise ToolError(f"Error getting service status: {stderr}")
 
-    return format_service_status(stdout, service_name)
+    status = parse_systemctl_show(stdout)
+
+    if status.get("LoadState") == "not-found":
+        raise ToolError(f"Service '{service_name}' not found on this system.")
+
+    return status
 
 
 @mcp.tool(
