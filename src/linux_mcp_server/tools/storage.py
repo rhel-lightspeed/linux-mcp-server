@@ -8,12 +8,12 @@ from pathlib import Path
 
 from fastmcp.exceptions import ToolError
 from mcp.types import ToolAnnotations
+from pydantic import BaseModel
 from pydantic import Field
 from pydantic.functional_validators import BeforeValidator
 
 from linux_mcp_server.audit import log_tool_call
 from linux_mcp_server.commands import get_command
-from linux_mcp_server.formatters import format_block_devices
 from linux_mcp_server.formatters import format_directory_listing
 from linux_mcp_server.formatters import format_file_listing
 from linux_mcp_server.parsers import parse_directory_listing
@@ -36,6 +36,20 @@ class OrderBy(StrEnum):
 class SortBy(StrEnum):
     ASCENDING = "ascending"
     DESCENDING = "descending"
+
+
+class BlockDevice(BaseModel):
+    name: str
+    size: str
+    type: str
+    mountpoint: str | None = None
+    fstype: str | None = None
+    model: str | None = None
+    children: list["BlockDevice"] = []
+
+
+class BlockDevices(BaseModel):
+    blockdevices: list[BlockDevice]
 
 
 DIRECTORY_COMMANDS: dict[OrderBy, str] = {
@@ -122,7 +136,7 @@ async def _list_resources(
 @disallow_local_execution_in_containers
 async def list_block_devices(
     host: Host = None,
-) -> str:
+) -> BlockDevices:
     """List block devices.
 
     Retrieves all block devices (disks, partitions, LVM volumes) with their
@@ -134,7 +148,7 @@ async def list_block_devices(
     if not is_successful_output(returncode, stdout):
         raise ToolError(f"Unable to list block devices. lsblk command may not be available. {returncode}: {stderr}")
 
-    return format_block_devices(stdout)
+    return BlockDevices.model_validate_json(stdout)
 
 
 @mcp.tool(

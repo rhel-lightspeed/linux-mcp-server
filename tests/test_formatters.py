@@ -2,7 +2,7 @@
 
 from pathlib import Path
 
-from linux_mcp_server.formatters import format_block_devices
+from linux_mcp_server.formatters import format_cpu_info
 from linux_mcp_server.formatters import format_directory_listing
 from linux_mcp_server.formatters import format_file_listing
 from linux_mcp_server.formatters import format_journal_logs
@@ -300,22 +300,22 @@ class TestFormatLogFile:
         assert "Application started" in result
 
 
-class TestFormatBlockDevices:
-    """Tests for format_block_devices function."""
+class TestFormatDiskUsage:
+    """Tests for format_disk_usage function."""
 
     def test_format_basic(self):
         """Test basic formatting."""
-        stdout = "NAME SIZE TYPE MOUNTPOINT FSTYPE MODEL\nsda 100G disk"
-        result = format_block_devices(stdout)
-        assert "=== Block Devices ===" in result
-        assert "sda" in result
+        stdout = "Filesystem Size Used Avail Use% Mounted\n/dev/sda1 100G 50G 50G 50% /"
+        result = format_disk_usage(stdout)
+        assert "=== Filesystem Usage ===" in result
+        assert "/dev/sda1" in result
 
     def test_format_with_disk_io(self):
         """Test formatting with disk I/O."""
-        stdout = "NAME SIZE\nsda 100G"
-        disk_io = "sda: Read: 1GB Write: 500MB"
-        result = format_block_devices(stdout, disk_io)
-        assert "=== Disk I/O Statistics (per disk) ===" in result
+        stdout = "Filesystem Size\n/dev/sda1 100G"
+        disk_io = "Read: 1GB Write: 500MB"
+        result = format_disk_usage(stdout, disk_io)
+        assert "=== Disk I/O Statistics (since boot) ===" in result
 
 
 class TestFormatDirectoryListing:

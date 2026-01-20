@@ -278,21 +278,21 @@ def format_log_file(stdout: str, log_path: Path, lines_count: int) -> str:
     return "\n".join(lines)
 
 
-def format_block_devices(stdout: str, disk_io: str | None = None) -> str:
-    """Format block devices output.
+def format_disk_usage(stdout: str, disk_io: str | None = None) -> str:
+    """Format disk usage output.
 
     Args:
-        stdout: Raw output from lsblk.
+        stdout: Raw output from df command.
         disk_io: Optional disk I/O statistics.
 
     Returns:
         Formatted string representation.
     """
-    lines = ["=== Block Devices ===\n"]
+    lines = ["=== Filesystem Usage ===\n"]
     lines.append(stdout)
 
     if disk_io:
-        lines.append("\n=== Disk I/O Statistics (per disk) ===")
+        lines.append("\n=== Disk I/O Statistics (since boot) ===")
         lines.append(disk_io)
 
     return "\n".join(lines)
