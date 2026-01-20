@@ -1,7 +1,9 @@
 """Service management tools."""
 
+import json
 import typing as t
 
+from fastmcp.exceptions import ToolError
 from mcp.types import ToolAnnotations
 from pydantic import Field
 
@@ -9,8 +11,6 @@ from linux_mcp_server.audit import log_tool_call
 from linux_mcp_server.commands import get_command
 from linux_mcp_server.formatters import format_service_logs
 from linux_mcp_server.formatters import format_service_status
-from linux_mcp_server.formatters import format_services_list
-from linux_mcp_server.parsers import parse_service_count
 from linux_mcp_server.server import mcp
 from linux_mcp_server.utils.decorators import disallow_local_execution_in_containers
 from linux_mcp_server.utils.types import Host
@@ -27,27 +27,25 @@ from linux_mcp_server.utils.validation import is_empty_output
 @disallow_local_execution_in_containers
 async def list_services(
     host: Host = None,
-) -> str:
+) -> list[dict[str, str]]:
     """List all systemd services.
 
     Retrieves all systemd service units with their load state, active state,
-    sub-state, and description. Also includes a count of currently running services.
+    sub-state, and description.
+
+    Returns:
+        list[dict[str, str]]: A list of dictionaries containing information about each service.
+
+    Raises:
+        ToolError: If an error occurs while listing services.
     """
     cmd = get_command("list_services")
     returncode, stdout, stderr = await cmd.run(host=host)
 
     if returncode != 0:
-        return f"Error listing services: {stderr}"
+        raise ToolError(f"Error listing services: {stderr}")
 
-    # Get running services count
-    running_cmd = get_command("running_services")
-    returncode_summary, stdout_summary, _ = await running_cmd.run(host=host)
-
-    running_count = None
-    if returncode_summary == 0:
-        running_count = parse_service_count(stdout_summary)
-
-    return format_services_list(stdout, running_count)
+    return t.cast(list[dict[str, str]], json.loads(stdout))
 
 
 @mcp.tool(
