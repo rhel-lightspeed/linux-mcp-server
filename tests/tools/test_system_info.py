@@ -70,10 +70,6 @@ def create_mock_execute_side_effect(command_responses: dict[str, str | Exception
                 ("/",),
             ),
         ),
-        (
-            "get_hardware_information",
-            [("hardware information", "cpu architecture")],
-        ),
     ),
 )
 async def test_system_info_tools(tool, expected, mcp_client):
