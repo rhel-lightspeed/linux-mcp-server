@@ -19,16 +19,12 @@ def create_mock_execute_side_effect(command_responses: dict[str, str | Exception
     """
 
     def mock_execute_side_effect(*args, **_kwargs):
-        cmd = args[0]
-        match cmd[0]:
-            case cmd_name if cmd_name in command_responses:
-                response = command_responses[cmd_name]
-                if isinstance(response, Exception):
-                    raise response
-                else:
-                    return (0, response, "")
-            case _:
-                raise AssertionError(f"Unexpected command in test mock: {cmd[0]}")
+        cmd = args[0][0]
+        if response := command_responses.get(cmd):
+            if isinstance(response, Exception):
+                raise response
+            return (0, response, "")
+        raise AssertionError(f"Unexpected command in test mock: {cmd[0]}")
 
     return mock_execute_side_effect
 
