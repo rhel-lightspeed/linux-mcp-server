@@ -282,10 +282,8 @@ class TestListDirectories:
         """Test list_directories with nonexistent path raises ToolError."""
         nonexistent = tmp_path / "nonexistent"
 
-        with pytest.raises(ToolError) as exc_info:
+        with pytest.raises(ToolError, match="Error running command: command failed with return code 1"):
             await mcp_client.call_tool("list_directories", arguments={"path": str(nonexistent)})
-
-        assert "Error running command: command failed with return code 1" in str(exc_info.value)
 
     async def test_list_directories_restricted_path(self, restricted_path, mcp_client):
         """Test list_directories with restricted path raises ToolError."""
