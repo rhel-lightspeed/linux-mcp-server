@@ -91,7 +91,9 @@ COMMANDS: Mapping[str, CommandGroup] = MappingProxyType(
         # === Services ===
         "list_services": CommandGroup(
             commands={
-                "default": CommandSpec(args=("systemctl", "list-units", "--type=service", "--all", "--no-pager")),
+                "default": CommandSpec(
+                    args=("systemctl", "list-units", "--type=service", "--all", "--no-pager", "--output=json")
+                ),
             }
         ),
         "running_services": CommandGroup(
