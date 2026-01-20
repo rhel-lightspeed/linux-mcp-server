@@ -121,22 +121,10 @@ async def list_directories(
 
     returncode, stdout, stderr = await cmd.run(host=host, path=path)
 
-    if returncode != 0:
-        err_lines = stderr.splitlines()
-        # Only raise an error if just one failure exists in stderr. This is to ignore
-        # many errors when traversing broad paths like '/' where many Permission denied
-        # errors will be reported and du will exit with error code 1.
-        #
-        # When there is just one error line, it means the specific path is inaccessible
-        # or does not exist.
-        if len(err_lines) == 1:
-            # If only line exists in stderr, that means a single path was given and
-            failure_phrases = (
-                "permission denied",
-                "no such file or directory",
-            )
-            if any(phrase in stderr.casefold() for phrase in failure_phrases):
-                raise ToolError(f"Error running command: command failed with return code {returncode}: {stderr}")
+    # The du command will exit with code 1 even if it gets some valid results.
+    # Only error in the case where we got non-zero exit code and no data in stdout.
+    if returncode != 0 and not stdout:
+        raise ToolError(f"Error running command: command failed with return code {returncode}: {stderr}")
 
     # Parse the output
     entries = parse_directory_listing(stdout, order_by)
