@@ -2,8 +2,6 @@
 
 import sys
 
-from contextlib import nullcontext
-
 import pytest
 
 from fastmcp import exceptions
