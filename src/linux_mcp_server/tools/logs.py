@@ -4,8 +4,10 @@ import typing as t
 
 from pathlib import Path
 
+from fastmcp.exceptions import ToolError
 from mcp.types import ToolAnnotations
 from pydantic import Field
+from pydantic.functional_validators import BeforeValidator
 
 from linux_mcp_server.audit import log_tool_call
 from linux_mcp_server.commands import get_command
@@ -17,7 +19,6 @@ from linux_mcp_server.utils import StrEnum
 from linux_mcp_server.utils.decorators import disallow_local_execution_in_containers
 from linux_mcp_server.utils.types import Host
 from linux_mcp_server.utils.validation import is_empty_output
-from linux_mcp_server.utils.validation import PathValidationError
 from linux_mcp_server.utils.validation import validate_path
 
 
@@ -143,9 +144,10 @@ async def get_journal_logs(
 )
 @log_tool_call
 @disallow_local_execution_in_containers
-async def read_log_file(  # noqa: C901
+async def read_log_file(
     log_path: t.Annotated[
-        str,
+        Path,
+        BeforeValidator(validate_path),
         Field(
             description="Absolute path to the log file (must be in allowed list)",
             examples=["/var/log/messages", "/var/log/secure", "/var/log/audit/audit.log", "/var/log/dnf.log"],
@@ -163,22 +165,16 @@ async def read_log_file(  # noqa: C901
     allowed_paths_env = CONFIG.allowed_log_paths
 
     if not allowed_paths_env:
-        return (
+        raise ToolError(
             "No log files are allowed. Set LINUX_MCP_ALLOWED_LOG_PATHS environment variable "
             "with comma-separated list of allowed log file paths."
         )
 
-    allowed_paths = [p.strip() for p in allowed_paths_env.split(",") if p.strip()]
-
-    # Validate path for injection attacks (applies to both local and remote)
-    try:
-        validated_path = validate_path(log_path)
-    except PathValidationError as e:
-        return f"Invalid log file path: {e}"
+    allowed_paths = [Path(p.strip()) for p in allowed_paths_env.split(",") if p.strip()]
 
     if not host:
         # For local execution, resolve and check against allowlist
-        requested_path = Path(validated_path).resolve()
+        requested_path = log_path.resolve()
 
         is_allowed = False
         for allowed_path in allowed_paths:
@@ -188,36 +184,32 @@ async def read_log_file(  # noqa: C901
                 break
 
         if not is_allowed:
-            return (
-                f"Access to log file '{log_path}' is not allowed.\n"
-                f"Allowed log files: {', '.join(allowed_paths)}"
-            )  # nofmt
+            raise ToolError(f"Access to log file '{log_path}' is not allowed.")
 
         if not requested_path.exists():
-            return f"Log file not found: {log_path}"
+            raise ToolError(f"Log file not found: {log_path}")
 
         if not requested_path.is_file():
-            return f"Path is not a file: {log_path}"
+            raise ToolError(f"Path is not a file: {log_path}")
 
         log_path_str = str(requested_path)
     else:
         # For remote execution, check against allowlist without resolving
-        if validated_path not in allowed_paths:
-            return (
-                f"Access to log file '{log_path}' is not allowed.\n"
-                f"Allowed log files: {', '.join(allowed_paths)}"
-            )  # nofmt
-        log_path_str = validated_path
+        if log_path not in allowed_paths:
+            raise ToolError(f"Access to log file '{log_path}' is not allowed.")
+
+        log_path_str = str(log_path)
 
     cmd = get_command("read_log_file")
     returncode, stdout, stderr = await cmd.run(host=host, lines=lines, log_path=log_path_str)
 
     if returncode != 0:
         if "Permission denied" in stderr:
-            return f"Permission denied reading log file: {log_path}"
-        return f"Error reading log file: {stderr}"
+            raise ToolError(f"Permission denied reading log file: {log_path}")
+
+        raise ToolError(f"Error reading log file: {stderr}")
 
     if is_empty_output(stdout):
-        return f"Log file is empty: {log_path}"
+        raise ToolError(f"Log file is empty: {log_path}")
 
     return format_log_file(stdout, log_path, lines)
