@@ -1,12 +1,33 @@
 """Core MCP server for Linux diagnostics using FastMCP."""
 
 import logging
+import sys
 
 from fastmcp import FastMCP
+
+from linux_mcp_server.config import CONFIG
+from linux_mcp_server.config import Toolset
 
 
 logger = logging.getLogger("linux-mcp-server")
 
+
+kwargs = {}
+
+match CONFIG.toolset:
+    case Toolset.FIXED:
+        kwargs["exclude_tags"] = {"run_script"}
+    case Toolset.RUN_SCRIPT:
+        kwargs["include_tags"] = {"run_script"}
+    case Toolset.BOTH:
+        pass  # No kwargs
+    case _:
+        assert False, f"Unknown toolset configuration: {CONFIG.toolset}"
+
+
+if CONFIG.toolset != Toolset.FIXED and CONFIG.gatekeeper_model is None:
+    logger.error("LINUX_MCP_GATEKEEPER_MODEL not set, this is needed for run_script tools")
+    sys.exit(1)
 
 # Initialize FastMCP server
 mcp = FastMCP(
@@ -34,6 +55,7 @@ mcp = FastMCP(
             - File paths must be absolute
             - Some hardware info may require elevated privileges
     """,
+    **kwargs,
 )
 
 from linux_mcp_server.tools import *  # noqa: E402, F403

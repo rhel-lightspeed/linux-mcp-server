@@ -27,6 +27,38 @@ pip install linux-mcp-server
    linux-mcp-server
    ```
 
+### Enabling running arbitrary commands ***EXPERIMENTAL***
+
+The default tools exposed by the linux-mcp-server allow the AI agent a wide range of tools
+to query information about specific aspects of the target machine, as described below.
+However, the agent is not able to run arbitrary commands. It is also possible (as an experimental
+feature), to enable additional tools to allow the AI agent to run arbitrary commands,
+in read-only or read-write mode.
+
+```
+export LINUX_MCP_TOOLSET="run_script"
+export LINUX_MCP_GATEKEEPER_MODEL="chatgpt/gpt-5.2"
+export OPENAI_API_KEY="Your API key"
+```
+
+Three values are supported for LINUX_MCP_TOOLSET:
+
+* **FIXED**: only read-only tools with fixed functionality
+* **RUN_SCRIPT**: only `run_script_readonly` and `run_script_modify`
+* **BOTH**: all the tools
+
+Running in `both` mode will not necessarily produce better results then only using
+the `run_script` toolset - the greater number of tools may confuse the AI agent.
+Try it both ways.
+
+To try to avoid actions that are dangerous or that do unintended things, the scripts
+passed to the `run_script_*` tools are checked using a gatekeeper model that reviews
+the commands before running them. You must configure this model. Configuration is
+done by using the `LINUX_MCP_GATEKEEPER_MODEL` environment variable. Additional environment
+variables will be needed to configure credentials. See the
+[LiteLLM documentation](https://docs.litellm.ai/docs/providers).
+
+
 ### Using with AI Agents
 
 For the best experience, integrate the MCP server with an AI Agent of your preference.
@@ -206,6 +238,23 @@ Lists immediate subdirectories under a specified path with flexible sorting opti
 - "Show me directories in /var in reverse alphabetical order" → `list_directories(path="/var", order_by="name", sort="descending")`
 - "Show me recently modified directories in /home" → `list_directories(path="/home", order_by="modified", sort="descending")`
 - "What directories in /tmp were changed (oldest first)?" → `list_directories(path="/tmp", order_by="modified", sort="ascending")`
+
+#### `run_script_readonly` (experimental)
+Runs a script on a system in read-only mode.
+
+**Parameters**
+- `description`: Description of what the script does - e.g. 'Collect SELinux messages from the system logs.'
+- `script_type`: The type of script to run (`python` or `bash`)
+- `script`: The script to run
+
+#### `run_script_modify` (experimental)
+Runs a script on a system to modify files or settings.
+
+**Parameters**
+- `description`: Description of what the script does - e.g. 'Modify file permissions on nginx.conf to fix startup errors.'
+- `script_type`: The type of script to run (`python` or `bash`)
+- `script`: The script to run
+
 
 ## Configuration
 
