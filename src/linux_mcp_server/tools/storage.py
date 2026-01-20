@@ -121,7 +121,9 @@ async def list_directories(
 
     returncode, stdout, stderr = await cmd.run(host=host, path=path)
 
-    if returncode != 0:
+    # The du command will exit with code 1 even if it gets some valid results.
+    # Only error in the case where we got non-zero exit code and no data in stdout.
+    if returncode != 0 and not stdout:
         raise ToolError(f"Error running command: command failed with return code {returncode}: {stderr}")
 
     # Parse the output
