@@ -123,13 +123,21 @@ async def test_system_info_tools_exception(tool, failing_command, mcp_client, mo
     assert "error" in str(exc_info.value).casefold()
 
 
+async def test_get_memory_information_command_exception(mcp_client, mock_execute):
+    """Test get_memory_information when command execution raises an exception."""
+    mock_execute.side_effect = RuntimeError("Unexpected error during command execution")
+
+    with pytest.raises(exceptions.ToolError, match="Error gathering memory information"):
+        await mcp_client.call_tool("get_memory_information")
+
+
 async def test_get_memory_information_parse_error(mcp_client, mock_execute):
     """Test get_memory_information with malformed output that causes parsing to fail."""
     # Return output that will cause int() to fail in parse_free_output
     malformed_output = "Mem: invalid total used free"
     mock_execute.return_value = (0, malformed_output, "")
 
-    with pytest.raises(exceptions.ToolError, match="Error gathering memory information"):
+    with pytest.raises(exceptions.ToolError, match="Error calling tool 'get_memory_information'"):
         await mcp_client.call_tool("get_memory_information")
 
 
@@ -249,22 +257,3 @@ async def test_get_hardware_information_remote_execution(mcp_client, mock_execut
     mock_execute.assert_called()
     call_kwargs = mock_execute.call_args[1]
     assert call_kwargs["host"] == "remote.host.com"
-
-
-def test_mock_execute_unexpected_command():
-    """Test that the mock execute raises AssertionError for unexpected commands."""
-    lscpu_output = "Architecture: x86_64"
-    lspci_output = "00:00.0 Host bridge"
-    lsusb_output = "Bus 001 Device 001"
-
-    command_responses: dict[str, str | Exception] = {
-        "lscpu": lscpu_output,
-        "lspci": lspci_output,
-        "lsusb": lsusb_output,
-    }
-
-    mock_execute_side_effect = create_mock_execute_side_effect(command_responses)
-
-    # This should raise AssertionError, covering the default case
-    with pytest.raises(AssertionError, match="Unexpected command in test mock: unexpected"):
-        mock_execute_side_effect(["unexpected"])

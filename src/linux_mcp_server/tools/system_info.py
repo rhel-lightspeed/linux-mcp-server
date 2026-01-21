@@ -97,16 +97,13 @@ async def get_memory_information(
     free_cmd = get_command("memory_info", "free")
 
     try:
-        returncode, stdout, _ = await free_cmd.run(host=host)
-
-        if not is_successful_output(returncode, stdout):
-            raise ToolError("Unable to retrieve memory information")
-
-        return parse_free_output(stdout)
-    except ToolError:
-        raise
+        returncode, stdout, stderr = await free_cmd.run(host=host)
     except Exception as e:
         raise ToolError(f"Error gathering memory information: {str(e)}") from e
+
+    if not is_successful_output(returncode, stdout):
+        raise ToolError(f"Unable to retrieve memory information: {stderr}")
+    return parse_free_output(stdout)
 
 
 @mcp.tool(
@@ -128,16 +125,13 @@ async def get_disk_usage(
     cmd = get_command("disk_usage")
 
     try:
-        returncode, stdout, _ = await cmd.run(host=host)
-
-        if not is_successful_output(returncode, stdout):
-            raise ToolError("Unable to retrieve disk usage information")
-
-        return parse_df_output(stdout)
-    except ToolError:
-        raise
+        returncode, stdout, stderr = await cmd.run(host=host)
     except Exception as e:
         raise ToolError(f"Error gathering disk usage information: {str(e)}") from e
+
+    if not is_successful_output(returncode, stdout):
+        raise ToolError(f"Unable to retrieve disk usage information: {stderr}")
+    return parse_df_output(stdout)
 
 
 @mcp.tool(
@@ -160,18 +154,17 @@ async def get_hardware_information(
     group = get_command_group("hardware_info")
     results: dict[str, str | list[str]] = {}
 
-    try:
-        # Execute all commands in the group
-        for name, cmd in group.commands.items():
-            try:
-                returncode, stdout, stderr = await cmd.run(host=host)
-                if is_successful_output(returncode, stdout):
-                    results[name] = stdout if name == "lscpu" else stdout.splitlines()
-                else:
-                    results[name] = f"Error retrieving {name}: {stderr}"
-            except FileNotFoundError:
-                results[name] = f"{name} command not available"
+    # Execute all commands in the group
+    for name, cmd in group.commands.items():
+        try:
+            returncode, stdout, stderr = await cmd.run(host=host)
+            if is_successful_output(returncode, stdout):
+                results[name] = stdout if name == "lscpu" else stdout.splitlines()
+            else:
+                results[name] = f"Error retrieving {name}: {stderr}"
+        except FileNotFoundError:
+            results[name] = f"{name} command not available"
+        except Exception as e:
+            raise ToolError(f"Error gathering hardware information: {str(e)}") from e
 
-        return results
-    except Exception as e:
-        raise ToolError(f"Error gathering hardware information: {str(e)}") from e
+    return results
