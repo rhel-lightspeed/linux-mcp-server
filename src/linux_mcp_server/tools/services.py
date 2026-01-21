@@ -9,7 +9,6 @@ from pydantic import Field
 
 from linux_mcp_server.audit import log_tool_call
 from linux_mcp_server.commands import get_command
-from linux_mcp_server.formatters import format_service_logs
 from linux_mcp_server.parsers import parse_systemctl_show
 from linux_mcp_server.server import mcp
 from linux_mcp_server.utils.decorators import disallow_local_execution_in_containers
@@ -113,11 +112,17 @@ async def get_service_logs(
     ],
     lines: t.Annotated[int, Field(description="Number of log lines to retrieve.", ge=1, le=10_000)] = 50,
     host: Host = None,
-) -> str:
+) -> list[dict[str, str]]:
     """Get recent logs for a specific systemd service.
 
     Retrieves journal entries for the specified service unit, including
     timestamps, priority levels, and log messages.
+
+    Raises:
+        ToolError: If an error occurs while retrieving logs.
+
+    Returns:
+        list[dict[str, str]]: A list of dictionaries containing log entries.
     """
     # Ensure service name has .service suffix if not present
     if not service_name.endswith(".service") and "." not in service_name:
@@ -127,11 +132,9 @@ async def get_service_logs(
     returncode, stdout, stderr = await cmd.run(host=host, service_name=service_name, lines=lines)
 
     if returncode != 0:
-        if "not found" in stderr.lower() or "no entries" in stderr.lower():
-            return f"No logs found for service '{service_name}'. The service may not exist or has no log entries."
-        return f"Error getting service logs: {stderr}"
+        raise ToolError(f"Error getting service logs: {stderr}")
 
     if is_empty_output(stdout):
-        return f"No log entries found for service '{service_name}'."
+        raise ToolError(f"No log entries found for service '{service_name}'.")
 
-    return format_service_logs(stdout, service_name, lines)
+    return t.cast(list[dict[str, str]], json.loads(stdout))
