@@ -82,7 +82,7 @@
         },
         {
           "name": "LINUX_MCP_LOG_LEVEL",
-          "description": "Path to SSH private key",
+          "description": "Log verbosity (DEBUG, INFO, WARNING)",
           "isRequired": false,
           "format": "string",
           "isSecret": false
