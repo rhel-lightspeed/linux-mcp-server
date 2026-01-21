@@ -1,21 +1,21 @@
 import textwrap
 
+import pytest
+
 from linux_mcp_server.parsers import parse_df_output
 
 
-def test_parse_df_output_empty():
-    """Test parsing empty output."""
-    result = parse_df_output("")
-
-    assert result == []
-
-
-def test_parse_df_output_header_only():
-    """Test parsing output with only header."""
-    stdout = """Filesystem     1M-blocks      Used Available Use% Mounted on"""
+@pytest.mark.parametrize(
+    "stdout,expected",
+    [
+        ("", []),
+        ("Filesystem     1M-blocks      Used Available Use% Mounted on", []),
+    ],
+)
+def test_parse_df_output_empty_cases(stdout, expected):
+    """Test parsing df output edge cases."""
     result = parse_df_output(stdout)
-
-    assert result == []
+    assert result == expected
 
 
 def test_parse_df_output():
