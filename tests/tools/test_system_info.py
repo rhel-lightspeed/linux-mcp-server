@@ -60,7 +60,7 @@ def create_mock_execute_side_effect(command_responses: dict[str, str | Exception
         (
             "get_disk_usage",
             (
-                ("filesystem", "device", "mounted"),
+                ("source", "target", "size"),
                 ("/",),
             ),
         ),
@@ -147,6 +147,15 @@ async def test_get_disk_usage_parse_error(mcp_client, mock_execute):
     mock_execute.side_effect = ValueError("Raised intentionally")
 
     with pytest.raises(exceptions.ToolError, match="Error gathering disk usage information"):
+        await mcp_client.call_tool("get_disk_usage")
+
+
+async def test_get_disk_usage_invalid_json(mcp_client, mock_execute):
+    """Test get_disk_usage with invalid JSON output."""
+    # Mock cmd.run to return invalid JSON
+    mock_execute.return_value = (0, "invalid json {{", "")
+
+    with pytest.raises(exceptions.ToolError, match="Error parsing disk usage information"):
         await mcp_client.call_tool("get_disk_usage")
 
 

@@ -1,5 +1,7 @@
 """System information tools."""
 
+import json
+
 from fastmcp.exceptions import ToolError
 from mcp.types import ToolAnnotations
 
@@ -7,7 +9,6 @@ from linux_mcp_server.audit import log_tool_call
 from linux_mcp_server.commands import get_command
 from linux_mcp_server.commands import get_command_group
 from linux_mcp_server.parsers import parse_cpu_info
-from linux_mcp_server.parsers import parse_df_output
 from linux_mcp_server.parsers import parse_free_output
 from linux_mcp_server.parsers import parse_system_info
 from linux_mcp_server.server import mcp
@@ -116,7 +117,7 @@ async def get_memory_information(
 @disallow_local_execution_in_containers
 async def get_disk_usage(
     host: Host = None,
-) -> list[DiskUsage]:
+) -> DiskUsage:
     """Get disk usage information.
 
     Retrieves filesystem usage for all mounted volumes including size,
@@ -131,7 +132,12 @@ async def get_disk_usage(
 
     if not is_successful_output(returncode, stdout):
         raise ToolError(f"Unable to retrieve disk usage information: {stderr}")
-    return parse_df_output(stdout)
+
+    try:
+        data = json.loads(stdout)
+        return DiskUsage.model_validate(data)
+    except (json.JSONDecodeError, ValueError) as e:
+        raise ToolError(f"Error parsing disk usage information: {str(e)}") from e
 
 
 @mcp.tool(

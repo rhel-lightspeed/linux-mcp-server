@@ -7,7 +7,6 @@ structured data that can be used by formatters.
 from pathlib import Path
 
 from linux_mcp_server.utils.types import CpuInfo
-from linux_mcp_server.utils.types import DiskUsage
 from linux_mcp_server.utils.types import ListeningPort
 from linux_mcp_server.utils.types import MemoryInfo
 from linux_mcp_server.utils.types import NetworkConnection
@@ -547,47 +546,5 @@ def parse_file_listing(
         else:
             # Format: NAME (from find -printf "%f\n")
             entries.append(NodeEntry(name=line.strip()))
-
-    return entries
-
-
-def parse_df_output(stdout: str) -> list[DiskUsage]:
-    """Parse df output into DiskUsage objects. Sizes are assumed to be in 1M
-    blocks.
-
-    Args:
-        stdout: Raw output from df command.
-
-    Returns:
-        List of DiskUsage objects.
-    """
-    entries = []
-    lines = stdout.strip().split("\n")[1:]  # Skip header line
-
-    for line in lines:
-        parts = line.split()
-        if len(parts) < 6:
-            continue
-        try:
-            filesystem = parts[0]
-            size_gb = float(parts[1]) / 1024
-            used_gb = float(parts[2]) / 1024
-            available_gb = float(parts[3]) / 1024
-            use_percent = float(parts[4].rstrip("%"))
-            mount_point = parts[5]
-
-            entries.append(
-                DiskUsage(
-                    filesystem=filesystem,
-                    size_gb=size_gb,
-                    used_gb=used_gb,
-                    available_gb=available_gb,
-                    use_percent=use_percent,
-                    mount_point=mount_point,
-                )
-            )
-        except ValueError:
-            # Silently skip invalid lines
-            continue
 
     return entries

@@ -121,15 +121,24 @@ class CpuInfo(BaseModel):
     cpu_line: str = ""  # Raw CPU usage line from top
 
 
-class DiskUsage(BaseModel):
-    """Parsed disk usage information."""
+class FilesystemInfo(BaseModel):
+    """Individual filesystem entry from findmnt output."""
 
-    filesystem: str = ""
-    size_gb: t.Annotated[float, Field(ge=0.0)] = 0.0
-    used_gb: t.Annotated[float, Field(ge=0.0)] = 0.0
-    available_gb: t.Annotated[float, Field(ge=0.0)] = 0.0
-    use_percent: t.Annotated[float, Field(ge=0.0, le=100.0)] = 0.0
-    mount_point: str = ""
+    source: str = ""
+    fstype: str = ""
+    size: str = ""
+    used: str = ""
+    avail: str = ""
+    use_percent: str = Field(default="", alias="use%")
+    target: str = ""
+
+    model_config = {"populate_by_name": True}
+
+
+class DiskUsage(BaseModel):
+    """Disk usage information from findmnt --df --json."""
+
+    filesystems: list[FilesystemInfo] = Field(default_factory=list)
 
 
 # Storage types
