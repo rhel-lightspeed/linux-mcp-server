@@ -6,12 +6,12 @@
     "url": "https://github.com/rhel-lightspeed/linux-mcp-server",
     "source": "github"
   },
-  "version": "1.2.1",
+  "version": "$version",
   "packages": [
     {
       "registryType": "pypi",
       "identifier": "linux-mcp-server",
-      "version": "1.2.0",
+      "version": "$version",
       "transport": {
         "type": "stdio"
       },
