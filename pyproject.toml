@@ -177,6 +177,8 @@ ignore = [
     "E501",  # Ignore line length (similar to flake8's max-line-length)
 ]
 
+[tool.ruff.lint.per-file-ignores]
+"scripts/*" = ["T201"]
 
 [tool.ruff.lint.isort]
 case-sensitive = false
