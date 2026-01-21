@@ -48,29 +48,46 @@ class TestServices:
         with pytest.raises(ToolError, match="Service 'nonexistent-service-xyz123.service' not found on this system."):
             await mcp_client.call_tool("get_service_status", arguments={"service_name": "nonexistent-service-xyz123"})
 
-    async def test_get_service_logs(self, mcp_client):
-        result = await mcp_client.call_tool("get_service_logs", arguments={"service_name": "sshd.service", "lines": 5})
-        # Filter out empty lines, header lines (=), and journalctl boot markers (--)
-        result_lines = [
-            line
-            for line in result.content[0].text.split("\n")
-            if line and not line.startswith("=") and not line.startswith("--")
-        ]
+    async def test_get_service_status_error(self, mock_execute_with_fallback, mcp_client):
+        """Test that get_service_status raises ToolError when systemctl fails."""
+        mock_execute_with_fallback.return_value = (1, "", "Failed to get unit file state: Connection refused")
 
-        assert len(result_lines) <= 5, "Got more lines than expected"
+        with pytest.raises(ToolError, match="Error getting service status: Failed to get unit file state"):
+            await mcp_client.call_tool("get_service_status", arguments={"service_name": "sshd"})
+
+    async def test_get_service_logs(self, mock_execute_with_fallback, mcp_client):
+        """Test getting service logs with mocked output."""
+        mock_output = '[{"__REALTIME_TIMESTAMP": "1600000000000000", "MESSAGE": "sshd: session opened for user test", "PRIORITY": "6", "_PID": "1234"}, {"__REALTIME_TIMESTAMP": "1600000001000000", "MESSAGE": "sshd: session closed for user test", "PRIORITY": "6", "_PID": "1234"}]'
+        mock_execute_with_fallback.return_value = (0, mock_output, "")
+
+        result = await mcp_client.call_tool("get_service_logs", arguments={"service_name": "sshd.service", "lines": 5})
+
+        assert result.structured_content is not None, "Expected structured data"
+        logs = result.structured_content["result"]
+        assert isinstance(logs, list)
+        assert len(logs) == 2
+        assert logs[0]["MESSAGE"] == "sshd: session opened for user test"
+        mock_execute_with_fallback.assert_called()
 
     async def test_get_service_logs_with_nonexistent_service(self, mcp_client):
-        result = await mcp_client.call_tool(
-            "get_service_logs", arguments={"service_name": "nonexistent-service-xyz123", "lines": 10}
-        )
-        result_text = result.content[0].text.casefold()
-        expected = (
-            "not found",
-            "no entries",
-            "error",
-        )
+        with pytest.raises(ToolError, match="No log entries found for service 'nonexistent-service-xyz123.service'."):
+            await mcp_client.call_tool(
+                "get_service_logs", arguments={"service_name": "nonexistent-service-xyz123", "lines": 10}
+            )
 
-        assert any(n in result_text for n in expected), "Did not find any expected values"
+    async def test_get_service_logs_error(self, mock_execute_with_fallback, mcp_client):
+        """Test that get_service_logs raises ToolError when journalctl fails."""
+        mock_execute_with_fallback.return_value = (1, "", "Failed to access journal: Permission denied")
+
+        with pytest.raises(ToolError, match="Error getting service logs: Failed to access journal"):
+            await mcp_client.call_tool("get_service_logs", arguments={"service_name": "sshd", "lines": 10})
+
+    async def test_list_services_error(self, mock_execute_with_fallback, mcp_client):
+        """Test that list_services raises ToolError when systemctl fails."""
+        mock_execute_with_fallback.return_value = (1, "", "Failed to connect to bus: No such file or directory")
+
+        with pytest.raises(ToolError, match="Error listing services: Failed to connect to bus"):
+            await mcp_client.call_tool("list_services")
 
 
 class TestRemoteServices:
@@ -78,14 +95,19 @@ class TestRemoteServices:
 
     async def test_list_services_remote(self, mock_execute_with_fallback, mcp_client):
         """Test listing services on a remote host."""
-        mock_output = "UNIT                     LOAD   ACTIVE SUB     DESCRIPTION\nnginx.service           loaded active running Nginx server\n"
+        mock_output = '[{"unit":"nginx.service","load":"loaded","active":"active","sub":"running","description":"Nginx HTTP Server"}]'
         mock_execute_with_fallback.return_value = (0, mock_output, "")
 
         result = await mcp_client.call_tool("list_services", arguments={"host": "remote.example.com"})
-        result_text = result.content[0].text.casefold()
 
-        assert "nginx.service" in result_text
-        assert "system services" in result_text
+        assert result.structured_content is not None
+        services = result.structured_content["result"]
+        assert isinstance(services, list)
+        assert services[0]["unit"] == "nginx.service"
+        assert services[0]["load"] == "loaded"
+        assert services[0]["active"] == "active"
+        assert services[0]["sub"] == "running"
+        assert services[0]["description"] == "Nginx HTTP Server"
         mock_execute_with_fallback.assert_called()
 
     async def test_get_service_status_remote(self, mock_execute_with_fallback, mcp_client):
@@ -109,14 +131,18 @@ class TestRemoteServices:
 
     async def test_get_service_logs_remote(self, mock_execute_with_fallback, mcp_client):
         """Test getting service logs on a remote host."""
-        mock_output = "Jan 01 12:00:00 host nginx[1234]: Starting Nginx\nJan 01 12:00:01 host nginx[1234]: Started"
+        mock_output = '[{"_REALTIME_TIMESTAMP": "Jan 01 12:00:00", "_PID": "1234", "MESSAGE": "Starting Nginx"}, {"_REALTIME_TIMESTAMP": "Jan 01 12:00:01", "_PID": "1234", "MESSAGE": "Started"}]'
         mock_execute_with_fallback.return_value = (0, mock_output, "")
 
         result = await mcp_client.call_tool(
             "get_service_logs", arguments={"service_name": "nginx", "host": "remote.example.com", "lines": 50}
         )
-        result_text = result.content[0].text.casefold()
 
-        assert "nginx" in result_text
-        assert "starting" in result_text
+        assert result.structured_content is not None
+        data = result.structured_content["result"]
+
+        assert isinstance(data, list)
+        assert len(data) == 2
+        assert data[0]["MESSAGE"] == "Starting Nginx"
+        assert data[1]["MESSAGE"] == "Started"
         mock_execute_with_fallback.assert_called()
