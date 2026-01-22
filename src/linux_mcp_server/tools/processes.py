@@ -22,6 +22,7 @@ from linux_mcp_server.utils.validation import is_successful_output
     description="List running processes",
     tags={"performance", "processes"},
     annotations=ToolAnnotations(readOnlyHint=True),
+    timeout=60,
 )
 @log_tool_call
 @disallow_local_execution_in_containers
@@ -47,6 +48,7 @@ async def list_processes(
     description="Get information about a specific process.",
     tags={"performance", "processes"},
     annotations=ToolAnnotations(readOnlyHint=True),
+    timeout=60,
 )
 @log_tool_call
 @disallow_local_execution_in_containers

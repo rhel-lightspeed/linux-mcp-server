@@ -54,6 +54,7 @@ FILE_COMMANDS: dict[OrderBy, str] = {
     description="List block devices on the system",
     tags={"devices", "storage"},
     annotations=ToolAnnotations(readOnlyHint=True),
+    timeout=60,
 )
 @log_tool_call
 @disallow_local_execution_in_containers
@@ -79,6 +80,7 @@ async def list_block_devices(
     description="List directories under a specified path with various sorting options.",
     tags={"directories", "filesystem", "storage"},
     annotations=ToolAnnotations(readOnlyHint=True),
+    timeout=60,
 )
 @log_tool_call
 @disallow_local_execution_in_containers
@@ -142,6 +144,7 @@ async def list_directories(
     description="List files under a specified path with various sorting options.",
     tags={"files", "filesystem", "storage"},
     annotations=ToolAnnotations(readOnlyHint=True),
+    timeout=60,
 )
 @log_tool_call
 @disallow_local_execution_in_containers
@@ -203,6 +206,7 @@ async def list_files(
     description="Read the contents of a file using cat",
     tags={"files", "filesystem", "storage"},
     annotations=ToolAnnotations(readOnlyHint=True),
+    timeout=60,
 )
 @log_tool_call
 @disallow_local_execution_in_containers

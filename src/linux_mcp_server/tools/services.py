@@ -22,6 +22,7 @@ from linux_mcp_server.utils.validation import is_empty_output
     description="List all systemd services.",
     tags={"services", "systemd"},
     annotations=ToolAnnotations(readOnlyHint=True),
+    timeout=60,
 )
 @log_tool_call
 @disallow_local_execution_in_containers
@@ -55,6 +56,7 @@ async def list_services(
     description="Get detailed status of a specific systemd service.",
     tags={"services", "systemd"},
     annotations=ToolAnnotations(readOnlyHint=True),
+    timeout=60,
 )
 @log_tool_call
 @disallow_local_execution_in_containers
@@ -95,6 +97,7 @@ async def get_service_status(
     description="Get recent logs for a specific systemd service.",
     tags={"logs", "services", "systemd", "troubleshooting"},
     annotations=ToolAnnotations(readOnlyHint=True),
+    timeout=60,
 )
 @log_tool_call
 @disallow_local_execution_in_containers

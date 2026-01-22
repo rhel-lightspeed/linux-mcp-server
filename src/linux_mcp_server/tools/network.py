@@ -22,6 +22,7 @@ from linux_mcp_server.utils.validation import is_successful_output
     description="Get detailed information about network interfaces including address and traffic statistics.",
     tags={"connectivity", "interfaces", "network"},
     annotations=ToolAnnotations(readOnlyHint=True),
+    timeout=60,
 )
 @log_tool_call
 @disallow_local_execution_in_containers
@@ -58,6 +59,7 @@ async def get_network_interfaces(
     description="Get detailed information about active network connections.",
     tags={"connections", "connectivity", "network"},
     annotations=ToolAnnotations(readOnlyHint=True),
+    timeout=60,
 )
 @log_tool_call
 @disallow_local_execution_in_containers
@@ -84,6 +86,7 @@ async def get_network_connections(
     description="Get details on listening port, protocols, and services.",
     tags={"connectivity", "network", "ports"},
     annotations=ToolAnnotations(readOnlyHint=True),
+    timeout=60,
 )
 @log_tool_call
 @disallow_local_execution_in_containers

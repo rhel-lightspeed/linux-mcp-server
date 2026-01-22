@@ -84,6 +84,7 @@ async def _get_journal_logs(
     description="Get systemd journal logs.",
     tags={"journal", "logs", "systemd", "troubleshooting"},
     annotations=ToolAnnotations(readOnlyHint=True),
+    timeout=60,
 )
 @log_tool_call
 @disallow_local_execution_in_containers
@@ -141,6 +142,7 @@ async def get_journal_logs(
     description="Read a specific log file.",
     tags={"files", "logs", "troubleshooting"},
     annotations=ToolAnnotations(readOnlyHint=True),
+    timeout=60,
 )
 @log_tool_call
 @disallow_local_execution_in_containers
