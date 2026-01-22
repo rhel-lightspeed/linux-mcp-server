@@ -19,7 +19,7 @@
         {
           "name": "LINUX_MCP_USER",
           "description": "Default username for SSH connections",
-          "isRequired": true,
+          "isRequired": false,
           "format": "string",
           "isSecret": false
         },
