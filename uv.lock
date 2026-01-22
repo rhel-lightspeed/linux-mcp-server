@@ -1081,6 +1081,7 @@ dependencies = [
     { name = "fastmcp" },
     { name = "pydantic" },
     { name = "pydantic-settings" },
+    { name = "pydocket" },
 ]
 
 [package.optional-dependencies]
@@ -1125,6 +1126,7 @@ requires-dist = [
     { name = "gssapi", marker = "extra == 'gssapi'", specifier = ">=1.10.1" },
     { name = "pydantic", specifier = ">=2.12.5" },
     { name = "pydantic-settings", specifier = ">=2.12.0" },
+    { name = "pydocket", specifier = ">=0.16.6,<0.17" },
 ]
 provides-extras = ["gssapi"]
 
