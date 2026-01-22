@@ -1,22 +1,26 @@
 """Verify tool schemas contain expected metadata for LLM guidance."""
 
+from collections.abc import Sequence
+
 import pytest
+
+from fastmcp.tools import Tool
 
 from linux_mcp_server.server import mcp
 
 
 @pytest.fixture(scope="module")
-async def mcp_tools() -> dict:
+async def mcp_tools() -> Sequence[Tool]:
     """Fetch all MCP tools using the public API."""
-    return await mcp.get_tools()
+    return await mcp.list_tools()
 
 
 @pytest.fixture
-def tool_properties(mcp_tools: dict):
+def tool_properties(mcp_tools: Sequence[Tool]):
     """Get the properties dict for a tool's parameters schema."""
 
     def _tool_properties(tool_name: str) -> dict:
-        tool = mcp_tools.get(tool_name)
+        tool = next((t for t in mcp_tools if t.name == tool_name), None)
         if tool is None:
             raise ValueError(f"Tool '{tool_name}' not found")  # pragma: no cover
         return tool.parameters.get("properties", {})
