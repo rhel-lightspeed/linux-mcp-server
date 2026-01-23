@@ -104,22 +104,6 @@ The value for `command` will vary depending on how `linux-mcp-server` was instal
     }
     ```
 
-=== "uv"
-
-    ```json
-    {
-      "mcpServers": {
-        "linux-diagnostics": {
-          "command": "/home/YOUR_USER/.local/bin/linux-mcp-server",
-          "args": [],
-          "env": {
-            "LINUX_MCP_ALLOWED_LOG_PATHS": "/var/log/messages,/var/log/lastlog"
-          }
-        }
-      }
-    }
-    ```
-
 === "Container (Podman)"
 
     ```json
@@ -490,7 +474,7 @@ Add to your VS Code `mcp.json`:
       "command": "/home/YOUR_USER/.local/bin/linux-mcp-server",
       "args": [],
       "env": {
-        "LINUX_MCP_USER": "your-ssh-username" 
+        "LINUX_MCP_USER": "your-ssh-username"
       }
     }
   }
