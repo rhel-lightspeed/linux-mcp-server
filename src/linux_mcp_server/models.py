@@ -18,7 +18,7 @@ class BlockDevice(BaseModel):
 
 
 class BlockDevices(BaseModel):
-    blockdevices: list[BlockDevice]
+    block_devices: list[BlockDevice] = Field(alias="blockdevices")
 
 
 class NodeEntry(BaseModel):
