@@ -50,9 +50,14 @@ class TestServices:
 
     async def test_get_service_logs(self, mcp_client):
         result = await mcp_client.call_tool("get_service_logs", arguments={"service_name": "sshd.service", "lines": 5})
-        result_lines = [line for line in result.content[0].text.split("\n") if line and not line.startswith("=")]
+        # Filter out empty lines, header lines (=), and journalctl boot markers (--)
+        result_lines = [
+            line
+            for line in result.content[0].text.split("\n")
+            if line and not line.startswith("=") and not line.startswith("--")
+        ]
 
-        assert len(result_lines) < 6, "Got more lines than expected"
+        assert len(result_lines) <= 5, "Got more lines than expected"
 
     async def test_get_service_logs_with_nonexistent_service(self, mcp_client):
         result = await mcp_client.call_tool(
