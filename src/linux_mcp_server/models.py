@@ -31,6 +31,6 @@ class NodeEntry(BaseModel):
     name: str = ""
 
 
-class Directories(BaseModel):
-    dirs: list[NodeEntry]
-    total: int = Field(default_factory=lambda data: len(data["dirs"]))
+class StorageNodes(BaseModel):
+    nodes: list[NodeEntry]
+    total: int = Field(default_factory=lambda data: len(data["nodes"]))
