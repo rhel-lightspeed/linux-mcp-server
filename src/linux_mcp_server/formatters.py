@@ -4,10 +4,8 @@ This module provides functions to format parsed data into
 human-readable strings for tool output.
 """
 
-from datetime import datetime
 from pathlib import Path
 
-from linux_mcp_server.models import NodeEntry
 from linux_mcp_server.utils import format_bytes
 from linux_mcp_server.utils.types import ListeningPort
 from linux_mcp_server.utils.types import NetworkConnection
@@ -329,44 +327,4 @@ def format_hardware_info(results: dict[str, str]) -> str:
     if len(lines) == 1:  # Only header
         lines.append("No hardware information tools available.")
 
-    return "\n".join(lines)
-
-
-def format_file_listing(
-    entries: list[NodeEntry],
-    path: str | Path,
-    sort_by: str,
-    reverse: bool = False,
-) -> str:
-    """Format file listing into a readable string.
-
-    Args:
-        entries: List of NodeEntry objects.
-        path: Path that was listed.
-        sort_by: Sort field used.
-        reverse: Whether the sort was reversed.
-
-    Returns:
-        Formatted string representation.
-    """
-    lines = [f"=== Files in {path} ===\n"]
-
-    # Sort entries
-    if sort_by == "size":
-        sorted_entries = sorted(entries, key=lambda e: e.size, reverse=reverse)
-    elif sort_by == "modified":
-        sorted_entries = sorted(entries, key=lambda e: e.modified, reverse=reverse)
-    else:
-        sorted_entries = sorted(entries, key=lambda e: e.name.lower(), reverse=reverse)
-
-    for entry in sorted_entries:
-        if sort_by == "size":
-            lines.append(f"{format_bytes(entry.size):>12}  {entry.name}")
-        elif sort_by == "modified":
-            dt = datetime.fromtimestamp(entry.modified)
-            lines.append(f"{dt.strftime('%Y-%m-%d %H:%M:%S')}  {entry.name}")
-        else:
-            lines.append(f"  {entry.name}")
-
-    lines.append(f"\nTotal files: {len(entries)}")
     return "\n".join(lines)

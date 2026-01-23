@@ -3,7 +3,7 @@
 from pathlib import Path
 
 from linux_mcp_server.formatters import format_disk_usage
-from linux_mcp_server.formatters import format_file_listing
+from linux_mcp_server.formatters import format_hardware_info
 from linux_mcp_server.formatters import format_journal_logs
 from linux_mcp_server.formatters import format_listening_ports
 from linux_mcp_server.formatters import format_log_file
@@ -14,7 +14,6 @@ from linux_mcp_server.formatters import format_process_list
 from linux_mcp_server.formatters import format_service_logs
 from linux_mcp_server.formatters import format_service_status
 from linux_mcp_server.formatters import format_services_list
-from linux_mcp_server.models import NodeEntry
 from linux_mcp_server.utils.types import ListeningPort
 from linux_mcp_server.utils.types import NetworkConnection
 from linux_mcp_server.utils.types import NetworkInterface
@@ -344,50 +343,3 @@ class TestFormatHardwareInfo:
         results = {"lspci": pci_lines}
         result = format_hardware_info(results)
         assert "... and 10 more PCI devices" in result
-
-
-class TestFormatFileListing:
-    """Tests for format_file_listing function."""
-
-    def test_format_empty_list(self):
-        """Test formatting empty list."""
-        result = format_file_listing([], "/path", "name")
-        assert "=== Files in /path ===" in result
-        assert "Total files: 0" in result
-
-    def test_format_by_name(self):
-        """Test formatting files by name."""
-        entries = [
-            NodeEntry(name="file3.txt"),
-            NodeEntry(name="file1.txt"),
-            NodeEntry(name="file2.txt"),
-        ]
-        result = format_file_listing(entries, "/path", "name")
-        assert "file1.txt" in result
-        assert "file2.txt" in result
-        assert "file3.txt" in result
-        # Should be sorted
-        file1_pos = result.find("file1.txt")
-        file2_pos = result.find("file2.txt")
-        file3_pos = result.find("file3.txt")
-        assert file1_pos < file2_pos < file3_pos
-
-    def test_format_by_size(self):
-        """Test formatting files by size."""
-        entries = [
-            NodeEntry(name="small.txt", size=100),
-            NodeEntry(name="large.txt", size=1000),
-        ]
-        result = format_file_listing(entries, "/path", "size")
-        assert "small.txt" in result
-        assert "large.txt" in result
-
-    def test_format_by_modified(self):
-        """Test formatting files by modification time."""
-        entries = [
-            NodeEntry(name="old.txt", modified=1700000000.0),
-            NodeEntry(name="new.txt", modified=1700100000.0),
-        ]
-        result = format_file_listing(entries, "/path", "modified")
-        assert "old.txt" in result
-        assert "new.txt" in result
