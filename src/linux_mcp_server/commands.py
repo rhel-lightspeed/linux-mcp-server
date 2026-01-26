@@ -177,8 +177,7 @@ COMMANDS: Mapping[str, CommandGroup] = MappingProxyType(
         "disk_usage": CommandGroup(
             commands={
                 "default": CommandSpec(
-                    args=("df", "-h", "--output=source,size,used,avail,pcent,target"),
-                    fallback=("df", "-h"),
+                    args=("findmnt", "--df", "--json"),
                 ),
             }
         ),

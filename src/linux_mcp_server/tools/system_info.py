@@ -1,22 +1,23 @@
 """System information tools."""
 
+import json
+
 from fastmcp.exceptions import ToolError
 from mcp.types import ToolAnnotations
 
 from linux_mcp_server.audit import log_tool_call
 from linux_mcp_server.commands import get_command
 from linux_mcp_server.commands import get_command_group
-from linux_mcp_server.formatters import format_cpu_info
-from linux_mcp_server.formatters import format_disk_usage
-from linux_mcp_server.formatters import format_hardware_info
-from linux_mcp_server.formatters import format_memory_info
-from linux_mcp_server.formatters import format_system_info
 from linux_mcp_server.parsers import parse_cpu_info
 from linux_mcp_server.parsers import parse_free_output
 from linux_mcp_server.parsers import parse_system_info
 from linux_mcp_server.server import mcp
 from linux_mcp_server.utils.decorators import disallow_local_execution_in_containers
+from linux_mcp_server.utils.types import CpuInfo
+from linux_mcp_server.utils.types import DiskUsage
 from linux_mcp_server.utils.types import Host
+from linux_mcp_server.utils.types import SystemInfo
+from linux_mcp_server.utils.types import SystemMemory
 from linux_mcp_server.utils.validation import is_successful_output
 
 
@@ -30,7 +31,7 @@ from linux_mcp_server.utils.validation import is_successful_output
 @disallow_local_execution_in_containers
 async def get_system_information(
     host: Host = None,
-) -> str:
+) -> SystemInfo:
     """Get basic system information.
 
     Retrieves hostname, OS name/version, kernel version, architecture,
@@ -46,7 +47,7 @@ async def get_system_information(
             results[name] = stdout
 
     info = parse_system_info(results)
-    return format_system_info(info)
+    return info
 
 
 @mcp.tool(
@@ -59,7 +60,7 @@ async def get_system_information(
 @disallow_local_execution_in_containers
 async def get_cpu_information(
     host: Host = None,
-) -> str:
+) -> CpuInfo:
     """Get CPU information.
 
     Retrieves CPU model, core counts (logical and physical), frequency,
@@ -74,8 +75,7 @@ async def get_cpu_information(
         if is_successful_output(returncode, stdout):
             results[name] = stdout
 
-    info = parse_cpu_info(results)
-    return format_cpu_info(info)
+    return parse_cpu_info(results)
 
 
 @mcp.tool(
@@ -88,7 +88,7 @@ async def get_cpu_information(
 @disallow_local_execution_in_containers
 async def get_memory_information(
     host: Host = None,
-) -> str:
+) -> SystemMemory:
     """Get memory information.
 
     Retrieves physical RAM and swap usage including total, used, free,
@@ -96,13 +96,15 @@ async def get_memory_information(
     """
     # Execute free command
     free_cmd = get_command("memory_info", "free")
-    returncode, stdout, _ = await free_cmd.run(host=host)
+
+    try:
+        returncode, stdout, stderr = await free_cmd.run(host=host)
+    except Exception as e:
+        raise ToolError(f"Error gathering memory information: {str(e)}") from e
 
     if not is_successful_output(returncode, stdout):
-        raise ToolError("Unable to retrieve memory information")
-
-    memory = parse_free_output(stdout)
-    return format_memory_info(memory)
+        raise ToolError(f"Unable to retrieve memory information: {stderr}")
+    return parse_free_output(stdout)
 
 
 @mcp.tool(
@@ -115,7 +117,7 @@ async def get_memory_information(
 @disallow_local_execution_in_containers
 async def get_disk_usage(
     host: Host = None,
-) -> str:
+) -> DiskUsage:
     """Get disk usage information.
 
     Retrieves filesystem usage for all mounted volumes including size,
@@ -123,12 +125,19 @@ async def get_disk_usage(
     """
     cmd = get_command("disk_usage")
 
-    returncode, stdout, _ = await cmd.run(host=host)
+    try:
+        returncode, stdout, stderr = await cmd.run(host=host)
+    except Exception as e:
+        raise ToolError(f"Error gathering disk usage information: {str(e)}") from e
 
     if not is_successful_output(returncode, stdout):
-        raise ToolError("Unable to retrieve disk usage information")
+        raise ToolError(f"Unable to retrieve disk usage information: {stderr}")
 
-    return format_disk_usage(stdout)
+    try:
+        data = json.loads(stdout)
+        return DiskUsage.model_validate(data)
+    except (json.JSONDecodeError, ValueError) as e:
+        raise ToolError(f"Error parsing disk usage information: {str(e)}") from e
 
 
 @mcp.tool(
@@ -141,7 +150,7 @@ async def get_disk_usage(
 @disallow_local_execution_in_containers
 async def get_hardware_information(
     host: Host = None,
-) -> str:
+) -> dict[str, str | list[str]]:
     """Get hardware information.
 
     Retrieves detailed hardware inventory including CPU specifications,
@@ -149,15 +158,19 @@ async def get_hardware_information(
     model, BIOS version, etc.). Some information may require root privileges.
     """
     group = get_command_group("hardware_info")
-    results = {}
+    results: dict[str, str | list[str]] = {}
 
     # Execute all commands in the group
     for name, cmd in group.commands.items():
         try:
             returncode, stdout, stderr = await cmd.run(host=host)
-            if returncode == 0:
-                results[name] = stdout
+            if is_successful_output(returncode, stdout):
+                results[name] = stdout if name == "lscpu" else stdout.splitlines()
+            else:
+                results[name] = f"Error retrieving {name}: {stderr}"
         except FileNotFoundError:
             results[name] = f"{name} command not available"
+        except Exception as e:
+            raise ToolError(f"Error gathering hardware information: {str(e)}") from e
 
-    return format_hardware_info(results)
+    return results
