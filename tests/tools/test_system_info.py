@@ -114,13 +114,11 @@ async def test_system_info_tools_unsuccessful_empty(tool, mcp_client, mock_execu
     ],
 )
 async def test_system_info_tools_exception(tool, failing_command, mcp_client, mock_execute):
-    command_responses: dict[str, str | Exception] = {failing_command: Exception("Command failed")}
+    command_responses: dict[str, str | Exception] = {failing_command: RuntimeError("Raised intentionally")}
     mock_execute.side_effect = create_mock_execute_side_effect(command_responses)
 
-    with pytest.raises(Exception) as exc_info:
+    with pytest.raises(exceptions.ToolError, match="[Ee]rror"):
         await mcp_client.call_tool(tool)
-
-    assert "error" in str(exc_info.value).casefold()
 
 
 async def test_get_memory_information_command_exception(mcp_client, mock_execute):
