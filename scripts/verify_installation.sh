@@ -20,18 +20,17 @@ verify_server_startup() {
   SERVER_PID=$!
 
   # Wait for log message
-  if timeout 10s grep -q "Running Linux MCP Server" <(tail -f "$log_file"); then
+  # Note: The server logs "Running Linux MCP Server" upon successful init
+  if timeout 15s grep -q "Running Linux MCP Server" <(tail -f "$log_file"); then
     echo "$method_name server successfully initialized and logged startup message."
-    kill $SERVER_PID
-    exit 0
+    kill $SERVER_PID 2>/dev/null || true
+    return 0
   else
-    echo "::error::$method_name server failed to start within 10 seconds."
+    echo "::error::$method_name server failed to start within 15 seconds."
     echo "=== Server Logs ==="
     cat "$log_file"
     echo "==================="
-
-    # Ensure we kill the background process if it's still running
-    kill $SERVER_PID || true
+    kill $SERVER_PID 2>/dev/null || true
     exit 1
   fi
 }

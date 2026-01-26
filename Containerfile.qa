@@ -1,0 +1,11 @@
+FROM registry.access.redhat.com/ubi10/ubi-minimal:latest
+
+RUN microdnf -y install nc jq bash socat openssh && microdnf clean all
+
+RUN mkdir -p /usr/local/bin/scripts
+
+# Copy all scripts into the test image
+COPY scripts/ /usr/local/bin/scripts/
+RUN chmod +x /usr/local/bin/scripts/*.sh
+
+ENTRYPOINT ["/bin/bash"]
