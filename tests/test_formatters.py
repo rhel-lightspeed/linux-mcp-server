@@ -3,15 +3,11 @@
 from pathlib import Path
 
 from linux_mcp_server.formatters import format_block_devices
-from linux_mcp_server.formatters import format_cpu_info
 from linux_mcp_server.formatters import format_directory_listing
-from linux_mcp_server.formatters import format_disk_usage
 from linux_mcp_server.formatters import format_file_listing
-from linux_mcp_server.formatters import format_hardware_info
 from linux_mcp_server.formatters import format_journal_logs
 from linux_mcp_server.formatters import format_listening_ports
 from linux_mcp_server.formatters import format_log_file
-from linux_mcp_server.formatters import format_memory_info
 from linux_mcp_server.formatters import format_network_connections
 from linux_mcp_server.formatters import format_network_interfaces
 from linux_mcp_server.formatters import format_process_detail
@@ -19,17 +15,11 @@ from linux_mcp_server.formatters import format_process_list
 from linux_mcp_server.formatters import format_service_logs
 from linux_mcp_server.formatters import format_service_status
 from linux_mcp_server.formatters import format_services_list
-from linux_mcp_server.formatters import format_system_info
-from linux_mcp_server.utils.types import CpuInfo
 from linux_mcp_server.utils.types import ListeningPort
-from linux_mcp_server.utils.types import MemoryInfo
 from linux_mcp_server.utils.types import NetworkConnection
 from linux_mcp_server.utils.types import NetworkInterface
 from linux_mcp_server.utils.types import NodeEntry
 from linux_mcp_server.utils.types import ProcessInfo
-from linux_mcp_server.utils.types import SwapInfo
-from linux_mcp_server.utils.types import SystemInfo
-from linux_mcp_server.utils.types import SystemMemory
 
 
 class TestFormatNetworkConnections:
@@ -145,119 +135,6 @@ class TestFormatProcessList:
         result = format_process_list(processes, max_display=100)
         assert "Total processes: 150" in result
         assert "Showing: First 100 processes" in result
-
-
-class TestFormatMemoryInfo:
-    """Tests for format_memory_info function."""
-
-    def test_format_ram_only(self):
-        """Test formatting RAM only."""
-        memory = SystemMemory(
-            ram=MemoryInfo(
-                total=16000000000,
-                used=8000000000,
-                free=4000000000,
-                available=8000000000,
-            )
-        )
-        result = format_memory_info(memory)
-        assert "=== RAM Information ===" in result
-        assert "Total:" in result
-        assert "Available:" in result
-        assert "Used:" in result
-        assert "Free:" in result
-
-    def test_format_with_swap(self):
-        """Test formatting with swap."""
-        memory = SystemMemory(
-            ram=MemoryInfo(
-                total=16000000000,
-                used=8000000000,
-                free=4000000000,
-                available=8000000000,
-            ),
-            swap=SwapInfo(
-                total=2000000000,
-                used=100000000,
-                free=1900000000,
-            ),
-        )
-        result = format_memory_info(memory)
-        assert "=== RAM Information ===" in result
-        assert "=== Swap Information ===" in result
-
-    def test_format_with_buffers_and_cache(self):
-        """Test formatting with buffers and cache (wide output format)."""
-        memory = SystemMemory(
-            ram=MemoryInfo(
-                total=16000000000,
-                used=8000000000,
-                free=4000000000,
-                shared=134217728,
-                buffers=1234567890,
-                cached=2859072814,
-                available=8000000000,
-            )
-        )
-        result = format_memory_info(memory)
-        assert "=== RAM Information ===" in result
-        assert "Buffers:" in result
-        assert "Cache:" in result
-
-
-class TestFormatSystemInfo:
-    """Tests for format_system_info function."""
-
-    def test_format_empty_info(self):
-        """Test formatting empty system info."""
-        info = SystemInfo()
-        result = format_system_info(info)
-        assert result == ""
-
-    def test_format_full_info(self):
-        """Test formatting full system info."""
-        info = SystemInfo(
-            hostname="myserver",
-            os_name="Ubuntu 22.04.3 LTS",
-            os_version="22.04",
-            kernel="5.15.0-91-generic",
-            arch="x86_64",
-            uptime="up 5 days",
-            boot_time="2024-01-01 10:00:00",
-        )
-        result = format_system_info(info)
-        assert "Hostname: myserver" in result
-        assert "Operating System: Ubuntu 22.04.3 LTS" in result
-        assert "OS Version: 22.04" in result
-        assert "Kernel Version: 5.15.0-91-generic" in result
-        assert "Architecture: x86_64" in result
-
-
-class TestFormatCpuInfo:
-    """Tests for format_cpu_info function."""
-
-    def test_format_empty_info(self):
-        """Test formatting empty CPU info."""
-        info = CpuInfo()
-        result = format_cpu_info(info)
-        assert result == ""
-
-    def test_format_full_info(self):
-        """Test formatting full CPU info."""
-        info = CpuInfo(
-            model="Intel(R) Core(TM) i7-10700 CPU @ 2.90GHz",
-            logical_cores=16,
-            physical_cores=8,
-            frequency_mhz=2900.0,
-            load_avg_1m=0.50,
-            load_avg_5m=0.75,
-            load_avg_15m=1.00,
-        )
-        result = format_cpu_info(info)
-        assert "CPU Model: Intel(R) Core(TM) i7-10700 CPU @ 2.90GHz" in result
-        assert "CPU Physical Cores: 8" in result
-        assert "CPU Logical Cores (threads): 16" in result
-        assert "Load Average" in result
 
 
 class TestFormatNetworkInterfaces:
@@ -439,53 +316,6 @@ class TestFormatBlockDevices:
         disk_io = "sda: Read: 1GB Write: 500MB"
         result = format_block_devices(stdout, disk_io)
         assert "=== Disk I/O Statistics (per disk) ===" in result
-
-
-class TestFormatDiskUsage:
-    """Tests for format_disk_usage function."""
-
-    def test_format_basic(self):
-        """Test basic formatting."""
-        stdout = "Filesystem Size Used Avail Use% Mounted\n/dev/sda1 100G 50G 50G 50% /"
-        result = format_disk_usage(stdout)
-        assert "=== Filesystem Usage ===" in result
-        assert "/dev/sda1" in result
-
-    def test_format_with_disk_io(self):
-        """Test formatting with disk I/O."""
-        stdout = "Filesystem Size\n/dev/sda1 100G"
-        disk_io = "Read: 1GB Write: 500MB"
-        result = format_disk_usage(stdout, disk_io)
-        assert "=== Disk I/O Statistics (since boot) ===" in result
-
-
-class TestFormatHardwareInfo:
-    """Tests for format_hardware_info function."""
-
-    def test_format_empty(self):
-        """Test formatting empty results."""
-        result = format_hardware_info({})
-        assert "=== Hardware Information ===" in result
-        assert "No hardware information tools available." in result
-
-    def test_format_with_data(self):
-        """Test formatting with data."""
-        results = {
-            "lscpu": "Architecture: x86_64\nCPU(s): 8",
-            "lspci": "00:00.0 Host bridge: Intel Corporation\n00:02.0 VGA compatible controller: Intel",
-            "lsusb": "Bus 001 Device 001: ID 1d6b:0002 Linux Foundation 2.0 root hub",
-        }
-        result = format_hardware_info(results)
-        assert "=== CPU Architecture (lscpu) ===" in result
-        assert "=== PCI Devices ===" in result
-        assert "=== USB Devices ===" in result
-
-    def test_format_truncates_pci(self):
-        """Test that PCI devices are truncated at 50."""
-        pci_lines = "\n".join([f"00:{i:02d}.0 Device {i}" for i in range(60)])
-        results = {"lspci": pci_lines}
-        result = format_hardware_info(results)
-        assert "... and 10 more PCI devices" in result
 
 
 class TestFormatDirectoryListing:

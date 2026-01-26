@@ -8,14 +8,11 @@ from datetime import datetime
 from pathlib import Path
 
 from linux_mcp_server.utils import format_bytes
-from linux_mcp_server.utils.types import CpuInfo
 from linux_mcp_server.utils.types import ListeningPort
 from linux_mcp_server.utils.types import NetworkConnection
 from linux_mcp_server.utils.types import NetworkInterface
 from linux_mcp_server.utils.types import NodeEntry
 from linux_mcp_server.utils.types import ProcessInfo
-from linux_mcp_server.utils.types import SystemInfo
-from linux_mcp_server.utils.types import SystemMemory
 
 
 def format_network_connections(
@@ -108,106 +105,6 @@ def format_process_list(
     lines.append(f"\n\nTotal processes: {len(processes)}")
     if max_display is not None and len(processes) > max_display:
         lines.append(f"Showing: First {max_display} processes")
-
-    return "\n".join(lines)
-
-
-def format_memory_info(memory: SystemMemory) -> str:
-    """Format memory information into a readable string.
-
-    Args:
-        memory: SystemMemory object containing RAM and swap info.
-
-    Returns:
-        Formatted string representation.
-    """
-    lines = []
-
-    # RAM information
-    ram = memory.ram
-    ram_percent = (ram.used / ram.total * 100) if ram.total > 0 else 0
-
-    lines.append("=== RAM Information ===")
-    lines.append(f"Total: {format_bytes(ram.total)}")
-    lines.append(f"Available: {format_bytes(ram.available)}")
-    lines.append(f"Used: {format_bytes(ram.used)} ({ram_percent:.1f}%)")
-    lines.append(f"Free: {format_bytes(ram.free)}")
-
-    if ram.buffers:
-        lines.append(f"Buffers: {format_bytes(ram.buffers)}")
-
-    if ram.cached:
-        lines.append(f"Cache: {format_bytes(ram.cached)}")
-
-    # Swap information
-    if memory.swap:
-        swap = memory.swap
-        swap_percent = (swap.used / swap.total * 100) if swap.total > 0 else 0
-
-        lines.append("\n=== Swap Information ===")
-        lines.append(f"Total: {format_bytes(swap.total)}")
-        lines.append(f"Used: {format_bytes(swap.used)} ({swap_percent:.1f}%)")
-        lines.append(f"Free: {format_bytes(swap.free)}")
-
-    return "\n".join(lines)
-
-
-def format_system_info(info: SystemInfo) -> str:
-    """Format system information into a readable string.
-
-    Args:
-        info: SystemInfo object.
-
-    Returns:
-        Formatted string representation.
-    """
-    lines = []
-
-    if info.hostname:
-        lines.append(f"Hostname: {info.hostname}")
-    if info.os_name:
-        lines.append(f"Operating System: {info.os_name}")
-    if info.os_version:
-        lines.append(f"OS Version: {info.os_version}")
-    if info.kernel:
-        lines.append(f"Kernel Version: {info.kernel}")
-    if info.arch:
-        lines.append(f"Architecture: {info.arch}")
-    if info.uptime:
-        lines.append(f"Uptime: {info.uptime}")
-    if info.boot_time:
-        lines.append(f"Boot Time: {info.boot_time}")
-
-    return "\n".join(lines)
-
-
-def format_cpu_info(info: CpuInfo) -> str:
-    """Format CPU information into a readable string.
-
-    Args:
-        info: CpuInfo object.
-
-    Returns:
-        Formatted string representation.
-    """
-    lines = []
-
-    if info.model:
-        lines.append(f"CPU Model: {info.model}")
-    if info.physical_cores:
-        lines.append(f"CPU Physical Cores: {info.physical_cores}")
-    if info.logical_cores:
-        lines.append(f"CPU Logical Cores (threads): {info.logical_cores}")
-    if info.frequency_mhz:
-        lines.append(f"CPU Frequency: Current={info.frequency_mhz:.2f}MHz")
-
-    if info.load_avg_1m or info.load_avg_5m or info.load_avg_15m:
-        lines.append(
-            f"\nLoad Average (1m, 5m, 15m): {info.load_avg_1m:.2f}, {info.load_avg_5m:.2f}, {info.load_avg_15m:.2f}"
-        )
-
-    if info.cpu_line:
-        lines.append(f"\n{info.cpu_line}")
 
     return "\n".join(lines)
 
@@ -397,60 +294,6 @@ def format_block_devices(stdout: str, disk_io: str | None = None) -> str:
     if disk_io:
         lines.append("\n=== Disk I/O Statistics (per disk) ===")
         lines.append(disk_io)
-
-    return "\n".join(lines)
-
-
-def format_disk_usage(stdout: str, disk_io: str | None = None) -> str:
-    """Format disk usage output.
-
-    Args:
-        stdout: Raw output from df command.
-        disk_io: Optional disk I/O statistics.
-
-    Returns:
-        Formatted string representation.
-    """
-    lines = ["=== Filesystem Usage ===\n"]
-    lines.append(stdout)
-
-    if disk_io:
-        lines.append("\n=== Disk I/O Statistics (since boot) ===")
-        lines.append(disk_io)
-
-    return "\n".join(lines)
-
-
-def format_hardware_info(results: dict[str, str]) -> str:
-    """Format hardware information output.
-
-    Args:
-        results: Dictionary of command name to output.
-
-    Returns:
-        Formatted string representation.
-    """
-    lines = ["=== Hardware Information ===\n"]
-
-    if "lscpu" in results and results["lscpu"]:
-        lines.append("=== CPU Architecture (lscpu) ===")
-        lines.append(results["lscpu"])
-
-    if "lspci" in results and results["lspci"]:
-        pci_lines = results["lspci"].strip().split("\n")
-        lines.append("\n=== PCI Devices ===")
-        # Show first 50 devices
-        for line in pci_lines[:50]:
-            lines.append(line)
-        if len(pci_lines) > 50:
-            lines.append(f"\n... and {len(pci_lines) - 50} more PCI devices")
-
-    if "lsusb" in results and results["lsusb"]:
-        lines.append("\n\n=== USB Devices ===")
-        lines.append(results["lsusb"])
-
-    if len(lines) == 1:  # Only header
-        lines.append("No hardware information tools available.")
 
     return "\n".join(lines)
 
