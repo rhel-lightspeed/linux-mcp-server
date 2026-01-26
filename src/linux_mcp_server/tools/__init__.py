@@ -11,6 +11,8 @@ from linux_mcp_server.tools.network import get_network_interfaces
 # processes
 from linux_mcp_server.tools.processes import get_process_info
 from linux_mcp_server.tools.processes import list_processes
+from linux_mcp_server.tools.run_script import execute_script
+from linux_mcp_server.tools.run_script import run_script_intention_modify
 from linux_mcp_server.tools.run_script import run_script_modify
 from linux_mcp_server.tools.run_script import run_script_readonly
 
@@ -34,6 +36,7 @@ from linux_mcp_server.tools.system_info import get_system_information
 
 
 __all__ = [
+    "execute_script",
     "get_cpu_information",
     "get_disk_usage",
     "get_hardware_information",
@@ -55,4 +58,5 @@ __all__ = [
     "read_log_file",
     "run_script_readonly",
     "run_script_modify",
+    "run_script_intention_modify",
 ]

@@ -12,6 +12,8 @@ from linux_mcp_server.audit import log_tool_call
 from linux_mcp_server.connection.ssh import execute_command
 from linux_mcp_server.gatekeeper import check_run_script
 from linux_mcp_server.gatekeeper import GatekeeperStatus
+from linux_mcp_server.gatekeeper.check_run_script import GatekeeperResult
+from linux_mcp_server.mcp_app import RUN_SCRIPT_APP_URI
 from linux_mcp_server.server import mcp
 from linux_mcp_server.utils import StrEnum
 from linux_mcp_server.utils.decorators import disallow_local_execution_in_containers
@@ -48,6 +50,15 @@ Run a script on a system in read-only mode.
 RUN_SCRIPT_MODIFY_DESCRIPTION = (
     """
 Run a script on a system to modify files or settings.
+"""
+    + RUN_SCRIPT_COMMON_DESCRIPTION
+)
+
+RUN_SCRIPT_INTENTION_MODIFY_DESCRIPTION = (
+    """
+Propose a script that modifies the system to users and wait for the approval. 
+This tool uses a gatekepper to diagnose the purposed script and provides the 
+user with an insight analysis about the script.
 """
     + RUN_SCRIPT_COMMON_DESCRIPTION
 )
@@ -121,6 +132,71 @@ async def run_script_readonly(
         return stdout
     else:
         return f"Error executing script: return code {returncode}, stderr: {stderr}"
+
+
+@mcp.tool(
+    tags={"run_script", "hidden_from_agent"},
+    description="This is a hidden tool. If you're an agent, PLEASE DO NO CALL THIS!",
+)
+async def execute_script(
+    script_type: t.Annotated[
+        ScriptType,
+        Field(description="The type of script to run (python or bash)."),
+    ],
+    script: t.Annotated[
+        str,
+        Field(description="The script to run."),
+    ],
+    host: Host = None,
+) -> str:
+    command = []
+
+    if script_type == ScriptType.BASH:
+        script = "# added by linux-mcp-server\nset -euo pipefail\n\n" + script
+
+    if script_type == ScriptType.PYTHON:
+        command = ["python3", "-c", script]
+    elif script_type == ScriptType.BASH:
+        command = ["bash", "-c", script]
+
+    returncode, stdout, stderr = await execute_command(command, host=host)
+    if returncode == 0:
+        stdout = stdout if isinstance(stdout, str) else stdout.decode("utf-8", errors="replace")
+        return stdout
+    else:
+        return f"Error executing script: return code {returncode}, stderr: {stderr}"
+
+
+@mcp.tool(
+    tags={"run_script"},
+    title="Propose to run a script that modifies system",
+    description=RUN_SCRIPT_INTENTION_MODIFY_DESCRIPTION,
+    annotations=ToolAnnotations(destructiveHint=True),
+    meta={"ui": {"resourceUri": RUN_SCRIPT_APP_URI}},
+)
+@log_tool_call
+@disallow_local_execution_in_containers
+async def run_script_intention_modify(
+    ctx: Context,
+    description: t.Annotated[
+        str,
+        Field(
+            description="Description of what the script does - e.g. 'Modify file permissions on nginx.conf to fix startup errors.'"
+        ),
+    ],
+    script_type: t.Annotated[
+        ScriptType,
+        Field(description="The type of script to run (python or bash)."),
+    ],
+    script: t.Annotated[
+        str,
+        Field(description="The script to run."),
+    ],
+    host: Host = None,
+) -> GatekeeperResult:
+    gatekeeper_result = check_run_script(description, script_type, script, readonly=False)
+
+    return gatekeeper_result
 
 
 @mcp.tool(
