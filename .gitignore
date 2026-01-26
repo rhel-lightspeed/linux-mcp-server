@@ -59,3 +59,6 @@ config.sh
 
 .claude/settings.local.json
 CLAUDE.local.md
+
+# Include bundled app html file
+!mcp-app/dist
