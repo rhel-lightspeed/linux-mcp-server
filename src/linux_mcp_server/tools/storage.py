@@ -12,8 +12,10 @@ from pydantic import Field
 from pydantic.functional_validators import BeforeValidator
 
 from linux_mcp_server.audit import log_tool_call
+from linux_mcp_server.commands import CommandSpec
 from linux_mcp_server.commands import get_command
 from linux_mcp_server.models import BlockDevices
+from linux_mcp_server.models import NodeEntry
 from linux_mcp_server.models import StorageNodes
 from linux_mcp_server.parsers import parse_directory_listing
 from linux_mcp_server.parsers import parse_file_listing
@@ -34,6 +36,31 @@ class OrderBy(StrEnum):
 class SortBy(StrEnum):
     ASCENDING = "ascending"
     DESCENDING = "descending"
+
+
+async def _list_resources(
+    path: Path,
+    command: CommandSpec,
+    order_by: OrderBy,
+    sort: SortBy,
+    top_n: int | None,
+    host: Host | None,
+    parser: t.Callable[[str, OrderBy], list[NodeEntry]],
+):
+    returncode, stdout, stderr = await command.run(host=host, path=path)
+
+    # The du command will exit with code 1 even if it gets some valid results.
+    # Only error in the case where we got non-zero exit code and no data in stdout.
+    if returncode != 0 and not stdout:
+        raise ToolError(f"Error running command: command failed with return code {returncode}: {stderr}")
+
+    entries = parser(stdout, order_by)
+
+    reverse = sort == SortBy.DESCENDING
+    entries = sorted(entries, key=attrgetter(order_by), reverse=reverse)
+    entries = entries[:top_n]
+
+    return StorageNodes(nodes=entries)
 
 
 @mcp.tool(
@@ -95,23 +122,15 @@ async def list_directories(
     Retrieves subdirectories with their size (when ordered by size) or
     modification time, supporting flexible sorting and result limiting.
     """
-    cmd = get_command(f"list_directories_{order_by}")
-
-    returncode, stdout, stderr = await cmd.run(host=host, path=path)
-
-    # The du command will exit with code 1 even if it gets some valid results.
-    # Only error in the case where we got non-zero exit code and no data in stdout.
-    if returncode != 0 and not stdout:
-        raise ToolError(f"Error running command: command failed with return code {returncode}: {stderr}")
-
-    # Parse the output
-    entries = parse_directory_listing(stdout, order_by)
-
-    reverse = sort == SortBy.DESCENDING
-    entries = sorted(entries, key=attrgetter(order_by), reverse=reverse)
-    entries = entries[:top_n]
-
-    return StorageNodes(nodes=entries)
+    return await _list_resources(
+        path=path,
+        command=get_command(f"list_directories_{order_by}"),
+        order_by=order_by,
+        sort=sort,
+        top_n=top_n,
+        host=host,
+        parser=parse_directory_listing,
+    )
 
 
 @mcp.tool(
@@ -148,20 +167,15 @@ async def list_files(
     Retrieves files with their size or modification time, supporting flexible
     sorting and result limiting. Useful for finding large or recently modified files.
     """
-    cmd = get_command(f"list_files_{order_by}")
-
-    returncode, stdout, stderr = await cmd.run(host=host, path=path)
-
-    if returncode != 0:
-        raise ToolError(f"Error running command: command failed with return code {returncode}: {stderr}")
-
-    entries = parse_file_listing(stdout, order_by)
-
-    reverse = sort == SortBy.DESCENDING
-    entries = sorted(entries, key=attrgetter(order_by), reverse=reverse)
-    entries = entries[:top_n]
-
-    return StorageNodes(nodes=entries)
+    return await _list_resources(
+        path=path,
+        command=get_command(f"list_files_{order_by}"),
+        order_by=order_by,
+        sort=sort,
+        top_n=top_n,
+        host=host,
+        parser=parse_file_listing,
+    )
 
 
 @mcp.tool(
