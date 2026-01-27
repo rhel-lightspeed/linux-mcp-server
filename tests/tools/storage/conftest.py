@@ -51,8 +51,3 @@ def restricted_path(tmp_path):
     yield restricted_path
 
     restricted_path.chmod(0o755)
-
-
-@pytest.fixture
-def mock_execute_with_fallback(mock_execute_with_fallback_for):
-    return mock_execute_with_fallback_for("linux_mcp_server.commands")
