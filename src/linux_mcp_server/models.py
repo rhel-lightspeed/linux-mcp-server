@@ -1,9 +1,21 @@
+import typing as t
+
 from datetime import datetime
 
 from pydantic import BaseModel
 from pydantic import Field
 
 from linux_mcp_server.utils.format import format_bytes
+
+
+### Default factory functions ###
+def field_length(field: str) -> t.Callable[[t.Any], int]:
+    """Return the length of the given field"""
+
+    def _field_length(data: t.Any) -> int:
+        return len(data[field])
+
+    return _field_length
 
 
 ### Storage models ###
@@ -19,7 +31,7 @@ class BlockDevice(BaseModel):
 
 class BlockDevices(BaseModel):
     block_devices: list[BlockDevice] = Field(alias="blockdevices")
-    total: int = Field(default_factory=lambda data: len(data["block_devices"]))
+    total: int = Field(default_factory=field_length("block_devices"))
 
 
 class NodeEntry(BaseModel):
@@ -34,4 +46,4 @@ class NodeEntry(BaseModel):
 
 class StorageNodes(BaseModel):
     nodes: list[NodeEntry]
-    total: int = Field(default_factory=lambda data: len(data["nodes"]))
+    total: int = Field(default_factory=field_length("nodes"))
