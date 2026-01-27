@@ -4,6 +4,9 @@ import argparse
 import logging
 import sys
 
+from typing import cast
+from typing import Literal
+
 from linux_mcp_server import __version__
 from linux_mcp_server.logging_config import setup_logging
 from linux_mcp_server.server import main
@@ -85,8 +88,9 @@ def cli():
 
     try:
         # FastMCP.run() creates its own event loop, don't use asyncio.run()
+        # Cast is safe because argparse enforces choices
         main(
-            transport=args.transport,
+            transport=cast(Literal["stdio", "http", "sse", "streamable-http"], args.transport),
             show_banner=args.show_banner,
             **transport_kwargs,
         )

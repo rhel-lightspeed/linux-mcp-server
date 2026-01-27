@@ -2,6 +2,9 @@
 
 import logging
 
+from typing import Any
+from typing import Literal
+
 from fastmcp import FastMCP
 
 
@@ -39,7 +42,11 @@ mcp = FastMCP(
 from linux_mcp_server.tools import *  # noqa: E402, F403
 
 
-def main(transport: str = "stdio", show_banner: bool = False, **transport_kwargs):
+def main(
+    transport: Literal["stdio", "http", "sse", "streamable-http"] = "stdio",
+    show_banner: bool = False,
+    **transport_kwargs: Any,
+) -> None:
     """Run the MCP server with the specified transport.
 
     Args:
