@@ -39,5 +39,12 @@ mcp = FastMCP(
 from linux_mcp_server.tools import *  # noqa: E402, F403
 
 
-def main():
-    mcp.run(show_banner=False)
+def main(transport: str = "stdio", show_banner: bool = False, **transport_kwargs):
+    """Run the MCP server with the specified transport.
+
+    Args:
+        transport: Transport protocol to use ("stdio", "sse", "http", or "streamable-http")
+        show_banner: Whether to show the FastMCP server banner
+        **transport_kwargs: Additional transport-specific arguments (host, port, path, log_level, etc.)
+    """
+    mcp.run(transport=transport, show_banner=show_banner, **transport_kwargs)
