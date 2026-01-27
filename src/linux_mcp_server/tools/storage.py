@@ -3,7 +3,6 @@
 import os
 import typing as t
 
-from operator import attrgetter
 from pathlib import Path
 
 from fastmcp.exceptions import ToolError
@@ -38,6 +37,18 @@ class SortBy(StrEnum):
     DESCENDING = "descending"
 
 
+def attr_sorter(order_by: OrderBy):
+    """Sort based on the given attribute in a case-insensitive manner"""
+
+    def _attr_sorter(obj):
+        try:
+            return getattr(obj, order_by).casefold()
+        except AttributeError:
+            return getattr(obj, order_by)
+
+    return _attr_sorter
+
+
 async def _list_resources(
     path: Path,
     command: CommandSpec,
@@ -57,7 +68,7 @@ async def _list_resources(
     entries = parser(stdout, order_by)
 
     reverse = sort == SortBy.DESCENDING
-    entries = sorted(entries, key=attrgetter(order_by), reverse=reverse)
+    entries = sorted(entries, key=attr_sorter(order_by), reverse=reverse)
     entries = entries[:top_n]
 
     return StorageNodes(nodes=entries)

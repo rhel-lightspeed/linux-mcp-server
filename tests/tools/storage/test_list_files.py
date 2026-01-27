@@ -9,7 +9,7 @@ from fastmcp.exceptions import ToolError
 async def test_list_files(setup_test_paths, mcp_client, tmp_path):
     file_specs = [
         ("file1.txt", 100, 1000.0),
-        ("file2.txt", 200, 2000.0),
+        ("File2.txt", 200, 2000.0),
         ("file3.txt", 300, 3000.0),
     ]
     setup_test_paths(file_specs)
