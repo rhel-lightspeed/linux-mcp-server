@@ -8,15 +8,15 @@ from linux_mcp_server.tools.storage import OrderBy
 
 
 @pytest.mark.skipif(sys.platform != "linux", reason="requires GNU version of coreutils/findutils")
-async def test_list_directories(setup_test_directory, mcp_client):
+async def test_list_directories(setup_test_paths, mcp_client, tmp_path):
     dir_specs = [
         ("alpha", 100, 1000.0),
         ("beta", 200, 2000.0),
         ("gamma", 300, 3000.0),
     ]
-    test_path, expected_names = setup_test_directory(dir_specs)
+    expected_names = setup_test_paths(dir_specs)
 
-    result = await mcp_client.call_tool("list_directories", arguments={"path": str(test_path), "order_by": "name"})
+    result = await mcp_client.call_tool("list_directories", arguments={"path": str(tmp_path), "order_by": "name"})
     content = result.structured_content
     names = [dir["name"] for dir in content["nodes"]]
     positions = {dir["name"]: id for id, dir in enumerate(content["nodes"])}
@@ -30,15 +30,15 @@ async def test_list_directories(setup_test_directory, mcp_client):
 
 
 @pytest.mark.skipif(sys.platform != "linux", reason="requires GNU version of coreutils/findutils")
-async def test_list_directories_by_size(setup_test_directory, mcp_client):
+async def test_list_directories_by_size(setup_test_paths, mcp_client, tmp_path):
     dir_specs = [
         ("small", 100, 1000.0),
         ("large", 300, 3000.0),
         ("medium", 200, 2000.0),
     ]
-    test_path, _ = setup_test_directory(dir_specs)
+    setup_test_paths(dir_specs)
 
-    result = await mcp_client.call_tool("list_directories", arguments={"path": str(test_path), "order_by": "size"})
+    result = await mcp_client.call_tool("list_directories", arguments={"path": str(tmp_path), "order_by": "size"})
     content = result.structured_content
     names = [dir["name"] for dir in content["nodes"]]
 
@@ -70,11 +70,11 @@ async def test_list_directories_by_size(setup_test_directory, mcp_client):
         ),
     ],
 )
-async def test_list_directories_descending(setup_test_directory, dir_specs, order_by, expected_order, mcp_client):
-    test_path, _ = setup_test_directory(dir_specs)
+async def test_list_directories_descending(setup_test_paths, dir_specs, order_by, expected_order, mcp_client, tmp_path):
+    setup_test_paths(dir_specs)
 
     result = await mcp_client.call_tool(
-        "list_directories", arguments={"path": str(test_path), "order_by": order_by, "sort": "descending"}
+        "list_directories", arguments={"path": str(tmp_path), "order_by": order_by, "sort": "descending"}
     )
     content = result.structured_content
     names = [dir["name"] for dir in content["nodes"]]
@@ -86,16 +86,16 @@ async def test_list_directories_descending(setup_test_directory, dir_specs, orde
 
 @pytest.mark.skipif(sys.platform != "linux", reason="requires GNU version of coreutils/findutils")
 @pytest.mark.parametrize("order", ("size", "modified", "name"))
-async def test_list_directories_with_top_n(setup_test_directory, mcp_client, order):
+async def test_list_directories_with_top_n(setup_test_paths, mcp_client, order, tmp_path):
     dir_specs = [
         ("alpha", 100, 1000.0),
         ("beta", 200, 2000.0),
         ("gamma", 300, 3000.0),
     ]
-    test_path, _ = setup_test_directory(dir_specs)
+    setup_test_paths(dir_specs)
 
     result = await mcp_client.call_tool(
-        "list_directories", arguments={"path": str(test_path), "order_by": order, "top_n": 2}
+        "list_directories", arguments={"path": str(tmp_path), "order_by": order, "top_n": 2}
     )
 
     assert result.structured_content["total"] == 2

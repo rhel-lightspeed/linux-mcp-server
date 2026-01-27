@@ -6,15 +6,15 @@ from fastmcp.exceptions import ToolError
 
 
 @pytest.mark.skipif(sys.platform != "linux", reason="requires GNU version of coreutils/findutils")
-async def test_list_files(setup_test_files, mcp_client):
+async def test_list_files(setup_test_paths, mcp_client, tmp_path):
     file_specs = [
         ("file1.txt", 100, 1000.0),
         ("file2.txt", 200, 2000.0),
         ("file3.txt", 300, 3000.0),
     ]
-    test_path, expected_names = setup_test_files(file_specs)
+    setup_test_paths(file_specs)
 
-    result = await mcp_client.call_tool("list_files", arguments={"path": str(test_path), "order_by": "name"})
+    result = await mcp_client.call_tool("list_files", arguments={"path": str(tmp_path), "order_by": "name"})
     content = result.structured_content
     names = [item["name"] for item in content["nodes"]]
 
@@ -22,15 +22,15 @@ async def test_list_files(setup_test_files, mcp_client):
 
 
 @pytest.mark.skipif(sys.platform != "linux", reason="requires GNU version of coreutils/findutils")
-async def test_list_files_by_name(setup_test_files, mcp_client):
+async def test_list_files_by_name(setup_test_paths, mcp_client, tmp_path):
     file_specs = [
         ("gamma.txt", 300, 3000.0),
         ("alpha.txt", 100, 1000.0),
         ("beta.txt", 200, 2000.0),
     ]
-    test_path, _ = setup_test_files(file_specs)
+    setup_test_paths(file_specs)
 
-    result = await mcp_client.call_tool("list_files", arguments={"path": str(test_path), "order_by": "name"})
+    result = await mcp_client.call_tool("list_files", arguments={"path": str(tmp_path), "order_by": "name"})
     content = result.structured_content
     positions = {item["name"]: id for id, item in enumerate(content["nodes"])}
 
@@ -41,14 +41,14 @@ async def test_list_files_by_name(setup_test_files, mcp_client):
 
 
 @pytest.mark.skipif(sys.platform != "linux", reason="requires GNU version of coreutils/findutils")
-async def test_list_files_by_size(setup_test_files, mcp_client):
+async def test_list_files_by_size(setup_test_paths, mcp_client, tmp_path):
     file_specs = [
         ("small.txt", 100, 1000.0),
         ("large.txt", 300, 3000.0),
         ("medium.txt", 200, 2000.0),
     ]
-    test_path, _ = setup_test_files(file_specs)
-    result = await mcp_client.call_tool("list_files", arguments={"path": str(test_path), "order_by": "size"})
+    setup_test_paths(file_specs)
+    result = await mcp_client.call_tool("list_files", arguments={"path": str(tmp_path), "order_by": "size"})
     content = result.structured_content
     names = [item["name"] for item in content["nodes"]]
 
@@ -56,14 +56,14 @@ async def test_list_files_by_size(setup_test_files, mcp_client):
 
 
 @pytest.mark.skipif(sys.platform != "linux", reason="requires GNU version of coreutils/findutils")
-async def test_list_files_descending(setup_test_files, mcp_client):
+async def test_list_files_descending(setup_test_paths, mcp_client, tmp_path):
     file_specs = [
         ("alpha.txt", 100, 1000.0),
         ("beta.txt", 200, 2000.0),
         ("gamma.txt", 300, 3000.0),
     ]
-    test_path, _ = setup_test_files(file_specs)
-    result = await mcp_client.call_tool("list_files", arguments={"path": str(test_path), "sort": "descending"})
+    setup_test_paths(file_specs)
+    result = await mcp_client.call_tool("list_files", arguments={"path": str(tmp_path), "sort": "descending"})
     content = result.structured_content
     positions = {dir["name"]: id for id, dir in enumerate(content["nodes"])}
 
@@ -75,14 +75,14 @@ async def test_list_files_descending(setup_test_files, mcp_client):
 
 @pytest.mark.skipif(sys.platform != "linux", reason="requires GNU version of coreutils/findutils")
 @pytest.mark.parametrize("order", ("size", "modified", "name"))
-async def test_list_files_with_top_n(setup_test_files, mcp_client, order):
+async def test_list_files_with_top_n(setup_test_paths, mcp_client, order, tmp_path):
     file_specs = [
         ("file1.txt", 100, 1000.0),
         ("file2.txt", 200, 2000.0),
         ("file3.txt", 300, 3000.0),
     ]
-    test_path, _ = setup_test_files(file_specs)
-    result = await mcp_client.call_tool("list_files", arguments={"path": str(test_path), "order_by": order, "top_n": 2})
+    setup_test_paths(file_specs)
+    result = await mcp_client.call_tool("list_files", arguments={"path": str(tmp_path), "order_by": order, "top_n": 2})
     content = result.structured_content
 
     assert content["total"] == 2
