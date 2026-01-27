@@ -1,6 +1,5 @@
 """Tests for the core MCP server."""
 
-
 from linux_mcp_server.server import main
 from linux_mcp_server.server import mcp
 

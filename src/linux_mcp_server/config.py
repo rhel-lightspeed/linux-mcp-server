@@ -1,5 +1,7 @@
 """Settings for linux-mcp-server"""
 
+import sys
+
 from pathlib import Path
 from typing import Any
 
@@ -17,7 +19,16 @@ class Transport(StrEnum):
     streamable_http = "streamable-http"
 
 
-class Config(BaseSettings, cli_parse_args=True, cli_implicit_flags=True, cli_kebab_case=True):
+# Only enable CLI parsing when not running under pytest
+_enable_cli_parsing = "pytest" not in sys.modules
+
+
+class Config(
+    BaseSettings,
+    cli_parse_args=_enable_cli_parsing,
+    cli_implicit_flags=_enable_cli_parsing,
+    cli_kebab_case=_enable_cli_parsing,
+):
     # The `_`` is required in the env_prefix, otherwise, pydantic would
     # interpret the prefix as `LINUX_MCPLOG_DIR`, instead of `LINUX_MCP_LOG_DIR`
     model_config = SettingsConfigDict(env_prefix="LINUX_MCP_", env_ignore_empty=True)

@@ -1,7 +1,5 @@
 """Tests for the CLI argument parsing and transport configuration."""
 
-import pytest
-
 from typer.testing import CliRunner
 
 from linux_mcp_server.__main__ import app
