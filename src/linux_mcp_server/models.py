@@ -19,6 +19,7 @@ class BlockDevice(BaseModel):
 
 class BlockDevices(BaseModel):
     block_devices: list[BlockDevice] = Field(alias="blockdevices")
+    total: int = Field(default_factory=lambda data: len(data["block_devices"]))
 
 
 class NodeEntry(BaseModel):
