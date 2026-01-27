@@ -139,12 +139,3 @@ class DiskUsage(BaseModel):
     """Disk usage information from findmnt --df --json."""
 
     filesystems: list[FilesystemInfo] = Field(default_factory=list)
-
-
-# Storage types
-class NodeEntry(BaseModel):
-    """A node entry model that is used by both directories and files listing."""
-
-    size: int = 0
-    modified: float = 0.0
-    name: str = ""

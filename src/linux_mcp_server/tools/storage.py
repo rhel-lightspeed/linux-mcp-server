@@ -4,6 +4,7 @@ import os
 import typing as t
 
 from collections.abc import Mapping
+from operator import attrgetter
 from pathlib import Path
 
 from fastmcp.exceptions import ToolError
@@ -13,9 +14,9 @@ from pydantic.functional_validators import BeforeValidator
 
 from linux_mcp_server.audit import log_tool_call
 from linux_mcp_server.commands import get_command
-from linux_mcp_server.formatters import format_directory_listing
 from linux_mcp_server.formatters import format_file_listing
 from linux_mcp_server.models import BlockDevices
+from linux_mcp_server.models import Directories
 from linux_mcp_server.parsers import parse_directory_listing
 from linux_mcp_server.parsers import parse_file_listing
 from linux_mcp_server.server import mcp
@@ -165,7 +166,7 @@ async def list_directories(
         ),
     ] = None,
     host: Host = None,
-) -> str:
+) -> Directories:
     """List directories under a specified path.
 
     Retrieves subdirectories with their size (when ordered by size) or

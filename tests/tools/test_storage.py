@@ -12,6 +12,8 @@ import pytest
 
 from fastmcp.exceptions import ToolError
 
+from linux_mcp_server.tools.storage import OrderBy
+
 
 @pytest.fixture
 def setup_test_directory(tmp_path) -> Callable[[list[tuple[str, int, float]]], tuple[Path, list[str]]]:
@@ -201,15 +203,16 @@ class TestListDirectories:
         test_path, expected_names = setup_test_directory(dir_specs)
 
         result = await mcp_client.call_tool("list_directories", arguments={"path": str(test_path), "order_by": "name"})
-        result_text = result.content[0].text
+        content = result.structured_content
+        names = [dir["name"] for dir in content["dirs"]]
+        positions = {dir["name"]: id for id, dir in enumerate(content["dirs"])}
 
-        assert "=== Directories in" in result_text
-        assert all(name in result_text for name in expected_names), "Did not find all expected names"
+        assert names == expected_names, "Did not find all expected names"
 
         # Verify sorted order (alpha should appear before beta, beta before gamma)
-        alpha_pos = result_text.find("alpha")
-        beta_pos = result_text.find("beta")
-        gamma_pos = result_text.find("gamma")
+        alpha_pos = positions["alpha"]
+        beta_pos = positions["beta"]
+        gamma_pos = positions["gamma"]
         assert alpha_pos < beta_pos < gamma_pos
 
     async def test_list_directories_by_size(self, setup_test_directory, mcp_client):
@@ -222,31 +225,31 @@ class TestListDirectories:
         test_path, _ = setup_test_directory(dir_specs)
 
         result = await mcp_client.call_tool("list_directories", arguments={"path": str(test_path), "order_by": "size"})
-        result_text = result.content[0].text
+        content = result.structured_content
+        names = [dir["name"] for dir in content["dirs"]]
 
         # All directories should be present
-        assert "small" in result_text
-        assert "medium" in result_text
-        assert "large" in result_text
+        assert content["total"] == len(dir_specs)
+        assert names == ["small", "medium", "large"]
 
     @pytest.mark.parametrize(
         ("dir_specs", "order_by", "expected_order"),
         [
             pytest.param(
                 [("alpha", 100, 1000.0), ("beta", 200, 2000.0), ("gamma", 300, 3000.0)],
-                "name",
+                OrderBy.NAME,
                 ["gamma", "beta", "alpha"],
                 id="name_descending",
             ),
             pytest.param(
                 [("small", 100, 1000.0), ("medium", 200, 2000.0), ("large", 300, 3000.0)],
-                "size",
+                OrderBy.SIZE,
                 ["large", "medium", "small"],
                 id="size_descending",
             ),
             pytest.param(
                 [("oldest", 100, 1000.0), ("middle", 200, 2000.0), ("newest", 300, 3000.0)],
-                "modified",
+                OrderBy.MODIFIED,
                 ["newest", "middle", "oldest"],
                 id="modified_descending",
             ),
@@ -261,11 +264,13 @@ class TestListDirectories:
         result = await mcp_client.call_tool(
             "list_directories", arguments={"path": str(test_path), "order_by": order_by, "sort": "descending"}
         )
-        result_text = result.content[0].text
+        content = result.structured_content
+        names = [dir["name"] for dir in content["dirs"]]
+        positions = {dir["name"]: id for id, dir in enumerate(content["dirs"])}
 
         # Verify descending order
-        positions = [result_text.find(name) for name in expected_order]
-        assert positions[0] < positions[1] < positions[2]
+        assert names == expected_order
+        assert positions[expected_order[0]] < positions[expected_order[1]] < positions[expected_order[2]]
 
     @pytest.mark.parametrize("order", ("size", "modified", "name"))
     async def test_list_directories_with_top_n(self, setup_test_directory, mcp_client, order):
@@ -281,7 +286,7 @@ class TestListDirectories:
             "list_directories", arguments={"path": str(test_path), "order_by": order, "top_n": 2}
         )
 
-        assert "Total directories: 2" in result.content[0].text
+        assert result.structured_content["total"] == 2
 
     async def test_list_directories_nonexistent_path(self, tmp_path, mcp_client):
         """Test list_directories with nonexistent path raises ToolError."""
