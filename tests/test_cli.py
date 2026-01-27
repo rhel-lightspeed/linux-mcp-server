@@ -2,7 +2,12 @@
 
 import pytest
 
-from linux_mcp_server.__main__ import cli
+from typer.testing import CliRunner
+
+from linux_mcp_server.__main__ import app
+
+
+runner = CliRunner()
 
 
 class TestCLITransports:
@@ -12,10 +17,10 @@ class TestCLITransports:
         """Test that cli() with no args uses stdio transport by default."""
         mock_main = mocker.patch("linux_mcp_server.__main__.main")
         mock_setup_logging = mocker.patch("linux_mcp_server.__main__.setup_logging")
-        mocker.patch("sys.argv", ["linux-mcp-server"])
 
-        cli()
+        result = runner.invoke(app, [])
 
+        assert result.exit_code == 0
         mock_setup_logging.assert_called_once()
         mock_main.assert_called_once_with(
             transport="stdio",
@@ -26,10 +31,10 @@ class TestCLITransports:
         """Test cli with explicit stdio transport."""
         mock_main = mocker.patch("linux_mcp_server.__main__.main")
         mocker.patch("linux_mcp_server.__main__.setup_logging")
-        mocker.patch("sys.argv", ["linux-mcp-server", "--transport", "stdio"])
 
-        cli()
+        result = runner.invoke(app, ["--transport", "stdio"])
 
+        assert result.exit_code == 0
         mock_main.assert_called_once_with(
             transport="stdio",
             show_banner=False,
@@ -39,10 +44,10 @@ class TestCLITransports:
         """Test cli with SSE transport."""
         mock_main = mocker.patch("linux_mcp_server.__main__.main")
         mocker.patch("linux_mcp_server.__main__.setup_logging")
-        mocker.patch("sys.argv", ["linux-mcp-server", "--transport", "sse"])
 
-        cli()
+        result = runner.invoke(app, ["--transport", "sse"])
 
+        assert result.exit_code == 0
         mock_main.assert_called_once_with(
             transport="sse",
             show_banner=False,
@@ -54,10 +59,10 @@ class TestCLITransports:
         """Test cli with HTTP transport."""
         mock_main = mocker.patch("linux_mcp_server.__main__.main")
         mocker.patch("linux_mcp_server.__main__.setup_logging")
-        mocker.patch("sys.argv", ["linux-mcp-server", "--transport", "http"])
 
-        cli()
+        result = runner.invoke(app, ["--transport", "http"])
 
+        assert result.exit_code == 0
         mock_main.assert_called_once_with(
             transport="http",
             show_banner=False,
@@ -69,13 +74,10 @@ class TestCLITransports:
         """Test cli with streamable-http transport."""
         mock_main = mocker.patch("linux_mcp_server.__main__.main")
         mocker.patch("linux_mcp_server.__main__.setup_logging")
-        mocker.patch(
-            "sys.argv",
-            ["linux-mcp-server", "--transport", "streamable-http"],
-        )
 
-        cli()
+        result = runner.invoke(app, ["--transport", "streamable-http"])
 
+        assert result.exit_code == 0
         mock_main.assert_called_once_with(
             transport="streamable-http",
             show_banner=False,
@@ -91,13 +93,10 @@ class TestCLIOptions:
         """Test cli with custom host."""
         mock_main = mocker.patch("linux_mcp_server.__main__.main")
         mocker.patch("linux_mcp_server.__main__.setup_logging")
-        mocker.patch(
-            "sys.argv",
-            ["linux-mcp-server", "--transport", "sse", "--host", "0.0.0.0"],
-        )
 
-        cli()
+        result = runner.invoke(app, ["--transport", "sse", "--host", "0.0.0.0"])
 
+        assert result.exit_code == 0
         mock_main.assert_called_once_with(
             transport="sse",
             show_banner=False,
@@ -109,13 +108,10 @@ class TestCLIOptions:
         """Test cli with custom port."""
         mock_main = mocker.patch("linux_mcp_server.__main__.main")
         mocker.patch("linux_mcp_server.__main__.setup_logging")
-        mocker.patch(
-            "sys.argv",
-            ["linux-mcp-server", "--transport", "http", "--port", "3000"],
-        )
 
-        cli()
+        result = runner.invoke(app, ["--transport", "http", "--port", "3000"])
 
+        assert result.exit_code == 0
         mock_main.assert_called_once_with(
             transport="http",
             show_banner=False,
@@ -127,13 +123,10 @@ class TestCLIOptions:
         """Test cli with custom endpoint path."""
         mock_main = mocker.patch("linux_mcp_server.__main__.main")
         mocker.patch("linux_mcp_server.__main__.setup_logging")
-        mocker.patch(
-            "sys.argv",
-            ["linux-mcp-server", "--transport", "sse", "--path", "/api/mcp"],
-        )
 
-        cli()
+        result = runner.invoke(app, ["--transport", "sse", "--path", "/api/mcp"])
 
+        assert result.exit_code == 0
         mock_main.assert_called_once_with(
             transport="sse",
             show_banner=False,
@@ -146,13 +139,10 @@ class TestCLIOptions:
         """Test cli with custom log level."""
         mock_main = mocker.patch("linux_mcp_server.__main__.main")
         mocker.patch("linux_mcp_server.__main__.setup_logging")
-        mocker.patch(
-            "sys.argv",
-            ["linux-mcp-server", "--transport", "http", "--log-level", "debug"],
-        )
 
-        cli()
+        result = runner.invoke(app, ["--transport", "http", "--log-level", "debug"])
 
+        assert result.exit_code == 0
         mock_main.assert_called_once_with(
             transport="http",
             show_banner=False,
@@ -165,20 +155,24 @@ class TestCLIOptions:
         """Test cli with all HTTP transport options."""
         mock_main = mocker.patch("linux_mcp_server.__main__.main")
         mocker.patch("linux_mcp_server.__main__.setup_logging")
-        mocker.patch(
-            "sys.argv",
+
+        result = runner.invoke(
+            app,
             [
-                "linux-mcp-server",
-                "--transport", "streamable-http",
-                "--host", "0.0.0.0",
-                "--port", "9000",
-                "--path", "/mcp",
-                "--log-level", "debug",
+                "--transport",
+                "streamable-http",
+                "--host",
+                "0.0.0.0",
+                "--port",
+                "9000",
+                "--path",
+                "/mcp",
+                "--log-level",
+                "debug",
             ],
         )
 
-        cli()
-
+        assert result.exit_code == 0
         mock_main.assert_called_once_with(
             transport="streamable-http",
             show_banner=False,
@@ -192,10 +186,10 @@ class TestCLIOptions:
         """Test cli with --show-banner flag."""
         mock_main = mocker.patch("linux_mcp_server.__main__.main")
         mocker.patch("linux_mcp_server.__main__.setup_logging")
-        mocker.patch("sys.argv", ["linux-mcp-server", "--show-banner"])
 
-        cli()
+        result = runner.invoke(app, ["--show-banner"])
 
+        assert result.exit_code == 0
         mock_main.assert_called_once_with(
             transport="stdio",
             show_banner=True,
@@ -205,20 +199,24 @@ class TestCLIOptions:
         """Test that HTTP-specific options are not passed to stdio transport."""
         mock_main = mocker.patch("linux_mcp_server.__main__.main")
         mocker.patch("linux_mcp_server.__main__.setup_logging")
-        mocker.patch(
-            "sys.argv",
+
+        result = runner.invoke(
+            app,
             [
-                "linux-mcp-server",
-                "--transport", "stdio",
-                "--host", "0.0.0.0",  # Should be ignored
-                "--port", "9000",     # Should be ignored
-                "--path", "/test",    # Should be ignored
-                "--log-level", "debug",  # Should be ignored
+                "--transport",
+                "stdio",
+                "--host",
+                "0.0.0.0",  # Should be ignored
+                "--port",
+                "9000",  # Should be ignored
+                "--path",
+                "/test",  # Should be ignored
+                "--log-level",
+                "debug",  # Should be ignored
             ],
         )
 
-        cli()
-
+        assert result.exit_code == 0
         # stdio transport should not receive HTTP-specific kwargs
         mock_main.assert_called_once_with(
             transport="stdio",
@@ -229,53 +227,34 @@ class TestCLIOptions:
 class TestCLIArgumentValidation:
     """Test CLI argument validation and error handling."""
 
-    def test_cli_version(self, mocker, capsys):
+    def test_cli_version(self):
         """Test cli with --version flag."""
-        mocker.patch("sys.argv", ["linux-mcp-server", "--version"])
+        result = runner.invoke(app, ["--version"])
 
-        with pytest.raises(SystemExit) as exc_info:
-            cli()
+        assert result.exit_code == 0
+        assert "linux-mcp-server" in result.stdout
 
-        assert exc_info.value.code == 0
-        captured = capsys.readouterr()
-        assert "linux-mcp-server" in captured.out
-
-    def test_cli_help(self, mocker, capsys):
+    def test_cli_help(self):
         """Test cli with --help flag."""
-        mocker.patch("sys.argv", ["linux-mcp-server", "--help"])
+        result = runner.invoke(app, ["--help"])
 
-        with pytest.raises(SystemExit) as exc_info:
-            cli()
+        assert result.exit_code == 0
+        assert "Linux MCP Server" in result.stdout
+        assert "transport" in result.stdout
 
-        assert exc_info.value.code == 0
-        captured = capsys.readouterr()
-        assert "Linux MCP Server" in captured.out
-        assert "transport" in captured.out
-
-    def test_cli_invalid_transport(self, mocker, capsys):
+    def test_cli_invalid_transport(self):
         """Test cli with invalid transport value."""
-        mocker.patch("sys.argv", ["linux-mcp-server", "--transport", "invalid"])
+        result = runner.invoke(app, ["--transport", "invalid"])
 
-        with pytest.raises(SystemExit) as exc_info:
-            cli()
+        assert result.exit_code != 0
+        assert "Invalid value" in result.output
 
-        assert exc_info.value.code != 0
-        captured = capsys.readouterr()
-        assert "invalid choice" in captured.err
-
-    def test_cli_invalid_log_level(self, mocker, capsys):
+    def test_cli_invalid_log_level(self):
         """Test cli with invalid log level value."""
-        mocker.patch(
-            "sys.argv",
-            ["linux-mcp-server", "--transport", "sse", "--log-level", "invalid"],
-        )
+        result = runner.invoke(app, ["--transport", "sse", "--log-level", "invalid"])
 
-        with pytest.raises(SystemExit) as exc_info:
-            cli()
-
-        assert exc_info.value.code != 0
-        captured = capsys.readouterr()
-        assert "invalid choice" in captured.err
+        assert result.exit_code != 0
+        assert "Invalid value" in result.output
 
 
 class TestCLIErrorHandling:
@@ -285,12 +264,10 @@ class TestCLIErrorHandling:
         """Test that KeyboardInterrupt exits gracefully with code 0."""
         mocker.patch("linux_mcp_server.__main__.setup_logging")
         mocker.patch("linux_mcp_server.__main__.main", side_effect=KeyboardInterrupt)
-        mocker.patch("sys.argv", ["linux-mcp-server"])
 
-        with pytest.raises(SystemExit) as exc_info:
-            cli()
+        result = runner.invoke(app, [])
 
-        assert exc_info.value.code == 0
+        assert result.exit_code == 0
 
     def test_cli_exception_handling(self, mocker):
         """Test that exceptions are logged and exit with code 1."""
@@ -299,12 +276,10 @@ class TestCLIErrorHandling:
             "linux_mcp_server.__main__.main",
             side_effect=RuntimeError("Test error"),
         )
-        mocker.patch("sys.argv", ["linux-mcp-server"])
 
-        with pytest.raises(SystemExit) as exc_info:
-            cli()
+        result = runner.invoke(app, [])
 
-        assert exc_info.value.code == 1
+        assert result.exit_code == 1
 
     def test_cli_value_error_handling(self, mocker):
         """Test that ValueError is caught and exits with code 1."""
@@ -313,9 +288,7 @@ class TestCLIErrorHandling:
             "linux_mcp_server.__main__.main",
             side_effect=ValueError("Invalid configuration"),
         )
-        mocker.patch("sys.argv", ["linux-mcp-server"])
 
-        with pytest.raises(SystemExit) as exc_info:
-            cli()
+        result = runner.invoke(app, [])
 
-        assert exc_info.value.code == 1
+        assert result.exit_code == 1
