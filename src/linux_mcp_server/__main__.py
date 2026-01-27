@@ -11,6 +11,7 @@ import typer
 from linux_mcp_server import __version__
 from linux_mcp_server.logging_config import setup_logging
 from linux_mcp_server.server import main
+from linux_mcp_server.utils.enum import TransportType
 
 
 app = typer.Typer(
@@ -28,8 +29,8 @@ def version_callback(value: bool):
 
 @app.command()
 def cli(
-    transport: Literal["stdio", "sse", "http", "streamable-http"] = typer.Option(
-        "stdio",
+    transport: TransportType = typer.Option(
+        TransportType.STDIO,
         help="Transport protocol to use for MCP communication",
     ),
     host: str = typer.Option(
@@ -70,7 +71,7 @@ def cli(
 
     # Prepare transport kwargs based on transport type
     transport_kwargs = {}
-    if transport in {"http", "sse", "streamable-http"}:
+    if transport in {TransportType.HTTP, TransportType.SSE, TransportType.STREAMABLE_HTTP}:
         transport_kwargs["host"] = host
         transport_kwargs["port"] = port
         if path:

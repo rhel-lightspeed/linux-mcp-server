@@ -14,3 +14,12 @@ class StringEnum(str, Enum):
 
 if StrEnum is None:
     StrEnum = StringEnum
+
+
+class TransportType(StrEnum):
+    """Transport protocol types for the MCP server."""
+
+    STDIO = "stdio"
+    SSE = "sse"
+    HTTP = "http"
+    STREAMABLE_HTTP = "streamable-http"

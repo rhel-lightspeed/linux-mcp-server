@@ -3,9 +3,10 @@
 import logging
 
 from typing import Any
-from typing import Literal
 
 from fastmcp import FastMCP
+
+from linux_mcp_server.utils.enum import TransportType
 
 
 logger = logging.getLogger("linux-mcp-server")
@@ -43,7 +44,7 @@ from linux_mcp_server.tools import *  # noqa: E402, F403
 
 
 def main(
-    transport: Literal["stdio", "http", "sse", "streamable-http"] = "stdio",
+    transport: TransportType = TransportType.STDIO,
     show_banner: bool = False,
     **transport_kwargs: Any,
 ) -> None:
