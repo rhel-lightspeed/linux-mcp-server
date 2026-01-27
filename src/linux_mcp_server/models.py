@@ -4,6 +4,7 @@ from datetime import datetime
 
 from pydantic import BaseModel
 from pydantic import Field
+from pydantic import model_validator
 
 from linux_mcp_server.utils.format import format_bytes
 
@@ -39,9 +40,16 @@ class NodeEntry(BaseModel):
 
     size: int = 0
     modified: float = 0.0
-    human_size: str = Field(default_factory=lambda data: format_bytes(data["size"]))
-    human_modified: datetime = Field(default_factory=lambda data: datetime.fromtimestamp(data["modified"]))
     name: str = ""
+    human_size: str = ""
+    human_modified: datetime = datetime.fromtimestamp(0.0)
+
+    @model_validator(mode="after")
+    def human_values(self):
+        self.human_size = format_bytes(self.size)
+        self.human_modified = datetime.fromtimestamp(self.modified)
+
+        return self
 
 
 class StorageNodes(BaseModel):
