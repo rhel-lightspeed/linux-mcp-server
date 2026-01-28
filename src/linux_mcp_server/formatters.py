@@ -6,11 +6,11 @@ human-readable strings for tool output.
 
 from pathlib import Path
 
+from linux_mcp_server.models import ListeningPort
+from linux_mcp_server.models import NetworkConnection
+from linux_mcp_server.models import NetworkInterface
+from linux_mcp_server.models import ProcessInfo
 from linux_mcp_server.utils import format_bytes
-from linux_mcp_server.utils.types import ListeningPort
-from linux_mcp_server.utils.types import NetworkConnection
-from linux_mcp_server.utils.types import NetworkInterface
-from linux_mcp_server.utils.types import ProcessInfo
 
 
 def format_network_connections(
