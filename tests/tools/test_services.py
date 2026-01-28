@@ -5,12 +5,6 @@ import sys
 import pytest
 
 
-@pytest.fixture
-def mock_execute_with_fallback(mock_execute_with_fallback_for):
-    """Services-specific execute_with_fallback mock using the shared factory."""
-    return mock_execute_with_fallback_for("linux_mcp_server.commands")
-
-
 @pytest.mark.skipif(sys.platform != "linux", reason="Only passes on Linux")
 class TestServices:
     async def test_list_services(self, mcp_client):
