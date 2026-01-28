@@ -73,3 +73,9 @@ def mock_execute_with_fallback_for(mocker):
         )
 
     return _mock
+
+
+@pytest.fixture
+def mock_getuser(mocker):
+    """Mock getpass.getuser to return 'testuser'."""
+    return mocker.patch("getpass.getuser", return_value="testuser")
