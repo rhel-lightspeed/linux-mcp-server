@@ -4,6 +4,7 @@ import os
 import typing as t
 
 from collections.abc import Mapping
+from operator import attrgetter
 from pathlib import Path
 
 from fastmcp.exceptions import ToolError
@@ -94,13 +95,12 @@ async def _list_resources(
 
         entries = parser(stdout, order_by)
 
-        # Sort entries based on order_by criterion and sort direction
-        if order_by == OrderBy.SIZE:
-            entries = sorted(entries, key=lambda e: e.size, reverse=sort == SortBy.DESCENDING)
-        elif order_by == OrderBy.MODIFIED:
-            entries = sorted(entries, key=lambda e: e.modified, reverse=sort == SortBy.DESCENDING)
+        # Sort using attrgetter for size/modified; name needs .lower() for case-insensitivity
+        reverse = sort == SortBy.DESCENDING
+        if order_by == OrderBy.NAME:
+            entries = sorted(entries, key=lambda e: e.name.lower(), reverse=reverse)
         else:
-            entries = sorted(entries, key=lambda e: e.name.lower(), reverse=sort == SortBy.DESCENDING)
+            entries = sorted(entries, key=attrgetter(order_by), reverse=reverse)
 
         # Apply limit if specified
         if top_n:

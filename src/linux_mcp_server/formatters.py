@@ -5,6 +5,7 @@ human-readable strings for tool output.
 """
 
 from datetime import datetime
+from operator import attrgetter
 from pathlib import Path
 
 from linux_mcp_server.utils import format_bytes
@@ -317,13 +318,11 @@ def format_directory_listing(
     """
     lines = [f"=== Directories in {path} ===\n"]
 
-    # Sort entries
-    if sort_by == "size":
-        sorted_entries = sorted(entries, key=lambda e: e.size, reverse=reverse)
-    elif sort_by == "modified":
-        sorted_entries = sorted(entries, key=lambda e: e.modified, reverse=reverse)
-    else:
+    # Sort using attrgetter for size/modified; name needs .lower() for case-insensitivity
+    if sort_by == "name":
         sorted_entries = sorted(entries, key=lambda e: e.name.lower(), reverse=reverse)
+    else:
+        sorted_entries = sorted(entries, key=attrgetter(sort_by), reverse=reverse)
 
     for entry in sorted_entries:
         if sort_by == "size":
@@ -357,13 +356,11 @@ def format_file_listing(
     """
     lines = [f"=== Files in {path} ===\n"]
 
-    # Sort entries
-    if sort_by == "size":
-        sorted_entries = sorted(entries, key=lambda e: e.size, reverse=reverse)
-    elif sort_by == "modified":
-        sorted_entries = sorted(entries, key=lambda e: e.modified, reverse=reverse)
-    else:
+    # Sort using attrgetter for size/modified; name needs .lower() for case-insensitivity
+    if sort_by == "name":
         sorted_entries = sorted(entries, key=lambda e: e.name.lower(), reverse=reverse)
+    else:
+        sorted_entries = sorted(entries, key=attrgetter(sort_by), reverse=reverse)
 
     for entry in sorted_entries:
         if sort_by == "size":
