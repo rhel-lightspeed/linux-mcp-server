@@ -51,7 +51,6 @@ class TestConfigurationViaEnvironmentVariables:
 
         assert config.path == "/api/mcp"
 
-
     def test_env_all_options(self, monkeypatch):
         """Test all configuration options via environment variables."""
         monkeypatch.setenv("LINUX_MCP_TRANSPORT", "http")
