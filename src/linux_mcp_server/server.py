@@ -4,6 +4,7 @@ import logging
 import sys
 
 from importlib import resources
+from pathlib import Path
 
 from fastmcp import FastMCP
 from fastmcp.server.middleware import Middleware
@@ -84,8 +85,33 @@ async def _read_resource_with_meta(req: ReadResourceRequest):
     if uri.startswith("ui://"):
         if uri in ALLOWED_UI_RESOURCE_URIS:
             filename = uri.split("/")[-1]
-            file = resources.files(linux_mcp_server).joinpath("ui_resources").joinpath(filename)
-            html = file.read_text()
+
+            # Try ui_resources first (wheel install)
+            ui_resources_path = resources.files(linux_mcp_server).joinpath("ui_resources")
+            resource_file = ui_resources_path.joinpath(filename)
+            logger.debug(f"Checking for UI resource at: {resource_file}")
+
+            # Check if we need to fall back to mcp-app/dist (editable install)
+            if not resource_file.is_file():
+                package_path = Path(linux_mcp_server.__file__).parent
+                repo_root = package_path.parent.parent
+                mcp_app_dist = repo_root / "mcp-app" / "dist" / filename
+                logger.debug(f"Checking for UI resource at: {mcp_app_dist}")
+
+                if mcp_app_dist.exists():
+                    resource_file = mcp_app_dist
+                else:
+                    logger.error(f"UI resource not found: {filename}")
+                    raise FileNotFoundError(f"Resource {filename} not found")
+
+            # Read the file
+            try:
+                html = resource_file.read_text()
+                logger.info(f"Serving UI resource from: {resource_file}")
+            except Exception as e:
+                logger.error(f"Failed to read UI resource from {resource_file}: {e}")
+                raise
+
             content = TextResourceContents.model_validate(
                 {
                     "uri": uri,
