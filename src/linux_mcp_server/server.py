@@ -2,8 +2,6 @@
 
 import logging
 
-from typing import Any
-
 from fastmcp import FastMCP
 
 from linux_mcp_server.config import CONFIG
@@ -43,14 +41,6 @@ mcp = FastMCP(
 from linux_mcp_server.tools import *  # noqa: E402, F403
 
 
-def main(transport: str | None = None, show_banner: bool = False, **kwargs: Any) -> None:
-    """Run the MCP server with specified transport and options.
-
-    Args:
-        transport: Transport protocol to use (stdio, sse, http, streamable-http)
-        show_banner: Whether to show the FastMCP banner on startup
-        **kwargs: Additional transport-specific keyword arguments
-    """
-    # Use provided transport or fall back to CONFIG
-    actual_transport = transport if transport is not None else CONFIG.transport.value
-    mcp.run(show_banner=show_banner, transport=actual_transport, **kwargs)  # type: ignore[arg-type]
+def main() -> None:
+    """Run the MCP server with configuration from CONFIG."""
+    mcp.run(transport=CONFIG.transport.value, **CONFIG.transport_kwargs)  # type: ignore[arg-type]

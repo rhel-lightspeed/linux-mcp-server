@@ -38,6 +38,7 @@ class Config(
     host: str | None = None
     port: int | None = None
     path: str | None = None
+    show_banner: bool = False
 
     # Logging configuration
     log_dir: Path = Path.home() / ".local" / "share" / "linux-mcp-server" / "logs"
@@ -67,7 +68,7 @@ class Config(
     @property
     def transport_kwargs(self) -> dict[str, Any]:
         """Return transport-specific keyword arguments for mcp.run()."""
-        result: dict[str, Any] = {}
+        result: dict[str, Any] = {"show_banner": self.show_banner}
         if self.transport in {Transport.http, Transport.streamable_http}:
             result["host"] = self.host
             result["port"] = self.port

@@ -44,20 +44,6 @@ linux-mcp-server --transport stdio
 
 This is the default transport when no `--transport` option is specified.
 
-##### SSE (Server-Sent Events)
-HTTP-based transport using Server-Sent Events. Useful for web-based integrations.
-
-```bash
-# Run on default host and port (127.0.0.1:8000)
-linux-mcp-server --transport sse
-
-# Customize host and port
-linux-mcp-server --transport sse --host 0.0.0.0 --port 8080
-
-# With custom endpoint path
-linux-mcp-server --transport sse --path /api/mcp
-```
-
 ##### HTTP / Streamable HTTP
 HTTP-based transport for direct HTTP communication.
 
@@ -72,20 +58,20 @@ linux-mcp-server --transport streamable-http --port 9000
 #### Command-Line Options
 
 ```
---transport {stdio,sse,http,streamable-http}
+--transport {stdio,http,streamable-http}
                       Transport protocol to use for MCP communication
                       (default: stdio)
 
---host HOST           Host address to bind to (only for http/sse transports)
+--host HOST           Host address to bind to (only for http transports)
                       (default: 127.0.0.1)
 
---port PORT           Port to bind to (only for http/sse transports)
+--port PORT           Port to bind to (only for http transports)
                       (default: 8000)
 
---path PATH           Endpoint path for the transport (only for http/sse transports)
+--path PATH           Endpoint path for the transport (only for http transports)
 
 --log-level {debug,info,warning,error,critical}
-                      Log level for the server (only for http/sse transports)
+                      Log level for the server (only for http transports)
 
 --show-banner         Show the FastMCP server banner on startup
 
@@ -94,19 +80,19 @@ linux-mcp-server --transport streamable-http --port 9000
 
 #### Examples
 
-**Run SSE server on all interfaces:**
-```bash
-linux-mcp-server --transport sse --host 0.0.0.0 --port 8080
-```
-
 **Run HTTP server with debug logging:**
 ```bash
 linux-mcp-server --transport http --port 3000 --log-level debug
 ```
 
+**Run HTTP server on all interfaces:**
+```bash
+linux-mcp-server --transport http --host 0.0.0.0 --port 8080
+```
+
 **Run with custom path and show banner:**
 ```bash
-linux-mcp-server --transport sse --path /mcp/v1 --show-banner
+linux-mcp-server --transport http --path /mcp/v1 --show-banner
 ```
 
 **View help and all options:**

@@ -2,9 +2,9 @@ from enum import Enum
 
 
 try:
-    from enum import StrEnum  # pyright: ignore[reportAttributeAccessIssue]
+    from enum import StrEnum
 except ImportError:
-    StrEnum = None  # type: ignore[assignment,misc]
+    StrEnum = None
 
 
 class StringEnum(str, Enum):
@@ -13,13 +13,12 @@ class StringEnum(str, Enum):
 
 
 if StrEnum is None:
-    StrEnum = StringEnum  # type: ignore[assignment,misc]
+    StrEnum = StringEnum
 
 
-class TransportType(StrEnum):  # type: ignore[misc]
+class TransportType(StrEnum):
     """Transport protocol types for the MCP server."""
 
     STDIO = "stdio"
-    SSE = "sse"
     HTTP = "http"
     STREAMABLE_HTTP = "streamable-http"

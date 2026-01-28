@@ -15,7 +15,6 @@ dependencies = [
     "fastmcp >=2.14.3, <3",
     "pydantic-settings >= 2.12.0",
     "pydantic >= 2.12.5",
-    "typer >= 0.9.0",
 ]
 dynamic = ["version"]
 license-files = ["LICENSE", "licenses/GPL-3.0.txt"]
@@ -47,7 +46,7 @@ gssapi = ["gssapi >=1.10.1"]
 "Documentation" = "https://rhel-lightspeed.github.io/linux-mcp-server/"
 
 [project.scripts]
-linux-mcp-server = "linux_mcp_server.__main__:app"
+linux-mcp-server = "linux_mcp_server.__main__:cli"
 
 [dependency-groups]
 dev = [

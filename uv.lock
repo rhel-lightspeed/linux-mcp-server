@@ -1092,7 +1092,6 @@ dependencies = [
     { name = "fastmcp" },
     { name = "pydantic" },
     { name = "pydantic-settings" },
-    { name = "typer" },
 ]
 
 [package.optional-dependencies]
@@ -1137,7 +1136,6 @@ requires-dist = [
     { name = "gssapi", marker = "extra == 'gssapi'", specifier = ">=1.10.1" },
     { name = "pydantic", specifier = ">=2.12.5" },
     { name = "pydantic-settings", specifier = ">=2.12.0" },
-    { name = "typer", specifier = ">=0.9.0" },
 ]
 provides-extras = ["gssapi"]
 
