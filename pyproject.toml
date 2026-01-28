@@ -185,3 +185,7 @@ force-single-line = true
 lines-after-imports = 2
 lines-between-types = 1
 order-by-type = false
+
+# Include the bundled mcp app html file
+[tool.hatch.build.targets.wheel.force-include]
+"mcp-app/dist" = "linux_mcp_server/ui_resources"
