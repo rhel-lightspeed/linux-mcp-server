@@ -45,7 +45,7 @@ class TestMainFunction:
         # Mock CONFIG to return specific values
         mock_config = mocker.patch("linux_mcp_server.server.CONFIG")
         mock_config.transport.value = "stdio"
-        mock_config.transport_kwargs = {"show_banner": False}
+        mock_config.transport_kwargs = {}
 
         main()
 
@@ -62,7 +62,6 @@ class TestMainFunction:
         mock_config = mocker.patch("linux_mcp_server.server.CONFIG")
         mock_config.transport.value = "http"
         mock_config.transport_kwargs = {
-            "show_banner": True,
             "host": "0.0.0.0",
             "port": 8080,
             "path": "/api/mcp",
@@ -73,7 +72,7 @@ class TestMainFunction:
 
         mock_run.assert_called_once_with(
             transport="http",
-            show_banner=True,
+            show_banner=False,
             host="0.0.0.0",
             port=8080,
             path="/api/mcp",

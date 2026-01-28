@@ -18,7 +18,6 @@ class TestConfigurationViaEnvironmentVariables:
         assert config.host is None
         assert config.port is None
         assert config.path is None
-        assert config.show_banner is False
 
     def test_env_transport(self, monkeypatch):
         """Test transport configuration via environment variable."""
@@ -52,13 +51,6 @@ class TestConfigurationViaEnvironmentVariables:
 
         assert config.path == "/api/mcp"
 
-    def test_env_show_banner(self, monkeypatch):
-        """Test show_banner configuration via environment variable."""
-        monkeypatch.setenv("LINUX_MCP_SHOW_BANNER", "true")
-        monkeypatch.setattr(sys, "argv", ["prog"])
-        config = Config()
-
-        assert config.show_banner is True
 
     def test_env_all_options(self, monkeypatch):
         """Test all configuration options via environment variables."""
@@ -67,7 +59,6 @@ class TestConfigurationViaEnvironmentVariables:
         monkeypatch.setenv("LINUX_MCP_PORT", "9000")
         monkeypatch.setenv("LINUX_MCP_PATH", "/mcp")
         monkeypatch.setenv("LINUX_MCP_LOG_LEVEL", "DEBUG")
-        monkeypatch.setenv("LINUX_MCP_SHOW_BANNER", "true")
         monkeypatch.setattr(sys, "argv", ["prog"])
         config = Config()
 
@@ -76,7 +67,6 @@ class TestConfigurationViaEnvironmentVariables:
         assert config.port == 9000
         assert config.path == "/mcp"
         assert config.log_level == "DEBUG"
-        assert config.show_banner is True
 
     def test_transport_kwargs_stdio(self, monkeypatch):
         """Test transport_kwargs for stdio transport."""
@@ -84,7 +74,7 @@ class TestConfigurationViaEnvironmentVariables:
         config = Config()
 
         kwargs = config.transport_kwargs
-        assert kwargs == {"show_banner": False}
+        assert kwargs == {}
 
     def test_transport_kwargs_http(self, monkeypatch):
         """Test transport_kwargs for HTTP transport."""
@@ -97,7 +87,6 @@ class TestConfigurationViaEnvironmentVariables:
         config = Config()
 
         kwargs = config.transport_kwargs
-        assert kwargs["show_banner"] is False
         assert kwargs["host"] == "127.0.0.1"
         assert kwargs["port"] == 8000
         assert kwargs["path"] == "/api"

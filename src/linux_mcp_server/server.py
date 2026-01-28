@@ -43,4 +43,5 @@ from linux_mcp_server.tools import *  # noqa: E402, F403
 
 def main() -> None:
     """Run the MCP server with configuration from CONFIG."""
-    mcp.run(transport=CONFIG.transport.value, **CONFIG.transport_kwargs)  # type: ignore[arg-type]
+    # show_banner defaults to False in FastMCP
+    mcp.run(transport=CONFIG.transport.value, show_banner=False, **CONFIG.transport_kwargs)  # type: ignore[arg-type]
