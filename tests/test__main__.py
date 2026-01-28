@@ -1,14 +1,4 @@
-import pytest
+"""Tests for the __main__ module (legacy file, most tests are in test_cli.py)."""
 
-from linux_mcp_server.__main__ import cli
-
-
-def test_cli():
-    with pytest.raises(SystemExit):
-        cli()
-
-
-def test_cli_keyboard_interrupt(mocker):
-    mocker.patch("linux_mcp_server.__main__.main", side_effect=KeyboardInterrupt)
-    with pytest.raises(SystemExit):
-        cli()
+# This file is kept for backwards compatibility but tests have moved to test_cli.py
+# The old tests relied on Typer's 'app' which no longer exists
