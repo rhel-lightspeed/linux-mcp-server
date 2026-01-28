@@ -457,6 +457,23 @@ def parse_service_count(stdout: str) -> int:
     return count
 
 
+def parse_systemctl_show(stdout: str) -> dict[str, str]:
+    """Parse systemctl show output into key-value pairs.
+
+    Args:
+        stdout: Raw output from systemctl show command.
+
+    Returns:
+        Dictionary of key-value pairs.
+    """
+    result: dict[str, str] = {}
+    for line in stdout.strip().split("\n"):
+        if "=" in line:
+            key, value = line.split("=", 1)
+            result[key.strip()] = value.strip()
+    return result
+
+
 def parse_directory_listing(
     stdout: str,
     sort_by: str,
