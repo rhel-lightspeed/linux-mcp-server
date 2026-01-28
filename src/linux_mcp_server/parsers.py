@@ -6,12 +6,12 @@ structured data that can be used by formatters.
 
 from pathlib import Path
 
+from linux_mcp_server.models import NodeEntry
 from linux_mcp_server.utils.types import CpuInfo
 from linux_mcp_server.utils.types import ListeningPort
 from linux_mcp_server.utils.types import MemoryInfo
 from linux_mcp_server.utils.types import NetworkConnection
 from linux_mcp_server.utils.types import NetworkInterface
-from linux_mcp_server.utils.types import NodeEntry
 from linux_mcp_server.utils.types import ProcessInfo
 from linux_mcp_server.utils.types import SwapInfo
 from linux_mcp_server.utils.types import SystemInfo

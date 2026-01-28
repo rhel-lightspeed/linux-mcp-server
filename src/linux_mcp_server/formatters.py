@@ -4,14 +4,12 @@ This module provides functions to format parsed data into
 human-readable strings for tool output.
 """
 
-from datetime import datetime
 from pathlib import Path
 
 from linux_mcp_server.utils import format_bytes
 from linux_mcp_server.utils.types import ListeningPort
 from linux_mcp_server.utils.types import NetworkConnection
 from linux_mcp_server.utils.types import NetworkInterface
-from linux_mcp_server.utils.types import NodeEntry
 from linux_mcp_server.utils.types import ProcessInfo
 
 
@@ -278,101 +276,55 @@ def format_log_file(stdout: str, log_path: Path, lines_count: int) -> str:
     return "\n".join(lines)
 
 
-def format_block_devices(stdout: str, disk_io: str | None = None) -> str:
-    """Format block devices output.
+def format_disk_usage(stdout: str, disk_io: str | None = None) -> str:
+    """Format disk usage output.
 
     Args:
-        stdout: Raw output from lsblk.
+        stdout: Raw output from df command.
         disk_io: Optional disk I/O statistics.
 
     Returns:
         Formatted string representation.
     """
-    lines = ["=== Block Devices ===\n"]
+    lines = ["=== Filesystem Usage ===\n"]
     lines.append(stdout)
 
     if disk_io:
-        lines.append("\n=== Disk I/O Statistics (per disk) ===")
+        lines.append("\n=== Disk I/O Statistics (since boot) ===")
         lines.append(disk_io)
 
     return "\n".join(lines)
 
 
-def format_directory_listing(
-    entries: list[NodeEntry],
-    path: str | Path,
-    sort_by: str,
-    reverse: bool = False,
-) -> str:
-    """Format directory listing into a readable string.
+def format_hardware_info(results: dict[str, str]) -> str:
+    """Format hardware information output.
 
     Args:
-        entries: List of NodeEntry objects.
-        path: Path that was listed.
-        sort_by: Sort field used.
-        reverse: Whether the sort was reversed.
+        results: Dictionary of command name to output.
 
     Returns:
         Formatted string representation.
     """
-    lines = [f"=== Directories in {path} ===\n"]
+    lines = ["=== Hardware Information ===\n"]
 
-    # Sort entries
-    if sort_by == "size":
-        sorted_entries = sorted(entries, key=lambda e: e.size, reverse=reverse)
-    elif sort_by == "modified":
-        sorted_entries = sorted(entries, key=lambda e: e.modified, reverse=reverse)
-    else:
-        sorted_entries = sorted(entries, key=lambda e: e.name.lower(), reverse=reverse)
+    if "lscpu" in results and results["lscpu"]:
+        lines.append("=== CPU Architecture (lscpu) ===")
+        lines.append(results["lscpu"])
 
-    for entry in sorted_entries:
-        if sort_by == "size":
-            lines.append(f"{format_bytes(entry.size):>12}  {entry.name}")
-        elif sort_by == "modified":
-            dt = datetime.fromtimestamp(entry.modified)
-            lines.append(f"{dt.strftime('%Y-%m-%d %H:%M:%S')}  {entry.name}")
-        else:
-            lines.append(f"  {entry.name}")
+    if "lspci" in results and results["lspci"]:
+        pci_lines = results["lspci"].strip().split("\n")
+        lines.append("\n=== PCI Devices ===")
+        # Show first 50 devices
+        for line in pci_lines[:50]:
+            lines.append(line)
+        if len(pci_lines) > 50:
+            lines.append(f"\n... and {len(pci_lines) - 50} more PCI devices")
 
-    lines.append(f"\nTotal directories: {len(entries)}")
-    return "\n".join(lines)
+    if "lsusb" in results and results["lsusb"]:
+        lines.append("\n\n=== USB Devices ===")
+        lines.append(results["lsusb"])
 
+    if len(lines) == 1:  # Only header
+        lines.append("No hardware information tools available.")
 
-def format_file_listing(
-    entries: list[NodeEntry],
-    path: str | Path,
-    sort_by: str,
-    reverse: bool = False,
-) -> str:
-    """Format file listing into a readable string.
-
-    Args:
-        entries: List of NodeEntry objects.
-        path: Path that was listed.
-        sort_by: Sort field used.
-        reverse: Whether the sort was reversed.
-
-    Returns:
-        Formatted string representation.
-    """
-    lines = [f"=== Files in {path} ===\n"]
-
-    # Sort entries
-    if sort_by == "size":
-        sorted_entries = sorted(entries, key=lambda e: e.size, reverse=reverse)
-    elif sort_by == "modified":
-        sorted_entries = sorted(entries, key=lambda e: e.modified, reverse=reverse)
-    else:
-        sorted_entries = sorted(entries, key=lambda e: e.name.lower(), reverse=reverse)
-
-    for entry in sorted_entries:
-        if sort_by == "size":
-            lines.append(f"{format_bytes(entry.size):>12}  {entry.name}")
-        elif sort_by == "modified":
-            dt = datetime.fromtimestamp(entry.modified)
-            lines.append(f"{dt.strftime('%Y-%m-%d %H:%M:%S')}  {entry.name}")
-        else:
-            lines.append(f"  {entry.name}")
-
-    lines.append(f"\nTotal files: {len(entries)}")
     return "\n".join(lines)
