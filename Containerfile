@@ -1,4 +1,4 @@
-FROM registry.access.redhat.com/ubi10-minimal:10.1-1766033715 as base
+FROM registry.access.redhat.com/ubi10-minimal:10.1-1769521234 as base
 
 FROM base as build
 

@@ -2,9 +2,8 @@
 
 from pathlib import Path
 
-from linux_mcp_server.formatters import format_block_devices
-from linux_mcp_server.formatters import format_directory_listing
-from linux_mcp_server.formatters import format_file_listing
+from linux_mcp_server.formatters import format_disk_usage
+from linux_mcp_server.formatters import format_hardware_info
 from linux_mcp_server.formatters import format_journal_logs
 from linux_mcp_server.formatters import format_listening_ports
 from linux_mcp_server.formatters import format_log_file
@@ -15,11 +14,10 @@ from linux_mcp_server.formatters import format_process_list
 from linux_mcp_server.formatters import format_service_logs
 from linux_mcp_server.formatters import format_service_status
 from linux_mcp_server.formatters import format_services_list
-from linux_mcp_server.utils.types import ListeningPort
-from linux_mcp_server.utils.types import NetworkConnection
-from linux_mcp_server.utils.types import NetworkInterface
-from linux_mcp_server.utils.types import NodeEntry
-from linux_mcp_server.utils.types import ProcessInfo
+from linux_mcp_server.models import ListeningPort
+from linux_mcp_server.models import NetworkConnection
+from linux_mcp_server.models import NetworkInterface
+from linux_mcp_server.models import ProcessInfo
 
 
 class TestFormatNetworkConnections:
@@ -300,118 +298,48 @@ class TestFormatLogFile:
         assert "Application started" in result
 
 
-class TestFormatBlockDevices:
-    """Tests for format_block_devices function."""
+class TestFormatDiskUsage:
+    """Tests for format_disk_usage function."""
 
     def test_format_basic(self):
         """Test basic formatting."""
-        stdout = "NAME SIZE TYPE MOUNTPOINT FSTYPE MODEL\nsda 100G disk"
-        result = format_block_devices(stdout)
-        assert "=== Block Devices ===" in result
-        assert "sda" in result
+        stdout = "Filesystem Size Used Avail Use% Mounted\n/dev/sda1 100G 50G 50G 50% /"
+        result = format_disk_usage(stdout)
+        assert "=== Filesystem Usage ===" in result
+        assert "/dev/sda1" in result
 
     def test_format_with_disk_io(self):
         """Test formatting with disk I/O."""
-        stdout = "NAME SIZE\nsda 100G"
-        disk_io = "sda: Read: 1GB Write: 500MB"
-        result = format_block_devices(stdout, disk_io)
-        assert "=== Disk I/O Statistics (per disk) ===" in result
+        stdout = "Filesystem Size\n/dev/sda1 100G"
+        disk_io = "Read: 1GB Write: 500MB"
+        result = format_disk_usage(stdout, disk_io)
+        assert "=== Disk I/O Statistics (since boot) ===" in result
 
 
-class TestFormatDirectoryListing:
-    """Tests for format_directory_listing function."""
+class TestFormatHardwareInfo:
+    """Tests for format_hardware_info function."""
 
-    def test_format_empty_list(self):
-        """Test formatting empty list."""
-        result = format_directory_listing([], "/path", "name")
-        assert "=== Directories in /path ===" in result
-        assert "Total directories: 0" in result
+    def test_format_empty(self):
+        """Test formatting empty results."""
+        result = format_hardware_info({})
+        assert "=== Hardware Information ===" in result
+        assert "No hardware information tools available." in result
 
-    def test_format_by_name(self):
-        """Test formatting directories by name."""
-        entries = [
-            NodeEntry(name="gamma"),
-            NodeEntry(name="alpha"),
-            NodeEntry(name="beta"),
-        ]
-        result = format_directory_listing(entries, "/path", "name")
-        assert "alpha" in result
-        assert "beta" in result
-        assert "gamma" in result
-        # Should be sorted
-        alpha_pos = result.find("alpha")
-        beta_pos = result.find("beta")
-        gamma_pos = result.find("gamma")
-        assert alpha_pos < beta_pos < gamma_pos
+    def test_format_with_data(self):
+        """Test formatting with data."""
+        results = {
+            "lscpu": "Architecture: x86_64\nCPU(s): 8",
+            "lspci": "00:00.0 Host bridge: Intel Corporation\n00:02.0 VGA compatible controller: Intel",
+            "lsusb": "Bus 001 Device 001: ID 1d6b:0002 Linux Foundation 2.0 root hub",
+        }
+        result = format_hardware_info(results)
+        assert "=== CPU Architecture (lscpu) ===" in result
+        assert "=== PCI Devices ===" in result
+        assert "=== USB Devices ===" in result
 
-    def test_format_by_size(self):
-        """Test formatting directories by size."""
-        entries = [
-            NodeEntry(name="small", size=100),
-            NodeEntry(name="large", size=1000),
-            NodeEntry(name="medium", size=500),
-        ]
-        result = format_directory_listing(entries, "/path", "size")
-        assert "small" in result
-        assert "large" in result
-        assert "medium" in result
-
-    def test_format_descending(self):
-        """Test formatting in descending order."""
-        entries = [
-            NodeEntry(name="alpha"),
-            NodeEntry(name="beta"),
-            NodeEntry(name="gamma"),
-        ]
-        result = format_directory_listing(entries, "/path", "name", reverse=True)
-        gamma_pos = result.find("gamma")
-        beta_pos = result.find("beta")
-        alpha_pos = result.find("alpha")
-        assert gamma_pos < beta_pos < alpha_pos
-
-
-class TestFormatFileListing:
-    """Tests for format_file_listing function."""
-
-    def test_format_empty_list(self):
-        """Test formatting empty list."""
-        result = format_file_listing([], "/path", "name")
-        assert "=== Files in /path ===" in result
-        assert "Total files: 0" in result
-
-    def test_format_by_name(self):
-        """Test formatting files by name."""
-        entries = [
-            NodeEntry(name="file3.txt"),
-            NodeEntry(name="file1.txt"),
-            NodeEntry(name="file2.txt"),
-        ]
-        result = format_file_listing(entries, "/path", "name")
-        assert "file1.txt" in result
-        assert "file2.txt" in result
-        assert "file3.txt" in result
-        # Should be sorted
-        file1_pos = result.find("file1.txt")
-        file2_pos = result.find("file2.txt")
-        file3_pos = result.find("file3.txt")
-        assert file1_pos < file2_pos < file3_pos
-
-    def test_format_by_size(self):
-        """Test formatting files by size."""
-        entries = [
-            NodeEntry(name="small.txt", size=100),
-            NodeEntry(name="large.txt", size=1000),
-        ]
-        result = format_file_listing(entries, "/path", "size")
-        assert "small.txt" in result
-        assert "large.txt" in result
-
-    def test_format_by_modified(self):
-        """Test formatting files by modification time."""
-        entries = [
-            NodeEntry(name="old.txt", modified=1700000000.0),
-            NodeEntry(name="new.txt", modified=1700100000.0),
-        ]
-        result = format_file_listing(entries, "/path", "modified")
-        assert "old.txt" in result
-        assert "new.txt" in result
+    def test_format_truncates_pci(self):
+        """Test that PCI devices are truncated at 50."""
+        pci_lines = "\n".join([f"00:{i:02d}.0 Device {i}" for i in range(60)])
+        results = {"lspci": pci_lines}
+        result = format_hardware_info(results)
+        assert "... and 10 more PCI devices" in result

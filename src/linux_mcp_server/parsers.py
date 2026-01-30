@@ -6,16 +6,16 @@ structured data that can be used by formatters.
 
 from pathlib import Path
 
-from linux_mcp_server.utils.types import CpuInfo
-from linux_mcp_server.utils.types import ListeningPort
-from linux_mcp_server.utils.types import MemoryInfo
-from linux_mcp_server.utils.types import NetworkConnection
-from linux_mcp_server.utils.types import NetworkInterface
-from linux_mcp_server.utils.types import NodeEntry
-from linux_mcp_server.utils.types import ProcessInfo
-from linux_mcp_server.utils.types import SwapInfo
-from linux_mcp_server.utils.types import SystemInfo
-from linux_mcp_server.utils.types import SystemMemory
+from linux_mcp_server.models import CpuInfo
+from linux_mcp_server.models import ListeningPort
+from linux_mcp_server.models import MemoryInfo
+from linux_mcp_server.models import NetworkConnection
+from linux_mcp_server.models import NetworkInterface
+from linux_mcp_server.models import NodeEntry
+from linux_mcp_server.models import ProcessInfo
+from linux_mcp_server.models import SwapInfo
+from linux_mcp_server.models import SystemInfo
+from linux_mcp_server.models import SystemMemory
 
 
 def parse_ss_connections(stdout: str) -> list[NetworkConnection]:

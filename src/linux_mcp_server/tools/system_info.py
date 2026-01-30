@@ -8,16 +8,16 @@ from mcp.types import ToolAnnotations
 from linux_mcp_server.audit import log_tool_call
 from linux_mcp_server.commands import get_command
 from linux_mcp_server.commands import get_command_group
+from linux_mcp_server.models import CpuInfo
+from linux_mcp_server.models import DiskUsage
+from linux_mcp_server.models import SystemInfo
+from linux_mcp_server.models import SystemMemory
 from linux_mcp_server.parsers import parse_cpu_info
 from linux_mcp_server.parsers import parse_free_output
 from linux_mcp_server.parsers import parse_system_info
 from linux_mcp_server.server import mcp
 from linux_mcp_server.utils.decorators import disallow_local_execution_in_containers
-from linux_mcp_server.utils.types import CpuInfo
-from linux_mcp_server.utils.types import DiskUsage
 from linux_mcp_server.utils.types import Host
-from linux_mcp_server.utils.types import SystemInfo
-from linux_mcp_server.utils.types import SystemMemory
 from linux_mcp_server.utils.validation import is_successful_output
 
 
