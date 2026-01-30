@@ -5,7 +5,6 @@ from litellm import Choices
 from litellm import completion
 from litellm import get_supported_openai_params
 from litellm import ModelResponse
-from litellm import supports_response_schema
 from pydantic import BaseModel
 
 from linux_mcp_server.config import CONFIG
@@ -133,14 +132,7 @@ def check_run_script(description: str, script_type: str, script: str, *, readonl
 
     params = get_supported_openai_params(model=get_model())
     if params is not None and "response_format" in params:
-        if supports_response_schema(model=get_model()):
-            response_format = GatekeeperResult
-        else:
-            logger.warning(
-                f"{get_model()} supports 'response_format' parameter, but does not support response schema. Falling back to text response.",
-                extra={"model": get_model(), "params": params},
-            )
-            response_format = None
+        response_format = GatekeeperResult
     else:
         response_format = None
 
