@@ -1,4 +1,5 @@
 import logging
+import shlex
 import typing as t
 
 from fastmcp import Context
@@ -26,11 +27,40 @@ class ScriptType(StrEnum):
     BASH = "bash"
 
 
+BASH_STRICT_PREAMBLE = "set -euo pipefail; "
+
+SYSTEMD_RUN_ARGS = [
+    "--quiet",
+    "--pty",
+    "--same-dir",
+    "--collect",
+    "--wait",
+    "--service-type=exec",
+    "--property=NoNewPrivileges=true",
+]
+SYSTEMD_RUN_READONLY_ARGS = [
+    "--property=ReadOnlyPaths=/",
+    "--property=RestrictAddressFamilies=AF_UNIX",
+]
+SYSTEMD_RUN_COMMAND = "/usr/bin/sudo /usr/bin/systemd-run {args}"
+
+# Wrapper for run_script_readonly: use sudo+systemd-run when available, else run script
+# directly. Template uses {script_type} and {script}; script is escaped via shlex.quote().
+WRAPPER_TEMPLATE = """\
+set -euo pipefail
+if command -v sudo >/dev/null 2>&1 && command -v systemd-run >/dev/null 2>&1 && sudo whoami >/dev/null 2>&1; then
+  exec {systemd_run_command} --uid=$USER {script_type} -c {script}
+else
+  exec {script_type} -c {script}
+fi
+"""
+
 RUN_SCRIPT_COMMON_DESCRIPTION = """\
 A bash script should be used for simple operations that can be expressed cleanly
 as a few shell commands, but a Python script should be used if complex processing
-is needed. `set -euo pipefail` will be prepended to bash scripts, so make sure to
-handle expected non-zero exit codes properly.
+is needed. Bash scripts are run with strict mode (set -euo pipefail) applied by
+the invocation, so handle expected non-zero exit codes in the script (e.g. with
+`|| true`) where needed.
 
 Write short, simple scripts that are easy to review - do not include unnecessary
 complexity such as elaborate logging or handling unlikely corner cases.
@@ -85,15 +115,12 @@ async def run_script_readonly(
     ],
     host: Host = None,
 ) -> str:
-    command = []
-
-    if script_type == ScriptType.BASH:
-        script = "# added by linux-mcp-server\nset -euo pipefail\n\n" + script
-
-    if script_type == ScriptType.PYTHON:
-        command = ["python3", "-c", script]
-    elif script_type == ScriptType.BASH:
-        command = ["bash", "-c", script]
+    wrapper_script = WRAPPER_TEMPLATE.format(
+        systemd_run_command=SYSTEMD_RUN_COMMAND.format(args=" ".join(SYSTEMD_RUN_ARGS + SYSTEMD_RUN_READONLY_ARGS)),
+        script_type=script_type.value,
+        script=shlex.quote((BASH_STRICT_PREAMBLE + script) if script_type == ScriptType.BASH else script),
+    )
+    command = ["bash", "-c", wrapper_script]
 
     gatekeeper_result = check_run_script(description, script_type, script, readonly=True)
 
@@ -149,15 +176,12 @@ async def run_script_modify(
     ],
     host: Host = None,
 ) -> str:
-    command = []
-
-    if script_type == ScriptType.BASH:
-        script = "# added by linux-mcp-server\nset -euo pipefail\n\n" + script
-
-    if script_type == ScriptType.PYTHON:
-        command = ["python3", "-c", script]
-    elif script_type == ScriptType.BASH:
-        command = ["bash", "-c", script]
+    wrapper_script = WRAPPER_TEMPLATE.format(
+        systemd_run_command=SYSTEMD_RUN_COMMAND.format(args=" ".join(SYSTEMD_RUN_ARGS)),
+        script_type=script_type.value,
+        script=shlex.quote((BASH_STRICT_PREAMBLE + script) if script_type == ScriptType.BASH else script),
+    )
+    command = ["bash", "-c", wrapper_script]
 
     gatekeeper_result = check_run_script(description, script_type, script, readonly=False)
 
