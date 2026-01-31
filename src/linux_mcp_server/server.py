@@ -4,6 +4,8 @@ import logging
 
 from fastmcp import FastMCP
 
+from linux_mcp_server.config import CONFIG
+
 
 logger = logging.getLogger("linux-mcp-server")
 
@@ -39,5 +41,7 @@ mcp = FastMCP(
 from linux_mcp_server.tools import *  # noqa: E402, F403
 
 
-def main():
-    mcp.run(show_banner=False)
+def main() -> None:
+    """Run the MCP server with configuration from CONFIG."""
+    # show_banner defaults to False in FastMCP
+    mcp.run(transport=CONFIG.transport.value, show_banner=False, **CONFIG.transport_kwargs)  # type: ignore[arg-type]
