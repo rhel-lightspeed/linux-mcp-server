@@ -1119,7 +1119,7 @@ test = [
 [package.metadata]
 requires-dist = [
     { name = "asyncssh", extras = ["bcrypt"], specifier = ">=2.22.0" },
-    { name = "fastmcp", specifier = ">=2.14.3,<3" },
+    { name = "fastmcp", specifier = ">=2.14.4,<3" },
     { name = "gssapi", marker = "extra == 'gssapi'", specifier = ">=1.10.1" },
     { name = "pydantic", specifier = ">=2.12.5" },
     { name = "pydantic-settings", specifier = ">=2.12.0" },
