@@ -27,12 +27,88 @@ pip install linux-mcp-server
    linux-mcp-server
    ```
 
+   By default, the server uses **stdio** transport (standard input/output), which is required for most MCP clients like Claude Desktop.
+
+### Transport Options
+
+The Linux MCP Server supports multiple transport protocols for different use cases. You can specify the transport using command-line options.
+
+#### Available Transports
+
+##### stdio (Default)
+Standard input/output transport - required for most MCP clients like Claude Desktop.
+
+```bash
+linux-mcp-server --transport stdio
+```
+
+This is the default transport when no `--transport` option is specified.
+
+##### HTTP / Streamable HTTP
+HTTP-based transport for direct HTTP communication.
+
+```bash
+# Run with HTTP transport
+linux-mcp-server --transport http --host 127.0.0.1 --port 3000
+
+# Run with streamable HTTP transport
+linux-mcp-server --transport streamable-http --port 9000
+```
+
+#### Command-Line Options
+
+```
+--transport {stdio,http,streamable-http}
+                      Transport protocol to use for MCP communication
+                      (default: stdio)
+
+--host HOST           Host address to bind to (only for http transports)
+                      (default: 127.0.0.1)
+
+--port PORT           Port to bind to (only for http transports)
+                      (default: 8000)
+
+--path PATH           Endpoint path for the transport (only for http transports)
+
+--log-level {debug,info,warning,error,critical}
+                      Log level for the server (only for http transports)
+
+--show-banner         Show the FastMCP server banner on startup
+
+--version             Show program's version number and exit
+```
+
+#### Examples
+
+**Run HTTP server with debug logging:**
+```bash
+linux-mcp-server --transport http --port 3000 --log-level debug
+```
+
+**Run HTTP server on all interfaces:**
+```bash
+linux-mcp-server --transport http --host 0.0.0.0 --port 8080
+```
+
+**Run with custom path and show banner:**
+```bash
+linux-mcp-server --transport http --path /mcp/v1 --show-banner
+```
+
+**View help and all options:**
+```bash
+linux-mcp-server --help
+```
+
 ### Using with AI Agents
 
 For the best experience, integrate the MCP server with an AI Agent of your preference.
 
 #### For Claude Desktop
 See [Client Configuration](clients.md#claude-desktop).
+
+!!! note "Transport for Claude Desktop"
+    Claude Desktop requires the **stdio** transport (the default). Do not specify `--transport` when configuring Claude Desktop.
 
 ## Available Tools
 
