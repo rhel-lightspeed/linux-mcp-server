@@ -9,10 +9,21 @@ from pydantic_settings import SettingsConfigDict
 from linux_mcp_server.utils.types import UpperCase
 
 
-class Config(BaseSettings, cli_parse_args=True, cli_implicit_flags=True, cli_kebab_case=True, cli_exit_on_error=False):
+class Config(
+    BaseSettings,
+    cli_parse_args=True,
+    cli_implicit_flags=True,
+    cli_kebab_case=True,
+    cli_exit_on_error=False,
+):
     # The `_`` is required in the env_prefix, otherwise, pydantic would
     # interpret the prefix as `LINUX_MCPLOG_DIR`, instead of `LINUX_MCP_LOG_DIR`
-    model_config = SettingsConfigDict(env_prefix="LINUX_MCP_", env_ignore_empty=True, cli_hide_none_type=True)
+    model_config = SettingsConfigDict(
+        env_prefix="LINUX_MCP_",
+        env_ignore_empty=True,
+        cli_hide_none_type=True,
+        cli_ignore_unknown_args=True,
+    )
 
     version: bool = False
 
