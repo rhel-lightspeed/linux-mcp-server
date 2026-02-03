@@ -89,6 +89,16 @@ Run a script on a system to modify files or settings.
 #
 
 
+def _wrap_script(script_type: ScriptType, script: str) -> list[str]:
+    """Wrap a script in a wrapper script that uses sudo+systemd-run when available, else run script directly."""
+    wrapper_script = WRAPPER_TEMPLATE.format(
+        systemd_run_command=SYSTEMD_RUN_COMMAND.format(args=" ".join(SYSTEMD_RUN_ARGS)),
+        script_type=script_type.value,
+        script=shlex.quote((BASH_STRICT_PREAMBLE + script) if script_type == ScriptType.BASH else script),
+    )
+    return ["bash", "-c", wrapper_script]
+
+
 @mcp.tool(
     tags={"run_script"},
     title="Run script on system, read-only",
@@ -115,12 +125,7 @@ async def run_script_readonly(
     ],
     host: Host = None,
 ) -> str:
-    wrapper_script = WRAPPER_TEMPLATE.format(
-        systemd_run_command=SYSTEMD_RUN_COMMAND.format(args=" ".join(SYSTEMD_RUN_ARGS + SYSTEMD_RUN_READONLY_ARGS)),
-        script_type=script_type.value,
-        script=shlex.quote((BASH_STRICT_PREAMBLE + script) if script_type == ScriptType.BASH else script),
-    )
-    command = ["bash", "-c", wrapper_script]
+    command = _wrap_script(script_type, script)
 
     gatekeeper_result = check_run_script(description, script_type, script, readonly=True)
 
@@ -176,12 +181,7 @@ async def run_script_modify(
     ],
     host: Host = None,
 ) -> str:
-    wrapper_script = WRAPPER_TEMPLATE.format(
-        systemd_run_command=SYSTEMD_RUN_COMMAND.format(args=" ".join(SYSTEMD_RUN_ARGS)),
-        script_type=script_type.value,
-        script=shlex.quote((BASH_STRICT_PREAMBLE + script) if script_type == ScriptType.BASH else script),
-    )
-    command = ["bash", "-c", wrapper_script]
+    command = _wrap_script(script_type, script)
 
     gatekeeper_result = check_run_script(description, script_type, script, readonly=False)
 
