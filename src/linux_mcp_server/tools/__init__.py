@@ -12,8 +12,8 @@ from linux_mcp_server.tools.network import get_network_interfaces
 from linux_mcp_server.tools.processes import get_process_info
 from linux_mcp_server.tools.processes import list_processes
 from linux_mcp_server.tools.run_script import execute_script
-from linux_mcp_server.tools.run_script import modify_plain
-from linux_mcp_server.tools.run_script import modify_with_mcp_apps
+from linux_mcp_server.tools.run_script import run_script_modify
+from linux_mcp_server.tools.run_script import run_script_modify_interactive
 from linux_mcp_server.tools.run_script import run_script_readonly
 
 # services
@@ -57,6 +57,6 @@ __all__ = [
     "read_file",
     "read_log_file",
     "run_script_readonly",
-    "modify_plain",
-    "modify_with_mcp_apps",
+    "run_script_modify",
+    "run_script_modify_interactive",
 ]

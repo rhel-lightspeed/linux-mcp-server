@@ -140,9 +140,10 @@ from linux_mcp_server.tools import *  # noqa: E402, F403
 # `on_initialize` handler in `DynamicDiscoveryMiddleware` once Goose starts
 # providing `mcp-app` compatibility during the initialize request.
 if CONFIG.use_mcp_apps:
-    mcp.add_tool(modify_with_mcp_apps)
+    mcp.add_tool(run_script_modify_interactive)
+    mcp.add_tool(execute_script)
 else:
-    mcp.add_tool(modify_plain)
+    mcp.add_tool(run_script_modify)
 
 
 # This middleware can be used to dynamically inject tools based on client side compatibility
@@ -150,8 +151,11 @@ class DynamicDiscoveryMiddleware(Middleware):
     async def on_list_tools(self, context: MiddlewareContext, call_next):
         tools = await call_next(context)
 
-        # Filter out the hidden tools
-        filtered_tools = [t for t in tools if "hidden_from_agent" not in (t.tags)]
+        # Eventually, the tagging of the tools via _meta.ui.visiblity as "app" or "model" will
+        # hide this tool but Goose doesn't support this yet. On the other hand, goose is happy
+        # if the app calls tools we don't list at all, so we just filter out the "app" tools
+        filtered_tools = [t for t in tools if "hidden_from_model" not in (t.tags)]
+
         return filtered_tools
 
 

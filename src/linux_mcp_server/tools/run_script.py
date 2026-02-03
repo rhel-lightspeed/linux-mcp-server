@@ -5,6 +5,7 @@ from fastmcp import Context
 from fastmcp.exceptions import ToolError
 from fastmcp.tools.tool import Tool
 from fastmcp.tools.tool import ToolResult
+from mcp.types import ContentBlock
 from mcp.types import TextContent
 from mcp.types import ToolAnnotations
 
@@ -56,11 +57,9 @@ Run a script on a system to modify files or settings.
     + RUN_SCRIPT_COMMON_DESCRIPTION
 )
 
-RUN_SCRIPT_INTENTION_MODIFY_DESCRIPTION = (
+RUN_SCRIPT_MODIFY_INTERACTIVE = (
     """
-Propose a script that modifies the system to users and wait for the approval. 
-This tool uses a gatekepper to diagnose the purposed script and provides the 
-user with an insight analysis about the script.
+Run a script that modifies the system. The user will be asked for approval interactively.
 """
     + RUN_SCRIPT_COMMON_DESCRIPTION
 )
@@ -136,11 +135,7 @@ async def run_script_readonly(
         return f"Error executing script: return code {returncode}, stderr: {stderr}"
 
 
-@mcp.tool(
-    tags={"run_script", "hidden_from_agent"},
-    description="This is a hidden tool. If you're an agent, PLEASE DO NO CALL THIS!",
-)
-async def execute_script(
+async def _execute_script(
     script_type: t.Annotated[
         ScriptType,
         Field(description="The type of script to run (python or bash)."),
@@ -169,9 +164,18 @@ async def execute_script(
         return f"Error executing script: return code {returncode}, stderr: {stderr}"
 
 
+execute_script = Tool.from_function(
+    _execute_script,
+    name="execute_script",
+    tags={"run_script", "hidden_from_model"},
+    description="Execute a script; this is only available to the our mcp-app",
+    meta={"ui": {"visibility": ["app"]}},
+)
+
+
 @log_tool_call
 @disallow_local_execution_in_containers
-async def run_script_intention_modify(
+async def _run_script_modify_interactive(
     ctx: Context,
     description: t.Annotated[
         str,
@@ -190,20 +194,27 @@ async def run_script_intention_modify(
     host: Host = None,
 ) -> ToolResult:
     gatekeeper_result = check_run_script(description, script_type, script, readonly=False)
-    text_block = TextContent(
-        type="text",
-        text="When this tool completes successfully, this means that the user has been asked for approval - please ignore the tool call response and respond nothing to the user; the final result will be provided as a separate message later.",
-    )
+    content: list[ContentBlock] = []
 
-    return ToolResult(content=[text_block], structured_content=gatekeeper_result.model_dump())
+    if gatekeeper_result.status == GatekeeperStatus.OK:
+        content.append(
+            TextContent(
+                type="text",
+                text="The user has been asked for approval; please respond nothing to the user yet; the final result will be provided as a separate message later.",
+            )
+        )
+
+    result = ToolResult(content=content, structured_content=gatekeeper_result.model_dump())
+
+    return result
 
 
-modify_with_mcp_apps = Tool.from_function(
-    run_script_intention_modify,
-    name="run_script_modify",
+run_script_modify_interactive = Tool.from_function(
+    _run_script_modify_interactive,
+    name="run_script_modify_interactive",
     tags={"run_script"},
     title="Propose to run a script that modifies system",
-    description=RUN_SCRIPT_INTENTION_MODIFY_DESCRIPTION,
+    description=RUN_SCRIPT_MODIFY_INTERACTIVE,
     annotations=ToolAnnotations(destructiveHint=True),
     meta={"ui": {"resourceUri": RUN_SCRIPT_APP_URI}},
 )
@@ -211,7 +222,7 @@ modify_with_mcp_apps = Tool.from_function(
 
 @log_tool_call
 @disallow_local_execution_in_containers
-async def run_script_modify(
+async def _run_script_modify(
     ctx: Context,
     description: t.Annotated[
         str,
@@ -267,8 +278,8 @@ async def run_script_modify(
         return f"Error executing script: return code {returncode}, stderr: {stderr}"
 
 
-modify_plain = Tool.from_function(
-    run_script_modify,
+run_script_modify = Tool.from_function(
+    _run_script_modify,
     name="run_script_modify",
     tags={"run_script"},
     title="Run script to modify system",

@@ -135,7 +135,7 @@ function RunScriptAppInner({
     } catch (e) {
       updatedExecutionState = "failed";
       updatedExecutionResult = e as string;
-      console.error(`callServerTool failed: ${e}`);
+      console.error("callServerTool failed", e);
     }
 
     setExecutionState(updatedExecutionState);
