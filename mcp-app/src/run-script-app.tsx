@@ -106,7 +106,7 @@ function RunScriptAppInner({
 }: RunScriptAppInnerProps) {
   const [executionState, setExecutionState] =
     useState<ExecutionState>("initialized");
-  const [executionResult, setExecutionResult] = useState<string | null>(null);
+  const [executionResult, setExecutionResult] = useState<string>("");
 
   const handleAccept = useCallback(async () => {
     setExecutionState("executing");
@@ -116,17 +116,44 @@ function RunScriptAppInner({
     const scriptType = (params["script_type"] || "bash") as string;
     const host = params["host"] || null;
 
-    const result = await app.callServerTool({
-      name: "execute_script",
-      arguments: { script: script, script_type: scriptType, host: host },
-    });
+    let updatedExecutionState: ExecutionState = executionState;
+    let updatedExecutionResult = executionResult;
 
-    if (!!result.isError) {
-      setExecutionState("failed");
-    } else {
-      setExecutionState("success");
+    try {
+      const result = await app.callServerTool({
+        name: "execute_script",
+        arguments: { script: script, script_type: scriptType, host: host },
+      });
+
+      if (!!result.isError) {
+        updatedExecutionState = "failed";
+      } else {
+        updatedExecutionState = "success";
+      }
+
+      updatedExecutionResult = extractText(result);
+    } catch (e) {
+      updatedExecutionState = "failed";
+      updatedExecutionResult = e as string;
+      console.error(`callServerTool failed: ${e}`);
     }
-    setExecutionResult(extractText(result));
+
+    setExecutionState(updatedExecutionState);
+    setExecutionResult(updatedExecutionResult);
+
+    try {
+      await app.sendMessage({
+        role: "user",
+        content: [
+          {
+            type: "text",
+            text: `The script ${script} has been executed. Here is the detail of the execution.\n--------------------------------------------\nExecution status: ${updatedExecutionState}\nExecution result: ${updatedExecutionResult}`,
+          },
+        ],
+      });
+    } catch (e) {
+      console.error(`sendMessage failed: ${e}`);
+    }
   }, [app, toolRequestParams]);
 
   const handleReject = () => {
