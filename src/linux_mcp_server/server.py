@@ -38,7 +38,6 @@ match CONFIG.toolset:
     case _:
         assert False, f"Unknown toolset configuration: {CONFIG.toolset}"
 
-
 if CONFIG.toolset != Toolset.FIXED and CONFIG.gatekeeper_model is None:
     logger.error("LINUX_MCP_GATEKEEPER_MODEL not set, this is needed for run_script tools")
     sys.exit(1)
@@ -71,6 +70,7 @@ mcp = FastMCP(
     """,
     **kwargs,
 )
+
 
 _low_level_server = mcp._mcp_server
 _original_resource_request_handler = _low_level_server.request_handlers[ReadResourceRequest]
@@ -132,6 +132,17 @@ _low_level_server.request_handlers[ReadResourceRequest] = _read_resource_with_me
 
 
 from linux_mcp_server.tools import *  # noqa: E402, F403
+
+
+# TODO: Dynamically inject the 'modify' tool based on user compatibility.
+#
+# This is a temporary implementation. The injection logic should be moved to the
+# `on_initialize` handler in `DynamicDiscoveryMiddleware` once Goose starts
+# providing `mcp-app` compatibility during the initialize request.
+if CONFIG.use_mcp_apps:
+    mcp.add_tool(modify_with_mcp_apps)
+else:
+    mcp.add_tool(modify_plain)
 
 
 # This middleware can be used to dynamically inject tools based on client side compatibility

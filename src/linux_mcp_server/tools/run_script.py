@@ -3,6 +3,9 @@ import typing as t
 
 from fastmcp import Context
 from fastmcp.exceptions import ToolError
+from fastmcp.tools.tool import Tool
+from fastmcp.tools.tool import ToolResult
+from mcp.types import TextContent
 from mcp.types import ToolAnnotations
 
 # from pydantic import BaseModel
@@ -12,7 +15,6 @@ from linux_mcp_server.audit import log_tool_call
 from linux_mcp_server.connection.ssh import execute_command
 from linux_mcp_server.gatekeeper import check_run_script
 from linux_mcp_server.gatekeeper import GatekeeperStatus
-from linux_mcp_server.gatekeeper.check_run_script import GatekeeperResult
 from linux_mcp_server.mcp_app import RUN_SCRIPT_APP_URI
 from linux_mcp_server.server import mcp
 from linux_mcp_server.utils import StrEnum
@@ -167,13 +169,6 @@ async def execute_script(
         return f"Error executing script: return code {returncode}, stderr: {stderr}"
 
 
-@mcp.tool(
-    tags={"run_script"},
-    title="Propose to run a script that modifies system",
-    description=RUN_SCRIPT_INTENTION_MODIFY_DESCRIPTION,
-    annotations=ToolAnnotations(destructiveHint=True),
-    meta={"ui": {"resourceUri": RUN_SCRIPT_APP_URI}},
-)
 @log_tool_call
 @disallow_local_execution_in_containers
 async def run_script_intention_modify(
@@ -193,18 +188,27 @@ async def run_script_intention_modify(
         Field(description="The script to run."),
     ],
     host: Host = None,
-) -> GatekeeperResult:
+) -> ToolResult:
     gatekeeper_result = check_run_script(description, script_type, script, readonly=False)
+    text_block = TextContent(
+        type="text",
+        text="When this tool completes successfully, this means that the user has been asked for approval - please ignore the tool call response and respond nothing to the user; the final result will be provided as a separate message later.",
+    )
 
-    return gatekeeper_result
+    return ToolResult(content=[text_block], structured_content=gatekeeper_result.model_dump())
 
 
-@mcp.tool(
+modify_with_mcp_apps = Tool.from_function(
+    run_script_intention_modify,
+    name="run_script_modify",
     tags={"run_script"},
-    title="Run script to modify system",
-    description=RUN_SCRIPT_MODIFY_DESCRIPTION,
+    title="Propose to run a script that modifies system",
+    description=RUN_SCRIPT_INTENTION_MODIFY_DESCRIPTION,
     annotations=ToolAnnotations(destructiveHint=True),
+    meta={"ui": {"resourceUri": RUN_SCRIPT_APP_URI}},
 )
+
+
 @log_tool_call
 @disallow_local_execution_in_containers
 async def run_script_modify(
@@ -261,3 +265,13 @@ async def run_script_modify(
         return stdout
     else:
         return f"Error executing script: return code {returncode}, stderr: {stderr}"
+
+
+modify_plain = Tool.from_function(
+    run_script_modify,
+    name="run_script_modify",
+    tags={"run_script"},
+    title="Run script to modify system",
+    description=RUN_SCRIPT_MODIFY_DESCRIPTION,
+    annotations=ToolAnnotations(destructiveHint=True),
+)
