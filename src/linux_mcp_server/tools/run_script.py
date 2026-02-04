@@ -1,4 +1,5 @@
 import logging
+import shlex
 import typing as t
 
 from fastmcp import Context
@@ -26,11 +27,42 @@ class ScriptType(StrEnum):
     BASH = "bash"
 
 
+BASH_STRICT_PREAMBLE = "set -euo pipefail; "
+
+SYSTEMD_RUN_ARGS = [
+    "--quiet",
+    "--pipe",
+    "--working-directory=/tmp",
+    "--collect",
+    "--wait",
+    "--service-type=exec",
+    "--property=PrivateTmp=true",
+    "--property=NoNewPrivileges=true",
+]
+SYSTEMD_RUN_READONLY_ARGS = [
+    "--property=ReadOnlyPaths=/",
+    "--property=RestrictAddressFamilies=AF_UNIX",
+]
+SYSTEMD_RUN_COMMAND = "/usr/bin/sudo /usr/bin/systemd-run {args}"
+
+# Wrapper for run_script_readonly: use sudo+systemd-run when available, else run script
+# directly. Template uses {script_type} and {script}; script is escaped via shlex.quote().
+WRAPPER_TEMPLATE = """\
+set -euo pipefail
+SCRIPT={script}
+if command -v sudo >/dev/null 2>&1 && command -v systemd-run >/dev/null 2>&1 && sudo -l whoami >/dev/null 2>&1; then
+  exec {systemd_run_command} {script_type} -c "$SCRIPT"
+else
+  exec {script_type} -c "$SCRIPT"
+fi
+"""
+
 RUN_SCRIPT_COMMON_DESCRIPTION = """\
 A bash script should be used for simple operations that can be expressed cleanly
 as a few shell commands, but a Python script should be used if complex processing
-is needed. `set -euo pipefail` will be prepended to bash scripts, so make sure to
-handle expected non-zero exit codes properly.
+is needed. Bash scripts are run with strict mode (set -euo pipefail) applied by
+the invocation, so handle expected non-zero exit codes in the script (e.g. with
+`|| true`) where needed.
 
 Write short, simple scripts that are easy to review - do not include unnecessary
 complexity such as elaborate logging or handling unlikely corner cases.
@@ -59,6 +91,16 @@ Run a script on a system to modify files or settings.
 #
 
 
+def _wrap_script(script_type: ScriptType, script: str) -> list[str]:
+    """Wrap a script in a wrapper script that uses sudo+systemd-run when available, else run script directly."""
+    wrapper_script = WRAPPER_TEMPLATE.format(
+        systemd_run_command=SYSTEMD_RUN_COMMAND.format(args=" ".join(SYSTEMD_RUN_ARGS)),
+        script_type=script_type.value,
+        script=shlex.quote((BASH_STRICT_PREAMBLE + script) if script_type == ScriptType.BASH else script),
+    )
+    return ["bash", "-c", wrapper_script]
+
+
 @mcp.tool(
     tags={"run_script"},
     title="Run script on system, read-only",
@@ -85,17 +127,14 @@ async def run_script_readonly(
     ],
     host: Host = None,
 ) -> str:
-    command = []
+    command = _wrap_script(script_type, script)
 
-    if script_type == ScriptType.BASH:
-        script = "# added by linux-mcp-server\nset -euo pipefail\n\n" + script
-
-    if script_type == ScriptType.PYTHON:
-        command = ["python3", "-c", script]
-    elif script_type == ScriptType.BASH:
-        command = ["bash", "-c", script]
-
-    gatekeeper_result = check_run_script(description, script_type, script, readonly=True)
+    gatekeeper_result = check_run_script(
+        description,
+        script_type,
+        (BASH_STRICT_PREAMBLE + script) if script_type == ScriptType.BASH else script,
+        readonly=True,
+    )
 
     match gatekeeper_result.status:
         case GatekeeperStatus.OK:
@@ -149,17 +188,14 @@ async def run_script_modify(
     ],
     host: Host = None,
 ) -> str:
-    command = []
+    command = _wrap_script(script_type, script)
 
-    if script_type == ScriptType.BASH:
-        script = "# added by linux-mcp-server\nset -euo pipefail\n\n" + script
-
-    if script_type == ScriptType.PYTHON:
-        command = ["python3", "-c", script]
-    elif script_type == ScriptType.BASH:
-        command = ["bash", "-c", script]
-
-    gatekeeper_result = check_run_script(description, script_type, script, readonly=False)
+    gatekeeper_result = check_run_script(
+        description,
+        script_type,
+        (BASH_STRICT_PREAMBLE + script) if script_type == ScriptType.BASH else script,
+        readonly=False,
+    )
 
     match gatekeeper_result.status:
         case GatekeeperStatus.OK:
