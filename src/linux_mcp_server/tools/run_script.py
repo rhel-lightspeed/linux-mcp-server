@@ -189,7 +189,12 @@ async def run_script_modify(
 ) -> str:
     command = _wrap_script(script_type, script)
 
-    gatekeeper_result = check_run_script(description, script_type, script, readonly=False)
+    gatekeeper_result = check_run_script(
+        description,
+        script_type,
+        (BASH_STRICT_PREAMBLE + script) if script_type == ScriptType.BASH else script,
+        readonly=False,
+    )
 
     match gatekeeper_result.status:
         case GatekeeperStatus.OK:
