@@ -38,9 +38,9 @@ Options may be set using environment variables or command line options. Environm
 | `--version` | - | - | Display version and exit |
 | `--user` | string | (empty) | Default username for SSH connections |
 | `--transport` | string | stdio | Transport type: `stdio`, `http`, or `streamable_http` |
-| `--host` | string | null | Host address for HTTP transport |
-| `--port` | integer | null | Port number for HTTP transport |
-| `--path` | string | null | Path for HTTP transport |
+| `--host` | string | `127.0.0.1` | Host address for HTTP transport |
+| `--port` | integer | 8000 | Port number for HTTP transport |
+| `--path` | string | /mcp | Path for HTTP transport |
 | `--log-dir` | path | `~/.local/share/linux-mcp-server/logs` | Directory for server logs |
 | `--log-level` | string | `INFO` | Log verbosity level |
 | `--log-retention-days` | integer | 10 | Days to retain log files |
