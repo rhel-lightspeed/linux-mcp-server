@@ -37,9 +37,9 @@ SYSTEMD_RUN_ARGS = [
     "--wait",
     "--service-type=exec",
     "--property=PrivateTmp=true",
+    "--property=NoNewPrivileges=true",
 ]
 SYSTEMD_RUN_READONLY_ARGS = [
-    "--property=NoNewPrivileges=true",
     "--property=ReadOnlyPaths=/",
     "--property=RestrictAddressFamilies=AF_UNIX",
 ]
@@ -50,7 +50,7 @@ SYSTEMD_RUN_COMMAND = "/usr/bin/sudo /usr/bin/systemd-run {args}"
 WRAPPER_TEMPLATE = """\
 set -euo pipefail
 SCRIPT={script}
-if command -v sudo >/dev/null 2>&1 && command -v systemd-run >/dev/null 2>&1 && sudo whoami >/dev/null 2>&1; then
+if command -v sudo >/dev/null 2>&1 && command -v systemd-run >/dev/null 2>&1 && sudo -l whoami >/dev/null 2>&1; then
   exec {systemd_run_command} {script_type} -c "$SCRIPT"
 else
   exec {script_type} -c "$SCRIPT"
