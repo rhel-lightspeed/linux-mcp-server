@@ -468,17 +468,17 @@ Add to your VS Code `mcp.json`:
 === "pip/uv (Recommended)"
 
     ```json
-{
-  "servers": {
-    "linux-mcp-server": {
-      "command": "/home/YOUR_USER/.local/bin/linux-mcp-server",
-      "args": [],
-      "env": {
-        "LINUX_MCP_USER": "your-ssh-username"
+    {
+      "servers": {
+        "linux-mcp-server": {
+          "command": "/home/YOUR_USER/.local/bin/linux-mcp-server",
+          "args": [],
+          "env": {
+            "LINUX_MCP_USER": "your-ssh-username"
+          }
+        }
       }
     }
-  }
-}
     ```
 
 === "Container (Podman)"
