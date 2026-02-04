@@ -31,7 +31,7 @@ BASH_STRICT_PREAMBLE = "set -euo pipefail; "
 
 SYSTEMD_RUN_ARGS = [
     "--quiet",
-    "--pty",
+    "--pipe",
     "--same-dir",
     "--collect",
     "--wait",
