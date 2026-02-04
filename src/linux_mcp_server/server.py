@@ -29,6 +29,9 @@ These tools map to six areas:
 - **Remote execution:** Every tool accepts an optional `host` argument. When set, the work runs on that host over SSH instead of locally.
 - **Containers:** If the `container` environment variable is set, tools refuse to run locally; a remote `host` must be used.
 - **Read-only vs destructive:** All tools are marked read-only. Do not expect to be able to modify the system.
+- **Log file access:** requires explicit allowlist configuration via LINUX_MCP_ALLOWED_LOG_PATHS
+- **Service names:** automatically append '.service' suffix if not provided
+- **File paths:** must be absolute
 """
 
 INSTRUCTIONS_RUN_SCRIPT = """You have access to tools that execute Python or Bash scripts you supply on the target system, for inspection or for making changes.
@@ -52,6 +55,9 @@ INSTRUCTIONS_RUN_SCRIPT = """You have access to tools that execute Python or Bas
 - **Remote execution:** Every tool accepts an optional `host` argument. When set, the work runs on that host over SSH instead of locally.
 - **Containers:** If the `container` environment variable is set, tools refuse to run locally; a remote `host` must be used.
 - **Read-only vs destructive:** run_script_readonly is marked read-only; the modify script tool is marked destructive.
+- **Log file access:** requires explicit allowlist configuration via LINUX_MCP_ALLOWED_LOG_PATHS
+- **Service names:** automatically append '.service' suffix if not provided
+- **File paths:** must be absolute
 """
 
 INSTRUCTIONS_BOTH = """You have access to two kinds of tools: predefined commands that inspect the system, and script runners that execute Python or Bash you supply.
@@ -86,6 +92,9 @@ These tools map to six areas:
 - **Remote execution:** Every tool accepts an optional `host` argument. When set, the work runs on that host over SSH instead of locally.
 - **Containers:** If the `container` environment variable is set, tools refuse to run locally; a remote `host` must be used.
 - **Read-only vs destructive:** Tools that only inspect are marked read-only; the modify script tool is marked destructive.
+- **Log file access:** requires explicit allowlist configuration via LINUX_MCP_ALLOWED_LOG_PATHS
+- **Service names:** automatically append '.service' suffix if not provided
+- **File paths:** must be absolute
 """
 
 
