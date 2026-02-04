@@ -50,7 +50,7 @@ WRAPPER_TEMPLATE = """\
 set -euo pipefail
 SCRIPT={script}
 if command -v sudo >/dev/null 2>&1 && command -v systemd-run >/dev/null 2>&1 && sudo whoami >/dev/null 2>&1; then
-  exec {systemd_run_command} --uid=$USER {script_type} -c "$SCRIPT"
+  exec {systemd_run_command} {script_type} -c "$SCRIPT"
 else
   exec {script_type} -c "$SCRIPT"
 fi
