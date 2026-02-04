@@ -128,7 +128,12 @@ async def run_script_readonly(
 ) -> str:
     command = _wrap_script(script_type, script)
 
-    gatekeeper_result = check_run_script(description, script_type, script, readonly=True)
+    gatekeeper_result = check_run_script(
+        description,
+        script_type,
+        (BASH_STRICT_PREAMBLE + script) if script_type == ScriptType.BASH else script,
+        readonly=True,
+    )
 
     match gatekeeper_result.status:
         case GatekeeperStatus.OK:
