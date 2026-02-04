@@ -48,10 +48,11 @@ SYSTEMD_RUN_COMMAND = "/usr/bin/sudo /usr/bin/systemd-run {args}"
 # directly. Template uses {script_type} and {script}; script is escaped via shlex.quote().
 WRAPPER_TEMPLATE = """\
 set -euo pipefail
+SCRIPT={script}
 if command -v sudo >/dev/null 2>&1 && command -v systemd-run >/dev/null 2>&1 && sudo whoami >/dev/null 2>&1; then
-  exec {systemd_run_command} --uid=$USER {script_type} -c {script}
+  exec {systemd_run_command} --uid=$USER {script_type} -c "$SCRIPT"
 else
-  exec {script_type} -c {script}
+  exec {script_type} -c "$SCRIPT"
 fi
 """
 
