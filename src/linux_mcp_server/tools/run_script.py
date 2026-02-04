@@ -36,9 +36,9 @@ SYSTEMD_RUN_ARGS = [
     "--collect",
     "--wait",
     "--service-type=exec",
-    "--property=NoNewPrivileges=true",
 ]
 SYSTEMD_RUN_READONLY_ARGS = [
+    "--property=NoNewPrivileges=true",
     "--property=ReadOnlyPaths=/",
     "--property=RestrictAddressFamilies=AF_UNIX",
 ]
