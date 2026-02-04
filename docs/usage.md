@@ -27,6 +27,48 @@ pip install linux-mcp-server
    linux-mcp-server
    ```
 
+### Command Line Parameters
+
+The `linux-mcp-server` command supports various command line parameters that can override environment variables and provide runtime configuration:
+
+```bash
+linux-mcp-server --help
+```
+
+#### Available Options
+
+| Option | Type | Default | Description |
+|--------|------|---------|-------------|
+| `-h, --help` | flag | - | Show help message and exit |
+| `--version` | flag | False | Display version and exit |
+| `--user` | string | (empty) | Default username for SSH connections |
+| `--log-dir` | path | `~/.local/share/linux-mcp-server/logs` | Directory for server logs |
+| `--log-level` | string | `INFO` | Log verbosity level |
+| `--log-retention-days` | integer | 10 | Days to retain log files |
+| `--allowed-log-paths` | string | null | Comma-separated paths to allowed log files |
+| `--ssh-key-path` | path | null | Path to SSH private key file |
+| `--key-passphrase` | string | (empty) | Passphrase for encrypted SSH key |
+| `--search-for-ssh-key` | flag | False | Auto-discover SSH keys in `~/.ssh` |
+| `--verify-host-keys` | flag | False | Verify remote host identity via known_hosts |
+| `--known-hosts-path` | path | null | Path to known_hosts file |
+| `--command-timeout` | integer | 30 | SSH command timeout in seconds |
+
+#### Examples
+
+
+**Specify SSH settings:**
+```bash
+linux-mcp-server --user admin --ssh-key-path ~/.ssh/id_rsa --verify-host-keys
+```
+
+**Configure log access:**
+```bash
+linux-mcp-server --allowed-log-paths "/var/log/messages,/var/log/secure,/var/log/audit/audit.log"
+```
+
+!!! note "Command Line vs Environment Variables"
+    Command line parameters take precedence over environment variables. For MCP client configurations (Claude Desktop, Cursor, etc.), you typically use environment variables in the config file rather than command line arguments.
+
 ### Using with AI Agents
 
 For the best experience, integrate the MCP server with an AI Agent of your preference.
