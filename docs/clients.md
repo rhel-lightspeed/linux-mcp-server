@@ -574,6 +574,18 @@ Edit `~/.codeium/windsurf/mcp_config.json`:
 
 Configure these environment variables in the `env` section of your client configuration.
 
+### Transport Settings
+
+| Variable | Default | Description |
+|----------|---------|-------------|
+| `LINUX_MCP_TRANSPORT` | `stdio` | Transport type: `stdio`, `http`, or `streamable-http` |
+| `LINUX_MCP_HOST` | `127.0.0.1` | Host address for HTTP transport |
+| `LINUX_MCP_PORT` | 8000 | Port number for HTTP transport |
+| `LINUX_MCP_PATH` | /mcp | Path for HTTP transport |
+
+!!! note "When to use HTTP transports"
+    Some clients, like Claude Desktop, require `stdio`.
+
 ### SSH Connection Settings
 
 | Variable | Description | Example |
