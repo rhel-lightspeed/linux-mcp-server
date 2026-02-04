@@ -16,24 +16,19 @@ pip install linux-mcp-server
 
 ### Running the Server
 
-1. **Configure environment variables (optional but recommended):**
-   ```bash
-   export LINUX_MCP_ALLOWED_LOG_PATHS="/var/log/messages,/var/log/secure,/var/log/audit/audit.log"
-   export LINUX_MCP_LOG_LEVEL="INFO"
-   ```
-
-2. **Run the server:**
-   ```bash
-   linux-mcp-server
-   ```
-
-### Command Line Parameters
-
-The `linux-mcp-server` command supports various command line parameters that can override environment variables and provide runtime configuration:
-
 ```bash
-linux-mcp-server --help
+linux-mcp-server
 ```
+
+### Command Line Options
+
+To see available options, run `linux-mcp-server --help`.
+
+Options may be set using environment variables or command line options. Environment variables require a `LINUX_MCP_` prefix. For example `LINUX_MCP_LOG_LEVEL` is the same as `--log-level`.
+
+!!! note "Command Line vs Environment Variables"
+      Command line options take precedence over environment variables. For MCP client configurations (Claude Desktop, Cursor, etc.), you typically use environment variables in the config file rather than command line arguments but either will.
+
 
 #### Available Options
 
@@ -65,9 +60,6 @@ linux-mcp-server --user admin --ssh-key-path ~/.ssh/id_rsa --verify-host-keys
 ```bash
 linux-mcp-server --allowed-log-paths "/var/log/messages,/var/log/secure,/var/log/audit/audit.log"
 ```
-
-!!! note "Command Line vs Environment Variables"
-    Command line parameters take precedence over environment variables. For MCP client configurations (Claude Desktop, Cursor, etc.), you typically use environment variables in the config file rather than command line arguments.
 
 ### Using with AI Agents
 
