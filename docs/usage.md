@@ -37,7 +37,7 @@ in read-only or read-write mode.
 
 ```
 export LINUX_MCP_TOOLSET="run_script"
-export LINUX_MCP_GATEKEEPER_MODEL="chatgpt/gpt-5.2"
+export LINUX_MCP_GATEKEEPER_MODEL="gpt-5.2"
 export OPENAI_API_KEY="Your API key"
 ```
 
@@ -57,6 +57,28 @@ the commands before running them. You must configure this model. Configuration i
 done by using the `LINUX_MCP_GATEKEEPER_MODEL` environment variable. Additional environment
 variables will be needed to configure credentials. See the
 [LiteLLM documentation](https://docs.litellm.ai/docs/providers).
+
+#### Try the mcp-app feature with compatible GUI application (i.e., Goose Desktop, Claude Desktop...etc)
+
+1. Generate the bundled app
+
+```shell
+cd mcp-app
+npm install
+npm run build:prod
+```
+
+2. Set up environment variables
+
+Please set this environment variable before launching the GUI, or add it to the environment configuration used by the application to spawn the linux-mcp-server.
+
+```
+export LINUX_MCP_USE_MCP_APPS=true
+```
+
+Note: Ensure LINUX_MCP_TOOLSET and LINUX_MCP_GATEKEEPER_MODEL are set in your environment, along with the specific API key or configuration variable required for your chosen gatekeeper model. 
+
+Once configured, `run_script_modify_interactive` will replace `run_script_modify`. This tool launches an integrated MCP app, allowing you to review, approve, or reject script modifications directly through the UI.
 
 
 ### Using with AI Agents

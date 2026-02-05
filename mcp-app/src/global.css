@@ -1,0 +1,28 @@
+@import "tailwindcss";
+
+@layer components {
+  .btn-primary {
+    @apply p-2 m-2 rounded-md transition-all duration-200 min-w-24 h-12;
+    @apply bg-blue-600 hover:bg-blue-700 text-white;
+    @apply disabled:bg-gray-400 disabled:opacity-60 disabled:cursor-not-allowed;
+  }
+
+  .btn-secondary {
+    @apply p-2 m-2 rounded-md transition-all duration-200 min-w-24 h-12;
+    @apply bg-gray-600 hover:bg-gray-700 text-white;
+    @apply disabled:bg-gray-400 disabled:opacity-60 disabled:cursor-not-allowed;
+  }
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html, body {
+  font-family: system-ui, -apple-system, sans-serif;
+  font-size: 1rem;
+}
+
+code {
+  font-size: 1em;
+}

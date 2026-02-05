@@ -51,6 +51,9 @@ class Config(BaseSettings):
     # Command execution timeout (applies to remote SSH commands)
     command_timeout: int = 30  # Timeout in seconds; prevents hung SSH operations
 
+    # Indicate mcp-app compatibility
+    use_mcp_apps: bool = False
+
     @property
     def effective_known_hosts_path(self) -> Path:
         """Return the known_hosts path, using default ~/.ssh/known_hosts if not configured."""
