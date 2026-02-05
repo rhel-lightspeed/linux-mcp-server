@@ -25,7 +25,7 @@ def test_cli_version(mocker, capsys):
     (
         (
             ["--transport", "streamable-http"],
-            {"host": None, "port": None, "path": None, "log_level": "INFO"},
+            {"host": "127.0.0.1", "port": 8000, "path": "/mcp", "log_level": "INFO"},
         ),
         (
             ["--transport", "http", "--host", "7.7.7.7", "--port", "8308", "--path", "/culdesac"],
