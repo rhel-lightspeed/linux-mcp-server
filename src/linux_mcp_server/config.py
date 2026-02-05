@@ -1,5 +1,7 @@
 """Settings for linux-mcp-server"""
 
+import sys
+
 from pathlib import Path
 
 from pydantic import SecretStr
@@ -22,9 +24,10 @@ class Config(BaseSettings):
     model_config = SettingsConfigDict(
         env_prefix="LINUX_MCP_",
         env_ignore_empty=True,
-        cli_exit_on_error=False,  # Ignore errors for incorrect/extra parameters
         cli_hide_none_type=True,
-        cli_ignore_unknown_args=True,
+        # Only ignore errors for incorrect/extra parameters when testing
+        # https://github.com/pydantic/pydantic-settings/issues/391
+        cli_ignore_unknown_args="pytest" in sys.argv[0],
         cli_implicit_flags=True,
         cli_kebab_case=True,
         cli_parse_args=True,
