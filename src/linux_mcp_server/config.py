@@ -68,12 +68,11 @@ class Config(BaseSettings):
 
     @property
     def transport_kwargs(self):
-        result = {}
+        result: dict[str, str | int] = {"log_level": self.log_level}
         if self.transport in {Transport.http, Transport.streamable_http}:
             result["host"] = self.host
             result["port"] = self.port
             result["path"] = self.path
-            result["log_level"] = self.log_level
 
         return result
 
