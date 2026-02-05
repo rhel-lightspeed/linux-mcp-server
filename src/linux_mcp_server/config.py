@@ -37,9 +37,9 @@ class Config(BaseSettings):
 
     user: str = ""
     transport: Transport = Transport.stdio
-    host: str | None = None
-    port: int | None = None
-    path: str | None = None
+    host: str = "127.0.0.1"
+    port: int = 8000
+    path: str = "/mcp"
 
     # Logging configuration
     log_dir: Path = Path.home() / ".local" / "share" / "linux-mcp-server" / "logs"
