@@ -27,7 +27,7 @@ class Config(BaseSettings):
         cli_hide_none_type=True,
         # Only ignore errors for incorrect/extra parameters when testing
         # https://github.com/pydantic/pydantic-settings/issues/391
-        cli_ignore_unknown_args="pytest" in sys.argv[0],
+        cli_ignore_unknown_args=sys.argv[0].endswith("pytest"),
         cli_implicit_flags=True,
         cli_kebab_case=True,
         cli_parse_args=True,
