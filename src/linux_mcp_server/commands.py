@@ -239,6 +239,27 @@ COMMANDS: Mapping[str, CommandGroup] = MappingProxyType(
                 "default": CommandSpec(args=("cat", "{path}")),
             }
         ),
+        # === Packages (dnf) ===
+        "dnf_list_installed": CommandGroup(
+            commands={
+                "default": CommandSpec(args=("dnf", "list", "installed")),
+            }
+        ),
+        "dnf_list_available": CommandGroup(
+            commands={
+                "default": CommandSpec(args=("dnf", "list", "available")),
+            }
+        ),
+        "dnf_package_info": CommandGroup(
+            commands={
+                "default": CommandSpec(args=("dnf", "info", "{package}")),
+            }
+        ),
+        "dnf_repolist": CommandGroup(
+            commands={
+                "default": CommandSpec(args=("dnf", "repolist", "--all")),
+            }
+        ),
         # === System Info ===
         "system_info": CommandGroup(
             commands={

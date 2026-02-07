@@ -189,6 +189,41 @@ Reads a specific log file (must be in the allowed list).
 
 **Security Note:** This tool respects the `LINUX_MCP_ALLOWED_LOG_PATHS` environment variable whitelist.
 
+### Package Management (DNF)
+
+#### `list_dnf_installed_packages`
+Lists installed packages via `dnf`.
+
+**Parameters:**
+- `host` (string, optional): Remote host identifier
+
+**Example use case:** "Show me all installed packages."
+
+#### `list_dnf_available_packages`
+Lists packages available in configured repositories.
+
+**Parameters:**
+- `host` (string, optional): Remote host identifier
+
+**Example use case:** "Which packages are available from enabled repos?"
+
+#### `get_dnf_package_info`
+Returns detailed information for a specific package.
+
+**Parameters:**
+- `package` (string, required): Package name (e.g., "bash", "openssl")
+- `host` (string, optional): Remote host identifier
+
+**Example use case:** "Get details for the bash package."
+
+#### `list_dnf_repositories`
+Lists configured repositories and their status.
+
+**Parameters:**
+- `host` (string, optional): Remote host identifier
+
+**Example use case:** "Show me all configured repositories and whether they are enabled."
+
 ### Network Diagnostics
 
 #### `get_network_interfaces`

@@ -1,3 +1,5 @@
+import re
+
 from pathlib import Path
 
 
@@ -54,6 +56,30 @@ def validate_path(path: str) -> Path:
         raise PathValidationError(f"Path must be absolute: {path}")
 
     return Path(path)
+
+
+def validate_dnf_package_name(value: str) -> str:
+    """Validate a dnf package identifier for safety.
+
+    Allows a conservative RPM token charset (letters, digits, . _ + : -).
+    Rejects empty values, whitespace/control characters, leading '-' and slashes.
+    """
+    if not value:
+        raise ValueError("Package name cannot be empty")
+
+    if any(c in value for c in ["\n", "\r", "\x00", "\t", " "]):
+        raise ValueError("Package name contains invalid characters")
+
+    if value.startswith("-"):
+        raise ValueError("Package name cannot start with '-'")
+
+    if "/" in value:
+        raise ValueError("Package name cannot contain '/'")
+
+    if not re.fullmatch(r"[A-Za-z0-9._+:-]+", value):
+        raise ValueError("Package name contains invalid characters")
+
+    return value
 
 
 def is_empty_output(stdout: str | None) -> bool:
