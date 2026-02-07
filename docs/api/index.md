@@ -19,7 +19,7 @@ MCP tools organized by category:
 - **[Services](tools/services.md)** - Systemd service management
 - **[Processes](tools/processes.md)** - Process listing and details
 - **[Logs](tools/logs.md)** - Journal, audit, and log file access
-- **[Network](tools/network.md)** - Network interfaces, connections, ports
+- **[Network](tools/network.md)** - Network interfaces, connections, ports, routes
 - **[Storage](tools/storage.md)** - Block devices, directory and file listing
 
 ### Utilities

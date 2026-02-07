@@ -212,6 +212,15 @@ Returns ports that are listening on the system.
 
 **Example use case:** "What services are listening on network ports?"
 
+#### `get_ip_route_table`
+Returns IPv4/IPv6 routing table entries using `ip route`.
+
+**Parameters:**
+- `family` (string, optional): `ipv4`, `ipv6`, or `all` (default: `ipv4`)
+- `host` (string, optional): Remote host identifier
+
+**Example use case:** "Show me the IPv4 routing table."
+
 ### Storage & Disk Analysis
 
 #### `list_block_devices`
@@ -266,6 +275,7 @@ See [Client Configuration](clients.md) for environment variables and AI agent in
 1. "Show me all network interfaces and their status" → `get_network_interfaces`
 2. "What ports are listening on this system?" → `get_listening_ports`
 3. "Show me active network connections" → `get_network_connections`
+4. "Show me the routing table" → `get_ip_route_table`
 
 ### Disk Space Problems
 1. "Show me disk usage for all filesystems" → `get_disk_usage`
@@ -318,4 +328,3 @@ See the [Troubleshooting Guide](troubleshooting.md) for detailed solutions, debu
 4. **Security First**: Only whitelist log files that are necessary for diagnostics.
 
 5. **Regular Updates**: Keep the MCP server and its dependencies updated for security and compatibility.
-
