@@ -19,6 +19,9 @@ from linux_mcp_server.utils.validation import validate_dnf_repo_id
 from linux_mcp_server.utils.validation import validate_optional_dnf_module_name
 
 
+DEFAULT_DNF_LIMIT = 500
+
+
 def _is_package_not_found(stdout: str, stderr: str) -> bool:
     combined = f"{stdout}\n{stderr}".casefold()
     return "no matching packages to list" in combined or "no match for argument" in combined
@@ -29,7 +32,42 @@ def _matches_any_message(stdout: str, stderr: str, patterns: t.Sequence[str]) ->
     return any(pattern in combined for pattern in patterns)
 
 
-async def _run_dnf_command(command_name: str, host: Host | None = None, **kwargs: object) -> str:
+def _apply_output_limits(stdout: str, limit: int | None, offset: int, no_limit: bool) -> str:
+    lines = stdout.splitlines()
+    total_lines = len(lines)
+
+    if no_limit or limit is None:
+        if offset <= 0:
+            return stdout
+
+        sliced = lines[offset:]
+        if not sliced:
+            return "No output after applying limit/offset."
+
+        return "\n".join(sliced)
+
+    start = offset
+    end = offset + limit
+    sliced = lines[start:end]
+
+    if not sliced:
+        return "No output after applying limit/offset."
+
+    result = "\n".join(sliced)
+    if total_lines > end:
+        result = f"{result}\n... output truncated: showing {len(sliced)} of {total_lines} lines"
+
+    return result
+
+
+async def _run_dnf_command(
+    command_name: str,
+    host: Host | None = None,
+    limit: int | None = DEFAULT_DNF_LIMIT,
+    offset: int = 0,
+    no_limit: bool = False,
+    **kwargs: object,
+) -> str:
     cmd = get_command(command_name)
     returncode, stdout, stderr = await cmd.run(host=host, **kwargs)
 
@@ -39,7 +77,7 @@ async def _run_dnf_command(command_name: str, host: Host | None = None, **kwargs
     if is_empty_output(stdout):
         return "No output returned by dnf."
 
-    return stdout
+    return _apply_output_limits(stdout, limit=limit, offset=offset, no_limit=no_limit)
 
 
 @mcp.tool(
@@ -51,10 +89,33 @@ async def _run_dnf_command(command_name: str, host: Host | None = None, **kwargs
 @log_tool_call
 @disallow_local_execution_in_containers
 async def list_dnf_installed_packages(
+    limit: t.Annotated[
+        int,
+        Field(
+            description="Maximum number of output lines to return",
+            gt=0,
+            examples=[DEFAULT_DNF_LIMIT],
+        ),
+    ] = DEFAULT_DNF_LIMIT,
+    offset: t.Annotated[
+        int,
+        Field(
+            description="Number of output lines to skip",
+            ge=0,
+            examples=[0],
+        ),
+    ] = 0,
+    no_limit: t.Annotated[
+        bool,
+        Field(
+            description="Disable output truncation",
+            examples=[False],
+        ),
+    ] = False,
     host: Host = None,
 ) -> str:
     """List installed packages using dnf."""
-    return await _run_dnf_command("dnf_list_installed", host=host)
+    return await _run_dnf_command("dnf_list_installed", host=host, limit=limit, offset=offset, no_limit=no_limit)
 
 
 @mcp.tool(
@@ -66,10 +127,33 @@ async def list_dnf_installed_packages(
 @log_tool_call
 @disallow_local_execution_in_containers
 async def list_dnf_available_packages(
+    limit: t.Annotated[
+        int,
+        Field(
+            description="Maximum number of output lines to return",
+            gt=0,
+            examples=[DEFAULT_DNF_LIMIT],
+        ),
+    ] = DEFAULT_DNF_LIMIT,
+    offset: t.Annotated[
+        int,
+        Field(
+            description="Number of output lines to skip",
+            ge=0,
+            examples=[0],
+        ),
+    ] = 0,
+    no_limit: t.Annotated[
+        bool,
+        Field(
+            description="Disable output truncation",
+            examples=[False],
+        ),
+    ] = False,
     host: Host = None,
 ) -> str:
     """List available packages using dnf."""
-    return await _run_dnf_command("dnf_list_available", host=host)
+    return await _run_dnf_command("dnf_list_available", host=host, limit=limit, offset=offset, no_limit=no_limit)
 
 
 @mcp.tool(
@@ -113,10 +197,33 @@ async def get_dnf_package_info(
 @log_tool_call
 @disallow_local_execution_in_containers
 async def list_dnf_repositories(
+    limit: t.Annotated[
+        int,
+        Field(
+            description="Maximum number of output lines to return",
+            gt=0,
+            examples=[DEFAULT_DNF_LIMIT],
+        ),
+    ] = DEFAULT_DNF_LIMIT,
+    offset: t.Annotated[
+        int,
+        Field(
+            description="Number of output lines to skip",
+            ge=0,
+            examples=[0],
+        ),
+    ] = 0,
+    no_limit: t.Annotated[
+        bool,
+        Field(
+            description="Disable output truncation",
+            examples=[False],
+        ),
+    ] = False,
     host: Host = None,
 ) -> str:
     """List configured repositories using dnf."""
-    return await _run_dnf_command("dnf_repolist", host=host)
+    return await _run_dnf_command("dnf_repolist", host=host, limit=limit, offset=offset, no_limit=no_limit)
 
 
 @mcp.tool(
@@ -192,10 +299,33 @@ async def get_dnf_repo_info(
 @log_tool_call
 @disallow_local_execution_in_containers
 async def list_dnf_groups(
+    limit: t.Annotated[
+        int,
+        Field(
+            description="Maximum number of output lines to return",
+            gt=0,
+            examples=[DEFAULT_DNF_LIMIT],
+        ),
+    ] = DEFAULT_DNF_LIMIT,
+    offset: t.Annotated[
+        int,
+        Field(
+            description="Number of output lines to skip",
+            ge=0,
+            examples=[0],
+        ),
+    ] = 0,
+    no_limit: t.Annotated[
+        bool,
+        Field(
+            description="Disable output truncation",
+            examples=[False],
+        ),
+    ] = False,
     host: Host = None,
 ) -> str:
     """List group information using dnf."""
-    return await _run_dnf_command("dnf_group_list", host=host)
+    return await _run_dnf_command("dnf_group_list", host=host, limit=limit, offset=offset, no_limit=no_limit)
 
 
 @mcp.tool(
@@ -239,10 +369,33 @@ async def get_dnf_group_info(
 @log_tool_call
 @disallow_local_execution_in_containers
 async def get_dnf_group_summary(
+    limit: t.Annotated[
+        int,
+        Field(
+            description="Maximum number of output lines to return",
+            gt=0,
+            examples=[DEFAULT_DNF_LIMIT],
+        ),
+    ] = DEFAULT_DNF_LIMIT,
+    offset: t.Annotated[
+        int,
+        Field(
+            description="Number of output lines to skip",
+            ge=0,
+            examples=[0],
+        ),
+    ] = 0,
+    no_limit: t.Annotated[
+        bool,
+        Field(
+            description="Disable output truncation",
+            examples=[False],
+        ),
+    ] = False,
     host: Host = None,
 ) -> str:
     """Get group summary using dnf."""
-    return await _run_dnf_command("dnf_group_summary", host=host)
+    return await _run_dnf_command("dnf_group_summary", host=host, limit=limit, offset=offset, no_limit=no_limit)
 
 
 @mcp.tool(
@@ -259,6 +412,29 @@ async def list_dnf_modules(
         BeforeValidator(validate_optional_dnf_module_name),
         Field(description="Optional module name filter", examples=["nodejs", "python39"]),
     ] = None,
+    limit: t.Annotated[
+        int,
+        Field(
+            description="Maximum number of output lines to return",
+            gt=0,
+            examples=[DEFAULT_DNF_LIMIT],
+        ),
+    ] = DEFAULT_DNF_LIMIT,
+    offset: t.Annotated[
+        int,
+        Field(
+            description="Number of output lines to skip",
+            ge=0,
+            examples=[0],
+        ),
+    ] = 0,
+    no_limit: t.Annotated[
+        bool,
+        Field(
+            description="Disable output truncation",
+            examples=[False],
+        ),
+    ] = False,
     host: Host = None,
 ) -> str:
     """List modules using dnf."""
@@ -274,7 +450,7 @@ async def list_dnf_modules(
     if is_empty_output(stdout):
         return "No output returned by dnf."
 
-    return stdout
+    return _apply_output_limits(stdout, limit=limit, offset=offset, no_limit=no_limit)
 
 
 @mcp.tool(
