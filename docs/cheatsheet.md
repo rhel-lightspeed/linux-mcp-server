@@ -32,6 +32,13 @@ A quick reference guide for common tasks and the tools to use.
 | **Available Packages** | `list_dnf_available_packages` | "What packages are available in repos?" |
 | **Package Details** | `get_dnf_package_info` | "Show details for bash." |
 | **Repositories** | `list_dnf_repositories` | "Which repositories are enabled?" |
+| **File Provides** | `dnf_provides` | "Which package provides /usr/bin/python3?" |
+| **Repository Info** | `get_dnf_repo_info` | "Show details for baseos." |
+| **Group List** | `list_dnf_groups` | "List all package groups." |
+| **Group Info** | `get_dnf_group_info` | "Show details for Development Tools." |
+| **Group Summary** | `get_dnf_group_summary` | "Summarize installed groups." |
+| **Module List** | `list_dnf_modules` | "List nodejs module streams." |
+| **Module Provides** | `dnf_module_provides` | "Which module provides python3?" |
 
 ## 🌐 Network
 
