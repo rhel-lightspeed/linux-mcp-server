@@ -16,6 +16,7 @@ A Model Context Protocol (MCP) server for read-only Linux system administration,
 - **Remote SSH Execution**: Execute commands on remote systems via SSH with key-based authentication
 - **Multi-Host Management**: Connect to different remote hosts in the same session
 - **Comprehensive Diagnostics**: System info, services, processes, logs, network, and storage
+- **Package Insights (DNF)**: Query installed packages, available packages, and repositories
 - **Configurable Log Access**: Control which log files can be accessed via environment variables
 - **RHEL/systemd Focused**: Optimized for Red Hat Enterprise Linux systems
 

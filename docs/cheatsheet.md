@@ -24,6 +24,15 @@ A quick reference guide for common tasks and the tools to use.
 | **Service Logs** | `get_service_logs` | "Show recent logs for sshd." |
 | **Specific Log File** | `read_log_file` | "Read the last 50 lines of /var/log/messages." |
 
+## 📦 Packages (DNF)
+
+| I want to check... | Use this tool | Example Prompt |
+|-------------------|---------------|----------------|
+| **Installed Packages** | `list_dnf_installed_packages` | "List all installed packages." |
+| **Available Packages** | `list_dnf_available_packages` | "What packages are available in repos?" |
+| **Package Details** | `get_dnf_package_info` | "Show details for bash." |
+| **Repositories** | `list_dnf_repositories` | "Which repositories are enabled?" |
+
 ## 🌐 Network
 
 | I want to check... | Use this tool | Example Prompt |

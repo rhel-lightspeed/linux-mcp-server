@@ -79,6 +79,7 @@ pytest
 linux-mcp-server/
 ├── src/linux_mcp_server/
 │   ├── tools/              # MCP tool implementations
+│   │   ├── dnf.py           # DNF package manager tools
 │   │   ├── logs.py         # Log reading tools
 │   │   ├── network.py      # Network diagnostic tools
 │   │   ├── processes.py    # Process management tools
