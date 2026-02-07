@@ -82,6 +82,107 @@ def validate_dnf_package_name(value: str) -> str:
     return value
 
 
+def validate_dnf_repo_id(value: str) -> str:
+    """Validate a dnf repository identifier for safety.
+
+    Allows a conservative charset (letters, digits, . _ + : -).
+    Rejects empty values, whitespace/control characters, leading '-' and slashes.
+    """
+    if not value:
+        raise ValueError("Repository id cannot be empty")
+
+    if any(c in value for c in ["\n", "\r", "\x00", "\t", " "]):
+        raise ValueError("Repository id contains invalid characters")
+
+    if value.startswith("-"):
+        raise ValueError("Repository id cannot start with '-'")
+
+    if "/" in value:
+        raise ValueError("Repository id cannot contain '/'")
+
+    if not re.fullmatch(r"[A-Za-z0-9._+:-]+", value):
+        raise ValueError("Repository id contains invalid characters")
+
+    return value
+
+
+def validate_dnf_group_name(value: str) -> str:
+    """Validate a dnf group name for safety.
+
+    Allows letters, digits, spaces and common punctuation used in group names.
+    Rejects empty values, control characters, and leading '-'.
+    """
+    if not value:
+        raise ValueError("Group name cannot be empty")
+
+    if any(c in value for c in ["\n", "\r", "\x00", "\t"]):
+        raise ValueError("Group name contains invalid characters")
+
+    if value.startswith("-"):
+        raise ValueError("Group name cannot start with '-'")
+
+    if not re.fullmatch(r"[A-Za-z0-9 ._+:'()&,-]+", value):
+        raise ValueError("Group name contains invalid characters")
+
+    return value
+
+
+def validate_dnf_module_name(value: str) -> str:
+    """Validate a dnf module name for safety.
+
+    Allows a conservative charset (letters, digits, . _ + : -).
+    Rejects empty values, whitespace/control characters, leading '-' and slashes.
+    """
+    if not value:
+        raise ValueError("Module name cannot be empty")
+
+    if any(c in value for c in ["\n", "\r", "\x00", "\t", " "]):
+        raise ValueError("Module name contains invalid characters")
+
+    if value.startswith("-"):
+        raise ValueError("Module name cannot start with '-'")
+
+    if "/" in value:
+        raise ValueError("Module name cannot contain '/'")
+
+    if not re.fullmatch(r"[A-Za-z0-9._+:-]+", value):
+        raise ValueError("Module name contains invalid characters")
+
+    return value
+
+
+def validate_optional_dnf_module_name(value: str | None) -> str | None:
+    """Validate an optional dnf module name."""
+    if value is None:
+        return None
+
+    return validate_dnf_module_name(value)
+
+
+def validate_dnf_provides_query(value: str) -> str:
+    """Validate a dnf provides query for safety.
+
+    Accepts file paths or binary names with optional glob wildcards (*, ?).
+    Rejects empty values, whitespace/control characters, and leading '-'.
+    """
+    if not value:
+        raise ValueError("Provides query cannot be empty")
+
+    if any(c in value for c in ["\n", "\r", "\x00", "\t", " "]):
+        raise ValueError("Provides query contains invalid characters")
+
+    if value.startswith("-"):
+        raise ValueError("Provides query cannot start with '-'")
+
+    if ".." in value:
+        raise ValueError("Provides query cannot contain '..'")
+
+    if not re.fullmatch(r"[A-Za-z0-9._+:/@*?-]+", value):
+        raise ValueError("Provides query contains invalid characters")
+
+    return value
+
+
 def is_empty_output(stdout: str | None) -> bool:
     """Check if command output is empty or whitespace-only.
 

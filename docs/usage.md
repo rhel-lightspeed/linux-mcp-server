@@ -224,6 +224,67 @@ Lists configured repositories and their status.
 
 **Example use case:** "Show me all configured repositories and whether they are enabled."
 
+#### `dnf_provides`
+Finds packages that provide a file or binary.
+
+**Parameters:**
+- `query` (string, required): File path or binary name (e.g., "/usr/bin/python3", "libssl.so.3")
+- `host` (string, optional): Remote host identifier
+
+**Example use case:** "Which package provides /usr/bin/python3?"
+
+#### `get_dnf_repo_info`
+Shows detailed information for a specific repository.
+
+**Parameters:**
+- `repo_id` (string, required): Repository id (e.g., "baseos", "appstream")
+- `host` (string, optional): Remote host identifier
+
+**Example use case:** "Show details for the baseos repository."
+
+#### `list_dnf_groups`
+Lists available and installed package groups.
+
+**Parameters:**
+- `host` (string, optional): Remote host identifier
+
+**Example use case:** "List all package groups."
+
+#### `get_dnf_group_info`
+Shows details for a specific package group.
+
+**Parameters:**
+- `group` (string, required): Group name (e.g., "Development Tools")
+- `host` (string, optional): Remote host identifier
+
+**Example use case:** "Show details for the Development Tools group."
+
+#### `get_dnf_group_summary`
+Shows a summary of installed and available groups.
+
+**Parameters:**
+- `host` (string, optional): Remote host identifier
+
+**Example use case:** "Summarize installed and available groups."
+
+#### `list_dnf_modules`
+Lists modules (optionally filtered by module name).
+
+**Parameters:**
+- `module` (string, optional): Module name filter (e.g., "nodejs")
+- `host` (string, optional): Remote host identifier
+
+**Example use case:** "List available nodejs module streams."
+
+#### `dnf_module_provides`
+Shows modules that provide a specific package.
+
+**Parameters:**
+- `package` (string, required): Package name (e.g., "python3")
+- `host` (string, optional): Remote host identifier
+
+**Example use case:** "Which module provides python3?"
+
 ### Network Diagnostics
 
 #### `get_network_interfaces`

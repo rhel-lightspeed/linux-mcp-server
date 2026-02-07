@@ -1,7 +1,14 @@
 # packages (dnf)
+from linux_mcp_server.tools.dnf import dnf_module_provides
+from linux_mcp_server.tools.dnf import dnf_provides
+from linux_mcp_server.tools.dnf import get_dnf_group_info
+from linux_mcp_server.tools.dnf import get_dnf_group_summary
 from linux_mcp_server.tools.dnf import get_dnf_package_info
+from linux_mcp_server.tools.dnf import get_dnf_repo_info
 from linux_mcp_server.tools.dnf import list_dnf_available_packages
+from linux_mcp_server.tools.dnf import list_dnf_groups
 from linux_mcp_server.tools.dnf import list_dnf_installed_packages
+from linux_mcp_server.tools.dnf import list_dnf_modules
 from linux_mcp_server.tools.dnf import list_dnf_repositories
 
 # logs
@@ -52,14 +59,21 @@ __all__ = [
     "get_service_status",
     "get_system_information",
     "get_dnf_package_info",
+    "get_dnf_group_info",
+    "get_dnf_group_summary",
+    "get_dnf_repo_info",
     "list_block_devices",
     "list_directories",
     "list_dnf_available_packages",
     "list_dnf_installed_packages",
+    "list_dnf_groups",
+    "list_dnf_modules",
     "list_dnf_repositories",
     "list_files",
     "list_processes",
     "list_services",
+    "dnf_module_provides",
+    "dnf_provides",
     "read_file",
     "read_log_file",
 ]

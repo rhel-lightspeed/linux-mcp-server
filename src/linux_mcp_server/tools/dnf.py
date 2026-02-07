@@ -12,12 +12,21 @@ from linux_mcp_server.server import mcp
 from linux_mcp_server.utils.decorators import disallow_local_execution_in_containers
 from linux_mcp_server.utils.types import Host
 from linux_mcp_server.utils.validation import is_empty_output
+from linux_mcp_server.utils.validation import validate_dnf_group_name
 from linux_mcp_server.utils.validation import validate_dnf_package_name
+from linux_mcp_server.utils.validation import validate_dnf_provides_query
+from linux_mcp_server.utils.validation import validate_dnf_repo_id
+from linux_mcp_server.utils.validation import validate_optional_dnf_module_name
 
 
 def _is_package_not_found(stdout: str, stderr: str) -> bool:
     combined = f"{stdout}\n{stderr}".casefold()
     return "no matching packages to list" in combined or "no match for argument" in combined
+
+
+def _matches_any_message(stdout: str, stderr: str, patterns: t.Sequence[str]) -> bool:
+    combined = f"{stdout}\n{stderr}".casefold()
+    return any(pattern in combined for pattern in patterns)
 
 
 async def _run_dnf_command(command_name: str, host: Host | None = None, **kwargs: object) -> str:
@@ -108,3 +117,193 @@ async def list_dnf_repositories(
 ) -> str:
     """List configured repositories using dnf."""
     return await _run_dnf_command("dnf_repolist", host=host)
+
+
+@mcp.tool(
+    title="Find packages providing a file (dnf)",
+    description="Find packages that provide a specific file or binary via dnf.",
+    tags={"packages", "dnf", "troubleshooting"},
+    annotations=ToolAnnotations(readOnlyHint=True),
+)
+@log_tool_call
+@disallow_local_execution_in_containers
+async def dnf_provides(
+    query: t.Annotated[
+        str,
+        BeforeValidator(validate_dnf_provides_query),
+        Field(description="File path or binary name", examples=["/usr/bin/python3", "libssl.so.3", "*/libssl.so.*"]),
+    ],
+    host: Host = None,
+) -> str:
+    """Find packages providing a file or binary using dnf."""
+    cmd = get_command("dnf_provides")
+    returncode, stdout, stderr = await cmd.run(host=host, query=query)
+
+    if _matches_any_message(stdout, stderr, ("no matches found", "no match for argument")):
+        return f"No packages provide '{query}'."
+
+    if returncode != 0:
+        return f"Error running dnf: {stderr}"
+
+    if is_empty_output(stdout):
+        return "No output returned by dnf."
+
+    return stdout
+
+
+@mcp.tool(
+    title="Repository info (dnf)",
+    description="Get detailed information for a specific repository via dnf.",
+    tags={"packages", "dnf", "troubleshooting"},
+    annotations=ToolAnnotations(readOnlyHint=True),
+)
+@log_tool_call
+@disallow_local_execution_in_containers
+async def get_dnf_repo_info(
+    repo_id: t.Annotated[
+        str,
+        BeforeValidator(validate_dnf_repo_id),
+        Field(description="Repository id", examples=["baseos", "appstream"]),
+    ],
+    host: Host = None,
+) -> str:
+    """Get repository details using dnf."""
+    cmd = get_command("dnf_repo_info")
+    returncode, stdout, stderr = await cmd.run(host=host, repo_id=repo_id)
+
+    if _matches_any_message(stdout, stderr, ("no matching repo", "no repository match", "no such repository")):
+        return f"Repository '{repo_id}' not found."
+
+    if returncode != 0:
+        return f"Error running dnf: {stderr}"
+
+    if is_empty_output(stdout):
+        return "No output returned by dnf."
+
+    return stdout
+
+
+@mcp.tool(
+    title="List groups (dnf)",
+    description="List available and installed groups via dnf.",
+    tags={"packages", "dnf", "troubleshooting"},
+    annotations=ToolAnnotations(readOnlyHint=True),
+)
+@log_tool_call
+@disallow_local_execution_in_containers
+async def list_dnf_groups(
+    host: Host = None,
+) -> str:
+    """List group information using dnf."""
+    return await _run_dnf_command("dnf_group_list", host=host)
+
+
+@mcp.tool(
+    title="Group info (dnf)",
+    description="Get details for a specific group via dnf.",
+    tags={"packages", "dnf", "troubleshooting"},
+    annotations=ToolAnnotations(readOnlyHint=True),
+)
+@log_tool_call
+@disallow_local_execution_in_containers
+async def get_dnf_group_info(
+    group: t.Annotated[
+        str,
+        BeforeValidator(validate_dnf_group_name),
+        Field(description="Group name", examples=["Development Tools", "Server with GUI"]),
+    ],
+    host: Host = None,
+) -> str:
+    """Get group details using dnf."""
+    cmd = get_command("dnf_group_info")
+    returncode, stdout, stderr = await cmd.run(host=host, group=group)
+
+    if _matches_any_message(stdout, stderr, ("no groups matched", "no match for argument")):
+        return f"Group '{group}' not found."
+
+    if returncode != 0:
+        return f"Error running dnf: {stderr}"
+
+    if is_empty_output(stdout):
+        return "No output returned by dnf."
+
+    return stdout
+
+
+@mcp.tool(
+    title="Group summary (dnf)",
+    description="Show a summary of installed and available groups via dnf.",
+    tags={"packages", "dnf", "troubleshooting"},
+    annotations=ToolAnnotations(readOnlyHint=True),
+)
+@log_tool_call
+@disallow_local_execution_in_containers
+async def get_dnf_group_summary(
+    host: Host = None,
+) -> str:
+    """Get group summary using dnf."""
+    return await _run_dnf_command("dnf_group_summary", host=host)
+
+
+@mcp.tool(
+    title="List modules (dnf)",
+    description="List modules or filter by module name via dnf.",
+    tags={"packages", "dnf", "troubleshooting"},
+    annotations=ToolAnnotations(readOnlyHint=True),
+)
+@log_tool_call
+@disallow_local_execution_in_containers
+async def list_dnf_modules(
+    module: t.Annotated[
+        str | None,
+        BeforeValidator(validate_optional_dnf_module_name),
+        Field(description="Optional module name filter", examples=["nodejs", "python39"]),
+    ] = None,
+    host: Host = None,
+) -> str:
+    """List modules using dnf."""
+    cmd = get_command("dnf_module_list")
+    returncode, stdout, stderr = await cmd.run(host=host, module=module)
+
+    if module and _matches_any_message(stdout, stderr, ("no matching modules to list", "no match for argument")):
+        return f"No modules matched '{module}'."
+
+    if returncode != 0:
+        return f"Error running dnf: {stderr}"
+
+    if is_empty_output(stdout):
+        return "No output returned by dnf."
+
+    return stdout
+
+
+@mcp.tool(
+    title="Module provides (dnf)",
+    description="Find modules that provide a specific package via dnf.",
+    tags={"packages", "dnf", "troubleshooting"},
+    annotations=ToolAnnotations(readOnlyHint=True),
+)
+@log_tool_call
+@disallow_local_execution_in_containers
+async def dnf_module_provides(
+    package: t.Annotated[
+        str,
+        BeforeValidator(validate_dnf_package_name),
+        Field(description="Package name", examples=["python3", "nodejs"]),
+    ],
+    host: Host = None,
+) -> str:
+    """Find modules providing a package using dnf."""
+    cmd = get_command("dnf_module_provides")
+    returncode, stdout, stderr = await cmd.run(host=host, package=package)
+
+    if _matches_any_message(stdout, stderr, ("no matching modules", "no match for argument")):
+        return f"No modules provide '{package}'."
+
+    if returncode != 0:
+        return f"Error running dnf: {stderr}"
+
+    if is_empty_output(stdout):
+        return "No output returned by dnf."
+
+    return stdout
