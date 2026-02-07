@@ -34,17 +34,21 @@ Options may be set using environment variables or command line options. Environm
 
 | Option | Type | Default | Description |
 |--------|------|---------|-------------|
-| `-h, --help` | flag | - | Show help message and exit |
-| `--version` | flag | False | Display version and exit |
+| `-h, --help` | - | - | Show help message and exit |
+| `--version` | - | - | Display version and exit |
 | `--user` | string | (empty) | Default username for SSH connections |
+| `--transport` | string | stdio | Transport type: `stdio`, `http`, or `streamable_http` |
+| `--host` | string | `127.0.0.1` | Host address for HTTP transport |
+| `--port` | integer | 8000 | Port number for HTTP transport |
+| `--path` | string | /mcp | Path for HTTP transport |
 | `--log-dir` | path | `~/.local/share/linux-mcp-server/logs` | Directory for server logs |
 | `--log-level` | string | `INFO` | Log verbosity level |
 | `--log-retention-days` | integer | 10 | Days to retain log files |
-| `--allowed-log-paths` | string | null | Comma-separated paths to allowed log files |
+| `--allowed-log-paths` | string | null | Comma-separated list of allowed log file paths |
 | `--ssh-key-path` | path | null | Path to SSH private key file |
 | `--key-passphrase` | string | (empty) | Passphrase for encrypted SSH key |
-| `--search-for-ssh-key` | flag | False | Auto-discover SSH keys in `~/.ssh` |
-| `--verify-host-keys` | flag | False | Verify remote host identity via known_hosts |
+| `--search-for-ssh-key` | bool | False | Auto-discover SSH keys in `~/.ssh` |
+| `--verify-host-keys` | bool | False | Verify remote host identity via known_hosts |
 | `--known-hosts-path` | path | null | Path to known_hosts file |
 | `--command-timeout` | integer | 30 | SSH command timeout in seconds |
 
