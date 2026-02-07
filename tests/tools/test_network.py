@@ -211,3 +211,68 @@ tcp    LISTEN     0      128    0.0.0.0:22           0.0.0.0:*""",
         match = re.compile(r"error calling tool.*raised intentionally", flags=re.I)
         with pytest.raises(ToolError, match=match):
             await mcp_client.call_tool("get_listening_ports")
+
+
+class TestGetIpRouteTable:
+    """Test get_ip_route_table function."""
+
+    @pytest.mark.parametrize(
+        ("family", "mock_output", "expected_content"),
+        [
+            pytest.param(
+                "ipv4",
+                "default via 192.168.1.1 dev eth0\n192.168.1.0/24 dev eth0 proto kernel scope link",
+                ["ip route table (ipv4)", "default via 192.168.1.1"],
+                id="ipv4",
+            ),
+            pytest.param(
+                "ipv6",
+                "default via fe80::1 dev eth0\n2001:db8::/64 dev eth0 proto kernel metric 256",
+                ["ip route table (ipv6)", "2001:db8::/64"],
+                id="ipv6",
+            ),
+        ],
+    )
+    async def test_get_ip_route_table_success(self, mcp_client, mock_execute, family, mock_output, expected_content):
+        """Test getting ip route table for IPv4/IPv6."""
+        mock_execute.return_value = (0, mock_output, "")
+        result = await mcp_client.call_tool("get_ip_route_table", arguments={"family": family})
+        result_text = result.content[0].text.casefold()
+
+        assert all(content.casefold() in result_text for content in expected_content)
+
+    async def test_get_ip_route_table_all(self, mcp_client, mock_execute):
+        """Test getting both IPv4 and IPv6 route tables."""
+        mock_execute.side_effect = [
+            (0, "default via 192.168.1.1 dev eth0", ""),
+            (0, "default via fe80::1 dev eth0", ""),
+        ]
+
+        result = await mcp_client.call_tool("get_ip_route_table", arguments={"family": "all"})
+        result_text = result.content[0].text.casefold()
+
+        assert "ip route table (ipv4)" in result_text
+        assert "ip route table (ipv6)" in result_text
+        assert mock_execute.call_count == 2
+
+    @pytest.mark.parametrize(
+        ("return_value",),
+        [
+            pytest.param((1, "", "Command not found"), id="command_fails"),
+            pytest.param((0, "", ""), id="empty_output"),
+        ],
+    )
+    async def test_get_ip_route_table_failure(self, mcp_client, mock_execute, return_value):
+        """Test getting ip route table when command fails or returns empty."""
+        mock_execute.return_value = return_value
+        result = await mcp_client.call_tool("get_ip_route_table")
+        result_text = result.content[0].text.casefold()
+
+        assert "error getting ip routes" in result_text
+
+    async def test_get_ip_route_table_error(self, mcp_client, mock_execute):
+        """Test getting ip route table with general error."""
+        mock_execute.side_effect = ValueError("Raised intentionally")
+        match = re.compile(r"error calling tool.*raised intentionally", flags=re.I)
+        with pytest.raises(ToolError, match=match):
+            await mcp_client.call_tool("get_ip_route_table")
