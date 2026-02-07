@@ -1,3 +1,4 @@
+import os
 import sys
 
 import pytest
@@ -110,6 +111,7 @@ async def test_list_directories_nonexistent_path(tmp_path, mcp_client):
 
 
 @pytest.mark.skipif(sys.platform != "linux", reason="requires GNU version of coreutils/findutils")
+@pytest.mark.skipif(os.geteuid() == 0, reason="root can access restricted paths")
 async def test_list_directories_restricted_path(restricted_path, mcp_client):
     with pytest.raises(ToolError) as exc_info:
         await mcp_client.call_tool("list_directories", arguments={"path": str(restricted_path)})
