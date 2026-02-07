@@ -255,6 +255,20 @@ class TestGetIpRouteTable:
         assert "ip route table (ipv6)" in result_text
         assert mock_execute.call_count == 2
 
+    async def test_get_ip_route_table_all_partial_failure(self, mcp_client, mock_execute):
+        """Test getting both IPv4 and IPv6 route tables with a failure."""
+        mock_execute.side_effect = [
+            (0, "default via 192.168.1.1 dev eth0", ""),
+            (1, "", "Command not found"),
+        ]
+
+        result = await mcp_client.call_tool("get_ip_route_table", arguments={"family": "all"})
+        result_text = result.content[0].text.casefold()
+
+        assert "ip route table (ipv4)" in result_text
+        assert "error getting ipv6 routes" in result_text
+        assert mock_execute.call_count == 2
+
     @pytest.mark.parametrize(
         ("return_value",),
         [
