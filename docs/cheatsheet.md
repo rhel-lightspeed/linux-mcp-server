@@ -31,6 +31,7 @@ A quick reference guide for common tasks and the tools to use.
 | **IP Addresses** | `get_network_interfaces` | "What is my IP address?" |
 | **Open Ports** | `get_listening_ports` | "What ports are open?" |
 | **Connections** | `get_network_connections` | "Who is connected to port 22?" |
+| **Routes** | `get_ip_route_table` | "Show me the routing table" |
 
 ## 📂 Files & Storage
 
