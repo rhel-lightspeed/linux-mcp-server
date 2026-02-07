@@ -204,6 +204,82 @@ class TestDnfToolsRemote:
         assert "error running dnf" in result_text
         assert "dnf error" in result_text
 
+    async def test_dnf_list_tools_truncates_output(self, mcp_client, mock_execute_with_fallback):
+        mock_execute_with_fallback.return_value = (0, "line1\nline2\nline3\nline4", "")
+
+        result = await mcp_client.call_tool(
+            "list_dnf_installed_packages",
+            arguments={"host": "remote.example.com", "limit": 2, "offset": 1},
+        )
+        result_text = result.content[0].text
+
+        assert result_text.startswith("line2\nline3")
+        assert "output truncated" in result_text
+
+    async def test_dnf_list_tools_no_limit(self, mcp_client, mock_execute_with_fallback):
+        mock_execute_with_fallback.return_value = (0, "line1\nline2\nline3", "")
+
+        result = await mcp_client.call_tool(
+            "list_dnf_available_packages",
+            arguments={"host": "remote.example.com", "limit": 1, "no_limit": True},
+        )
+        result_text = result.content[0].text
+
+        assert result_text == "line1\nline2\nline3"
+
+    async def test_dnf_list_tools_no_limit_offset_out_of_range(self, mcp_client, mock_execute_with_fallback):
+        mock_execute_with_fallback.return_value = (0, "line1\nline2", "")
+
+        result = await mcp_client.call_tool(
+            "list_dnf_installed_packages",
+            arguments={"host": "remote.example.com", "no_limit": True, "offset": 10},
+        )
+        result_text = result.content[0].text.casefold()
+
+        assert "no output after applying limit/offset" in result_text
+
+    async def test_dnf_list_tools_no_limit_offset_slices(self, mcp_client, mock_execute_with_fallback):
+        mock_execute_with_fallback.return_value = (0, "line1\nline2\nline3", "")
+
+        result = await mcp_client.call_tool(
+            "list_dnf_installed_packages",
+            arguments={"host": "remote.example.com", "no_limit": True, "offset": 1},
+        )
+        result_text = result.content[0].text
+
+        assert result_text == "line2\nline3"
+
+    async def test_dnf_list_tools_offset_out_of_range(self, mcp_client, mock_execute_with_fallback):
+        mock_execute_with_fallback.return_value = (0, "line1\nline2", "")
+
+        result = await mcp_client.call_tool(
+            "list_dnf_repositories",
+            arguments={"host": "remote.example.com", "limit": 5, "offset": 10},
+        )
+        result_text = result.content[0].text.casefold()
+
+        assert "no output after applying limit/offset" in result_text
+
+    async def test_dnf_list_tools_invalid_limit(self, mcp_client, mock_execute_with_fallback):
+        with pytest.raises(Exception) as exc_info:
+            await mcp_client.call_tool(
+                "list_dnf_installed_packages",
+                arguments={"host": "remote.example.com", "limit": 0},
+            )
+
+        assert "validation" in str(exc_info.value).casefold() or "invalid" in str(exc_info.value).casefold()
+        mock_execute_with_fallback.assert_not_called()
+
+    async def test_dnf_list_tools_invalid_offset(self, mcp_client, mock_execute_with_fallback):
+        with pytest.raises(Exception) as exc_info:
+            await mcp_client.call_tool(
+                "list_dnf_available_packages",
+                arguments={"host": "remote.example.com", "offset": -1},
+            )
+
+        assert "validation" in str(exc_info.value).casefold() or "invalid" in str(exc_info.value).casefold()
+        mock_execute_with_fallback.assert_not_called()
+
     async def test_get_dnf_package_info_success(self, mcp_client, mock_execute_with_fallback):
         mock_execute_with_fallback.return_value = (0, "Name : bash", "")
 
@@ -364,6 +440,18 @@ class TestDnfToolsRemote:
         result_text = result.content[0].text
 
         assert "Name Stream Profiles" in result_text
+
+    async def test_list_dnf_modules_truncates_output(self, mcp_client, mock_execute_with_fallback):
+        mock_execute_with_fallback.return_value = (0, "line1\nline2\nline3\nline4", "")
+
+        result = await mcp_client.call_tool(
+            "list_dnf_modules",
+            arguments={"module": "nodejs", "limit": 2, "offset": 1, "host": "remote.example.com"},
+        )
+        result_text = result.content[0].text
+
+        assert result_text.startswith("line2\nline3")
+        assert "output truncated" in result_text
 
     async def test_list_dnf_modules_filtered_not_found(self, mcp_client, mock_execute_with_fallback):
         mock_execute_with_fallback.return_value = (0, "No matching modules to list", "")

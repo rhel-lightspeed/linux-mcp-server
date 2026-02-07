@@ -196,6 +196,9 @@ Lists installed packages via `dnf`.
 
 **Parameters:**
 - `host` (string, optional): Remote host identifier
+- `limit` (number, optional): Maximum number of output lines to return (default: 500)
+- `offset` (number, optional): Number of output lines to skip (default: 0)
+- `no_limit` (boolean, optional): Disable output truncation (default: false)
 
 **Example use case:** "Show me all installed packages."
 
@@ -204,6 +207,9 @@ Lists packages available in configured repositories.
 
 **Parameters:**
 - `host` (string, optional): Remote host identifier
+- `limit` (number, optional): Maximum number of output lines to return (default: 500)
+- `offset` (number, optional): Number of output lines to skip (default: 0)
+- `no_limit` (boolean, optional): Disable output truncation (default: false)
 
 **Example use case:** "Which packages are available from enabled repos?"
 
@@ -221,6 +227,9 @@ Lists configured repositories and their status.
 
 **Parameters:**
 - `host` (string, optional): Remote host identifier
+- `limit` (number, optional): Maximum number of output lines to return (default: 500)
+- `offset` (number, optional): Number of output lines to skip (default: 0)
+- `no_limit` (boolean, optional): Disable output truncation (default: false)
 
 **Example use case:** "Show me all configured repositories and whether they are enabled."
 
@@ -247,6 +256,9 @@ Lists available and installed package groups.
 
 **Parameters:**
 - `host` (string, optional): Remote host identifier
+- `limit` (number, optional): Maximum number of output lines to return (default: 500)
+- `offset` (number, optional): Number of output lines to skip (default: 0)
+- `no_limit` (boolean, optional): Disable output truncation (default: false)
 
 **Example use case:** "List all package groups."
 
@@ -264,6 +276,9 @@ Shows a summary of installed and available groups.
 
 **Parameters:**
 - `host` (string, optional): Remote host identifier
+- `limit` (number, optional): Maximum number of output lines to return (default: 500)
+- `offset` (number, optional): Number of output lines to skip (default: 0)
+- `no_limit` (boolean, optional): Disable output truncation (default: false)
 
 **Example use case:** "Summarize installed and available groups."
 
@@ -273,6 +288,9 @@ Lists modules (optionally filtered by module name).
 **Parameters:**
 - `module` (string, optional): Module name filter (e.g., "nodejs")
 - `host` (string, optional): Remote host identifier
+- `limit` (number, optional): Maximum number of output lines to return (default: 500)
+- `offset` (number, optional): Number of output lines to skip (default: 0)
+- `no_limit` (boolean, optional): Disable output truncation (default: false)
 
 **Example use case:** "List available nodejs module streams."
 
