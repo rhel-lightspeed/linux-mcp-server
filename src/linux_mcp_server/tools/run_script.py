@@ -1,6 +1,10 @@
 import logging
+import secrets
 import shlex
 import typing as t
+
+from dataclasses import asdict
+from dataclasses import dataclass
 
 from fastmcp import Context
 from fastmcp.exceptions import ToolError
@@ -11,6 +15,7 @@ from mcp.types import TextContent
 from mcp.types import ToolAnnotations
 
 # from pydantic import BaseModel
+from pydantic import BaseModel
 from pydantic import Field
 
 from linux_mcp_server.audit import log_tool_call
@@ -25,6 +30,9 @@ from linux_mcp_server.utils.types import Host
 
 logger = logging.getLogger("linux-mcp-server")
 
+ExecutionState = t.Literal[
+    "waiting-approval", "success", "failure", "executing", "rejected-user", "rejected-gatekeeper"
+]
 
 # This would make more sense as a StrEnum, but that generates a schema with
 # the enum in $defs, which deeply confuses (at least) the combination of
@@ -39,6 +47,89 @@ logger = logging.getLogger("linux-mcp-server")
 ScriptType = t.Literal["python", "bash"]
 SCRIPT_TYPE_PYTHON = "python"
 SCRIPT_TYPE_BASH = "bash"
+
+
+@dataclass()
+class ScriptDetails:
+    state: ExecutionState
+    script: str
+    script_type: ScriptType
+    host: Host
+
+
+class ScriptStore:
+    """
+    Stores script execution state across the async approval lifecycle.
+
+    When a script execution is requested, approval happens asynchronously via MCP app UI.
+    This store maps request IDs to their execution details (script, host, state) so we can
+    retrieve and execute the script after user approval, even though the original request
+    context is no longer available. It also preserve execution state (waiting-approval, executing,
+    success, failure, rejected) for the MCP app UI.
+    """
+
+    def __init__(self):
+        self._scripts: dict[str, ScriptDetails] = {}
+
+    def add_script(self, script: str, script_type: ScriptType, host: Host) -> str:
+        """
+        Add a new script to the store and generate a unique ID for it.
+
+        This method stores a script with its metadata and assigns it an initial state of
+        "waiting-approval". The generated ID can be used to retrieve or update the script later.
+
+        Args:
+            script: The script content to execute (Python or Bash code).
+            script_type: The type of script, either "python" or "bash".
+            host: The target host where the script will be executed.
+
+        Returns:
+            A unique URL-safe token (16 bytes) identifying this script execution.
+        """
+        id = secrets.token_urlsafe(16)
+        self._scripts[id] = ScriptDetails(state="waiting-approval", script=script, script_type=script_type, host=host)
+        return id
+
+    def get_script_details(self, id: str) -> ScriptDetails:
+        """
+        Retrieve the full details of a stored script by its ID.
+
+        Args:
+            id: The unique identifier for the script, as returned by add_script().
+
+        Returns:
+            A ScriptDetails object containing the script's state, content, type, and target host.
+
+        Raises:
+            KeyError: If no script exists with the given ID.
+        """
+        return self._scripts[id]
+
+    def set_script_state(self, id: str, new_state: ExecutionState):
+        """
+        Update the execution state of a stored script.
+
+        This method is used to track script lifecycle transitions, such as moving from
+        "waiting-approval" to "executing" to "success" or "failure".
+
+        Args:
+            id: The unique identifier for the script.
+            new_state: The new execution state. Valid states are:
+                - "waiting-approval": Script is pending user approval
+                - "executing": Script is currently running
+                - "success": Script completed successfully
+                - "failure": Script execution failed
+                - "rejected-user": User rejected the script
+                - "rejected-gatekeeper": Script was rejected by policy checks
+
+        Raises:
+            KeyError: If no script exists with the given ID.
+        """
+        self._scripts[id].state = new_state
+
+
+script_store = ScriptStore()
+
 
 BASH_STRICT_PREAMBLE = "set -euo pipefail; "
 
@@ -103,6 +194,12 @@ Run a script that modifies the system. The user will be asked for approval inter
 """
     + RUN_SCRIPT_COMMON_DESCRIPTION
 )
+
+
+class RunScriptInteractiveResult(BaseModel):
+    id: str
+    status: GatekeeperStatus
+    detail: str
 
 
 # class UserInfo(BaseModel):
@@ -182,25 +279,39 @@ async def run_script_readonly(
         return f"Error executing script: return code {returncode}, stderr: {stderr}"
 
 
-async def _execute_script(
-    script_type: t.Annotated[
-        ScriptType,
-        Field(description="The type of script to run (python or bash)."),
-    ],
-    script: t.Annotated[
-        str,
-        Field(description="The script to run."),
-    ],
-    host: Host = None,
-) -> str:
-    command = _wrap_script(script_type, script)
+@dataclass
+class ExecuteScriptResult:
+    state: t.Literal["success", "failure"]
+    output: str
 
-    returncode, stdout, stderr = await execute_command(command, host=host)
+
+async def _execute_script(
+    id: t.Annotated[str, Field(description="The associated ID of the script to be executed")],
+) -> ToolResult:
+    script_details = script_store.get_script_details(id)
+    command = _wrap_script(script_details.script_type, script_details.script)
+    script_store.set_script_state(id, "executing")
+    content: list[ContentBlock] = []
+
+    try:
+        returncode, stdout, stderr = await execute_command(command, host=script_details.host)
+    except Exception as e:
+        raise ToolError(f"Execution failed: {e}")
+
     if returncode == 0:
-        stdout = stdout if isinstance(stdout, str) else stdout.decode("utf-8", errors="replace")
-        return stdout
+        script_store.set_script_state(id, "success")
+
+        output = stdout if isinstance(stdout, str) else stdout.decode("utf-8", errors="replace")
+        content.append(TextContent(type="text", text=output))
+        result = ExecuteScriptResult("success", output)
     else:
-        return f"Error executing script: return code {returncode}, stderr: {stderr}"
+        script_store.set_script_state(id, "failure")
+
+        output = f"Error executing script: return code {returncode}, stderr: {stderr}"
+        content.append(TextContent(type="text", text=output))
+        result = ExecuteScriptResult("failure", output)
+
+    return ToolResult(content=content, structured_content=asdict(result))
 
 
 execute_script = Tool.from_function(
@@ -208,6 +319,21 @@ execute_script = Tool.from_function(
     name="execute_script",
     tags={"run_script", "hidden_from_model"},
     description="Execute a script; this is only available to the our mcp-app",
+    meta={"ui": {"visibility": ["app"]}},
+)
+
+
+async def _reject_script(
+    id: t.Annotated[str, Field(description="The associated ID of the script to be rejected")],
+):
+    script_store.set_script_state(id, "rejected-user")
+
+
+reject_script = Tool.from_function(
+    _reject_script,
+    name="reject_script",
+    tags={"run_script", "hidden_from_model"},
+    description="Reject a script; this is only available to the our mcp-app",
     meta={"ui": {"visibility": ["app"]}},
 )
 
@@ -243,7 +369,18 @@ async def _run_script_modify_interactive(
             )
         )
 
-    result = ToolResult(content=content, structured_content=gatekeeper_result.model_dump())
+    # Initialize execution detail to keep execution status persistent
+    # Store script and script_type so set_script_approval can retrieve them by id
+    id = script_store.add_script(script, script_type, host)
+
+    if gatekeeper_result.status != GatekeeperStatus.OK:
+        script_store.set_script_state(id, "rejected-gatekeeper")
+
+    structured_content_obj = RunScriptInteractiveResult(
+        id=id, status=gatekeeper_result.status, detail=gatekeeper_result.detail
+    )
+
+    result = ToolResult(content=content, structured_content=structured_content_obj.model_dump())
 
     return result
 
@@ -255,6 +392,7 @@ run_script_modify_interactive = Tool.from_function(
     title="Propose to run a script that modifies system",
     description=RUN_SCRIPT_MODIFY_INTERACTIVE,
     annotations=ToolAnnotations(destructiveHint=True),
+    output_schema=RunScriptInteractiveResult.model_json_schema(),
     meta={"ui": {"resourceUri": RUN_SCRIPT_APP_URI}},
 )
 
@@ -321,4 +459,19 @@ run_script_modify = Tool.from_function(
     title="Run script to modify system",
     description=RUN_SCRIPT_MODIFY_DESCRIPTION,
     annotations=ToolAnnotations(destructiveHint=True),
+)
+
+
+def _get_execution_state(id: str):
+    script_detail = script_store.get_script_details(id)
+    return {"state": script_detail.state}
+
+
+get_execution_state = Tool.from_function(
+    _get_execution_state,
+    name="get_execution_state",
+    tags={"run_script", "hidden_from_model"},
+    title="Get the execution state with request ID",
+    description="Get the execution state with request ID",
+    meta={"ui": {"visibility": ["app"]}},
 )
