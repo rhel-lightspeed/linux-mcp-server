@@ -43,7 +43,7 @@ Edit `~/.claude.json`:
     }
     ```
 
-=== "Container (Podman)"
+=== "Container (stdio transport)"
 
     ```json
     {
@@ -104,7 +104,7 @@ The value for `command` will vary depending on how `linux-mcp-server` was instal
     }
     ```
 
-=== "Container (Podman)"
+=== "Container (stdio transport)"
 
     ```json
     {
@@ -164,7 +164,7 @@ Edit `~/.codex/config.toml`:
     LINUX_MCP_USER = "your-ssh-username"
     ```
 
-=== "Container (Podman)"
+=== "Container (stdio transport)"
 
     ```toml
     [mcp_servers.linux-mcp-server]
@@ -214,7 +214,7 @@ Edit `~/.cursor/mcp.json`:
     }
     ```
 
-=== "Container (Podman)"
+=== "Container (stdio transport)"
 
     ```json
     {
@@ -272,7 +272,7 @@ Edit `~/.gemini/settings.json`:
     !!! note "Merging with Existing Settings"
         If you have other settings in your `settings.json`, add the `mcpServers` object alongside them.
 
-=== "Container (Podman)"
+=== "Container (stdio transport)"
 
     ```json
     {
@@ -357,7 +357,7 @@ If you prefer editing config files directly, add to `~/.config/goose/config.yaml
         args: []
     ```
 
-=== "Container (Podman)"
+=== "Container (stdio transport)"
 
     ```yaml
     extensions:
@@ -388,6 +388,26 @@ If you prefer editing config files directly, add to `~/.config/goose/config.yaml
         env_keys:
           - LINUX_MCP_KEY_PASSPHRASE
           - LINUX_MCP_USER
+        timeout: 30
+        bundled: null
+        available_tools: []
+    ```
+=== "HTTP transport"
+
+    !!! note Start the thing
+        `linux-mcp-server` must be started separately when using HTTP transport.
+
+    ```yaml
+    extensions:
+      linux-tools-http:
+        enabled: true
+        type: streamable_http
+        name: linux-tools-http
+        description: Linux Tools HTTP
+        uri: http://localhost:8000/mcp
+        envs: {}
+        env_keys: []
+        headers: {}
         timeout: 30
         bundled: null
         available_tools: []
@@ -424,7 +444,7 @@ Edit `~/.config/opencode/opencode.json`:
     }
     ```
 
-=== "Container (Podman)"
+=== "Container (stdio transport)"
 
     ```json
     {
@@ -468,20 +488,20 @@ Add to your VS Code `mcp.json`:
 === "pip/uv (Recommended)"
 
     ```json
-{
-  "servers": {
-    "linux-mcp-server": {
-      "command": "/home/YOUR_USER/.local/bin/linux-mcp-server",
-      "args": [],
-      "env": {
-        "LINUX_MCP_USER": "your-ssh-username"
+    {
+      "servers": {
+        "linux-mcp-server": {
+          "command": "/home/YOUR_USER/.local/bin/linux-mcp-server",
+          "args": [],
+          "env": {
+            "LINUX_MCP_USER": "your-ssh-username"
+          }
+        }
       }
     }
-  }
-}
     ```
 
-=== "Container (Podman)"
+=== "Container (stdio transport)"
 
     ```json
     {
@@ -539,7 +559,7 @@ Edit `~/.codeium/windsurf/mcp_config.json`:
     }
     ```
 
-=== "Container (Podman)"
+=== "Container (stdio transport)"
 
     ```json
     {
@@ -573,6 +593,18 @@ Edit `~/.codeium/windsurf/mcp_config.json`:
 ## Environment Variables
 
 Configure these environment variables in the `env` section of your client configuration.
+
+### Transport Settings
+
+| Variable | Default | Description |
+|----------|---------|-------------|
+| `LINUX_MCP_TRANSPORT` | `stdio` | Transport type: `stdio`, `http`, or `streamable-http` |
+| `LINUX_MCP_HOST` | `127.0.0.1` | Host address for HTTP transport |
+| `LINUX_MCP_PORT` | 8000 | Port number for HTTP transport |
+| `LINUX_MCP_PATH` | /mcp | Path for HTTP transport |
+
+!!! note "When to use HTTP transports"
+    Some clients, like Claude Desktop, require `stdio`.
 
 ### SSH Connection Settings
 
