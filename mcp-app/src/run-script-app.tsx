@@ -1,7 +1,12 @@
-import type { App } from "@modelcontextprotocol/ext-apps";
-import { useApp } from "@modelcontextprotocol/ext-apps/react";
+import type { App, McpUiHostContext } from "@modelcontextprotocol/ext-apps";
+import {
+  applyDocumentTheme,
+  applyHostFonts,
+  applyHostStyleVariables,
+  useApp,
+} from "@modelcontextprotocol/ext-apps/react";
 import type { CallToolResult } from "@modelcontextprotocol/sdk/types.js";
-import { StrictMode, useCallback, useState } from "react";
+import { StrictMode, useCallback, useEffect, useState } from "react";
 import { createRoot } from "react-dom/client";
 
 const IMPLEMENTATION = { name: "Run Script App", version: "1.0.0" };
@@ -33,6 +38,8 @@ function RunScriptApp() {
   const [toolRequestParams, setToolRequestParams] = useState<
     Record<string, unknown> | undefined
   >(undefined);
+  const [hostContext, setHostContext] = useState<McpUiHostContext>();
+
   const { app, error } = useApp({
     appInfo: IMPLEMENTATION,
     capabilities: {},
@@ -52,9 +59,32 @@ function RunScriptApp() {
         setToolResult(result);
       };
 
+      app.onhostcontextchanged = (ctx) => {
+        setHostContext((prev) => ({ ...prev, ...ctx }));
+      };
+
       app.onerror = log.error;
     },
   });
+
+  // Set initial host context after connection
+  useEffect(() => {
+    if (app) {
+      setHostContext(app.getHostContext());
+    }
+  }, [app]);
+
+  useEffect(() => {
+    if (hostContext?.theme) {
+      applyDocumentTheme(hostContext.theme);
+    }
+    if (hostContext?.styles?.variables) {
+      applyHostStyleVariables(hostContext.styles.variables);
+    }
+    if (hostContext?.styles?.css?.fonts) {
+      applyHostFonts(hostContext.styles.css.fonts);
+    }
+  }, [hostContext]);
 
   if (error)
     return (
