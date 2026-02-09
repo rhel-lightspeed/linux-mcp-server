@@ -202,7 +202,10 @@ from linux_mcp_server.tools import *  # noqa: E402, F403
 # providing `mcp-app` compatibility during the initialize request.
 if CONFIG.use_mcp_apps:
     mcp.add_tool(run_script_modify_interactive)
+    mcp.add_tool(get_execution_state)
     mcp.add_tool(execute_script)
+    mcp.add_tool(reject_script)
+
 else:
     mcp.add_tool(run_script_modify)
 

@@ -6,7 +6,7 @@ import {
   useApp,
 } from "@modelcontextprotocol/ext-apps/react";
 import type { CallToolResult } from "@modelcontextprotocol/sdk/types.js";
-import { StrictMode, useCallback, useEffect, useState } from "react";
+import { StrictMode, useEffect, useState } from "react";
 import { createRoot } from "react-dom/client";
 
 const IMPLEMENTATION = { name: "Run Script App", version: "1.0.0" };
@@ -110,15 +110,18 @@ interface RunScriptAppInnerProps {
 }
 
 type ExecutionState =
-  | "initialized"
+  | "initial"
   | "success"
-  | "failed"
-  | "rejected"
+  | "failure"
+  | "rejected-user"
+  | "rejected-gatekeeper"
+  | "waiting-approval"
   | "executing";
 
 const pickStateColor = (state: ExecutionState): string => {
   switch (state) {
-    case "initialized":
+    case "initial":
+    case "waiting-approval":
       return "text-white";
     case "executing":
       return "text-yellow-500";
@@ -135,16 +138,38 @@ function RunScriptAppInner({
   toolResult,
 }: RunScriptAppInnerProps) {
   const [executionState, setExecutionState] =
-    useState<ExecutionState>("initialized");
+    useState<ExecutionState>("initial");
   const [executionResult, setExecutionResult] = useState<string>("");
+  const getExecutionStateFromServer = async (scriptId: string) => {
+    try {
+      const result = await app.callServerTool({
+        name: "get_execution_state",
+        arguments: {
+          id: scriptId,
+        },
+      });
 
-  const handleAccept = useCallback(async () => {
+      if (!result.isError && result.structuredContent) {
+        setExecutionState(result.structuredContent.state as ExecutionState);
+        return result.structuredContent.state;
+      }
+    } catch (e) {
+      log.error("get_execution_state failed", e);
+    }
+  };
+
+  useEffect(() => {
+    const scriptId = toolResult?.structuredContent?.id;
+    if (!scriptId) return;
+
+    getExecutionStateFromServer(scriptId as string);
+  }, [app, toolResult?.structuredContent?.id]);
+
+  const handleAccept = async () => {
+    const scriptId = toolResult?.structuredContent?.id;
+    if (!scriptId) return;
+
     setExecutionState("executing");
-
-    const params = toolRequestParams || {};
-    const script = (params["script"] || "") as string;
-    const scriptType = (params["script_type"] || "bash") as string;
-    const host = params["host"] || null;
 
     let updatedExecutionState: ExecutionState = executionState;
     let updatedExecutionResult = executionResult;
@@ -152,23 +177,17 @@ function RunScriptAppInner({
     try {
       const result = await app.callServerTool({
         name: "execute_script",
-        arguments: { script: script, script_type: scriptType, host: host },
+        arguments: { id: scriptId },
       });
 
-      if (!!result.isError) {
-        updatedExecutionState = "failed";
-      } else {
-        updatedExecutionState = "success";
-      }
-
       updatedExecutionResult = extractText(result);
+      updatedExecutionState = (await getExecutionStateFromServer(
+        scriptId as string,
+      )) as ExecutionState;
     } catch (e) {
-      updatedExecutionState = "failed";
-      updatedExecutionResult = e as string;
-      console.error("callServerTool failed", e);
+      log.error("execute_script failed", e);
     }
 
-    setExecutionState(updatedExecutionState);
     setExecutionResult(updatedExecutionResult);
 
     try {
@@ -177,17 +196,28 @@ function RunScriptAppInner({
         content: [
           {
             type: "text",
-            text: `The script ${script} has been executed. Here is the detail of the execution.\n--------------------------------------------\nExecution status: ${updatedExecutionState}\nExecution result: ${updatedExecutionResult}`,
+            text: `Here is the detail of the execution.\n--------------------------------------------\nExecution status: ${updatedExecutionState}\nExecution result: ${updatedExecutionResult}`,
           },
         ],
       });
     } catch (e) {
-      console.error(`sendMessage failed: ${e}`);
+      log.error(`sendMessage failed: ${e}`);
     }
-  }, [app, toolRequestParams]);
+  };
 
-  const handleReject = () => {
-    setExecutionState("rejected");
+  const handleReject = async () => {
+    const scriptId = toolResult?.structuredContent?.id;
+    if (!scriptId) return;
+
+    setExecutionState("rejected-user");
+    app
+      .callServerTool({
+        name: "reject_script",
+        arguments: { id: scriptId },
+      })
+      .catch((err) => {
+        log.error("reject_script failed", err);
+      });
   };
 
   if (!toolResult || !toolRequestParams) {
@@ -236,14 +266,14 @@ function RunScriptAppInner({
             <div className="flex-none">
               <button
                 className="btn-primary"
-                disabled={executionState !== "initialized"}
+                disabled={executionState !== "waiting-approval"}
                 onClick={handleAccept}
               >
                 Allow
               </button>
               <button
                 className="btn-primary"
-                disabled={executionState !== "initialized"}
+                disabled={executionState !== "waiting-approval"}
                 onClick={handleReject}
               >
                 Deny
