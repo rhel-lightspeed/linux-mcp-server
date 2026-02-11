@@ -12,8 +12,8 @@ from pydantic.functional_validators import BeforeValidator
 from linux_mcp_server.audit import log_tool_call
 from linux_mcp_server.commands import get_command
 from linux_mcp_server.config import CONFIG
-from linux_mcp_server.formatters import format_journal_logs
-from linux_mcp_server.formatters import format_log_file
+from linux_mcp_server.models import JournalLogs
+from linux_mcp_server.models import LogFile
 from linux_mcp_server.server import mcp
 from linux_mcp_server.utils import StrEnum
 from linux_mcp_server.utils.decorators import disallow_local_execution_in_containers
@@ -115,7 +115,7 @@ async def get_journal_logs(
     ] = None,
     lines: t.Annotated[int, Field(description="Number of log lines to retrieve. Default: 100", ge=1, le=10_000)] = 100,
     host: Host = None,
-) -> str:
+) -> JournalLogs:
     """Get systemd journal logs.
 
     Retrieves entries from the systemd journal with optional filtering by unit,
@@ -128,12 +128,20 @@ async def get_journal_logs(
     )
 
     if returncode != 0:
-        return f"Error reading journal logs: {stderr}"
+        raise ToolError(f"Error reading journal logs: {stderr}")
 
     if is_empty_output(stdout):
-        return "No journal entries found matching the criteria."
+        raise ToolError("No journal entries found matching the criteria.")
 
-    return format_journal_logs(stdout, lines, unit, priority, since, transport)
+    entries = [line for line in stdout.strip().splitlines() if line]
+
+    return JournalLogs(
+        entries=entries,
+        unit=unit,
+        priority=priority,
+        since=since,
+        transport=transport,
+    )
 
 
 @mcp.tool(
@@ -155,7 +163,7 @@ async def read_log_file(
     ],
     lines: t.Annotated[int, Field(description="Number of lines to retrieve from the end.", ge=1, le=10_000)] = 100,
     host: Host = None,
-) -> str:
+) -> LogFile:
     """Read a specific log file.
 
     Retrieves the last N lines from a log file. The file path must be in the
@@ -212,4 +220,6 @@ async def read_log_file(
     if is_empty_output(stdout):
         raise ToolError(f"Log file is empty: {log_path}")
 
-    return format_log_file(stdout, log_path, lines)
+    entries = [line for line in stdout.strip().splitlines() if line]
+
+    return LogFile(entries=entries, path=log_path)

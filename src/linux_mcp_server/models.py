@@ -1,6 +1,7 @@
 import typing as t
 
 from datetime import datetime
+from pathlib import Path
 
 from pydantic import BaseModel
 from pydantic import Field
@@ -184,3 +185,19 @@ class NodeEntry(BaseModel):
 class StorageNodes(BaseModel):
     nodes: list[NodeEntry]
     total: int = Field(default_factory=field_length("nodes"))
+
+
+### Log models ###
+class JournalLogs(BaseModel):
+    entries: list[str]
+    unit: str | None = None
+    priority: str | None = None
+    since: str | None = None
+    transport: str | None = None
+    lines_count: int = Field(default_factory=field_length("entries"))
+
+
+class LogFile(BaseModel):
+    entries: list[str]
+    path: Path
+    lines_count: int = Field(default_factory=field_length("entries"))
