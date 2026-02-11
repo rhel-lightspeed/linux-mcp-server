@@ -171,14 +171,20 @@ COMMANDS: Mapping[str, CommandGroup] = MappingProxyType(
         # === Storage ===
         "list_block_devices": CommandGroup(
             commands={
-                "default": CommandSpec(args=("lsblk", "-o", "NAME,SIZE,TYPE,MOUNTPOINT,FSTYPE,MODEL")),
+                "default": CommandSpec(
+                    args=(
+                        "lsblk",
+                        "-o",
+                        "NAME,SIZE,TYPE,MOUNTPOINT,FSTYPE,MODEL",
+                        "--json",
+                    )
+                ),
             }
         ),
         "disk_usage": CommandGroup(
             commands={
                 "default": CommandSpec(
-                    args=("df", "-h", "--output=source,size,used,avail,pcent,target"),
-                    fallback=("df", "-h"),
+                    args=("findmnt", "--df", "--json"),
                 ),
             }
         ),

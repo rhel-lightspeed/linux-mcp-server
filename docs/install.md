@@ -89,6 +89,24 @@ A container runtime such as [Podman](https://podman-desktop.io) is required.
 quay.io/redhat-services-prod/rhel-lightspeed-tenant/linux-mcp-server:latest
 ```
 
+See [client configuration](clients.md) for examples of how to run the container using stdio transport.
+
+When using an HTTP transport, `http` or `streamable-http`, the container must be started before launching the LLM client.
+
+```bash
+podman run --rm --interactive \
+  --userns "keep-id:uid=1001,gid=0"
+  --port 8000:8000 \
+  -e LINUX_MCP_KEY_PASSPHRASE  # Only needed if the SSH key is protected by a passphrase
+  -e LINUX_MCP_TRANSPORT=streamable-http \
+  -e LINUX_MCP_HOST=0.0.0.0 \  # bind to all interfaces inside the container
+  -v /home/YOUR_USER/.ssh/id_ed25519:/var/lib/mcp/.ssh/id_ed25519:ro \
+  -v /home/YOUR_USER/.ssh/config:/var/lib/mcp/.ssh/config:ro,Z \
+  -v /home/YOUR_USER/.local/share/linux-mcp-server/logs:/var/lib/mcp/.local/share/linux-mcp-server/logs:rw \
+  quay.io/redhat-services-prod/rhel-lightspeed-tenant/linux-mcp-server:latest
+
+```
+
 #### Container Setup for SSH Keys
 
 The container needs access to your SSH keys for remote connections. Set up the required directories and permissions:
@@ -131,6 +149,9 @@ sudo chown -R 1001:1001 ~/.local/share/linux-mcp-server/
     - Remove the `--userns` parameter from the run command
     - Ensure files are owned by UID 1001 on the host
     - Create directories beforehand (Docker won't auto-create them)
+
+
+Once the SSH keys are configured, configure your [LLM client](clients.md) to run the container image. It is not necessary to run the container manually since the LLM client will do that.
 
 ---
 

@@ -222,4 +222,4 @@ class DynamicDiscoveryMiddleware(Middleware):
 
 def main():
     mcp.add_middleware(DynamicDiscoveryMiddleware())
-    mcp.run(show_banner=False)
+    mcp.run(show_banner=False, transport=CONFIG.transport.value, **CONFIG.transport_kwargs)

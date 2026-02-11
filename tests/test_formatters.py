@@ -2,16 +2,11 @@
 
 from pathlib import Path
 
-from linux_mcp_server.formatters import format_block_devices
-from linux_mcp_server.formatters import format_cpu_info
-from linux_mcp_server.formatters import format_directory_listing
 from linux_mcp_server.formatters import format_disk_usage
-from linux_mcp_server.formatters import format_file_listing
 from linux_mcp_server.formatters import format_hardware_info
 from linux_mcp_server.formatters import format_journal_logs
 from linux_mcp_server.formatters import format_listening_ports
 from linux_mcp_server.formatters import format_log_file
-from linux_mcp_server.formatters import format_memory_info
 from linux_mcp_server.formatters import format_network_connections
 from linux_mcp_server.formatters import format_network_interfaces
 from linux_mcp_server.formatters import format_process_detail
@@ -19,17 +14,10 @@ from linux_mcp_server.formatters import format_process_list
 from linux_mcp_server.formatters import format_service_logs
 from linux_mcp_server.formatters import format_service_status
 from linux_mcp_server.formatters import format_services_list
-from linux_mcp_server.formatters import format_system_info
-from linux_mcp_server.utils.types import CpuInfo
-from linux_mcp_server.utils.types import ListeningPort
-from linux_mcp_server.utils.types import MemoryInfo
-from linux_mcp_server.utils.types import NetworkConnection
-from linux_mcp_server.utils.types import NetworkInterface
-from linux_mcp_server.utils.types import NodeEntry
-from linux_mcp_server.utils.types import ProcessInfo
-from linux_mcp_server.utils.types import SwapInfo
-from linux_mcp_server.utils.types import SystemInfo
-from linux_mcp_server.utils.types import SystemMemory
+from linux_mcp_server.models import ListeningPort
+from linux_mcp_server.models import NetworkConnection
+from linux_mcp_server.models import NetworkInterface
+from linux_mcp_server.models import ProcessInfo
 
 
 class TestFormatNetworkConnections:
@@ -145,119 +133,6 @@ class TestFormatProcessList:
         result = format_process_list(processes, max_display=100)
         assert "Total processes: 150" in result
         assert "Showing: First 100 processes" in result
-
-
-class TestFormatMemoryInfo:
-    """Tests for format_memory_info function."""
-
-    def test_format_ram_only(self):
-        """Test formatting RAM only."""
-        memory = SystemMemory(
-            ram=MemoryInfo(
-                total=16000000000,
-                used=8000000000,
-                free=4000000000,
-                available=8000000000,
-            )
-        )
-        result = format_memory_info(memory)
-        assert "=== RAM Information ===" in result
-        assert "Total:" in result
-        assert "Available:" in result
-        assert "Used:" in result
-        assert "Free:" in result
-
-    def test_format_with_swap(self):
-        """Test formatting with swap."""
-        memory = SystemMemory(
-            ram=MemoryInfo(
-                total=16000000000,
-                used=8000000000,
-                free=4000000000,
-                available=8000000000,
-            ),
-            swap=SwapInfo(
-                total=2000000000,
-                used=100000000,
-                free=1900000000,
-            ),
-        )
-        result = format_memory_info(memory)
-        assert "=== RAM Information ===" in result
-        assert "=== Swap Information ===" in result
-
-    def test_format_with_buffers_and_cache(self):
-        """Test formatting with buffers and cache (wide output format)."""
-        memory = SystemMemory(
-            ram=MemoryInfo(
-                total=16000000000,
-                used=8000000000,
-                free=4000000000,
-                shared=134217728,
-                buffers=1234567890,
-                cached=2859072814,
-                available=8000000000,
-            )
-        )
-        result = format_memory_info(memory)
-        assert "=== RAM Information ===" in result
-        assert "Buffers:" in result
-        assert "Cache:" in result
-
-
-class TestFormatSystemInfo:
-    """Tests for format_system_info function."""
-
-    def test_format_empty_info(self):
-        """Test formatting empty system info."""
-        info = SystemInfo()
-        result = format_system_info(info)
-        assert result == ""
-
-    def test_format_full_info(self):
-        """Test formatting full system info."""
-        info = SystemInfo(
-            hostname="myserver",
-            os_name="Ubuntu 22.04.3 LTS",
-            os_version="22.04",
-            kernel="5.15.0-91-generic",
-            arch="x86_64",
-            uptime="up 5 days",
-            boot_time="2024-01-01 10:00:00",
-        )
-        result = format_system_info(info)
-        assert "Hostname: myserver" in result
-        assert "Operating System: Ubuntu 22.04.3 LTS" in result
-        assert "OS Version: 22.04" in result
-        assert "Kernel Version: 5.15.0-91-generic" in result
-        assert "Architecture: x86_64" in result
-
-
-class TestFormatCpuInfo:
-    """Tests for format_cpu_info function."""
-
-    def test_format_empty_info(self):
-        """Test formatting empty CPU info."""
-        info = CpuInfo()
-        result = format_cpu_info(info)
-        assert result == ""
-
-    def test_format_full_info(self):
-        """Test formatting full CPU info."""
-        info = CpuInfo(
-            model="Intel(R) Core(TM) i7-10700 CPU @ 2.90GHz",
-            logical_cores=16,
-            physical_cores=8,
-            frequency_mhz=2900.0,
-            load_avg_1m=0.50,
-            load_avg_5m=0.75,
-            load_avg_15m=1.00,
-        )
-        result = format_cpu_info(info)
-        assert "CPU Model: Intel(R) Core(TM) i7-10700 CPU @ 2.90GHz" in result
-        assert "CPU Physical Cores: 8" in result
-        assert "CPU Logical Cores (threads): 16" in result
-        assert "Load Average" in result
 
 
 class TestFormatNetworkInterfaces:
@@ -423,24 +298,6 @@ class TestFormatLogFile:
         assert "Application started" in result
 
 
-class TestFormatBlockDevices:
-    """Tests for format_block_devices function."""
-
-    def test_format_basic(self):
-        """Test basic formatting."""
-        stdout = "NAME SIZE TYPE MOUNTPOINT FSTYPE MODEL\nsda 100G disk"
-        result = format_block_devices(stdout)
-        assert "=== Block Devices ===" in result
-        assert "sda" in result
-
-    def test_format_with_disk_io(self):
-        """Test formatting with disk I/O."""
-        stdout = "NAME SIZE\nsda 100G"
-        disk_io = "sda: Read: 1GB Write: 500MB"
-        result = format_block_devices(stdout, disk_io)
-        assert "=== Disk I/O Statistics (per disk) ===" in result
-
-
 class TestFormatDiskUsage:
     """Tests for format_disk_usage function."""
 
@@ -486,102 +343,3 @@ class TestFormatHardwareInfo:
         results = {"lspci": pci_lines}
         result = format_hardware_info(results)
         assert "... and 10 more PCI devices" in result
-
-
-class TestFormatDirectoryListing:
-    """Tests for format_directory_listing function."""
-
-    def test_format_empty_list(self):
-        """Test formatting empty list."""
-        result = format_directory_listing([], "/path", "name")
-        assert "=== Directories in /path ===" in result
-        assert "Total directories: 0" in result
-
-    def test_format_by_name(self):
-        """Test formatting directories by name."""
-        entries = [
-            NodeEntry(name="gamma"),
-            NodeEntry(name="alpha"),
-            NodeEntry(name="beta"),
-        ]
-        result = format_directory_listing(entries, "/path", "name")
-        assert "alpha" in result
-        assert "beta" in result
-        assert "gamma" in result
-        # Should be sorted
-        alpha_pos = result.find("alpha")
-        beta_pos = result.find("beta")
-        gamma_pos = result.find("gamma")
-        assert alpha_pos < beta_pos < gamma_pos
-
-    def test_format_by_size(self):
-        """Test formatting directories by size."""
-        entries = [
-            NodeEntry(name="small", size=100),
-            NodeEntry(name="large", size=1000),
-            NodeEntry(name="medium", size=500),
-        ]
-        result = format_directory_listing(entries, "/path", "size")
-        assert "small" in result
-        assert "large" in result
-        assert "medium" in result
-
-    def test_format_descending(self):
-        """Test formatting in descending order."""
-        entries = [
-            NodeEntry(name="alpha"),
-            NodeEntry(name="beta"),
-            NodeEntry(name="gamma"),
-        ]
-        result = format_directory_listing(entries, "/path", "name", reverse=True)
-        gamma_pos = result.find("gamma")
-        beta_pos = result.find("beta")
-        alpha_pos = result.find("alpha")
-        assert gamma_pos < beta_pos < alpha_pos
-
-
-class TestFormatFileListing:
-    """Tests for format_file_listing function."""
-
-    def test_format_empty_list(self):
-        """Test formatting empty list."""
-        result = format_file_listing([], "/path", "name")
-        assert "=== Files in /path ===" in result
-        assert "Total files: 0" in result
-
-    def test_format_by_name(self):
-        """Test formatting files by name."""
-        entries = [
-            NodeEntry(name="file3.txt"),
-            NodeEntry(name="file1.txt"),
-            NodeEntry(name="file2.txt"),
-        ]
-        result = format_file_listing(entries, "/path", "name")
-        assert "file1.txt" in result
-        assert "file2.txt" in result
-        assert "file3.txt" in result
-        # Should be sorted
-        file1_pos = result.find("file1.txt")
-        file2_pos = result.find("file2.txt")
-        file3_pos = result.find("file3.txt")
-        assert file1_pos < file2_pos < file3_pos
-
-    def test_format_by_size(self):
-        """Test formatting files by size."""
-        entries = [
-            NodeEntry(name="small.txt", size=100),
-            NodeEntry(name="large.txt", size=1000),
-        ]
-        result = format_file_listing(entries, "/path", "size")
-        assert "small.txt" in result
-        assert "large.txt" in result
-
-    def test_format_by_modified(self):
-        """Test formatting files by modification time."""
-        entries = [
-            NodeEntry(name="old.txt", modified=1700000000.0),
-            NodeEntry(name="new.txt", modified=1700100000.0),
-        ]
-        result = format_file_listing(entries, "/path", "modified")
-        assert "old.txt" in result
-        assert "new.txt" in result
