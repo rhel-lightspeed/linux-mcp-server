@@ -41,7 +41,6 @@ spec:
     - name: additional-tags
       value:
         - latest
-        - '{{ target_branch }}'
 
   pipelineRef:
     name: pipeline-build-multiarch
