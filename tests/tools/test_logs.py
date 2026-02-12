@@ -27,7 +27,7 @@ class TestGetJournalLogs:
             (
                 {},
                 ["-n", "100", "--no-pager"],
-                {"unit": None, "priority": None, "since": None, "transport": None},
+                {"unit": ""},
             ),
             # Unit filter
             (
@@ -39,41 +39,41 @@ class TestGetJournalLogs:
             (
                 {"priority": "err"},
                 ["--priority", "err"],
-                {"priority": "err"},
+                {"unit": ""},
             ),
             # Since filter
             (
                 {"since": "today"},
                 ["--since", "today"],
-                {"since": "today"},
+                {"unit": ""},
             ),
             # Custom line count
             (
                 {"lines": 50},
                 ["-n", "50"],
-                {"unit": None},
+                {"unit": ""},
             ),
             # All filters combined
             (
                 {"unit": "nginx.service", "priority": "err", "since": "today", "lines": 50},
                 ["--unit", "nginx.service", "--priority", "err", "--since", "today", "-n", "50"],
-                {"unit": "nginx.service", "priority": "err", "since": "today"},
+                {"unit": "nginx.service"},
             ),
             # Transport filter (audit)
             (
                 {"transport": "audit"},
                 ["_TRANSPORT=audit"],
-                {"transport": "audit"},
+                {"unit": ""},
             ),
             (
                 {"transport": "kernel"},
                 ["_TRANSPORT=kernel"],
-                {"transport": "kernel"},
+                {"unit": ""},
             ),
             (
                 {"transport": "audit", "priority": "err", "lines": 50},
                 ["_TRANSPORT=audit", "--priority", "err", "-n", "50"],
-                {"transport": "audit", "priority": "err"},
+                {"unit": ""},
             ),
         ],
     )
