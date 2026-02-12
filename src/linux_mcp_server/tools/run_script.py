@@ -193,15 +193,7 @@ async def _execute_script(
     ],
     host: Host = None,
 ) -> str:
-    command = []
-
-    if script_type == SCRIPT_TYPE_BASH:
-        script = "# added by linux-mcp-server\nset -euo pipefail\n\n" + script
-
-    if script_type == SCRIPT_TYPE_PYTHON:
-        command = ["python3", "-c", script]
-    elif script_type == SCRIPT_TYPE_BASH:
-        command = ["bash", "-c", script]
+    command = _wrap_script(script_type, script)
 
     returncode, stdout, stderr = await execute_command(command, host=host)
     if returncode == 0:
