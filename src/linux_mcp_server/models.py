@@ -188,16 +188,8 @@ class StorageNodes(BaseModel):
 
 
 ### Log models ###
-class JournalLogs(BaseModel):
+class LogEntries(BaseModel):
     entries: list[str]
-    unit: str | None = None
-    priority: str | None = None
-    since: str | None = None
-    transport: str | None = None
-    lines_count: int = Field(default_factory=field_length("entries"))
-
-
-class LogFile(BaseModel):
-    entries: list[str]
-    path: Path
+    unit: str = ""
+    path: Path | None = None
     lines_count: int = Field(default_factory=field_length("entries"))

@@ -12,8 +12,7 @@ from pydantic.functional_validators import BeforeValidator
 from linux_mcp_server.audit import log_tool_call
 from linux_mcp_server.commands import get_command
 from linux_mcp_server.config import CONFIG
-from linux_mcp_server.models import JournalLogs
-from linux_mcp_server.models import LogFile
+from linux_mcp_server.models import LogEntries
 from linux_mcp_server.server import mcp
 from linux_mcp_server.utils import StrEnum
 from linux_mcp_server.utils.decorators import disallow_local_execution_in_containers
@@ -135,12 +134,9 @@ async def get_journal_logs(
 
     entries = [line for line in stdout.strip().splitlines() if line]
 
-    return JournalLogs(
+    return LogEntries(
         entries=entries,
         unit=unit,
-        priority=priority,
-        since=since,
-        transport=transport,
     )
 
 
@@ -163,7 +159,7 @@ async def read_log_file(
     ],
     lines: t.Annotated[int, Field(description="Number of lines to retrieve from the end.", ge=1, le=10_000)] = 100,
     host: Host = None,
-) -> LogFile:
+) -> LogEntries:
     """Read a specific log file.
 
     Retrieves the last N lines from a log file. The file path must be in the
@@ -222,4 +218,4 @@ async def read_log_file(
 
     entries = [line for line in stdout.strip().splitlines() if line]
 
-    return LogFile(entries=entries, path=log_path)
+    return LogEntries(entries=entries, path=log_path)
