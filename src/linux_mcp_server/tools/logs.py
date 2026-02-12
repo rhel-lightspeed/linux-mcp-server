@@ -88,33 +88,33 @@ async def _get_journal_logs(
 @disallow_local_execution_in_containers
 async def get_journal_logs(
     unit: t.Annotated[
-        str | None,
+        str,
         Field(
             description="Filter by systemd unit name or pattern",
             examples=["sshd.service", "nginx", "httpd", "systemd-*", "audit*"],
         ),
-    ] = None,
+    ] = "",
     priority: t.Annotated[
-        str | None,
+        str,
         Field(
             description="Filter by syslog priority level (0-7), name, or range",
             examples=["err", "warning", "info", "debug", "3", "err..warning"],
         ),
-    ] = None,
+    ] = "",
     since: t.Annotated[
-        str | None,
+        str,
         Field(
             description="Filter entries since specified time (absolute or relative)",
             examples=["today", "yesterday", "-1h", "-30m", "-7d", "2025-01-15 10:00:00"],
         ),
-    ] = None,
+    ] = "",
     transport: t.Annotated[
         Transport | None,
         "Filter by journal transport (e.g., 'audit' for audit logs, 'kernel' for kernel messages, 'syslog' for syslog messages)",
     ] = None,
     lines: t.Annotated[int, Field(description="Number of log lines to retrieve. Default: 100", ge=1, le=10_000)] = 100,
     host: Host = None,
-) -> JournalLogs:
+) -> LogEntries:
     """Get systemd journal logs.
 
     Retrieves entries from the systemd journal with optional filtering by unit,
