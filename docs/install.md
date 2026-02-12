@@ -313,6 +313,13 @@ linux-mcp-server requires Python 3.10 or newer.
     uv tool update-shell
     ```
 
+??? failure "No matching distribution found for linux-mcp-server"
+
+    If pip3 claims to be unable to find linux-mcp-server,
+    that probably means you have a too-old version
+    of Python. Check your python version
+    with `python3 --version` - it should be 3.10 or newer.
+
 #### SSH Setup on macOS
 
 macOS includes OpenSSH by default. To set up key-based authentication:
