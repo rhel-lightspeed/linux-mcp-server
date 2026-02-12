@@ -253,6 +253,17 @@ sudo pacman -S python python-pip
 
 #### Installing Python
 
+Installing Python is not needed if you are using uv (recommended) -
+it will automatically install Python versions as needed.
+
+To check your installed version of Python:
+
+```bash
+python3 --version
+```
+
+linux-mcp-server requires Python 3.10 or newer.
+
 === "Official Python Installer (Recommended)"
 
     Download from [python.org/downloads/macos](https://www.python.org/downloads/macos/) and run the installer.
@@ -272,13 +283,7 @@ sudo pacman -S python python-pip
 
 #### Installing linux-mcp-server
 
-=== "pip"
-
-    ```bash
-    pip3 install --user linux-mcp-server
-    ```
-
-=== "uv"
+=== "uv (Recommended)"
 
     Install [uv](https://docs.astral.sh/uv/#installation).
 
@@ -286,6 +291,12 @@ sudo pacman -S python python-pip
 
     ```bash
     uv tool install linux-mcp-server
+    ```
+
+=== "pip"
+
+    ```bash
+    pip3 install --user linux-mcp-server
     ```
 
 ??? failure "Command not found after installation?"
