@@ -19,7 +19,6 @@ from linux_mcp_server.gatekeeper import check_run_script
 from linux_mcp_server.gatekeeper import GatekeeperStatus
 from linux_mcp_server.mcp_app import RUN_SCRIPT_APP_URI
 from linux_mcp_server.server import mcp
-from linux_mcp_server.utils import StrEnum
 from linux_mcp_server.utils.decorators import disallow_local_execution_in_containers
 from linux_mcp_server.utils.types import Host
 
@@ -27,10 +26,19 @@ from linux_mcp_server.utils.types import Host
 logger = logging.getLogger("linux-mcp-server")
 
 
-class ScriptType(StrEnum):
-    PYTHON = "python"
-    BASH = "bash"
-
+# This would make more sense as a StrEnum, but that generates a schema with
+# the enum in $defs, which deeply confuses (at least) the combination of
+# Claude Sonnet 4.5 and Claude Desktop - the model knows that it's supposed
+# to use "python" or "bash" and passes it in the call, but the UI sees `null`
+# instead.
+#
+# Future versions of FastMCP may automatically dereference references
+# (https://github.com/jlowin/fastmcp/pulls/2814) but that doesn't currently
+# happen as of v2.14.5 (https://github.com/jlowin/fastmcp/issues/3153).
+#
+ScriptType = t.Literal["python", "bash"]
+SCRIPT_TYPE_PYTHON = "python"
+SCRIPT_TYPE_BASH = "bash"
 
 BASH_STRICT_PREAMBLE = "set -euo pipefail; "
 
@@ -107,8 +115,8 @@ def _wrap_script(script_type: ScriptType, script: str) -> list[str]:
     """Wrap a script in a wrapper script that uses sudo+systemd-run when available, else run script directly."""
     wrapper_script = WRAPPER_TEMPLATE.format(
         systemd_run_command=SYSTEMD_RUN_COMMAND.format(args=" ".join(SYSTEMD_RUN_ARGS)),
-        script_type=script_type.value,
-        script=shlex.quote((BASH_STRICT_PREAMBLE + script) if script_type == ScriptType.BASH else script),
+        script_type=script_type,
+        script=shlex.quote((BASH_STRICT_PREAMBLE + script) if script_type == SCRIPT_TYPE_BASH else script),
     )
     return ["bash", "-c", wrapper_script]
 
@@ -144,7 +152,7 @@ async def run_script_readonly(
     gatekeeper_result = check_run_script(
         description,
         script_type,
-        (BASH_STRICT_PREAMBLE + script) if script_type == ScriptType.BASH else script,
+        (BASH_STRICT_PREAMBLE + script) if script_type == SCRIPT_TYPE_BASH else script,
         readonly=True,
     )
 
@@ -187,12 +195,12 @@ async def _execute_script(
 ) -> str:
     command = []
 
-    if script_type == ScriptType.BASH:
+    if script_type == SCRIPT_TYPE_BASH:
         script = "# added by linux-mcp-server\nset -euo pipefail\n\n" + script
 
-    if script_type == ScriptType.PYTHON:
+    if script_type == SCRIPT_TYPE_PYTHON:
         command = ["python3", "-c", script]
-    elif script_type == ScriptType.BASH:
+    elif script_type == SCRIPT_TYPE_BASH:
         command = ["bash", "-c", script]
 
     returncode, stdout, stderr = await execute_command(command, host=host)
@@ -284,7 +292,7 @@ async def _run_script_modify(
     gatekeeper_result = check_run_script(
         description,
         script_type,
-        (BASH_STRICT_PREAMBLE + script) if script_type == ScriptType.BASH else script,
+        (BASH_STRICT_PREAMBLE + script) if script_type == SCRIPT_TYPE_BASH else script,
         readonly=False,
     )
 
