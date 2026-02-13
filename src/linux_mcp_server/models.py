@@ -5,6 +5,7 @@ from pathlib import Path
 
 from pydantic import BaseModel
 from pydantic import Field
+from pydantic import field_serializer
 from pydantic import model_validator
 
 from linux_mcp_server.utils.format import format_bytes
@@ -193,3 +194,7 @@ class LogEntries(BaseModel):
     unit: str = ""
     path: Path | None = None
     lines_count: int = Field(default_factory=field_length("entries"))
+
+    @field_serializer("unit", "path")
+    def serialize_empty_as_null(self, value: str | Path | None) -> str | Path | None:
+        return value or None
