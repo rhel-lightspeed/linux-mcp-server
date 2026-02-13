@@ -3,6 +3,7 @@ from linux_mcp_server.tools.logs import get_journal_logs
 from linux_mcp_server.tools.logs import read_log_file
 
 # network
+from linux_mcp_server.tools.network import get_ip_route_table
 from linux_mcp_server.tools.network import get_listening_ports
 from linux_mcp_server.tools.network import get_network_connections
 from linux_mcp_server.tools.network import get_network_interfaces
@@ -34,6 +35,7 @@ __all__ = [
     "get_cpu_information",
     "get_disk_usage",
     "get_hardware_information",
+    "get_ip_route_table",
     "get_journal_logs",
     "get_listening_ports",
     "get_memory_information",

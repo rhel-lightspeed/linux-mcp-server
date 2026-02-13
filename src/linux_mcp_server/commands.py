@@ -135,6 +135,12 @@ COMMANDS: Mapping[str, CommandGroup] = MappingProxyType(
                 "stats": CommandSpec(args=("cat", "/proc/net/dev")),
             }
         ),
+        "ip_route": CommandGroup(
+            commands={
+                "ipv4": CommandSpec(args=("ip", "route", "show")),
+                "ipv6": CommandSpec(args=("ip", "-6", "route", "show")),
+            }
+        ),
         # === Logs ===
         "journal_logs": CommandGroup(
             commands={
