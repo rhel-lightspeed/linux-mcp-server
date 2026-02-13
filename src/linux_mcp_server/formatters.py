@@ -4,18 +4,13 @@ This module provides functions to format parsed data into
 human-readable strings for tool output.
 """
 
-from datetime import datetime
 from pathlib import Path
 
+from linux_mcp_server.models import ListeningPort
+from linux_mcp_server.models import NetworkConnection
+from linux_mcp_server.models import NetworkInterface
+from linux_mcp_server.models import ProcessInfo
 from linux_mcp_server.utils import format_bytes
-from linux_mcp_server.utils.types import CpuInfo
-from linux_mcp_server.utils.types import ListeningPort
-from linux_mcp_server.utils.types import NetworkConnection
-from linux_mcp_server.utils.types import NetworkInterface
-from linux_mcp_server.utils.types import NodeEntry
-from linux_mcp_server.utils.types import ProcessInfo
-from linux_mcp_server.utils.types import SystemInfo
-from linux_mcp_server.utils.types import SystemMemory
 
 
 def format_network_connections(
@@ -108,106 +103,6 @@ def format_process_list(
     lines.append(f"\n\nTotal processes: {len(processes)}")
     if max_display is not None and len(processes) > max_display:
         lines.append(f"Showing: First {max_display} processes")
-
-    return "\n".join(lines)
-
-
-def format_memory_info(memory: SystemMemory) -> str:
-    """Format memory information into a readable string.
-
-    Args:
-        memory: SystemMemory object containing RAM and swap info.
-
-    Returns:
-        Formatted string representation.
-    """
-    lines = []
-
-    # RAM information
-    ram = memory.ram
-    ram_percent = (ram.used / ram.total * 100) if ram.total > 0 else 0
-
-    lines.append("=== RAM Information ===")
-    lines.append(f"Total: {format_bytes(ram.total)}")
-    lines.append(f"Available: {format_bytes(ram.available)}")
-    lines.append(f"Used: {format_bytes(ram.used)} ({ram_percent:.1f}%)")
-    lines.append(f"Free: {format_bytes(ram.free)}")
-
-    if ram.buffers:
-        lines.append(f"Buffers: {format_bytes(ram.buffers)}")
-
-    if ram.cached:
-        lines.append(f"Cache: {format_bytes(ram.cached)}")
-
-    # Swap information
-    if memory.swap:
-        swap = memory.swap
-        swap_percent = (swap.used / swap.total * 100) if swap.total > 0 else 0
-
-        lines.append("\n=== Swap Information ===")
-        lines.append(f"Total: {format_bytes(swap.total)}")
-        lines.append(f"Used: {format_bytes(swap.used)} ({swap_percent:.1f}%)")
-        lines.append(f"Free: {format_bytes(swap.free)}")
-
-    return "\n".join(lines)
-
-
-def format_system_info(info: SystemInfo) -> str:
-    """Format system information into a readable string.
-
-    Args:
-        info: SystemInfo object.
-
-    Returns:
-        Formatted string representation.
-    """
-    lines = []
-
-    if info.hostname:
-        lines.append(f"Hostname: {info.hostname}")
-    if info.os_name:
-        lines.append(f"Operating System: {info.os_name}")
-    if info.os_version:
-        lines.append(f"OS Version: {info.os_version}")
-    if info.kernel:
-        lines.append(f"Kernel Version: {info.kernel}")
-    if info.arch:
-        lines.append(f"Architecture: {info.arch}")
-    if info.uptime:
-        lines.append(f"Uptime: {info.uptime}")
-    if info.boot_time:
-        lines.append(f"Boot Time: {info.boot_time}")
-
-    return "\n".join(lines)
-
-
-def format_cpu_info(info: CpuInfo) -> str:
-    """Format CPU information into a readable string.
-
-    Args:
-        info: CpuInfo object.
-
-    Returns:
-        Formatted string representation.
-    """
-    lines = []
-
-    if info.model:
-        lines.append(f"CPU Model: {info.model}")
-    if info.physical_cores:
-        lines.append(f"CPU Physical Cores: {info.physical_cores}")
-    if info.logical_cores:
-        lines.append(f"CPU Logical Cores (threads): {info.logical_cores}")
-    if info.frequency_mhz:
-        lines.append(f"CPU Frequency: Current={info.frequency_mhz:.2f}MHz")
-
-    if info.load_avg_1m or info.load_avg_5m or info.load_avg_15m:
-        lines.append(
-            f"\nLoad Average (1m, 5m, 15m): {info.load_avg_1m:.2f}, {info.load_avg_5m:.2f}, {info.load_avg_15m:.2f}"
-        )
-
-    if info.cpu_line:
-        lines.append(f"\n{info.cpu_line}")
 
     return "\n".join(lines)
 
@@ -381,26 +276,6 @@ def format_log_file(stdout: str, log_path: Path, lines_count: int) -> str:
     return "\n".join(lines)
 
 
-def format_block_devices(stdout: str, disk_io: str | None = None) -> str:
-    """Format block devices output.
-
-    Args:
-        stdout: Raw output from lsblk.
-        disk_io: Optional disk I/O statistics.
-
-    Returns:
-        Formatted string representation.
-    """
-    lines = ["=== Block Devices ===\n"]
-    lines.append(stdout)
-
-    if disk_io:
-        lines.append("\n=== Disk I/O Statistics (per disk) ===")
-        lines.append(disk_io)
-
-    return "\n".join(lines)
-
-
 def format_disk_usage(stdout: str, disk_io: str | None = None) -> str:
     """Format disk usage output.
 
@@ -452,84 +327,4 @@ def format_hardware_info(results: dict[str, str]) -> str:
     if len(lines) == 1:  # Only header
         lines.append("No hardware information tools available.")
 
-    return "\n".join(lines)
-
-
-def format_directory_listing(
-    entries: list[NodeEntry],
-    path: str | Path,
-    sort_by: str,
-    reverse: bool = False,
-) -> str:
-    """Format directory listing into a readable string.
-
-    Args:
-        entries: List of NodeEntry objects.
-        path: Path that was listed.
-        sort_by: Sort field used.
-        reverse: Whether the sort was reversed.
-
-    Returns:
-        Formatted string representation.
-    """
-    lines = [f"=== Directories in {path} ===\n"]
-
-    # Sort entries
-    if sort_by == "size":
-        sorted_entries = sorted(entries, key=lambda e: e.size, reverse=reverse)
-    elif sort_by == "modified":
-        sorted_entries = sorted(entries, key=lambda e: e.modified, reverse=reverse)
-    else:
-        sorted_entries = sorted(entries, key=lambda e: e.name.lower(), reverse=reverse)
-
-    for entry in sorted_entries:
-        if sort_by == "size":
-            lines.append(f"{format_bytes(entry.size):>12}  {entry.name}")
-        elif sort_by == "modified":
-            dt = datetime.fromtimestamp(entry.modified)
-            lines.append(f"{dt.strftime('%Y-%m-%d %H:%M:%S')}  {entry.name}")
-        else:
-            lines.append(f"  {entry.name}")
-
-    lines.append(f"\nTotal directories: {len(entries)}")
-    return "\n".join(lines)
-
-
-def format_file_listing(
-    entries: list[NodeEntry],
-    path: str | Path,
-    sort_by: str,
-    reverse: bool = False,
-) -> str:
-    """Format file listing into a readable string.
-
-    Args:
-        entries: List of NodeEntry objects.
-        path: Path that was listed.
-        sort_by: Sort field used.
-        reverse: Whether the sort was reversed.
-
-    Returns:
-        Formatted string representation.
-    """
-    lines = [f"=== Files in {path} ===\n"]
-
-    # Sort entries
-    if sort_by == "size":
-        sorted_entries = sorted(entries, key=lambda e: e.size, reverse=reverse)
-    elif sort_by == "modified":
-        sorted_entries = sorted(entries, key=lambda e: e.modified, reverse=reverse)
-    else:
-        sorted_entries = sorted(entries, key=lambda e: e.name.lower(), reverse=reverse)
-
-    for entry in sorted_entries:
-        if sort_by == "size":
-            lines.append(f"{format_bytes(entry.size):>12}  {entry.name}")
-        elif sort_by == "modified":
-            dt = datetime.fromtimestamp(entry.modified)
-            lines.append(f"{dt.strftime('%Y-%m-%d %H:%M:%S')}  {entry.name}")
-        else:
-            lines.append(f"  {entry.name}")
-
-    lines.append(f"\nTotal files: {len(entries)}")
     return "\n".join(lines)

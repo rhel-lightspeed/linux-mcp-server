@@ -12,7 +12,7 @@ readme = "README.md"
 requires-python = ">=3.10"
 dependencies = [
     "asyncssh[bcrypt] >= 2.22.0",
-    "fastmcp >=2.14.3, <3",
+    "fastmcp >=2.14.4, <3",
     "litellm>=1.80.16",
     "pydantic-settings >= 2.12.0",
     "pydantic >= 2.12.5",
@@ -39,7 +39,7 @@ classifiers = [
 ]
 
 [project.optional-dependencies]
-gssapi = ["gssapi >= 1.2.0"]
+gssapi = ["gssapi >=1.11.1"]
 
 [project.urls]
 "Source code" = "https://github.com/rhel-lightspeed/linux-mcp-server"
@@ -73,7 +73,7 @@ test = [
 docs = [
     "mkdocs>=1.6.1",
     "mkdocs-material>=9.7.1",
-    "mkdocstrings[python]>=1.0.0",
+    "mkdocstrings[python]>=1.0.2",
 ]
 
 [tool.hatch.build.targets.wheel]
@@ -178,6 +178,8 @@ ignore = [
     "E501",  # Ignore line length (similar to flake8's max-line-length)
 ]
 
+[tool.ruff.lint.per-file-ignores]
+"scripts/*" = ["T201"]
 
 [tool.ruff.lint.isort]
 case-sensitive = false
