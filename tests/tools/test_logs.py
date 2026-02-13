@@ -27,7 +27,7 @@ class TestGetJournalLogs:
             (
                 {},
                 ["-n", "100", "--no-pager"],
-                {"unit": ""},
+                {"unit": None},
             ),
             # Unit filter
             (
@@ -39,19 +39,19 @@ class TestGetJournalLogs:
             (
                 {"priority": "err"},
                 ["--priority", "err"],
-                {"unit": ""},
+                {"unit": None},
             ),
             # Since filter
             (
                 {"since": "today"},
                 ["--since", "today"],
-                {"unit": ""},
+                {"unit": None},
             ),
             # Custom line count
             (
                 {"lines": 50},
                 ["-n", "50"],
-                {"unit": ""},
+                {"unit": None},
             ),
             # All filters combined
             (
@@ -63,17 +63,17 @@ class TestGetJournalLogs:
             (
                 {"transport": "audit"},
                 ["_TRANSPORT=audit"],
-                {"unit": ""},
+                {"unit": None},
             ),
             (
                 {"transport": "kernel"},
                 ["_TRANSPORT=kernel"],
-                {"unit": ""},
+                {"unit": None},
             ),
             (
                 {"transport": "audit", "priority": "err", "lines": 50},
                 ["_TRANSPORT=audit", "--priority", "err", "-n", "50"],
-                {"unit": ""},
+                {"unit": None},
             ),
         ],
     )
