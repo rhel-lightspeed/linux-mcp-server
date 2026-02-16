@@ -1,12 +1,8 @@
 """Tests for formatters module."""
 
-from pathlib import Path
-
 from linux_mcp_server.formatters import format_disk_usage
 from linux_mcp_server.formatters import format_hardware_info
-from linux_mcp_server.formatters import format_journal_logs
 from linux_mcp_server.formatters import format_listening_ports
-from linux_mcp_server.formatters import format_log_file
 from linux_mcp_server.formatters import format_network_connections
 from linux_mcp_server.formatters import format_network_interfaces
 from linux_mcp_server.formatters import format_process_detail
@@ -245,57 +241,6 @@ class TestFormatServiceLogs:
         result = format_service_logs(stdout, "ssh.service", 50)
         assert "=== Last 50 log entries for ssh.service ===" in result
         assert "Accepted publickey" in result
-
-
-class TestFormatJournalLogs:
-    """Tests for format_journal_logs function."""
-
-    def test_format_no_filters(self):
-        """Test formatting without filters."""
-        stdout = "Dec 12 10:00:00 host kernel: Log message"
-        result = format_journal_logs(stdout, 100)
-        assert "=== Journal Logs (last 100 entries, no filters) ===" in result
-
-    def test_format_with_filters(self):
-        """Test formatting with filters."""
-        stdout = "Dec 12 10:00:00 host sshd[1234]: Message"
-        result = format_journal_logs(stdout, 50, unit="ssh.service", priority="err", since="today")
-        assert "unit=ssh.service" in result
-        assert "priority=err" in result
-        assert "since=today" in result
-
-    def test_format_with_transport_audit(self):
-        """Test formatting with transport=audit uses Audit Logs header."""
-        stdout = "Dec 12 10:00:00 host audit[1234]: SYSCALL"
-        result = format_journal_logs(stdout, 100, transport="audit")
-        assert "=== Audit Logs (last 100 entries" in result
-        assert "SYSCALL" in result
-
-    def test_format_with_transport_audit_and_other_filters(self):
-        """Test formatting with transport=audit combined with other filters includes all filters."""
-        stdout = "Dec 12 10:00:00 host audit[1234]: Error message"
-        result = format_journal_logs(stdout, 50, transport="audit", priority="err", since="today")
-        assert "=== Audit Logs (last 50 entries" in result
-        assert "priority=err" in result
-        assert "since=today" in result
-
-    def test_format_with_transport_kernel(self):
-        """Test formatting with transport=kernel uses Kernel Logs header."""
-        stdout = "Dec 12 10:00:00 host kernel: Kernel message"
-        result = format_journal_logs(stdout, 100, transport="kernel")
-        assert "=== Kernel Logs (last 100 entries)" in result
-        assert "Kernel message" in result
-
-
-class TestFormatLogFile:
-    """Tests for format_log_file function."""
-
-    def test_format_log_file(self):
-        """Test formatting log file."""
-        stdout = "2024-01-01 10:00:00 INFO Application started"
-        result = format_log_file(stdout, Path("/var/log/app.log"), 100)
-        assert "=== Log File: /var/log/app.log (last 100 lines) ===" in result
-        assert "Application started" in result
 
 
 class TestFormatDiskUsage:
