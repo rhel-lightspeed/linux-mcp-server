@@ -92,3 +92,78 @@ jobs:
 
       - name: Publish to MCP Registry
         run: ./scripts/publish_mcp_registry.py
+
+  create-release:
+    name: Create GitHub Release
+    runs-on: ubuntu-latest
+
+    permissions:
+      contents: write
+
+    steps:
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v2.5.0
+        with:
+          tag_name: ${{ github.ref_name }}
+          generate_release_notes: true
+
+  zipapp:
+    name: Zipapp - ${{ matrix.python-version }} ${{ matrix.image.family }} ${{ matrix.image.arch }}
+    runs-on: ${{ matrix.image.name }}
+    needs:
+      - create-release
+
+    strategy:
+      fail-fast: false
+      matrix:
+        python-version:
+          - "3.10"
+          - "3.11"
+          - "3.12"
+          - "3.13"
+          - "3.14"
+          - "3.14t"
+
+        image:
+          - name: ubuntu-24.04
+            family: linux
+            arch: amd64
+
+          - name: ubuntu-24.04-arm
+            family: linux
+            arch: arm64
+
+          - name: macos-15-intel
+            family: macos
+            arch: amd64
+
+          - name: macos-26
+            family: macos
+            arch: arm64
+
+    permissions:
+      contents: write
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6.0.2
+        with:
+          ref: ${{ github.ref_name }}
+          fetch-depth: 0
+
+      - name: Install Python
+        uses: actions/setup-python@v6.2.0
+        with:
+          python-version: ${{ matrix.python-version }}
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v7.3.0
+
+      - name: Build zipapp
+        run: make zipapp ZIPAPP_OUTPUT=linux-mcp-server-py${{ matrix.python-version }}-${{ matrix.image.family }}-${{ matrix.image.arch }}.pyz
+
+      - name: Upload to GitHub Release
+        uses: softprops/action-gh-release@v2.5.0
+        with:
+          files: linux-mcp-server-py${{ matrix.python-version }}-${{ matrix.image.family }}-${{ matrix.image.arch }}.pyz
+          tag_name: ${{ github.ref_name }}
