@@ -6,30 +6,23 @@ import {
   useApp,
 } from "@modelcontextprotocol/ext-apps/react";
 import type { CallToolResult } from "@modelcontextprotocol/sdk/types.js";
-import { StrictMode, useCallback, useEffect, useState } from "react";
+import { StrictMode, useEffect, useMemo, useState } from "react";
 import { createRoot } from "react-dom/client";
+import {
+  ExecuteScriptResultSchema,
+  McpAppToolParamsSchema,
+  McpAppToolResultSchema,
+  type ExecutionState,
+} from "./types";
+import { formatOutput, formatOutputForToolError } from "./utils";
 
 const IMPLEMENTATION = { name: "Run Script App", version: "1.0.0" };
-
-type GateKeeperStatus =
-  | "OK"
-  | "BAD_DESCRIPTION"
-  | "POLICY"
-  | "MODIFIES_SYSTEM"
-  | "UNCLEAR"
-  | "DANGEROUS"
-  | "MALICIOUS";
 
 const log = {
   info: console.log.bind(console, "[APP]"),
   warn: console.warn.bind(console, "[APP]"),
   error: console.error.bind(console, "[APP]"),
 };
-
-function extractText(callToolResult: CallToolResult): string {
-  const { text } = callToolResult.content?.find((c) => c.type === "text")!;
-  return text;
-}
 
 function RunScriptApp() {
   const [toolResult, setToolResult] = useState<CallToolResult | undefined>(
@@ -109,16 +102,11 @@ interface RunScriptAppInnerProps {
   toolResult: CallToolResult | undefined;
 }
 
-type ExecutionState =
-  | "initialized"
-  | "success"
-  | "failed"
-  | "rejected"
-  | "executing";
-
+// TODO: This function would be deleted in the following UI rework PR
 const pickStateColor = (state: ExecutionState): string => {
   switch (state) {
-    case "initialized":
+    case "initial":
+    case "waiting-approval":
       return "text-white";
     case "executing":
       return "text-yellow-500";
@@ -135,62 +123,105 @@ function RunScriptAppInner({
   toolResult,
 }: RunScriptAppInnerProps) {
   const [executionState, setExecutionState] =
-    useState<ExecutionState>("initialized");
+    useState<ExecutionState>("initial");
   const [executionResult, setExecutionResult] = useState<string>("");
 
-  const handleAccept = useCallback(async () => {
-    setExecutionState("executing");
+  const validatedToolRequestParams = useMemo(() => {
+    const parsedResult = McpAppToolParamsSchema.safeParse(toolRequestParams);
+    return parsedResult.success ? parsedResult.data : undefined;
+  }, [toolRequestParams]);
 
-    const params = toolRequestParams || {};
-    const script = (params["script"] || "") as string;
-    const scriptType = (params["script_type"] || "bash") as string;
-    const host = params["host"] || null;
+  const validatedToolResult = useMemo(() => {
+    const parsedResult = McpAppToolResultSchema.safeParse(
+      toolResult?.structuredContent,
+    );
+
+    return parsedResult.success ? parsedResult.data : undefined;
+  }, [toolResult]);
+
+  useEffect(() => {
+    if (!validatedToolResult) return;
+
+    const getExecutionStateFromServer = async () => {
+      const result = await app.callServerTool({
+        name: "get_execution_state",
+        arguments: {
+          id: validatedToolResult.id,
+        },
+      });
+
+      if (!result.isError && result.structuredContent) {
+        setExecutionState(result.structuredContent.state as ExecutionState);
+        return result.structuredContent.state;
+      }
+    };
+
+    getExecutionStateFromServer();
+  }, [app, validatedToolResult]);
+
+  const handleAccept = async () => {
+    if (!validatedToolRequestParams || !validatedToolResult) return;
+
+    setExecutionState("executing");
 
     let updatedExecutionState: ExecutionState = executionState;
     let updatedExecutionResult = executionResult;
+    let outputToModel = "";
 
     try {
       const result = await app.callServerTool({
         name: "execute_script",
-        arguments: { script: script, script_type: scriptType, host: host },
+        arguments: { id: validatedToolResult.id },
       });
 
-      if (!!result.isError) {
-        updatedExecutionState = "failed";
-      } else {
-        updatedExecutionState = "success";
-      }
+      const executeScriptResult = ExecuteScriptResultSchema.parse(
+        result.structuredContent,
+      );
 
-      updatedExecutionResult = extractText(result);
+      updatedExecutionResult = executeScriptResult.output;
+      updatedExecutionState = executeScriptResult.state;
+
+      outputToModel = formatOutput(
+        validatedToolRequestParams,
+        validatedToolResult,
+        executeScriptResult,
+      );
     } catch (e) {
-      updatedExecutionState = "failed";
-      updatedExecutionResult = e as string;
-      console.error("callServerTool failed", e);
+      outputToModel = formatOutputForToolError(
+        validatedToolRequestParams,
+        validatedToolResult,
+        JSON.stringify(e),
+      );
+
+      updatedExecutionState = "failure";
+      updatedExecutionResult = JSON.stringify(e);
     }
 
     setExecutionState(updatedExecutionState);
     setExecutionResult(updatedExecutionResult);
 
-    try {
-      await app.sendMessage({
-        role: "user",
-        content: [
-          {
-            type: "text",
-            text: `The script ${script} has been executed. Here is the detail of the execution.\n--------------------------------------------\nExecution status: ${updatedExecutionState}\nExecution result: ${updatedExecutionResult}`,
-          },
-        ],
-      });
-    } catch (e) {
-      console.error(`sendMessage failed: ${e}`);
-    }
-  }, [app, toolRequestParams]);
-
-  const handleReject = () => {
-    setExecutionState("rejected");
+    app.sendMessage({
+      role: "user",
+      content: [
+        {
+          type: "text",
+          text: outputToModel,
+        },
+      ],
+    });
   };
 
-  if (!toolResult || !toolRequestParams) {
+  const handleReject = async () => {
+    if (!validatedToolResult) return;
+
+    setExecutionState("rejected-user");
+    app.callServerTool({
+      name: "reject_script",
+      arguments: { id: validatedToolResult.id },
+    });
+  };
+
+  if (!validatedToolResult || !validatedToolRequestParams) {
     return (
       <div className="flex justify-center items-center min-h-[200px]">
         <div className="flex items-center">
@@ -204,7 +235,7 @@ function RunScriptAppInner({
     );
   }
 
-  switch (toolResult.structuredContent!["status"] as GateKeeperStatus) {
+  switch (validatedToolResult.status) {
     case "OK":
       return (
         <div className="p-2">
@@ -217,15 +248,15 @@ function RunScriptAppInner({
                 </span>
               </p>
               <p>
-                <strong>Script:</strong> {toolRequestParams["script"] as string}
+                <strong>Script:</strong> {validatedToolRequestParams.script}
               </p>
               <p>
                 <strong>Script Type:</strong>{" "}
-                {toolRequestParams["script_type"] as string}
+                {validatedToolRequestParams.scriptType}
               </p>
               <p>
                 <strong>Description:</strong>{" "}
-                {toolRequestParams["description"] as string}
+                {validatedToolRequestParams.description}
               </p>
               {executionResult !== null && (
                 <p>
@@ -236,14 +267,14 @@ function RunScriptAppInner({
             <div className="flex-none">
               <button
                 className="btn-primary"
-                disabled={executionState !== "initialized"}
+                disabled={executionState !== "waiting-approval"}
                 onClick={handleAccept}
               >
                 Allow
               </button>
               <button
                 className="btn-primary"
-                disabled={executionState !== "initialized"}
+                disabled={executionState !== "waiting-approval"}
                 onClick={handleReject}
               >
                 Deny
@@ -257,13 +288,10 @@ function RunScriptAppInner({
         <div className="p-2 whitespace-pre-wrap break-all">
           <p>
             <strong>Gatekeeper State:</strong>{" "}
-            <span className="text-red-500">
-              {toolResult.structuredContent!["status"] as string}
-            </span>
+            <span className="text-red-500">{validatedToolResult.status}</span>
           </p>
           <p>
-            <strong>Detail:</strong>{" "}
-            <span>{toolResult.structuredContent!["detail"] as string}</span>
+            <strong>Detail:</strong> <span>{validatedToolResult.detail}</span>
           </p>
         </div>
       );
