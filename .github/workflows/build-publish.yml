@@ -141,6 +141,15 @@ jobs:
             family: macos
             arch: arm64
 
+          - name: windows-2025
+            family: windows
+            arch: amd64
+
+        exclude:
+          - python-version: "3.14t"
+            image:
+              name: windows-2025
+
     permissions:
       contents: write
 
