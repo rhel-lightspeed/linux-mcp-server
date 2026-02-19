@@ -52,6 +52,7 @@ linux-mcp-server = "linux_mcp_server.__main__:cli"
 dev = [
     "ipdb",
     "ipython",
+    "shiv",
     {include-group = "lint"},
     {include-group = "test"},
 ]
@@ -142,6 +143,7 @@ tag-only = [
     "astral-sh/setup-uv",
     "codecov/codecov-action",
     "pypa/gh-action-pypi-publish",
+    "softprops/action-gh-release",
 ]
 
 [tool.pyright]
