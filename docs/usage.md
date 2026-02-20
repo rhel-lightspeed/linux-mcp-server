@@ -34,17 +34,21 @@ Options may be set using environment variables or command line options. Environm
 
 | Option | Type | Default | Description |
 |--------|------|---------|-------------|
-| `-h, --help` | flag | - | Show help message and exit |
-| `--version` | flag | False | Display version and exit |
+| `-h, --help` | - | - | Show help message and exit |
+| `--version` | - | - | Display version and exit |
 | `--user` | string | (empty) | Default username for SSH connections |
+| `--transport` | string | stdio | Transport type: `stdio`, `http`, or `streamable_http` |
+| `--host` | string | `127.0.0.1` | Host address for HTTP transport |
+| `--port` | integer | 8000 | Port number for HTTP transport |
+| `--path` | string | /mcp | Path for HTTP transport |
 | `--log-dir` | path | `~/.local/share/linux-mcp-server/logs` | Directory for server logs |
 | `--log-level` | string | `INFO` | Log verbosity level |
 | `--log-retention-days` | integer | 10 | Days to retain log files |
-| `--allowed-log-paths` | string | null | Comma-separated paths to allowed log files |
+| `--allowed-log-paths` | string | null | Comma-separated list of allowed log file paths |
 | `--ssh-key-path` | path | null | Path to SSH private key file |
 | `--key-passphrase` | string | (empty) | Passphrase for encrypted SSH key |
-| `--search-for-ssh-key` | flag | False | Auto-discover SSH keys in `~/.ssh` |
-| `--verify-host-keys` | flag | False | Verify remote host identity via known_hosts |
+| `--search-for-ssh-key` | bool | False | Auto-discover SSH keys in `~/.ssh` |
+| `--verify-host-keys` | bool | False | Verify remote host identity via known_hosts |
 | `--known-hosts-path` | path | null | Path to known_hosts file |
 | `--command-timeout` | integer | 30 | SSH command timeout in seconds |
 
@@ -184,6 +188,120 @@ Reads a specific log file (must be in the allowed list).
 **Example use case:** "Show me the last 50 lines of /var/log/messages."
 
 **Security Note:** This tool respects the `LINUX_MCP_ALLOWED_LOG_PATHS` environment variable whitelist.
+
+### Package Management (DNF)
+
+#### `list_dnf_installed_packages`
+Lists installed packages via `dnf`.
+
+**Parameters:**
+- `host` (string, optional): Remote host identifier
+- `limit` (number, optional): Maximum number of output lines to return (default: 500)
+- `offset` (number, optional): Number of output lines to skip (default: 0)
+- `no_limit` (boolean, optional): Disable output truncation (default: false)
+
+**Example use case:** "Show me all installed packages."
+
+#### `list_dnf_available_packages`
+Lists packages available in configured repositories.
+
+**Parameters:**
+- `host` (string, optional): Remote host identifier
+- `limit` (number, optional): Maximum number of output lines to return (default: 500)
+- `offset` (number, optional): Number of output lines to skip (default: 0)
+- `no_limit` (boolean, optional): Disable output truncation (default: false)
+
+**Example use case:** "Which packages are available from enabled repos?"
+
+#### `get_dnf_package_info`
+Returns detailed information for a specific package.
+
+**Parameters:**
+- `package` (string, required): Package name (e.g., "bash", "openssl")
+- `host` (string, optional): Remote host identifier
+
+**Example use case:** "Get details for the bash package."
+
+#### `list_dnf_repositories`
+Lists configured repositories and their status.
+
+**Parameters:**
+- `host` (string, optional): Remote host identifier
+- `limit` (number, optional): Maximum number of output lines to return (default: 500)
+- `offset` (number, optional): Number of output lines to skip (default: 0)
+- `no_limit` (boolean, optional): Disable output truncation (default: false)
+
+**Example use case:** "Show me all configured repositories and whether they are enabled."
+
+#### `dnf_provides`
+Finds packages that provide a file or binary.
+
+**Parameters:**
+- `query` (string, required): File path or binary name (e.g., "/usr/bin/python3", "libssl.so.3")
+- `host` (string, optional): Remote host identifier
+
+**Example use case:** "Which package provides /usr/bin/python3?"
+
+#### `get_dnf_repo_info`
+Shows detailed information for a specific repository.
+
+**Parameters:**
+- `repo_id` (string, required): Repository id (e.g., "baseos", "appstream")
+- `host` (string, optional): Remote host identifier
+
+**Example use case:** "Show details for the baseos repository."
+
+#### `list_dnf_groups`
+Lists available and installed package groups.
+
+**Parameters:**
+- `host` (string, optional): Remote host identifier
+- `limit` (number, optional): Maximum number of output lines to return (default: 500)
+- `offset` (number, optional): Number of output lines to skip (default: 0)
+- `no_limit` (boolean, optional): Disable output truncation (default: false)
+
+**Example use case:** "List all package groups."
+
+#### `get_dnf_group_info`
+Shows details for a specific package group.
+
+**Parameters:**
+- `group` (string, required): Group name (e.g., "Development Tools")
+- `host` (string, optional): Remote host identifier
+
+**Example use case:** "Show details for the Development Tools group."
+
+#### `get_dnf_group_summary`
+Shows a summary of installed and available groups.
+
+**Parameters:**
+- `host` (string, optional): Remote host identifier
+- `limit` (number, optional): Maximum number of output lines to return (default: 500)
+- `offset` (number, optional): Number of output lines to skip (default: 0)
+- `no_limit` (boolean, optional): Disable output truncation (default: false)
+
+**Example use case:** "Summarize installed and available groups."
+
+#### `list_dnf_modules`
+Lists modules (optionally filtered by module name).
+
+**Parameters:**
+- `module` (string, optional): Module name filter (e.g., "nodejs")
+- `host` (string, optional): Remote host identifier
+- `limit` (number, optional): Maximum number of output lines to return (default: 500)
+- `offset` (number, optional): Number of output lines to skip (default: 0)
+- `no_limit` (boolean, optional): Disable output truncation (default: false)
+
+**Example use case:** "List available nodejs module streams."
+
+#### `dnf_module_provides`
+Shows modules that provide a specific package.
+
+**Parameters:**
+- `package` (string, required): Package name (e.g., "python3")
+- `host` (string, optional): Remote host identifier
+
+**Example use case:** "Which module provides python3?"
 
 ### Network Diagnostics
 

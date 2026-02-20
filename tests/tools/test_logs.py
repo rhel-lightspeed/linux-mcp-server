@@ -1,7 +1,5 @@
 """Tests for log tools."""
 
-from contextlib import nullcontext as does_not_raise
-
 import pytest
 
 from fastmcp.exceptions import ToolError
@@ -23,66 +21,64 @@ class TestGetJournalLogs:
     """Tests for get_journal_logs tool."""
 
     @pytest.mark.parametrize(
-        "params,expected_args,expected_content",
+        "params, expected_args, expected_fields",
         [
             # Default parameters
             (
                 {},
                 ["-n", "100", "--no-pager"],
-                ["last 100 entries", "no filters"],
+                {"unit": None},
             ),
             # Unit filter
             (
                 {"unit": "nginx.service"},
                 ["--unit", "nginx.service"],
-                ["unit=nginx.service"],
+                {"unit": "nginx.service"},
             ),
             # Priority filter
             (
                 {"priority": "err"},
                 ["--priority", "err"],
-                ["priority=err"],
+                {"unit": None},
             ),
             # Since filter
             (
                 {"since": "today"},
                 ["--since", "today"],
-                ["since=today"],
+                {"unit": None},
             ),
             # Custom line count
             (
                 {"lines": 50},
                 ["-n", "50"],
-                ["last 50 entries"],
+                {"unit": None},
             ),
             # All filters combined
             (
                 {"unit": "nginx.service", "priority": "err", "since": "today", "lines": 50},
                 ["--unit", "nginx.service", "--priority", "err", "--since", "today", "-n", "50"],
-                ["last 50 entries", "unit=nginx.service", "priority=err", "since=today"],
+                {"unit": "nginx.service"},
             ),
             # Transport filter (audit)
             (
                 {"transport": "audit"},
                 ["_TRANSPORT=audit"],
-                ["audit logs", "last 100 entries"],
+                {"unit": None},
             ),
-            # Transport filter (kernel)
             (
                 {"transport": "kernel"},
                 ["_TRANSPORT=kernel"],
-                ["kernel logs", "last 100 entries"],
+                {"unit": None},
             ),
-            # Transport with other filters
             (
                 {"transport": "audit", "priority": "err", "lines": 50},
                 ["_TRANSPORT=audit", "--priority", "err", "-n", "50"],
-                ["audit logs", "last 50 entries"],
+                {"unit": None},
             ),
         ],
     )
     async def test_get_journal_logs_filters(
-        self, mcp_client, mock_execute_with_fallback, params, expected_args, expected_content
+        self, mcp_client, mock_execute_with_fallback, params, expected_args, expected_fields
     ):
         """Test get_journal_logs with various filter combinations."""
         mock_execute_with_fallback.return_value = (
@@ -92,35 +88,33 @@ class TestGetJournalLogs:
         )
 
         result = await mcp_client.call_tool("get_journal_logs", params)
-        result_text = result.content[0].text.casefold()
-        expected_content.append("test log entry")
+        content = result.structured_content
         cmd_args = mock_execute_with_fallback.call_args.args[0]
 
-        assert all(content in result_text for content in expected_content), "Did not find all expected values"
-        assert mock_execute_with_fallback.call_count == 1
+        assert "Jan 01 12:00:00 host systemd[1]: Test log entry." in content["entries"]
+        assert content["lines_count"] == 1
         assert cmd_args[0] == "journalctl"
-        assert all(arg in cmd_args for arg in expected_args), "Did not find all expected arguments"
+        assert all(content[field] == value for field, value in expected_fields.items())
+        assert all(arg in cmd_args for arg in expected_args)
+        assert mock_execute_with_fallback.call_count == 1
 
     @pytest.mark.parametrize(
-        "returncode,stdout,stderr,expected_error,expectation",
+        "returncode, stdout, stderr, match",
         [
             # Empty output
-            (0, "", "", "no journal entries found", does_not_raise()),
+            (0, "", "", "No journal entries found"),
             # Command error
-            (1, "", "journalctl: failed to access journal", "error reading journal logs", does_not_raise()),
+            (1, "", "Journalctl: failed to access journal", "Error reading journal logs"),
         ],
     )
-    async def test_get_journal_logs_edge_cases(
-        self, mcp_client, mock_execute_with_fallback, returncode, stdout, stderr, expected_error, expectation
+    async def test_get_journal_logs_failure(
+        self, mcp_client, mock_execute_with_fallback, returncode, stdout, stderr, match
     ):
         """Test get_journal_logs error handling and edge cases."""
         mock_execute_with_fallback.return_value = (returncode, stdout, stderr)
 
-        with expectation:
-            result = await mcp_client.call_tool("get_journal_logs", {})
-            result_text = result.content[0].text.casefold()
-
-            assert expected_error in result_text
+        with pytest.raises(ToolError, match=match):
+            await mcp_client.call_tool("get_journal_logs", {})
 
     @pytest.mark.parametrize(
         "side_effect",
@@ -149,18 +143,31 @@ class TestGetJournalLogs:
         """Test get_journal_logs with remote execution."""
         mock_execute_with_fallback.return_value = (
             0,
-            "jan 01 12:00:00 remote systemd[1]: remote log entry.",
+            "Jan 01 12:00:00 remote systemd[1]: remote log entry.",
             "",
         )
 
         result = await mcp_client.call_tool("get_journal_logs", {"host": "remote.server.com"})
-        result_text = result.content[0].text.casefold()
+        content = result.structured_content
 
-        assert "remote log entry" in result_text
+        assert "Jan 01 12:00:00 remote systemd[1]: remote log entry." in content["entries"]
 
-        # Verify host parameter was passed
         call_kwargs = mock_execute_with_fallback.call_args[1]
         assert call_kwargs["host"] == "remote.server.com"
+
+    async def test_get_journal_logs_multiple_entries(self, mcp_client, mock_execute_with_fallback):
+        """Test get_journal_logs returns multiple entries."""
+        mock_execute_with_fallback.return_value = (
+            0,
+            "Jan 01 12:00:00 host sshd[1]: Entry one\nJan 01 12:00:01 host sshd[1]: Entry two\nJan 01 12:00:02 host sshd[1]: Entry three",
+            "",
+        )
+
+        result = await mcp_client.call_tool("get_journal_logs", {})
+        content = result.structured_content
+
+        assert content["lines_count"] == 3
+        assert len(content["entries"]) == 3
 
 
 class TestReadLogFile:
@@ -178,34 +185,34 @@ class TestReadLogFile:
 
         return _setup
 
-    @pytest.mark.parametrize(
-        "lines,expected_line_count",
-        [
-            (100, "100"),  # Default
-            (50, "50"),  # Custom
-        ],
-    )
-    async def test_read_log_file_success(
-        self, mcp_client, mock_execute_with_fallback, setup_log_file, lines, expected_line_count
-    ):
-        """Test read_log_file with various line counts."""
+    async def test_read_log_file_success(self, mcp_client, mock_execute_with_fallback, setup_log_file):
+        """Test read_log_file returns structured data."""
         log_file = setup_log_file()
         mock_execute_with_fallback.return_value = (0, "Test log content\nLine 2", "")
 
-        params = {"log_path": log_file}
-        if lines != 100:
-            params["lines"] = lines
+        result = await mcp_client.call_tool("read_log_file", {"log_path": log_file})
+        content = result.structured_content
 
-        result = await mcp_client.call_tool("read_log_file", params)
-        result_text = result.content[0].text.casefold()
+        assert content["entries"] == ["Test log content", "Line 2"]
+        assert content["lines_count"] == 2
+        assert content["path"] == str(log_file)
 
-        assert f"last {expected_line_count} lines" in result_text
-        assert "test log content" in result_text
-
-        # Verify command arguments
         cmd_args = mock_execute_with_fallback.call_args[0][0]
         assert "-n" in cmd_args
-        assert expected_line_count in cmd_args
+        assert "100" in cmd_args
+
+    async def test_read_log_file_custom_lines(self, mcp_client, mock_execute_with_fallback, setup_log_file):
+        """Test read_log_file with custom line count."""
+        log_file = setup_log_file()
+        mock_execute_with_fallback.return_value = (0, "Test log content\nLine 2", "")
+
+        result = await mcp_client.call_tool("read_log_file", {"log_path": log_file, "lines": 50})
+        content = result.structured_content
+
+        assert content["lines_count"] == 2
+
+        cmd_args = mock_execute_with_fallback.call_args[0][0]
+        assert "50" in cmd_args
 
     async def test_read_log_file_no_allowed_paths(self, mcp_client, mock_allowed_log_paths):
         """Test read_log_file when no allowed paths are configured."""
@@ -215,7 +222,7 @@ class TestReadLogFile:
             await mcp_client.call_tool("read_log_file", {"log_path": "/var/log/test.log"})
 
     @pytest.mark.parametrize(
-        "test_scenario,log_path,match",
+        "test_scenario, log_path, match",
         [
             ("invalid_path", "\x00invalid", "Path contains invalid characters"),
             ("not_allowed", "restricted.log", "not allowed"),
@@ -226,7 +233,6 @@ class TestReadLogFile:
         self, mcp_client, mock_allowed_log_paths, tmp_path, test_scenario, log_path, match
     ):
         """Test read_log_file path validation scenarios."""
-        # Setup allowed path
         allowed_file = tmp_path / "allowed.log"
         allowed_file.write_text("allowed")
         mock_allowed_log_paths(str(allowed_file))
@@ -256,11 +262,9 @@ class TestReadLogFile:
             await mcp_client.call_tool("read_log_file", {"log_path": log_dir})
 
     @pytest.mark.parametrize(
-        "returncode,stderr,match",
+        "returncode, stderr, match",
         [
-            # Permission denied
             (1, "tail: cannot open: Permission denied", "Permission denied"),
-            # general error
             (1, "tail: error reading file", "Error reading log file"),
         ],
     )
@@ -299,14 +303,13 @@ class TestReadLogFile:
         log_file1.write_text("content1")
         log_file2.write_text("content2")
 
-        # Set multiple allowed paths
         mock_allowed_log_paths(f"{log_file1},{log_file2}")
         mock_execute_with_fallback.return_value = (0, "content2", "")
 
         result = await mcp_client.call_tool("read_log_file", {"log_path": log_file2})
-        result_text = result.content[0].text.casefold()
+        content = result.structured_content
 
-        assert "content2" in result_text
+        assert "content2" in content["entries"]
 
     async def test_read_log_file_remote_execution(self, mcp_client, mock_execute_with_fallback, mock_allowed_log_paths):
         """Test read_log_file with remote execution."""
@@ -315,11 +318,11 @@ class TestReadLogFile:
         mock_execute_with_fallback.return_value = (0, "Remote log content\nLine 2", "")
 
         result = await mcp_client.call_tool("read_log_file", {"log_path": log_path, "host": "remote.server.com"})
-        result_text = result.content[0].text.casefold()
+        content = result.structured_content
 
-        assert "remote log content" in result_text
+        assert "Remote log content" in content["entries"]
+        assert content["path"] == log_path
 
-        # Verify host parameter was passed
         call_kwargs = mock_execute_with_fallback.call_args[1]
         assert call_kwargs["host"] == "remote.server.com"
 
@@ -331,11 +334,10 @@ class TestReadLogFile:
         mock_allowed_log_paths(log_path)
         mock_execute_with_fallback.return_value = (0, "Remote content", "")
 
-        # This path doesn't exist locally but should work for remote execution
         result = await mcp_client.call_tool("read_log_file", {"log_path": log_path, "host": "remote.server.com"})
-        result_text = result.content[0].text.casefold()
+        content = result.structured_content
 
-        assert "remote content" in result_text
+        assert "Remote content" in content["entries"]
 
     async def test_read_log_file_remote_not_in_allowed_paths(self, mcp_client, mock_allowed_log_paths, tmp_path):
         """Test that remote execution still checks allowed paths."""

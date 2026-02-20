@@ -1,9 +1,11 @@
 import typing as t
 
 from datetime import datetime
+from pathlib import Path
 
 from pydantic import BaseModel
 from pydantic import Field
+from pydantic import field_serializer
 from pydantic import model_validator
 
 from linux_mcp_server.utils.format import format_bytes
@@ -184,3 +186,15 @@ class NodeEntry(BaseModel):
 class StorageNodes(BaseModel):
     nodes: list[NodeEntry]
     total: int = Field(default_factory=field_length("nodes"))
+
+
+### Log models ###
+class LogEntries(BaseModel):
+    entries: list[str]
+    unit: str = ""
+    path: Path | None = None
+    lines_count: int = Field(default_factory=field_length("entries"))
+
+    @field_serializer("unit", "path")
+    def serialize_empty_as_null(self, value: str | Path | None) -> str | Path | None:
+        return value or None

@@ -4,8 +4,6 @@ This module provides functions to format parsed data into
 human-readable strings for tool output.
 """
 
-from pathlib import Path
-
 from linux_mcp_server.models import ListeningPort
 from linux_mcp_server.models import NetworkConnection
 from linux_mcp_server.models import NetworkInterface
@@ -218,60 +216,6 @@ def format_service_logs(stdout: str, service_name: str, lines_count: int) -> str
         Formatted string representation.
     """
     lines = [f"=== Last {lines_count} log entries for {service_name} ===\n"]
-    lines.append(stdout)
-    return "\n".join(lines)
-
-
-def format_journal_logs(
-    stdout: str,
-    lines_count: int,
-    unit: str | None = None,
-    priority: str | None = None,
-    since: str | None = None,
-    transport: str | None = None,
-) -> str:
-    """Format journal logs output.
-
-    Args:
-        stdout: Raw output from journalctl.
-        lines_count: Number of log lines.
-        unit: Optional unit filter.
-        priority: Optional priority filter.
-        since: Optional time filter.
-        transport: Optional transport filter (e.g., 'audit', 'kernel').
-
-    Returns:
-        Formatted string representation.
-    """
-    filters = []
-    if unit:
-        filters.append(f"unit={unit}")
-    if priority:
-        filters.append(f"priority={priority}")
-    if since:
-        filters.append(f"since={since}")
-
-    log_type = f"{transport.title()} Logs" if transport else "Journal Logs"
-    filter_str = f", {', '.join(filters)}" if filters else (", no filters" if not transport else "")
-    header = f"=== {log_type} (last {lines_count} entries{filter_str}) ===\n"
-
-    lines = [header]
-    lines.append(stdout)
-    return "\n".join(lines)
-
-
-def format_log_file(stdout: str, log_path: Path, lines_count: int) -> str:
-    """Format log file output.
-
-    Args:
-        stdout: Raw content from log file.
-        log_path: Path to the log file.
-        lines_count: Number of lines read.
-
-    Returns:
-        Formatted string representation.
-    """
-    lines = [f"=== Log File: {log_path} (last {lines_count} lines) ===\n"]
     lines.append(stdout)
     return "\n".join(lines)
 

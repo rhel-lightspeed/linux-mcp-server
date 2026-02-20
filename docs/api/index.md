@@ -21,6 +21,7 @@ MCP tools organized by category:
 - **[Logs](tools/logs.md)** - Journal, audit, and log file access
 - **[Network](tools/network.md)** - Network interfaces, connections, ports, routes
 - **[Storage](tools/storage.md)** - Block devices, directory and file listing
+- **[DNF](tools/dnf.md)** - Package and repository information
 
 ### Utilities
 

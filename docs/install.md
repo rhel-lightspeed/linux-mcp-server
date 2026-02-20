@@ -89,7 +89,23 @@ A container runtime such as [Podman](https://podman-desktop.io) is required.
 quay.io/redhat-services-prod/rhel-lightspeed-tenant/linux-mcp-server:latest
 ```
 
-See [client configuration](clients.md) for examples of how to run the container.
+See [client configuration](clients.md) for examples of how to run the container using stdio transport.
+
+When using an HTTP transport, `http` or `streamable-http`, the container must be started before launching the LLM client.
+
+```bash
+podman run --rm --interactive \
+  --userns "keep-id:uid=1001,gid=0"
+  --port 8000:8000 \
+  -e LINUX_MCP_KEY_PASSPHRASE  # Only needed if the SSH key is protected by a passphrase
+  -e LINUX_MCP_TRANSPORT=streamable-http \
+  -e LINUX_MCP_HOST=0.0.0.0 \  # bind to all interfaces inside the container
+  -v /home/YOUR_USER/.ssh/id_ed25519:/var/lib/mcp/.ssh/id_ed25519:ro \
+  -v /home/YOUR_USER/.ssh/config:/var/lib/mcp/.ssh/config:ro,Z \
+  -v /home/YOUR_USER/.local/share/linux-mcp-server/logs:/var/lib/mcp/.local/share/linux-mcp-server/logs:rw \
+  quay.io/redhat-services-prod/rhel-lightspeed-tenant/linux-mcp-server:latest
+
+```
 
 #### Container Setup for SSH Keys
 
@@ -237,6 +253,17 @@ sudo pacman -S python python-pip
 
 #### Installing Python
 
+Installing Python is not needed if you are using uv (recommended) -
+it will automatically install Python versions as needed.
+
+To check your installed version of Python:
+
+```bash
+python3 --version
+```
+
+linux-mcp-server requires Python 3.10 or newer.
+
 === "Official Python Installer (Recommended)"
 
     Download from [python.org/downloads/macos](https://www.python.org/downloads/macos/) and run the installer.
@@ -256,13 +283,7 @@ sudo pacman -S python python-pip
 
 #### Installing linux-mcp-server
 
-=== "pip"
-
-    ```bash
-    pip3 install --user linux-mcp-server
-    ```
-
-=== "uv"
+=== "uv (Recommended)"
 
     Install [uv](https://docs.astral.sh/uv/#installation).
 
@@ -270,6 +291,12 @@ sudo pacman -S python python-pip
 
     ```bash
     uv tool install linux-mcp-server
+    ```
+
+=== "pip"
+
+    ```bash
+    pip3 install --user linux-mcp-server
     ```
 
 ??? failure "Command not found after installation?"
@@ -285,6 +312,13 @@ sudo pacman -S python python-pip
     ```bash
     uv tool update-shell
     ```
+
+??? failure "No matching distribution found for linux-mcp-server"
+
+    If pip3 claims to be unable to find linux-mcp-server,
+    that probably means you have a too-old version
+    of Python. Check your python version
+    with `python3 --version` - it should be 3.10 or newer.
 
 #### SSH Setup on macOS
 
