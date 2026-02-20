@@ -34,7 +34,7 @@ jobs:
           python-version-file: pyproject.toml
 
       - name: Install uv
-        uses: astral-sh/setup-uv@v7.2.1
+        uses: astral-sh/setup-uv@v7.3.0
         with:
           enable-cache: true
           prune-cache: false

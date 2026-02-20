@@ -19,6 +19,7 @@ wheels/
 *.egg-info/
 .installed.cfg
 *.egg
+*.pyz
 
 # Vendored packages
 src/linux_mcp_server/_vendor/*

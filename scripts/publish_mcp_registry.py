@@ -95,7 +95,7 @@ def main():
     system, arch = get_platform_info()
     download_url = f"https://github.com/modelcontextprotocol/registry/releases/download/{mcp_publisher_version}/mcp-publisher_{system}_{arch}.tar.gz"
 
-    publisher_path = Path("./mcp-publisher")
+    publisher_path = Path("mcp-publisher").absolute()
     download_publisher(download_url, publisher_path)
 
     update_server_json(version)
