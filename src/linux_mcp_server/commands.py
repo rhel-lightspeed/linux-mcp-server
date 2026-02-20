@@ -233,6 +233,62 @@ COMMANDS: Mapping[str, CommandGroup] = MappingProxyType(
                 "default": CommandSpec(args=("cat", "{path}")),
             }
         ),
+        # === Packages (dnf) ===
+        "dnf_list_installed": CommandGroup(
+            commands={
+                "default": CommandSpec(args=("dnf", "list", "installed")),
+            }
+        ),
+        "dnf_list_available": CommandGroup(
+            commands={
+                "default": CommandSpec(args=("dnf", "list", "available")),
+            }
+        ),
+        "dnf_package_info": CommandGroup(
+            commands={
+                "default": CommandSpec(args=("dnf", "info", "{package}")),
+            }
+        ),
+        "dnf_repolist": CommandGroup(
+            commands={
+                "default": CommandSpec(args=("dnf", "repolist", "--all")),
+            }
+        ),
+        "dnf_provides": CommandGroup(
+            commands={
+                "default": CommandSpec(args=("dnf", "provides", "{query}")),
+            }
+        ),
+        "dnf_repo_info": CommandGroup(
+            commands={
+                "default": CommandSpec(args=("dnf", "repoinfo", "{repo_id}")),
+            }
+        ),
+        "dnf_group_list": CommandGroup(
+            commands={
+                "default": CommandSpec(args=("dnf", "group", "list")),
+            }
+        ),
+        "dnf_group_info": CommandGroup(
+            commands={
+                "default": CommandSpec(args=("dnf", "group", "info", "{group}")),
+            }
+        ),
+        "dnf_group_summary": CommandGroup(
+            commands={
+                "default": CommandSpec(args=("dnf", "group", "summary")),
+            }
+        ),
+        "dnf_module_list": CommandGroup(
+            commands={
+                "default": CommandSpec(args=("dnf", "module", "list"), optional_flags={"module": ("{module}",)}),
+            }
+        ),
+        "dnf_module_provides": CommandGroup(
+            commands={
+                "default": CommandSpec(args=("dnf", "module", "provides", "{package}")),
+            }
+        ),
         # === System Info ===
         "system_info": CommandGroup(
             commands={
