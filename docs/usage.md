@@ -189,6 +189,120 @@ Reads a specific log file (must be in the allowed list).
 
 **Security Note:** This tool respects the `LINUX_MCP_ALLOWED_LOG_PATHS` environment variable whitelist.
 
+### Package Management (DNF)
+
+#### `list_dnf_installed_packages`
+Lists installed packages via `dnf`.
+
+**Parameters:**
+- `host` (string, optional): Remote host identifier
+- `limit` (number, optional): Maximum number of output lines to return (default: 500)
+- `offset` (number, optional): Number of output lines to skip (default: 0)
+- `no_limit` (boolean, optional): Disable output truncation (default: false)
+
+**Example use case:** "Show me all installed packages."
+
+#### `list_dnf_available_packages`
+Lists packages available in configured repositories.
+
+**Parameters:**
+- `host` (string, optional): Remote host identifier
+- `limit` (number, optional): Maximum number of output lines to return (default: 500)
+- `offset` (number, optional): Number of output lines to skip (default: 0)
+- `no_limit` (boolean, optional): Disable output truncation (default: false)
+
+**Example use case:** "Which packages are available from enabled repos?"
+
+#### `get_dnf_package_info`
+Returns detailed information for a specific package.
+
+**Parameters:**
+- `package` (string, required): Package name (e.g., "bash", "openssl")
+- `host` (string, optional): Remote host identifier
+
+**Example use case:** "Get details for the bash package."
+
+#### `list_dnf_repositories`
+Lists configured repositories and their status.
+
+**Parameters:**
+- `host` (string, optional): Remote host identifier
+- `limit` (number, optional): Maximum number of output lines to return (default: 500)
+- `offset` (number, optional): Number of output lines to skip (default: 0)
+- `no_limit` (boolean, optional): Disable output truncation (default: false)
+
+**Example use case:** "Show me all configured repositories and whether they are enabled."
+
+#### `dnf_provides`
+Finds packages that provide a file or binary.
+
+**Parameters:**
+- `query` (string, required): File path or binary name (e.g., "/usr/bin/python3", "libssl.so.3")
+- `host` (string, optional): Remote host identifier
+
+**Example use case:** "Which package provides /usr/bin/python3?"
+
+#### `get_dnf_repo_info`
+Shows detailed information for a specific repository.
+
+**Parameters:**
+- `repo_id` (string, required): Repository id (e.g., "baseos", "appstream")
+- `host` (string, optional): Remote host identifier
+
+**Example use case:** "Show details for the baseos repository."
+
+#### `list_dnf_groups`
+Lists available and installed package groups.
+
+**Parameters:**
+- `host` (string, optional): Remote host identifier
+- `limit` (number, optional): Maximum number of output lines to return (default: 500)
+- `offset` (number, optional): Number of output lines to skip (default: 0)
+- `no_limit` (boolean, optional): Disable output truncation (default: false)
+
+**Example use case:** "List all package groups."
+
+#### `get_dnf_group_info`
+Shows details for a specific package group.
+
+**Parameters:**
+- `group` (string, required): Group name (e.g., "Development Tools")
+- `host` (string, optional): Remote host identifier
+
+**Example use case:** "Show details for the Development Tools group."
+
+#### `get_dnf_group_summary`
+Shows a summary of installed and available groups.
+
+**Parameters:**
+- `host` (string, optional): Remote host identifier
+- `limit` (number, optional): Maximum number of output lines to return (default: 500)
+- `offset` (number, optional): Number of output lines to skip (default: 0)
+- `no_limit` (boolean, optional): Disable output truncation (default: false)
+
+**Example use case:** "Summarize installed and available groups."
+
+#### `list_dnf_modules`
+Lists modules (optionally filtered by module name).
+
+**Parameters:**
+- `module` (string, optional): Module name filter (e.g., "nodejs")
+- `host` (string, optional): Remote host identifier
+- `limit` (number, optional): Maximum number of output lines to return (default: 500)
+- `offset` (number, optional): Number of output lines to skip (default: 0)
+- `no_limit` (boolean, optional): Disable output truncation (default: false)
+
+**Example use case:** "List available nodejs module streams."
+
+#### `dnf_module_provides`
+Shows modules that provide a specific package.
+
+**Parameters:**
+- `package` (string, required): Package name (e.g., "python3")
+- `host` (string, optional): Remote host identifier
+
+**Example use case:** "Which module provides python3?"
+
 ### Network Diagnostics
 
 #### `get_network_interfaces`
@@ -211,6 +325,15 @@ Returns ports that are listening on the system.
 **Parameters:** None
 
 **Example use case:** "What services are listening on network ports?"
+
+#### `get_ip_route_table`
+Returns IPv4/IPv6 routing table entries using `ip route`.
+
+**Parameters:**
+- `family` (string, optional): `ipv4`, `ipv6`, or `all` (default: `ipv4`)
+- `host` (string, optional): Remote host identifier
+
+**Example use case:** "Show me the IPv4 routing table."
 
 ### Storage & Disk Analysis
 
@@ -266,6 +389,7 @@ See [Client Configuration](clients.md) for environment variables and AI agent in
 1. "Show me all network interfaces and their status" → `get_network_interfaces`
 2. "What ports are listening on this system?" → `get_listening_ports`
 3. "Show me active network connections" → `get_network_connections`
+4. "Show me the routing table" → `get_ip_route_table`
 
 ### Disk Space Problems
 1. "Show me disk usage for all filesystems" → `get_disk_usage`
@@ -318,4 +442,3 @@ See the [Troubleshooting Guide](troubleshooting.md) for detailed solutions, debu
 4. **Security First**: Only whitelist log files that are necessary for diagnostics.
 
 5. **Regular Updates**: Keep the MCP server and its dependencies updated for security and compatibility.
-
