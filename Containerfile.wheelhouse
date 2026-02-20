@@ -1,0 +1,38 @@
+ARG APP_VERSION=0.0.0
+
+ARG BASE_IMAGE=python:3.12-slim
+# ARG BASE_IMAGE=python:3.12-alpine
+
+ARG PIP_OPTS="--prefer-binary"
+ARG UV_OPTS="--no-dev --no-editable --frozen --no-install-project"
+ARG PIP_EXTRA_OPTS=""
+ARG UV_EXTRA_OPTS=""
+ARG UV_EXTRA_OPTS="--allow-insecure-host pypi.org --allow-insecure-host files.pythonhosted.org"
+ARG PIP_EXTRA_OPTS="--trusted-host pypi.org --trusted-host files.pythonhosted.org"
+
+FROM ${BASE_IMAGE} as builder
+ARG APP_VERSION
+ARG PIP_OPTS
+ARG PIP_EXTRA_OPTS
+ARG UV_OPTS
+ARG UV_EXTRA_OPTS
+
+ENV SETUPTOOLS_SCM_PRETEND_VERSION=${APP_VERSION}
+
+RUN --mount=type=cache,id=linux-mcp-server-wheelhouse-pip,target=/root/.cache/pip\
+    pip install ${PIP_OPTS} ${PIP_EXTRA_OPTS} uv build hatchling hatch-vcs
+WORKDIR /src
+COPY pyproject.toml uv.lock README.md /src/
+RUN uv export ${UV_OPTS} ${UV_EXTRA_OPTS} -o requirements.lock.txt
+RUN --mount=type=cache,id=linux-mcp-server-wheelhouse-pip,target=/root/.cache/pip\
+    mkdir -p /wheelhouse && \
+    pip wheel ${PIP_OPTS} ${PIP_EXTRA_OPTS} \
+      --wheel-dir /wheelhouse \
+      -r requirements.lock.txt
+COPY src/ /src/src/
+RUN test -d /src/src/linux_mcp_server
+RUN --mount=type=cache,id=linux-mcp-server-wheelhouse-pip,target=/root/.cache/pip\
+    python -m build --wheel --outdir /wheelhouse --no-isolation
+
+FROM scratch AS wheelhouse
+COPY --from=builder --chmod=444 /wheelhouse /
