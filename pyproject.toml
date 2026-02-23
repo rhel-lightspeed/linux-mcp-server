@@ -10,6 +10,10 @@ authors = [
 ]
 readme = "README.md"
 requires-python = ">=3.10"
+# Be careful about specifying an upper bound (with < or =~) because
+# with our renovate strategy of in-range-only, we won't be notified
+# about updates to incompatible versions, even if the old version is
+# no longer getting security fixes.
 dependencies = [
     "asyncssh[bcrypt] >= 2.22.0",
     "fastmcp >=2.14.4, <3",
