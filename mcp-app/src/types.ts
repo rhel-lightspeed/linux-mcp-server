@@ -1,9 +1,15 @@
 import { z } from "zod";
 
+const scriptType = ["bash", "python"] as const;
+
+const scriptTypeSchema = z.enum(scriptType);
+
+export type ScriptType = z.infer<typeof scriptTypeSchema>;
+
 export const McpAppToolParamsSchema = z
   .object({
     script: z.string(),
-    script_type: z.enum(["bash", "python"]),
+    script_type: scriptTypeSchema,
     description: z.string(),
     host: z.string().optional().nullable(),
   })
@@ -51,6 +57,15 @@ const executionState = [
 
 const ExecutionStateSchema = z.enum(executionState);
 
+/**
+ * - initial - Initial state before any action
+ * - waiting-approval - Waiting for user to approve/deny
+ * - executing - Script is currently running
+ * - success - Script executed successfully
+ * - failure - Script execution failed
+ * - rejected-user - User denied execution
+ * - rejected-gatekeeper - Automatically rejected by gatekeeper
+ */
 export type ExecutionState = z.infer<typeof ExecutionStateSchema>;
 
 export const GetExecutionStateResultSchema = z.object({

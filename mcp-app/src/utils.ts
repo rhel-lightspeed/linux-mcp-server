@@ -2,6 +2,7 @@ import type {
   McpAppToolParams,
   ExecuteScriptResult,
   McpAppToolResult,
+  ExecutionState,
 } from "./types";
 
 import type { CallToolResult } from "@modelcontextprotocol/sdk/types.js";
@@ -49,4 +50,22 @@ export const formatOutputForToolError = (
 export function extractText(callToolResult: CallToolResult): string {
   const { text } = callToolResult.content?.find((c) => c.type === "text")!;
   return text;
+}
+
+export function formatExecutionState(executionState: ExecutionState): string {
+  switch (executionState) {
+    case "waiting-approval":
+      return "Waiting Approval";
+    case "success":
+    case "failure":
+      return "Executed";
+    case "rejected-gatekeeper":
+      return "Gatekeeper Rejected";
+    case "rejected-user":
+      return "User Rejected";
+    case "executing":
+      return "Executing";
+    case "initial":
+      return "Initial";
+  }
 }

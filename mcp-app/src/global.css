@@ -2,15 +2,39 @@
 
 @layer components {
   .btn-primary {
-    @apply p-2 m-2 rounded-md transition-all duration-200 min-w-24 h-12;
+    @apply px-2 m-2 rounded-md transition-all duration-200 min-w-24 h-10;
     @apply bg-blue-600 hover:bg-blue-700 text-white;
     @apply disabled:bg-gray-400 disabled:opacity-60 disabled:cursor-not-allowed;
   }
 
   .btn-secondary {
-    @apply p-2 m-2 rounded-md transition-all duration-200 min-w-24 h-12;
+    @apply px-2 m-2 rounded-md transition-all duration-200 min-w-24 h-10;
     @apply bg-gray-600 hover:bg-gray-700 text-white;
     @apply disabled:bg-gray-400 disabled:opacity-60 disabled:cursor-not-allowed;
+  }
+
+  .description-box {
+    @apply bg-pink-100 border border-pink-200 rounded-lg p-4 mb-4 text-black;
+  }
+
+  .code-block {
+    @apply bg-black text-white rounded-lg p-4 font-mono text-sm relative;
+  }
+
+  .code-block .language-label {
+    @apply absolute top-2 right-2 text-gray-400 text-xs;
+  }
+
+  .status-allowed {
+    @apply text-green-500 text-right font-medium bg-transparent antialiased;
+  }
+
+  .status-rejected {
+    @apply text-red-500 font-medium bg-transparent antialiased;
+  }
+
+  .toggle-show-link {
+    @apply text-blue-600 hover:text-blue-800 underline cursor-pointer text-sm;
   }
 }
 

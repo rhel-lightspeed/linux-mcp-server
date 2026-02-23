@@ -15,7 +15,14 @@ import {
   McpAppToolResultSchema,
   type ExecutionState,
 } from "./types";
-import { extractText, formatOutput, formatOutputForToolError } from "./utils";
+import {
+  extractText,
+  formatExecutionState,
+  formatOutput,
+  formatOutputForToolError,
+} from "./utils";
+import { ScriptRenderer } from "./components/ScriptRenderer";
+import { ScriptAction } from "./components/ScriptAction";
 
 const IMPLEMENTATION = { name: "Run Script App", version: "1.0.0" };
 
@@ -102,21 +109,6 @@ interface RunScriptAppInnerProps {
   toolRequestParams: Record<string, unknown> | undefined;
   toolResult: CallToolResult | undefined;
 }
-
-// TODO: This function would be deleted in the following UI rework PR
-const pickStateColor = (state: ExecutionState): string => {
-  switch (state) {
-    case "initial":
-    case "waiting-approval":
-      return "text-white";
-    case "executing":
-      return "text-yellow-500";
-    case "success":
-      return "text-green-500";
-    default:
-      return "text-red-500";
-  }
-};
 
 function RunScriptAppInner({
   app,
@@ -264,67 +256,41 @@ function RunScriptAppInner({
     );
   }
 
-  switch (validatedToolResult.status) {
-    case "OK":
-      return (
-        <div className="p-2">
-          <div className="flex">
-            <div className="flex-1 whitespace-pre-wrap break-all">
-              <p>
-                <strong>Execution State:</strong>{" "}
-                <span className={pickStateColor(executionState)}>
-                  {executionState}
-                </span>
-              </p>
-              <p>
-                <strong>Script:</strong> {validatedToolRequestParams.script}
-              </p>
-              <p>
-                <strong>Script Type:</strong>{" "}
-                {validatedToolRequestParams.scriptType}
-              </p>
-              <p>
-                <strong>Description:</strong>{" "}
-                {validatedToolRequestParams.description}
-              </p>
-              {executionResult !== null && (
-                <p>
-                  <strong>Result:</strong> {executionResult}
-                </p>
-              )}
-            </div>
-            <div className="flex-none">
-              <button
-                className="btn-primary"
-                disabled={executionState !== "waiting-approval"}
-                onClick={handleAccept}
-              >
-                Allow
-              </button>
-              <button
-                className="btn-primary"
-                disabled={executionState !== "waiting-approval"}
-                onClick={handleReject}
-              >
-                Deny
-              </button>
-            </div>
-          </div>
-        </div>
-      );
-    default:
-      return (
-        <div className="p-2 whitespace-pre-wrap break-all">
-          <p>
-            <strong>Gatekeeper State:</strong>{" "}
-            <span className="text-red-500">{validatedToolResult.status}</span>
-          </p>
-          <p>
-            <strong>Detail:</strong> <span>{validatedToolResult.detail}</span>
+  return (
+    <div className="p-2">
+      <div className="p-4 border rounded-2xl mb-2">
+        <div className="mb-4">
+          {/* TODO: we can dynamically inject the platform that users are using here */}
+          <p className="text-base">
+            Goose wants to perform the following action on{" "}
+            <strong>{validatedToolRequestParams.host || "localhost"}</strong>
           </p>
         </div>
-      );
-  }
+
+        <div className="description-box">
+          {validatedToolRequestParams.description}
+        </div>
+
+        <ScriptRenderer
+          script={validatedToolRequestParams.script}
+          scriptType={validatedToolRequestParams.scriptType}
+        />
+
+        <div className="flex justify-end gap-2">
+          <ScriptAction
+            executionState={executionState}
+            mcpAppToolResult={validatedToolResult}
+            handleAccept={handleAccept}
+            handleReject={handleReject}
+          />
+        </div>
+      </div>
+
+      <div className="border rounded-md w-fit px-2 text-sm">
+        {formatExecutionState(executionState)}
+      </div>
+    </div>
+  );
 }
 
 createRoot(document.getElementById("root")!).render(
