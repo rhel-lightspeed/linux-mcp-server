@@ -354,7 +354,6 @@ async def execute_command(
     Raises:
         ValueError: If host is provided without username
         ConnectionError: If remote connection fails
-        ToolError: If the command is missing
 
     Examples:
         # Local execution

@@ -11,10 +11,11 @@ from pydantic import Field
 from pydantic.functional_validators import BeforeValidator
 
 from linux_mcp_server.audit import log_tool_call
+from linux_mcp_server.commands import CommandSpec
 from linux_mcp_server.commands import get_command
-from linux_mcp_server.formatters import format_block_devices
-from linux_mcp_server.formatters import format_directory_listing
-from linux_mcp_server.formatters import format_file_listing
+from linux_mcp_server.models import BlockDevices
+from linux_mcp_server.models import NodeEntry
+from linux_mcp_server.models import StorageNodes
 from linux_mcp_server.parsers import parse_directory_listing
 from linux_mcp_server.parsers import parse_file_listing
 from linux_mcp_server.server import mcp
@@ -36,17 +37,41 @@ class SortBy(StrEnum):
     DESCENDING = "descending"
 
 
-DIRECTORY_COMMANDS: dict[OrderBy, str] = {
-    OrderBy.SIZE: "list_directories_size",
-    OrderBy.NAME: "list_directories_name",
-    OrderBy.MODIFIED: "list_directories_modified",
-}
+def attr_sorter(order_by: OrderBy):
+    """Sort based on the given attribute in a case-insensitive manner"""
 
-FILE_COMMANDS: dict[OrderBy, str] = {
-    OrderBy.SIZE: "list_files_size",
-    OrderBy.NAME: "list_files_name",
-    OrderBy.MODIFIED: "list_files_modified",
-}
+    def _attr_sorter(obj):
+        try:
+            return getattr(obj, order_by).casefold()
+        except AttributeError:
+            return getattr(obj, order_by)
+
+    return _attr_sorter
+
+
+async def _list_resources(
+    path: Path,
+    command: CommandSpec,
+    order_by: OrderBy,
+    sort: SortBy,
+    top_n: int | None,
+    host: Host | None,
+    parser: t.Callable[[str, OrderBy], list[NodeEntry]],
+):
+    returncode, stdout, stderr = await command.run(host=host, path=path)
+
+    # The du command will exit with code 1 even if it gets some valid results.
+    # Only error in the case where we got non-zero exit code and no data in stdout.
+    if returncode != 0 and not stdout:
+        raise ToolError(f"Error running command: command failed with return code {returncode}: {stderr}")
+
+    entries = parser(stdout, order_by)
+
+    reverse = sort == SortBy.DESCENDING
+    entries = sorted(entries, key=attr_sorter(order_by), reverse=reverse)
+    entries = entries[:top_n]
+
+    return StorageNodes(nodes=entries)
 
 
 @mcp.tool(
@@ -59,7 +84,7 @@ FILE_COMMANDS: dict[OrderBy, str] = {
 @disallow_local_execution_in_containers
 async def list_block_devices(
     host: Host = None,
-) -> str:
+) -> BlockDevices:
     """List block devices.
 
     Retrieves all block devices (disks, partitions, LVM volumes) with their
@@ -71,7 +96,7 @@ async def list_block_devices(
     if not is_successful_output(returncode, stdout):
         raise ToolError(f"Unable to list block devices. lsblk command may not be available. {returncode}: {stderr}")
 
-    return format_block_devices(stdout)
+    return BlockDevices.model_validate_json(stdout)
 
 
 @mcp.tool(
@@ -96,45 +121,27 @@ async def list_directories(
     top_n: t.Annotated[
         int | None,
         Field(
-            description="Optional limit on number of directories to return (1-1000, only used with size ordering)",
+            description="Optional limit on number of directories to return (1-1000)",
             gt=0,
             le=1_000,
         ),
     ] = None,
     host: Host = None,
-) -> str:
+) -> StorageNodes:
     """List directories under a specified path.
 
     Retrieves subdirectories with their size (when ordered by size) or
     modification time, supporting flexible sorting and result limiting.
     """
-    # Get the appropriate command for the order_by field
-    cmd_name = DIRECTORY_COMMANDS[order_by]
-    cmd = get_command(cmd_name)
-
-    returncode, stdout, stderr = await cmd.run(host=host, path=path)
-
-    # The du command will exit with code 1 even if it gets some valid results.
-    # Only error in the case where we got non-zero exit code and no data in stdout.
-    if returncode != 0 and not stdout:
-        raise ToolError(f"Error running command: command failed with return code {returncode}: {stderr}")
-
-    # Parse the output
-    entries = parse_directory_listing(stdout, order_by)
-
-    # Apply top_n limit if specified
-    if top_n:
-        # Sort first if we need to limit
-        if order_by == OrderBy.SIZE:
-            entries = sorted(entries, key=lambda e: e.size, reverse=sort == SortBy.DESCENDING)
-        elif order_by == OrderBy.MODIFIED:
-            entries = sorted(entries, key=lambda e: e.modified, reverse=sort == SortBy.DESCENDING)
-        else:
-            entries = sorted(entries, key=lambda e: e.name.lower(), reverse=sort == SortBy.DESCENDING)
-        entries = entries[:top_n]
-
-    # Format the output
-    return format_directory_listing(entries, path, order_by, reverse=sort == SortBy.DESCENDING)
+    return await _list_resources(
+        path=path,
+        command=get_command(f"list_directories_{order_by}"),
+        order_by=order_by,
+        sort=sort,
+        top_n=top_n,
+        host=host,
+        parser=parse_directory_listing,
+    )
 
 
 @mcp.tool(
@@ -165,37 +172,21 @@ async def list_files(
         ),
     ] = None,
     host: Host = None,
-) -> str:
+) -> StorageNodes:
     """List files under a specified path.
 
     Retrieves files with their size or modification time, supporting flexible
     sorting and result limiting. Useful for finding large or recently modified files.
     """
-    # Get the appropriate command for the order_by field
-    cmd_name = FILE_COMMANDS[order_by]
-    cmd = get_command(cmd_name)
-
-    returncode, stdout, stderr = await cmd.run(host=host, path=path)
-
-    if returncode != 0:
-        raise ToolError(f"Error running command: command failed with return code {returncode}: {stderr}")
-
-    # Parse the output
-    entries = parse_file_listing(stdout, order_by)
-
-    # Apply top_n limit if specified
-    if top_n:
-        # Sort first if we need to limit
-        if order_by == OrderBy.SIZE:
-            entries = sorted(entries, key=lambda e: e.size, reverse=sort == SortBy.DESCENDING)
-        elif order_by == OrderBy.MODIFIED:
-            entries = sorted(entries, key=lambda e: e.modified, reverse=sort == SortBy.DESCENDING)
-        else:
-            entries = sorted(entries, key=lambda e: e.name.lower(), reverse=sort == SortBy.DESCENDING)
-        entries = entries[:top_n]
-
-    # Format the output
-    return format_file_listing(entries, path, order_by, reverse=sort == SortBy.DESCENDING)
+    return await _list_resources(
+        path=path,
+        command=get_command(f"list_files_{order_by}"),
+        order_by=order_by,
+        sort=sort,
+        top_n=top_n,
+        host=host,
+        parser=parse_file_listing,
+    )
 
 
 @mcp.tool(

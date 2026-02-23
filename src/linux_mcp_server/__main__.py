@@ -4,12 +4,18 @@ import logging
 import sys
 
 from linux_mcp_server import __version__
+from linux_mcp_server.config import CONFIG
 from linux_mcp_server.logging_config import setup_logging
 from linux_mcp_server.server import main
 
 
 def cli():
     """Console script entry point for the Linux MCP Server."""
+
+    if CONFIG.version:
+        print(__version__)  # noqa: T201
+        sys.exit(0)
+
     setup_logging()
 
     logger = logging.getLogger("linux-mcp-server")

@@ -8,12 +8,6 @@ import pytest
 from fastmcp.exceptions import ToolError
 
 
-@pytest.fixture
-def mock_execute_with_fallback(mock_execute_with_fallback_for):
-    """Processes-specific execute_with_fallback mock using the shared factory."""
-    return mock_execute_with_fallback_for("linux_mcp_server.commands")
-
-
 @pytest.mark.skipif(sys.platform != "linux", reason="requires Linux ps command")
 class TestProcesses:
     async def test_list_processes(self, mcp_client):

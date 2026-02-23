@@ -22,6 +22,8 @@ from linux_mcp_server.config import Toolset
 from linux_mcp_server.mcp_app import ALLOWED_UI_RESOURCE_URIS
 from linux_mcp_server.mcp_app import MCP_APP_MIME_TYPE
 
+from linux_mcp_server.config import CONFIG
+
 
 logger = logging.getLogger("linux-mcp-server")
 
@@ -225,4 +227,4 @@ class DynamicDiscoveryMiddleware(Middleware):
 
 def main():
     mcp.add_middleware(DynamicDiscoveryMiddleware())
-    mcp.run(show_banner=False)
+    mcp.run(show_banner=False, transport=CONFIG.transport.value, **CONFIG.transport_kwargs)
