@@ -21,8 +21,7 @@ from linux_mcp_server.config import CONFIG
 from linux_mcp_server.config import Toolset
 from linux_mcp_server.mcp_app import ALLOWED_UI_RESOURCE_URIS
 from linux_mcp_server.mcp_app import MCP_APP_MIME_TYPE
-
-from linux_mcp_server.config import CONFIG
+from linux_mcp_server.mcp_app import MCP_UI_EXTENSION
 
 
 logger = logging.getLogger("linux-mcp-server")
@@ -197,22 +196,16 @@ _low_level_server.request_handlers[ReadResourceRequest] = _read_resource_with_me
 from linux_mcp_server.tools import *  # noqa: E402, F403
 
 
-# TODO: Dynamically inject the 'modify' tool based on user compatibility.
-#
-# This is a temporary implementation. The injection logic should be moved to the
-# `on_initialize` handler in `DynamicDiscoveryMiddleware` once Goose starts
-# providing `mcp-app` compatibility during the initialize request.
-if CONFIG.use_mcp_apps:
-    mcp.add_tool(run_script_modify_interactive)
-    mcp.add_tool(get_execution_state)
-    mcp.add_tool(execute_script)
-    mcp.add_tool(reject_script)
+# With mcp-app feature
+mcp.add_tool(run_script_modify_interactive)
+mcp.add_tool(get_execution_state)
+mcp.add_tool(execute_script)
+mcp.add_tool(reject_script)
 
-else:
-    mcp.add_tool(run_script_modify)
+# Without mcp-app feature
+mcp.add_tool(run_script_modify)
 
 
-# This middleware can be used to dynamically inject tools based on client side compatibility
 class DynamicDiscoveryMiddleware(Middleware):
     async def on_list_tools(self, context: MiddlewareContext, call_next):
         tools = await call_next(context)
@@ -221,6 +214,35 @@ class DynamicDiscoveryMiddleware(Middleware):
         # hide this tool but Goose doesn't support this yet. On the other hand, goose is happy
         # if the app calls tools we don't list at all, so we just filter out the "app" tools
         filtered_tools = [t for t in tools if "hidden_from_model" not in (t.tags)]
+
+        fastmcp_context = context.fastmcp_context
+        assert fastmcp_context is not None, (
+            "FastMCP framework error: context.fastmcp_context should not be None inside on_list_tools"
+        )
+
+        request_ctx = fastmcp_context.request_context
+        assert request_ctx is not None, (
+            "FastMCP framework error: request context should not be None inside on_list_tools"
+        )
+
+        client_params = request_ctx.session.client_params
+        assert client_params is not None, (
+            "FastMCP framework error: client_params should not be None inside on_list_tools"
+        )
+
+        # For python-sdk -1.x, count on extensibility of protocol types - while this is being
+        # removed for v2, hopefully extensions will be there properly.
+        capabilities = client_params.capabilities
+        extensions = getattr(capabilities, "extensions", {})
+        mcp_ui_extension = extensions.get(MCP_UI_EXTENSION) or {}
+        mime_types = mcp_ui_extension.get("mimeTypes") or []
+
+        # The configuration can overwrite the MCP app support detection, so we have the flexibility to
+        # manually turn the Mcp app feature on/off for developing/testing purposes.
+        if CONFIG.use_mcp_apps or (CONFIG.use_mcp_apps is None and MCP_APP_MIME_TYPE in mime_types):
+            filtered_tools = [t for t in filtered_tools if t.name != "run_script_modify"]
+        else:
+            filtered_tools = [t for t in filtered_tools if t.name != "run_script_modify_interactive"]
 
         return filtered_tools
 

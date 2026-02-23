@@ -79,7 +79,7 @@ class Config(BaseSettings):
     command_timeout: int = 30  # Timeout in seconds; prevents hung SSH operations
 
     # Indicate mcp-app compatibility
-    use_mcp_apps: bool = False
+    use_mcp_apps: bool | None = None
 
     @property
     def effective_known_hosts_path(self) -> Path:
