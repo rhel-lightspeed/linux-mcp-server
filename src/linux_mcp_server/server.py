@@ -196,16 +196,6 @@ _low_level_server.request_handlers[ReadResourceRequest] = _read_resource_with_me
 from linux_mcp_server.tools import *  # noqa: E402, F403
 
 
-# With mcp-app feature
-mcp.add_tool(run_script_modify_interactive)
-mcp.add_tool(get_execution_state)
-mcp.add_tool(execute_script)
-mcp.add_tool(reject_script)
-
-# Without mcp-app feature
-mcp.add_tool(run_script_modify)
-
-
 class DynamicDiscoveryMiddleware(Middleware):
     async def on_list_tools(self, context: MiddlewareContext, call_next):
         tools = await call_next(context)
@@ -240,9 +230,9 @@ class DynamicDiscoveryMiddleware(Middleware):
         # The configuration can overwrite the MCP app support detection, so we have the flexibility to
         # manually turn the Mcp app feature on/off for developing/testing purposes.
         if CONFIG.use_mcp_apps or (CONFIG.use_mcp_apps is None and MCP_APP_MIME_TYPE in mime_types):
-            filtered_tools = [t for t in filtered_tools if t.name != "run_script_modify"]
+            filtered_tools = [t for t in filtered_tools if "mcp_apps_exclude" not in t.tags]
         else:
-            filtered_tools = [t for t in filtered_tools if t.name != "run_script_modify_interactive"]
+            filtered_tools = [t for t in filtered_tools if "mcp_apps_only" not in t.tags]
 
         return filtered_tools
 
