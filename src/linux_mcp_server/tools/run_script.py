@@ -8,7 +8,6 @@ from dataclasses import dataclass
 
 from fastmcp import Context
 from fastmcp.exceptions import ToolError
-from fastmcp.tools.tool import Tool
 from fastmcp.tools.tool import ToolResult
 from mcp.types import ContentBlock
 from mcp.types import TextContent
@@ -286,7 +285,14 @@ class ExecuteScriptResult:
     output: str
 
 
-async def _execute_script(
+@mcp.tool(
+    tags={"run_script", "hidden_from_model"},
+    description="Execute a script; this is only available to the our mcp-app",
+    meta={"ui": {"visibility": ["app"]}},
+)
+@log_tool_call
+@disallow_local_execution_in_containers
+async def execute_script(
     id: t.Annotated[str, Field(description="The associated ID of the script to be executed")],
 ) -> ToolResult:
     script_details = script_store.get_script_details(id)
@@ -316,33 +322,30 @@ async def _execute_script(
     return ToolResult(content=content, structured_content=asdict(result))
 
 
-execute_script = Tool.from_function(
-    _execute_script,
-    name="execute_script",
+@mcp.tool(
     tags={"run_script", "hidden_from_model"},
-    description="Execute a script; this is only available to the our mcp-app",
+    description="Reject a script; this is only available to the our mcp-app",
     meta={"ui": {"visibility": ["app"]}},
 )
-
-
-async def _reject_script(
+@log_tool_call
+@disallow_local_execution_in_containers
+async def reject_script(
     id: t.Annotated[str, Field(description="The associated ID of the script to be rejected")],
 ):
     script_store.set_script_state(id, "rejected-user")
 
 
-reject_script = Tool.from_function(
-    _reject_script,
-    name="reject_script",
-    tags={"run_script", "hidden_from_model"},
-    description="Reject a script; this is only available to the our mcp-app",
-    meta={"ui": {"visibility": ["app"]}},
+@mcp.tool(
+    tags={"run_script", "mcp_apps_only"},
+    title="Propose to run a script that modifies system",
+    description=RUN_SCRIPT_MODIFY_INTERACTIVE,
+    annotations=ToolAnnotations(destructiveHint=True),
+    output_schema=RunScriptInteractiveResult.model_json_schema(),
+    meta={"ui": {"resourceUri": RUN_SCRIPT_APP_URI}},
 )
-
-
 @log_tool_call
 @disallow_local_execution_in_containers
-async def _run_script_modify_interactive(
+async def run_script_modify_interactive(
     ctx: Context,
     description: t.Annotated[
         str,
@@ -387,21 +390,15 @@ async def _run_script_modify_interactive(
     return result
 
 
-run_script_modify_interactive = Tool.from_function(
-    _run_script_modify_interactive,
-    name="run_script_modify_interactive",
-    tags={"run_script"},
-    title="Propose to run a script that modifies system",
-    description=RUN_SCRIPT_MODIFY_INTERACTIVE,
+@mcp.tool(
+    tags={"run_script", "mcp_apps_exclude"},
+    title="Run script to modify system",
+    description=RUN_SCRIPT_MODIFY_DESCRIPTION,
     annotations=ToolAnnotations(destructiveHint=True),
-    output_schema=RunScriptInteractiveResult.model_json_schema(),
-    meta={"ui": {"resourceUri": RUN_SCRIPT_APP_URI}},
 )
-
-
 @log_tool_call
 @disallow_local_execution_in_containers
-async def _run_script_modify(
+async def run_script_modify(
     ctx: Context,
     description: t.Annotated[
         str,
@@ -454,26 +451,14 @@ async def _run_script_modify(
         return f"Error executing script: return code {returncode}, stderr: {stderr}"
 
 
-run_script_modify = Tool.from_function(
-    _run_script_modify,
-    name="run_script_modify",
-    tags={"run_script"},
-    title="Run script to modify system",
-    description=RUN_SCRIPT_MODIFY_DESCRIPTION,
-    annotations=ToolAnnotations(destructiveHint=True),
-)
-
-
-def _get_execution_state(id: str):
-    script_detail = script_store.get_script_details(id)
-    return {"state": script_detail.state}
-
-
-get_execution_state = Tool.from_function(
-    _get_execution_state,
-    name="get_execution_state",
+@mcp.tool(
     tags={"run_script", "hidden_from_model"},
     title="Get the execution state with request ID",
     description="Get the execution state with request ID",
     meta={"ui": {"visibility": ["app"]}},
 )
+@log_tool_call
+@disallow_local_execution_in_containers
+async def get_execution_state(id: str):
+    script_detail = script_store.get_script_details(id)
+    return {"state": script_detail.state}
