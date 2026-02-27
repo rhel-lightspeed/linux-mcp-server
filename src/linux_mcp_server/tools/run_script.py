@@ -361,15 +361,15 @@ async def _run_script_modify_interactive(
     host: Host = None,
 ) -> ToolResult:
     gatekeeper_result = check_run_script(description, script_type, script, readonly=False)
-    content: list[ContentBlock] = []
+    content: list[ContentBlock] | None = None
 
     if gatekeeper_result.status == GatekeeperStatus.OK:
-        content.append(
+        content = [
             TextContent(
                 type="text",
                 text="The user has been asked for approval; please respond nothing to the user yet; the final result will be provided as a separate message later.",
             )
-        )
+        ]
 
     # Initialize execution detail to keep execution status persistent
     # Store script and script_type so set_script_approval can retrieve them by id
