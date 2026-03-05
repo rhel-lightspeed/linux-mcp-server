@@ -136,10 +136,9 @@ BASH_STRICT_PREAMBLE = "set -euo pipefail; "
 SYSTEMD_RUN_ARGS = [
     "--quiet",
     "--pipe",
-    "--working-directory=/tmp",
     "--collect",
     "--wait",
-    "--service-type=exec",
+    "--property=WorkingDirectory=/tmp",
     "--property=PrivateTmp=true",
     "--property=NoNewPrivileges=true",
 ]
