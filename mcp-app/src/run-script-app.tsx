@@ -247,8 +247,8 @@ function RunScriptAppInner({
       <div className="flex justify-center items-center min-h-[200px]">
         <div className="flex items-center">
           <span className="relative flex size-3 mr-2">
-            <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-yellow-400 opacity-75"></span>
-            <span className="relative inline-flex size-3 rounded-full bg-yellow-500"></span>
+            <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-app-fg-warning opacity-75"></span>
+            <span className="relative inline-flex size-3 rounded-full bg-app-bg-warning"></span>
           </span>
           <span>Waiting for the detail information...</span>
         </div>
@@ -257,11 +257,11 @@ function RunScriptAppInner({
   }
 
   return (
-    <div className="p-2">
-      <div className="p-4 border rounded-2xl mb-2">
+    <div className="app-container">
+      <div className="script-main-box">
         <div className="mb-4">
           {/* TODO: we can dynamically inject the platform that users are using here */}
-          <p className="text-base">
+          <p>
             Goose wants to perform the following action on{" "}
             <strong>{validatedToolRequestParams.host || "localhost"}</strong>
           </p>
@@ -286,7 +286,7 @@ function RunScriptAppInner({
         </div>
       </div>
 
-      <div className="border rounded-md w-fit px-2 text-sm">
+      <div className="execution-state-tag">
         {formatExecutionState(executionState)}
       </div>
     </div>

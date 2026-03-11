@@ -1,52 +1,112 @@
 @import "tailwindcss";
 
+/* Binding color-scheme to the "dark" variant that Tailwind can use to style a components differently.
+*  We need this for Goose Desktop.
+* */
+@custom-variant dark (&:where([style*="color-scheme: dark"], [style*="color-scheme: dark"] *));
+
+@theme {
+  --text-xs: var(--font-text-xs-size, 12px);
+  --text-sm: var(--font-text-sm-size, 14px);
+  --text-md: var(--font-text-md-size, 16px);
+  --text-lg: var(--font-text-lg-size, 20px);
+
+  --text-xs--line-height: var(--font-text-xs-line-height, calc(1 / 0.75));
+  --text-sm--line-height: var(--font-text-sm-line-height, calc(1.25 / 0.875));
+  --text-md--line-height: var(--font-text-md-line-height, calc(1.5 / 1));
+  --text-lg--line-height: var(--font-text-lg-line-height, calc(1.75 / 1.125));
+
+  --color-app-bg-primary: var(--color-background-primary, light-dark(#fff, #22252a));
+  --color-app-fg-primary: var(--color-text-primary, light-dark(#3f434b, #fff));
+
+  --color-app-bg-secondary: var(--color-background-secondary, light-dark(#f4f6f7, #3f434b));
+  --color-app-fg-secondary: var(--color-text-secondary, light-dark(#525b68, #a7b0b9));
+
+  --color-app-bg-tertiary: var(--color-background-tertiary, light-dark(#e3e6ea, #474e57));
+  --color-app-fg-tertiary: var(--color-text-tertiary, light-dark(#606c7a, #878787));
+
+  --color-app-bg-success: var(--color-background-success, light-dark(#a3d795, #91cb80));
+  --color-app-fg-success: var(--color-text-success, light-dark(#91cb80, #a3d795));
+
+  --color-app-bg-danger: var(--color-background-danger, light-dark(#ff6b6b, #f94b4b));
+  --color-app-fg-danger: var(--color-text-danger, light-dark(#f94b4b, #ff6b6b));
+
+  --color-app-bg-warning: var(--color-background-warning, light-dark(#ffd966, #fbcd44));
+  --color-app-fg-warning: var(--color-text-warning, light-dark(#fbcd44, #ffd966));
+
+  --color-app-bg-info: var(--color-background-info, light-dark(#7cacff, #5c98f9));
+  --color-app-fg-info: var(--color-text-info, light-dark(#5c98f9, #7cacff));
+
+  --color-app-border-primary: var(--color-border-primary, light-dark(#e3e6ea, #3f434b));
+
+  --color-brown-100: #f9f6e9;
+  --color-brown-200: #f2edd3;
+}
+
 @layer components {
   .btn-primary {
-    @apply px-2 m-2 rounded-md transition-all duration-200 min-w-24 h-10;
-    @apply bg-blue-600 hover:bg-blue-700 text-white;
-    @apply disabled:bg-gray-400 disabled:opacity-60 disabled:cursor-not-allowed;
+    @apply px-2 m-2 rounded-md transition-all duration-200 min-w-24 h-10 cursor-pointer;
+    
+    /* Base & Hover States */
+    @apply bg-app-bg-info hover:brightness-90 dark:hover:brightness-110;
+
+    /* Disabled Base States */
+    @apply disabled:bg-app-bg-tertiary disabled:opacity-60 disabled:cursor-not-allowed disabled:brightness-100;
+
+    /* Override Hover when Disabled */
+    @apply disabled:hover:brightness-100 dark:disabled:hover:brightness-100;
   }
 
   .btn-secondary {
-    @apply px-2 m-2 rounded-md transition-all duration-200 min-w-24 h-10;
-    @apply bg-gray-600 hover:bg-gray-700 text-white;
-    @apply disabled:bg-gray-400 disabled:opacity-60 disabled:cursor-not-allowed;
+    @apply px-2 m-2 rounded-md transition-all duration-200 min-w-24 h-10 cursor-pointer;
+
+    /* Base & Hover States */
+    @apply bg-app-bg-secondary hover:brightness-90 dark:hover:brightness-110;
+
+    /* Disabled Base States */
+    @apply disabled:bg-app-bg-tertiary disabled:opacity-60 disabled:cursor-not-allowed disabled:brightness-100;
+
+    /* Override Hover when Disabled */
+    @apply disabled:hover:brightness-100 dark:disabled:hover:brightness-100;
   }
 
   .description-box {
-    @apply bg-pink-100 border border-pink-200 rounded-lg p-4 mb-4 text-black;
+    @apply bg-brown-100 border border-brown-200 rounded-lg p-4 mb-4 text-black;
   }
 
   .code-block {
-    @apply bg-black text-white rounded-lg p-4 font-mono text-sm relative;
+    @apply bg-app-bg-secondary text-app-fg-secondary rounded-lg p-4 font-mono text-sm relative;
   }
 
   .code-block .language-label {
-    @apply absolute top-2 right-2 text-gray-400 text-xs;
+    @apply absolute top-2 right-2 text-app-fg-tertiary text-xs;
   }
 
   .status-allowed {
-    @apply text-green-500 text-right font-medium bg-transparent antialiased;
+    @apply text-app-fg-success bg-transparent;
   }
 
   .status-rejected {
-    @apply text-red-500 font-medium bg-transparent antialiased;
+    @apply text-app-fg-danger bg-transparent;
   }
 
   .toggle-show-link {
-    @apply text-blue-600 hover:text-blue-800 underline cursor-pointer text-sm;
+    @apply text-app-fg-info hover:brightness-90 dark:hover:brightness-110 underline cursor-pointer text-sm;
+  }
+
+  .app-container {
+    @apply text-md bg-app-bg-primary text-app-fg-primary rounded-lg p-2
+  }
+
+  .script-main-box {
+    @apply p-4 border border-app-border-primary rounded-2xl mb-2
+  }
+
+  .execution-state-tag {
+    @apply border border-app-border-primary rounded-md w-fit px-2 text-sm
   }
 }
 
 * {
   box-sizing: border-box;
-}
-
-html, body {
-  font-family: system-ui, -apple-system, sans-serif;
-  font-size: 1rem;
-}
-
-code {
-  font-size: 1em;
 }
