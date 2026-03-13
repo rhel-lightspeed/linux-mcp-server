@@ -76,6 +76,11 @@ as it fails cleanly. The model may have previously investigated the system
 and found out things like the operating system version and configuration
 file paths.
 
+The description of the script may reference querying or modifying a specific host;
+this is *OK* - the MCP server will take care of executing the script on the
+appropriate host. The script does not need to, for example, use SSH to connect to
+the target host.
+
 Return a JSON object with the following keys, `status` (required) and `detail` (optional).
 
 status should be one of the following:
