@@ -58,7 +58,7 @@ class Config(BaseSettings):
     search_for_ssh_key: bool = False
 
     # SSH host key verification (security)
-    verify_host_keys: bool = False  # NOTE(major): Switch to true later for production!
+    verify_host_keys: bool = True
     known_hosts_path: Path | None = None  # Custom path to known_hosts file
 
     # Command execution timeout (applies to remote SSH commands)
