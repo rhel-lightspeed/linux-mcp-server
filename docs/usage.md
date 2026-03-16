@@ -48,7 +48,7 @@ Options may be set using environment variables or command line options. Environm
 | `--ssh-key-path` | path | null | Path to SSH private key file |
 | `--key-passphrase` | string | (empty) | Passphrase for encrypted SSH key |
 | `--search-for-ssh-key` | bool | False | Auto-discover SSH keys in `~/.ssh` |
-| `--verify-host-keys` | bool | False | Verify remote host identity via known_hosts |
+| `--verify-host-keys` | bool | True | Verify remote host identity via known_hosts |
 | `--known-hosts-path` | path | null | Path to known_hosts file |
 | `--command-timeout` | integer | 30 | SSH command timeout in seconds |
 
