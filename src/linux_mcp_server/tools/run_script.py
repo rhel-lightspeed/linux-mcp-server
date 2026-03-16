@@ -255,20 +255,10 @@ async def run_script_readonly(
     match gatekeeper_result.status:
         case GatekeeperStatus.OK:
             pass
-        case GatekeeperStatus.BAD_DESCRIPTION:
-            raise ToolError(f"Bad description: {gatekeeper_result.detail}")
-        case GatekeeperStatus.POLICY:
-            raise ToolError(f"Policy violation: {gatekeeper_result.detail}")
         case GatekeeperStatus.MODIFIES_SYSTEM:
             raise RuntimeError("Model returned MODIFIES_SYSTEM error for run_script_modify")
-        case GatekeeperStatus.UNCLEAR:
-            raise ToolError(f"Unclear script: {gatekeeper_result.detail}")
-        case GatekeeperStatus.DANGEROUS:
-            raise ToolError(f"Dangerous script: {gatekeeper_result.detail}")
-        case GatekeeperStatus.MALICIOUS:
-            # We don't provide detail here to make it harder for a malicious model
-            # to figure out workarounds
-            raise ToolError("Possibly malicious script: not allowed")
+        case _:
+            raise ToolError(gatekeeper_result.description)
 
     returncode, stdout, stderr = await execute_command(command, host=host)
     if returncode == 0:
@@ -424,23 +414,8 @@ async def run_script_modify(
         readonly=False,
     )
 
-    match gatekeeper_result.status:
-        case GatekeeperStatus.OK:
-            pass
-        case GatekeeperStatus.BAD_DESCRIPTION:
-            raise ToolError(f"Bad description: {gatekeeper_result.detail}")
-        case GatekeeperStatus.POLICY:
-            raise ToolError(f"Policy violation: {gatekeeper_result.detail}")
-        case GatekeeperStatus.MODIFIES_SYSTEM:
-            raise ToolError(f"Script modifies the system - use run_script_modify: {gatekeeper_result.detail}")
-        case GatekeeperStatus.UNCLEAR:
-            raise ToolError(f"Unclear script: {gatekeeper_result.detail}")
-        case GatekeeperStatus.DANGEROUS:
-            raise ToolError(f"Dangerous script: {gatekeeper_result.detail}")
-        case GatekeeperStatus.MALICIOUS:
-            # We don't provide detail here to make it harder for a malicious model
-            # to figure out workarounds
-            raise ToolError("Malicious script: not allowed")
+    if gatekeeper_result.status != GatekeeperStatus.OK:
+        raise ToolError(gatekeeper_result.description)
 
     returncode, stdout, stderr = await execute_command(command, host=host)
     if returncode == 0:
