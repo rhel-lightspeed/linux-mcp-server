@@ -25,12 +25,11 @@ class Config(BaseSettings):
         env_prefix="LINUX_MCP_",
         env_ignore_empty=True,
         cli_hide_none_type=True,
-        # Only ignore errors for incorrect/extra parameters when testing
-        # https://github.com/pydantic/pydantic-settings/issues/391
-        cli_ignore_unknown_args=sys.argv[0].endswith("pytest"),
         cli_implicit_flags=True,
         cli_kebab_case=True,
-        cli_parse_args=True,
+        # Only parse CLI args when running linux-mcp-server itself, not when
+        # importing the module for other scripts (like eval scripts)
+        cli_parse_args=sys.argv[0].endswith("linux-mcp-server"),
     )
 
     # FIXME: When the next version of pydantic-settings is released, change this
