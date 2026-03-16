@@ -214,6 +214,64 @@ With this config, use `host="webserver"` in MCP tool calls instead of the full h
 !!! tip
     If `ssh-agent` is running, keys loaded into the session will be used automatically.
 
+### Managing Host Keys
+
+The Linux MCP Server enables SSH host key checking by default. Checking host keys guards against server spoofing and man-in-the-middle attacks but does require some additional setup and maintenance.
+
+If a host is not yet in `known_hosts`, the connection will fail because there is no interactive prompt to accept the key.
+
+If a host key changes, SSH connections will fail until the key is corrected in the `known_hosts` file.
+
+#### Adding Host Keys
+
+To ensure the host's key is in the `known_hosts` file, connect to the host once:
+
+```bash
+ssh user@hostname
+```
+
+Accept the host key when prompted. This adds the key to `~/.ssh/known_hosts`, which is the default location the MCP server checks.
+
+You can also add host keys without an interactive prompt using `ssh-keyscan`:
+
+```bash
+ssh-keyscan hostname >> ~/.ssh/known_hosts
+```
+
+!!! warning
+    Using `ssh-keyscan` does not validate the authenticity of the host key. Only use this on trusted networks or verify the key fingerprint through an out-of-band channel.
+
+#### Using a Custom known_hosts File
+
+By default, the server uses `~/.ssh/known_hosts`. To specify a different file:
+
+```bash
+linux-mcp-server --known-hosts-path /path/to/known_hosts
+```
+
+Or set the environment variable:
+
+```bash
+export LINUX_MCP_KNOWN_HOSTS_PATH=/path/to/known_hosts
+```
+
+#### Disabling Host Key Checking
+
+If you understand the implications and wish to disable host key checking, you can do so with a command line option:
+
+```bash
+linux-mcp-server --no-verify-host-keys
+```
+
+Or environment variable:
+
+```bash
+export LINUX_MCP_VERIFY_HOST_KEYS=false
+```
+
+!!! danger
+    Disabling host key verification makes SSH connections vulnerable to man-in-the-middle attacks. Only disable this in trusted network environments such as isolated development or test networks.
+
 ---
 
 ## Platform-Specific Notes
