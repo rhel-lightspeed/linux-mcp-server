@@ -6,6 +6,13 @@ from linux_mcp_server.audit import log_tool_call
 from linux_mcp_server.server import mcp
 
 
+@pytest.fixture(autouse=True)
+def clean_env(monkeypatch):
+    unset = {"container"}
+    for var in unset:
+        monkeypatch.delenv(var, raising=False)
+
+
 @pytest.fixture
 async def mcp_client():
     async with Client(transport=mcp) as mcp_client:

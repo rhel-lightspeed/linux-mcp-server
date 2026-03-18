@@ -52,7 +52,7 @@ def disallow_local_execution_in_containers(func):
         host_value = bound_args.arguments.get("host")
 
         # Check if running in a container and host is None (local execution)
-        if host_value is None and os.getenv("container") in CONTAINER_ENV_VARS:
+        if host_value is None and os.environ.get("container") in CONTAINER_ENV_VARS:
             raise ToolError(
                 "Local execution is not allowed when running in a container. "
                 "Please specify a 'host' parameter to execute remotely via SSH."
