@@ -7,13 +7,6 @@ from fastmcp.exceptions import ToolError
 from linux_mcp_server.utils.decorators import disallow_local_execution_in_containers
 
 
-@pytest.fixture(autouse=True)
-def in_container(monkeypatch):
-    """Remove PYTEST_VERSION from environemnt in order to simulate the code
-    is not running under test."""
-    monkeypatch.delenv("PYTEST_VERSION")
-
-
 class TestDisallowLocalExecutionInContainers:
     """Test disallow_local_execution_in_containers decorator."""
 
