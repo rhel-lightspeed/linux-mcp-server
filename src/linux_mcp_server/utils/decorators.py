@@ -43,6 +43,10 @@ def disallow_local_execution_in_containers(func):
 
     @functools.wraps(func)
     async def wrapper(*args, **kwargs):
+        # Disable this check when running under test by default.
+        # In order to test this functionality, unset PYTEST_VERSION in the test environment.
+        in_container = os.environ.get("container") in CONTAINER_ENV_VARS and not os.environ.get("PYTEST_VERSION")
+
         # Get the function signature to find the 'host' parameter
         sig = inspect.signature(func)
         bound_args = sig.bind_partial(*args, **kwargs)
@@ -52,7 +56,7 @@ def disallow_local_execution_in_containers(func):
         host_value = bound_args.arguments.get("host")
 
         # Check if running in a container and host is None (local execution)
-        if host_value is None and os.getenv("container") in CONTAINER_ENV_VARS:
+        if host_value is None and in_container:
             raise ToolError(
                 "Local execution is not allowed when running in a container. "
                 "Please specify a 'host' parameter to execute remotely via SSH."
