@@ -1,0 +1,79 @@
+# yaml-language-server: $schema=../../testcase-schema.json
+meta:
+  timestamp: '2026-03-16T20:30:24Z'
+  provider: gcp_vertex_ai
+  model: claude-sonnet-4-5@20250929
+cases:
+- description: Check httpd service status and recent logs
+  script_type: bash
+  script: |
+    # Check service status
+    echo "=== HTTPD Service Status ==="
+    systemctl status httpd.service || true
+
+    echo -e "\n=== Recent Journal Logs ==="
+    journalctl -u httpd.service -n 50 --no-pager || true
+
+    echo -e "\n=== Checking if httpd is enabled ==="
+    systemctl is-enabled httpd.service || true
+  readonly: true
+  result:
+    status: OK
+- description: Check SELinux status, port configuration, and httpd config files
+  script_type: bash
+  script: |
+    echo "=== SELinux Status ==="
+    getenforce || true
+
+    echo -e "\n=== SELinux HTTP Port Permissions ==="
+    semanage port -l | grep http || true
+
+    echo -e "\n=== Check if port 8088 is in use ==="
+    ss -tlnp | grep 8088 || echo "Port 8088 is not in use"
+
+    echo -e "\n=== Check httpd Listen directive ==="
+    grep -r "^Listen" /etc/httpd/conf* 2>/dev/null || true
+
+    echo -e "\n=== Check log directory permissions ==="
+    ls -lZd /var/log/httpd /etc/httpd 2>/dev/null || true
+    ls -lZ /var/log/httpd/ 2>/dev/null | head -10 || true
+  readonly: true
+  result:
+    status: OK
+- description: Add port 8088 to SELinux http_port_t and fix log directory permissions
+  script_type: bash
+  script: |
+    # Add port 8088 to SELinux http_port_t
+    echo "Adding port 8088 to SELinux http_port_t..."
+    semanage port -a -t http_port_t -p tcp 8088
+
+    # Fix log directory permissions
+    echo "Fixing /var/log/httpd permissions..."
+    chmod 755 /var/log/httpd
+
+    echo "Verifying changes..."
+    semanage port -l | grep http_port_t | grep 8088
+    ls -ld /var/log/httpd
+  readonly: false
+  result:
+    status: OK
+- description: Start httpd service and verify it's running
+  script_type: bash
+  script: |
+    # Start httpd
+    echo "Starting httpd service..."
+    systemctl start httpd.service
+
+    # Wait a moment for it to start
+    sleep 2
+
+    # Check status
+    echo -e "\n=== Service Status ==="
+    systemctl status httpd.service --no-pager
+
+    # Verify it's listening on port 8088
+    echo -e "\n=== Listening Ports ==="
+    ss -tlnp | grep httpd || true
+  readonly: false
+  result:
+    status: OK

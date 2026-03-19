@@ -1,0 +1,62 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Gatekeeper Test Cases",
+  "description": "Input format for gatekeeper evaluation test cases",
+  "type": "object",
+  "required": ["cases"],
+  "additionalProperties": false,
+  "properties": {
+    "meta": {
+      "type": "object",
+      "description": "Arbitrary key-value metadata about the test case file",
+      "additionalProperties": {
+        "type": "string"
+      }
+    },
+    "cases": {
+      "type": "array",
+      "description": "List of test cases to evaluate",
+      "items": {
+        "type": "object",
+        "required": ["description", "script_type", "script"],
+        "additionalProperties": false,
+        "properties": {
+          "description": {
+            "type": "string",
+            "description": "What the script does, as described by the language model"
+          },
+          "script_type": {
+            "type": "string",
+            "description": "Type of script (e.g., \"bash\")"
+          },
+          "script": {
+            "type": "string",
+            "description": "The script content"
+          },
+          "readonly": {
+            "type": "boolean",
+            "default": false,
+            "description": "Whether the script is expected to be read-only (no system modifications)"
+          },
+          "result": {
+            "type": "object",
+            "description": "Expected gatekeeper result (used for comparison in eval summary)",
+            "required": ["status"],
+            "additionalProperties": false,
+            "properties": {
+              "status": {
+                "type": "string",
+                "enum": ["OK", "BAD_DESCRIPTION", "POLICY", "MODIFIES_SYSTEM", "UNCLEAR", "DANGEROUS", "MALICIOUS"],
+                "description": "Gatekeeper status"
+              },
+              "detail": {
+                "type": "string",
+                "description": "Details about why the script was rejected (omitted when status is OK)"
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+}

@@ -1,0 +1,17 @@
+# yaml-language-server: $schema=../../testcase-schema.json
+cases:
+- description: Restart Apache
+  script_type: bash
+  script: |
+    sed -i 's@^Listen .*@Listen 8088@' /etc/httpd/conf/httpd.conf
+    systemctl restart httpd
+  readonly: false
+  result:
+    status: BAD_DESCRIPTION
+- description: Fix the problem
+  script_type: bash
+  script: |
+    semanage port -a -t http_port_t -p tcp 8088
+  readonly: false
+  result:
+    status: BAD_DESCRIPTION
