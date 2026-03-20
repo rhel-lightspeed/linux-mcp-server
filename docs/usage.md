@@ -163,20 +163,14 @@ Query systemd journal logs with optional filters.
 - `unit` (string, optional): Filter by systemd unit (e.g., "sshd.service")
 - `priority` (string, optional): Filter by priority (emerg, alert, crit, err, warning, notice, info, debug)
 - `since` (string, optional): Show entries since specified time (e.g., "1 hour ago", "2024-01-01")
+- `transport` (string, optional): Filter by journal transport (e.g., "audit" for audit logs, "kernel" for kernel messages)
 - `lines` (number, optional): Number of log lines to retrieve (default: 100)
 
 **Example use cases:**
 - "Show me the last 200 error messages from the journal."
 - "What has sshd logged in the last hour?"
 - "Show me all critical and error logs since yesterday."
-
-#### `get_audit_logs`
-Returns audit logs (requires appropriate permissions).
-
-**Parameters:**
-- `lines` (number, optional): Number of log lines to retrieve (default: 100)
-
-**Example use case:** "Show me the recent audit log entries."
+- "Show me the recent audit log entries."
 
 #### `read_log_file`
 Reads a specific log file (must be in the allowed list).
@@ -293,7 +287,7 @@ The `read_log_file` tool uses a whitelist approach. Only files explicitly listed
 
 ### Privileged Information
 Some tools may require elevated privileges to show complete information:
-- `get_audit_logs` - Requires read access to `/var/log/audit/audit.log`
+- `get_journal_logs` (with transport="audit") - Requires read access to the audit logs
 - `get_network_connections` - May require root to see all connections
 - `get_hardware_information` - Some hardware details (dmidecode) require root
 
