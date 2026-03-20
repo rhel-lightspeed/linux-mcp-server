@@ -34,15 +34,17 @@ def test_cli_version(mocker, capsys):
     ),
     ids=["streamable", "http-host"],
 )
-def test_cli_transport(mocker, args, expected):
-    mocker.patch("sys.argv", ["linux-mcp-server", *args])
+def test_cli_transport(monkeypatch: pytest.MonkeyPatch, args, expected):
+    monkeypatch.setattr("sys.argv", ["linux-mcp-server", *args])
+    monkeypatch.setitem(Config.model_config, "cli_parse_args", True)
 
     config = Config()
 
     assert config.transport_kwargs == expected
 
 
-def test_cli_transport_invalid(mocker):
-    mocker.patch("sys.argv", ["linux-mcp-server", "--transport", "nope"])
+def test_cli_transport_invalid(monkeypatch: pytest.MonkeyPatch):
+    monkeypatch.setattr("sys.argv", ["linux-mcp-server", "--transport", "nope"])
+    monkeypatch.setitem(Config.model_config, "cli_parse_args", True)
     with pytest.raises(ValidationError, match="Input should be"):
         Config()

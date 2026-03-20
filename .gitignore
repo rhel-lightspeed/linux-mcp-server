@@ -1,6 +1,6 @@
 # Python
 __pycache__/
-*.py[cod]
+*.py[codz]
 *$py.class
 *.so
 .Python
@@ -19,7 +19,6 @@ wheels/
 *.egg-info/
 .installed.cfg
 *.egg
-*.pyz
 
 # Vendored packages
 src/linux_mcp_server/_vendor/*

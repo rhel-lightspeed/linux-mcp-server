@@ -33,7 +33,8 @@ RUN python -m venv /opt/venvs/uv \
     && /opt/venvs/uv/bin/python -m pip install -U pip \
     && /opt/venvs/uv/bin/python -m pip install uv \
     && uv venv --seed "${VENVS}"/mcp \
-    && uv sync --no-cache --locked --no-dev --no-editable
+    && uv sync --no-cache --locked --no-dev --no-editable \
+    && "${VENVS}"/mcp/bin/python -m pip uninstall -y diskcache
 
 
 FROM base as final
