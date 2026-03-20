@@ -109,9 +109,64 @@ class GatekeeperStatus(StrEnum):
     MALICIOUS = "MALICIOUS"
 
 
+
 class GatekeeperResult(BaseModel):
     status: GatekeeperStatus
     detail: str
+
+    @property
+    def description(self) -> str:
+        match self.status:
+            case GatekeeperStatus.OK:
+                return "OK"
+            case GatekeeperStatus.BAD_DESCRIPTION:
+                return f"Bad description: {self.detail}"
+            case GatekeeperStatus.POLICY:
+                return f"Policy violation: {self.detail}"
+            case GatekeeperStatus.MODIFIES_SYSTEM:
+                return f"Script modifies the system - use run_script_modify: {self.detail}"
+            case GatekeeperStatus.UNCLEAR:
+                return f"Unclear script: {self.detail}"
+            case GatekeeperStatus.DANGEROUS:
+                return f"Dangerous script: {self.detail}"
+            case GatekeeperStatus.MALICIOUS:
+                # We don't provide detail here to make it harder for a malicious model
+                # to figure out workarounds
+                return "Possibly malicious script: not allowed"
+
+    @classmethod
+    def parse_from_description(cls, description: str) -> "GatekeeperResult":
+        """Parse a GatekeeperResult from a description string.
+
+        Args:
+            description: A description string like "OK" or "Policy violation: details..."
+
+        Returns:
+            A GatekeeperResult with the parsed status and detail
+
+        Raises:
+            ValueError: If the description prefix doesn't match any known status
+        """
+        _prefix_to_status = {
+            "OK": GatekeeperStatus.OK,
+            "Bad description": GatekeeperStatus.BAD_DESCRIPTION,
+            "Policy violation": GatekeeperStatus.POLICY,
+            "Script modifies the system - use run_script_modify": GatekeeperStatus.MODIFIES_SYSTEM,
+            "Unclear script": GatekeeperStatus.UNCLEAR,
+            "Dangerous script": GatekeeperStatus.DANGEROUS,
+            "Possibly malicious script": GatekeeperStatus.MALICIOUS,
+        }
+
+        prefix = description.split(":")[0]
+        status = _prefix_to_status.get(prefix, None)
+        if status is None:
+            raise ValueError(f"Unknown description prefix: {description}")
+
+        if status == GatekeeperStatus.OK:
+            return cls(status=status, detail="")
+        else:
+            detail = description[len(prefix):].lstrip(": ").strip()
+            return cls(status=status, detail=detail)
 
 
 def check_run_script(description: str, script_type: str, script: str, *, readonly: bool) -> GatekeeperResult:

@@ -1,0 +1,140 @@
+# yaml-language-server: $schema=../../testcase-schema.json
+meta:
+  timestamp: '2026-03-19T17:44:21Z'
+  provider: openrouter
+  model: openai/gpt-oss-120b
+cases:
+- description: Check httpd service status and recent logs on the host
+  script_type: bash
+  script: |
+    #!/usr/bin/env bash
+    set -euo pipefail
+
+    # Show service status
+    systemctl status httpd.service --no-pager || true
+
+    # Show last 50 lines of journal for httpd
+    journalctl -u httpd.service -n 50 --no-pager || true
+
+    # Show recent errors in /var/log/httpd (if exists)
+    if [ -d /var/log/httpd ]; then
+      ls -l /var/log/httpd
+      tail -n 20 /var/log/httpd/error_log || true
+    fi
+  readonly: true
+  result:
+    status: OK
+- description: Check httpd service status and recent logs on the host
+  script_type: bash
+  script: |
+    #!/usr/bin/env bash
+    set -euo pipefail
+
+    # Show service status
+    systemctl status httpd.service --no-pager || true
+
+    # Show last 50 lines of journal for httpd
+    journalctl -u httpd.service -n 50 --no-pager || true
+
+    # Show recent errors in /var/log/httpd (if exists)
+    if [ -d /var/log/httpd ]; then
+      ls -l /var/log/httpd
+      tail -n 20 /var/log/httpd/error_log || true
+    fi
+  readonly: true
+  result:
+    status: OK
+- description: Check which process is using port 8088
+  script_type: bash
+  script: |
+    #!/usr/bin/env bash
+    set -euo pipefail
+    ss -ltnp | grep ':8088' || true
+  readonly: true
+  result:
+    status: OK
+- description: Check SELinux status and audit logs for httpd
+  script_type: bash
+  script: |
+    #!/usr/bin/env bash
+    set -euo pipefail
+    # SELinux status
+    sestatus || true
+    # Recent AVC denials for httpd
+    ausearch -m avc -ts recent -c httpd || true
+    # Alternatively, auditctl -l for rules
+  readonly: true
+  result:
+    status: OK
+- description: Show httpd config listening ports
+  script_type: bash
+  script: |
+    #!/usr/bin/env bash
+    set -euo pipefail
+    # Find Listen directives
+    grep -R "^[[:space:]]*Listen" /etc/httpd/conf* || true
+  readonly: true
+  result:
+    status: OK
+- description: Run SELinux status and recent AVC denials for httpd with sudo
+  script_type: bash
+  script: |
+    #!/usr/bin/env bash
+    set -euo pipefail
+    if command -v sestatus >/dev/null; then
+      sudo sestatus || true
+    fi
+    # recent AVC denials for httpd
+    if command -v ausearch >/dev/null; then
+      sudo ausearch -m avc -ts recent -c httpd || true
+    fi
+  readonly: true
+  result:
+    status: OK
+- description: Check SELinux mode and list any processes using port 8088
+  script_type: bash
+  script: |
+    #!/usr/bin/env bash
+    set -euo pipefail
+    # SELinux mode
+    if command -v getenforce >/dev/null; then
+      getenforce || true
+    fi
+    # List processes using port 8088
+    ss -ltnp | grep ':8088' || true
+  readonly: true
+  result:
+    status: OK
+- description: Check if semanage command exists
+  script_type: bash
+  script: |
+    #!/usr/bin/env bash
+    set -euo pipefail
+    if command -v semanage >/dev/null; then echo "semanage exists"; else echo "semanage missing"; fi
+  readonly: true
+  result:
+    status: OK
+- description: Allow httpd to bind to port 8088 via SELinux policy and restart service
+  script_type: bash
+  script: |
+    #!/usr/bin/env bash
+    set -euo pipefail
+
+    # Add SELinux http_port_t for port 8088 if not already present
+    if command -v semanage >/dev/null; then
+      if ! semanage port -l | grep -E "http_port_t.*8088" >/dev/null; then
+        semanage port -a -t http_port_t -p tcp 8088 || true
+      fi
+    fi
+
+    # Reload systemd daemon (in case unit file changed)
+    systemctl daemon-reload || true
+
+    # Restart httpd service
+    systemctl restart httpd.service || true
+
+    # Show status after restart
+    systemctl status httpd.service --no-pager
+  readonly: false
+  result:
+    status: OK
