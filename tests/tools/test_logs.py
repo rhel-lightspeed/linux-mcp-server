@@ -21,64 +21,73 @@ class TestGetJournalLogs:
     """Tests for get_journal_logs tool."""
 
     @pytest.mark.parametrize(
-        "params, expected_args, expected_fields",
+        "params, expected_args, expected_fields, expected_lines",
         [
             # Default parameters
             (
                 {},
-                ["-n", "100", "--no-pager"],
+                [],
                 {"unit": None},
+                100,
             ),
             # Unit filter
             (
                 {"unit": "nginx.service"},
                 ["--unit", "nginx.service"],
                 {"unit": "nginx.service"},
+                100,
             ),
             # Priority filter
             (
                 {"priority": "err"},
                 ["--priority", "err"],
                 {"unit": None},
+                100,
             ),
             # Since filter
             (
                 {"since": "today"},
                 ["--since", "today"],
                 {"unit": None},
+                100,
             ),
             # Custom line count
             (
                 {"lines": 50},
-                ["-n", "50"],
+                [],
                 {"unit": None},
+                50,
             ),
             # All filters combined
             (
                 {"unit": "nginx.service", "priority": "err", "since": "today", "lines": 50},
-                ["--unit", "nginx.service", "--priority", "err", "--since", "today", "-n", "50"],
+                ["--unit", "nginx.service", "--priority", "err", "--since", "today"],
                 {"unit": "nginx.service"},
+                50,
             ),
             # Transport filter (audit)
             (
                 {"transport": "audit"},
                 ["_TRANSPORT=audit"],
                 {"unit": None},
+                100,
             ),
             (
                 {"transport": "kernel"},
                 ["_TRANSPORT=kernel"],
                 {"unit": None},
+                100,
             ),
             (
                 {"transport": "audit", "priority": "err", "lines": 50},
-                ["_TRANSPORT=audit", "--priority", "err", "-n", "50"],
+                ["_TRANSPORT=audit", "--priority", "err"],
                 {"unit": None},
+                50,
             ),
         ],
     )
     async def test_get_journal_logs_filters(
-        self, mcp_client, mock_execute_with_fallback, params, expected_args, expected_fields
+        self, mcp_client, mock_execute_with_fallback, params, expected_args, expected_fields, expected_lines
     ):
         """Test get_journal_logs with various filter combinations."""
         mock_execute_with_fallback.return_value = (
@@ -93,7 +102,12 @@ class TestGetJournalLogs:
 
         assert "Jan 01 12:00:00 host systemd[1]: Test log entry." in content["entries"]
         assert content["lines_count"] == 1
-        assert cmd_args[0] == "journalctl"
+        assert cmd_args[:4] == (
+            "/bin/sh",
+            "-c",
+            f'journalctl --no-pager "$@" | head -n {expected_lines}',
+            "journalctl",
+        )
         assert all(content[field] == value for field, value in expected_fields.items())
         assert all(arg in cmd_args for arg in expected_args)
         assert mock_execute_with_fallback.call_count == 1
