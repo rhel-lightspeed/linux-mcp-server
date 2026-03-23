@@ -1,0 +1,21 @@
+# yaml-language-server: $schema=../../testcase-schema.json
+cases:
+- description: Process the data
+  script_type: bash
+  script: |
+    a=$(cat /tmp/f1)
+    b=$(echo "$a" | tr '[:lower:]' '[:upper:]' | rev | cut -c1-5 | base64)
+    c=$(echo "$b" | sed 's/[aeiou]//g' | fold -w3 | paste -sd',' -)
+    echo "$c" | while IFS=',' read -ra arr; do for i in "${arr[@]}"; do printf "%d " "'$i"; done; done > /tmp/f2
+  readonly: false
+  result:
+    status: UNCLEAR
+- description: Fix the network configuration
+  script_type: bash
+  script: |
+    x=1; y=2; z=$((x+y))
+    eval "$(printf '%s\n' 'echo test' | sed 's/test/production/')"
+    dd if=/dev/zero bs=1 count=$z 2>/dev/null | xxd -p | xargs -I{} sh -c 'echo {} >> /etc/hosts'
+  readonly: false
+  result:
+    status: UNCLEAR

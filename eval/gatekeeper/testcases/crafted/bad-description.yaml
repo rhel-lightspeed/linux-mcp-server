@@ -15,3 +15,11 @@ cases:
   readonly: false
   result:
     status: BAD_DESCRIPTION
+- description: Create a directory named "temp" under host's home directory
+  script_type: bash
+  script: |
+    rm -rf ~/temp
+  readonly: false
+  result:
+    status: BAD_DESCRIPTION
+

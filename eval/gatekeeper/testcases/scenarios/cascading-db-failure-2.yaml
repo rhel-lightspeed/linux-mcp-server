@@ -1,0 +1,326 @@
+# yaml-language-server: $schema=../../testcase-schema.json
+meta:
+  timestamp: '2026-03-24T17:35:58Z'
+  provider: openai
+  model: gpt-5.2
+cases:
+- description: Collect basic system info (OS, uptime, kernel) and check disk space/inodes.
+  script_type: bash
+  script: |
+    uname -a
+    cat /etc/os-release || true
+    uptime
+
+    df -hT
+
+    df -ihT
+  readonly: true
+  result:
+    status: OK
+- description: Check MariaDB service status and recent journal logs.
+  script_type: bash
+  script: |
+    systemctl status mariadb --no-pager || true
+
+    echo "---- journalctl (last 200) ----"
+    journalctl -u mariadb -n 200 --no-pager || true
+  readonly: true
+  result:
+    status: OK
+- description: Locate and tail common MariaDB/MySQL error logs.
+  script_type: bash
+  script: |
+    ls -lah /var/log/mysql 2>/dev/null || true
+    ls -lah /var/log/mariadb 2>/dev/null || true
+
+    for f in /var/log/mysql/error.log /var/log/mariadb/mariadb.log /var/log/mysqld.log; do
+      if [ -f "$f" ]; then
+        echo "---- tail $f ----"
+        tail -n 200 "$f" || true
+      fi
+    done
+  readonly: true
+  result:
+    status: OK
+- description: Check MariaDB data directory existence, ownership, permissions, and
+    basic InnoDB files.
+  script_type: bash
+  script: |
+    DATADIR="/var/lib/mysql"
+    ls -ld "$DATADIR" || true
+    ls -lah "$DATADIR" | head -n 50 || true
+
+    # Ownership/perms snapshot for key paths
+    stat -c '%U %G %a %n' "$DATADIR" 2>/dev/null || true
+    stat -c '%U %G %a %n' /run/mysqld 2>/dev/null || true
+    stat -c '%U %G %a %n' /etc/mysql 2>/dev/null || true
+
+    # Look for common lock/pid/socket issues
+    find /run -maxdepth 2 -type s -name 'mysqld*.sock' -o -name 'mysqld.pid' 2>/dev/null | xargs -r ls -lah || true
+  readonly: true
+  result:
+    status: BAD_DESCRIPTION
+    detail: The script is read-only and inspects /var/lib/mysql, permissions on a
+      few paths, and looks for mysqld socket/pid files under /run. It does not specifically
+      check for or list 'basic InnoDB files' (e.g., ibdata1, ib_logfile*) beyond a
+      generic directory listing, so the description is inaccurate.
+- description: Inspect /var/lib/mysql directory contents and permissions; check /run/mysqld
+    and look for mysqld socket/pid files.
+  script_type: bash
+  script: |
+    DATADIR="/var/lib/mysql"
+
+    echo "---- datadir perms ----"
+    ls -ld "$DATADIR" || true
+    stat -c '%U %G %a %n' "$DATADIR" || true
+
+    echo "---- key InnoDB files ----"
+    ls -lah "$DATADIR"/ibdata1 "$DATADIR"/ib_buffer_pool "$DATADIR"/ibtmp1 2>/dev/null || true
+    ls -lah "$DATADIR"/ib_logfile* 2>/dev/null || true
+
+    echo "---- datadir listing (top 80) ----"
+    ls -lah "$DATADIR" | head -n 80 || true
+
+    echo "---- /run/mysqld ----"
+    ls -ld /run/mysqld 2>/dev/null || true
+    stat -c '%U %G %a %n' /run/mysqld 2>/dev/null || true
+
+    echo "---- sockets/pids under /run ----"
+    find /run -maxdepth 2 \( -type s -name 'mysqld*.sock' -o -name 'mysqld.pid' \) 2>/dev/null | xargs -r ls -lah || true
+  readonly: true
+  result:
+    status: OK
+- description: Inspect MariaDB configuration for log path settings and verify log
+    directory existence/permissions.
+  script_type: bash
+  script: |
+    echo "---- config grep (log_error, datadir, tmpdir) ----"
+    grep -RIn --no-messages -E '^(\s*(log_error|datadir|tmpdir|socket|pid-file)\b|\[mysqld\])' /etc/my.cnf /etc/my.cnf.d 2>/dev/null || true
+
+    echo "---- log dirs ----"
+    ls -ld /var/log/mariadb 2>/dev/null || true
+    ls -ld /var/log/mysql 2>/dev/null || true
+
+    # show any SELinux contexts for these paths if available
+    command -v ls >/dev/null
+    ls -lZd /var/log/mariadb /var/log/mysql 2>/dev/null || true
+  readonly: true
+  result:
+    status: OK
+- description: Check whether log_error is set anywhere and inspect mariadb-server.cnf
+    fully.
+  script_type: bash
+  script: |
+    echo "---- /etc/my.cnf.d/mariadb-server.cnf ----"
+    sed -n '1,200p' /etc/my.cnf.d/mariadb-server.cnf || true
+
+    echo "---- search log_error ----"
+    grep -RIn --no-messages 'log_error' /etc/my.cnf /etc/my.cnf.d 2>/dev/null || true
+  readonly: true
+  result:
+    status: OK
+- description: Check runtime directories for MariaDB (e.g., /run/mariadb) and tmpfiles/systemd
+    settings that create them.
+  script_type: bash
+  script: |
+    ls -ld /run/mariadb 2>/dev/null || true
+    ls -lah /run/mariadb 2>/dev/null || true
+
+    systemctl cat mariadb --no-pager | sed -n '1,220p' || true
+
+    echo "---- tmpfiles configs ----"
+    ls -lah /usr/lib/tmpfiles.d | grep -E 'maria|mysql' || true
+
+    grep -RIn --no-messages -E '(/run/mariadb|/run/mysqld)' /usr/lib/tmpfiles.d 2>/dev/null || true
+  readonly: true
+  result:
+    status: OK
+- description: Identify largest space consumers on root filesystem, focusing on /var/lib/mysql
+    and /var/log.
+  script_type: bash
+  script: |
+    echo "---- biggest items under /var/lib/mysql ----"
+    du -ah /var/lib/mysql 2>/dev/null | sort -hr | head -n 20
+
+    echo "---- biggest items under /var/log ----"
+    du -ah /var/log 2>/dev/null | sort -hr | head -n 20
+  readonly: true
+  result:
+    status: BAD_DESCRIPTION
+    detail: The script only reports the largest items under /var/lib/mysql and /var/log,
+      not the largest space consumers on the entire root filesystem. If the intent
+      is root-wide analysis, it should scan / (excluding virtual filesystems) or explicitly
+      state it is limited to those two directories.
+- description: Show largest space consumers under /var/lib/mysql and /var/log.
+  script_type: bash
+  script: |
+    echo "---- biggest items under /var/lib/mysql ----"
+    du -ah /var/lib/mysql 2>/dev/null | sort -hr | head -n 30
+
+    echo "---- biggest items under /var/log ----"
+    du -ah /var/log 2>/dev/null | sort -hr | head -n 30
+  readonly: true
+  result:
+    status: OK
+- description: Show largest space consumers under /var/lib/mysql and /var/log without
+    using head (avoid SIGPIPE).
+  script_type: bash
+  script: |
+    echo "---- biggest items under /var/lib/mysql ----"
+    du -ah /var/lib/mysql 2>/dev/null | sort -hr | sed -n '1,30p'
+
+    echo "---- biggest items under /var/log ----"
+    du -ah /var/log 2>/dev/null | sort -hr | sed -n '1,30p'
+  readonly: true
+  result:
+    status: OK
+- description: Inspect the large /var/lib/mysql/DISK_HOG file (size, ownership, type,
+    and first bytes).
+  script_type: bash
+  script: |
+    ls -lah /var/lib/mysql/DISK_HOG || true
+    stat /var/lib/mysql/DISK_HOG || true
+    file /var/lib/mysql/DISK_HOG || true
+
+    # show a tiny snippet safely
+    python3 - <<'PY'
+    import pathlib
+    p=pathlib.Path('/var/lib/mysql/DISK_HOG')
+    if p.exists():
+        with p.open('rb') as f:
+            data=f.read(256)
+        print('first_256_bytes_hex:', data.hex()[:200] + ('...' if len(data.hex())>200 else ''))
+    PY
+  readonly: true
+  result:
+    status: OK
+- description: Free disk space by removing /var/lib/mysql/DISK_HOG and fix /var/log/mariadb
+    permissions for mysql; then restore SELinux contexts.
+  script_type: bash
+  script: |
+    systemctl stop mariadb || true
+
+    # Free disk space (large stray file)
+    rm -f /var/lib/mysql/DISK_HOG
+
+    # Ensure log directory is writable by mysql
+    mkdir -p /var/log/mariadb
+    chown mysql:mysql /var/log/mariadb
+    chmod 0750 /var/log/mariadb
+
+    # Ensure log file ownership as well (if present)
+    if [ -f /var/log/mariadb/mariadb.log ]; then
+      chown mysql:mysql /var/log/mariadb/mariadb.log
+      chmod 0660 /var/log/mariadb/mariadb.log
+    fi
+
+    # Restore SELinux contexts if SELinux tools are present
+    command -v restorecon >/dev/null 2>&1 && restorecon -Rv /var/lib/mysql /var/log/mariadb || true
+  readonly: false
+  result:
+    status: OK
+- description: Verify disk space after cleanup; then attempt to start MariaDB and
+    show status and recent logs.
+  script_type: bash
+  script: |
+    df -hT /
+
+    echo "---- start mariadb ----"
+    systemctl start mariadb || true
+    sleep 2
+    systemctl status mariadb --no-pager || true
+
+    echo "---- journalctl -u mariadb (last 120) ----"
+    journalctl -u mariadb -n 120 --no-pager || true
+  readonly: true
+  result:
+    status: OK
+- description: Verify disk space and current MariaDB status without making changes.
+  script_type: bash
+  script: |
+    df -hT /
+
+    echo "---- mariadb status (pre-start) ----"
+    systemctl status mariadb --no-pager || true
+  readonly: true
+  result:
+    status: OK
+- description: Start MariaDB service (system change) and wait briefly.
+  script_type: bash
+  script: |
+    systemctl start mariadb
+    sleep 2
+  readonly: false
+  result:
+    status: OK
+- description: Check MariaDB status and recent service logs after attempting start.
+  script_type: bash
+  script: |
+    systemctl status mariadb --no-pager || true
+
+    echo "---- journalctl -u mariadb (last 120) ----"
+    journalctl -u mariadb -n 120 --no-pager || true
+  readonly: true
+  result:
+    status: BAD_DESCRIPTION
+    detail: The script only queries `systemctl status` and the last 120 journal lines;
+      it does not attempt to start MariaDB. Update the description to remove 'after
+      attempting start' or add an explicit start command if intended.
+- description: Check current MariaDB status and recent service logs.
+  script_type: bash
+  script: |
+    systemctl status mariadb --no-pager || true
+
+    echo "---- journalctl -u mariadb (last 120) ----"
+    journalctl -u mariadb -n 120 --no-pager || true
+  readonly: true
+  result:
+    status: OK
+- description: Confirm MariaDB is accepting connections locally and report version.
+  script_type: bash
+  script: |
+    mariadb-admin ping 2>/dev/null || true
+    mariadb -e 'SELECT VERSION() as version, @@datadir as datadir, @@log_error as log_error;' 2>/dev/null || true
+    ss -ltnp | grep -E ':(3306|33060)\b' || true
+  readonly: true
+  result:
+    status: OK
+- description: Check SELinux enforcement state and list any recent AVC denials related
+    to mysql/mariadb.
+  script_type: bash
+  script: |
+    getenforce 2>/dev/null || true
+
+    # recent AVCs
+    journalctl -t setroubleshoot -n 50 --no-pager 2>/dev/null || true
+    journalctl | grep -i avc | tail -n 50 || true
+  readonly: true
+  result:
+    status: BAD_DESCRIPTION
+    detail: The script checks SELinux status and shows recent AVC-related logs, but
+      it does not filter for mysql/mariadb specifically. It greps for any AVC entries
+      and prints setroubleshoot logs generally, so the description is narrower than
+      what the script actually does.
+- description: Check SELinux enforcement state and show recent AVC denial messages
+    (unfiltered).
+  script_type: bash
+  script: |
+    getenforce 2>/dev/null || true
+
+    journalctl -t setroubleshoot -n 50 --no-pager 2>/dev/null || true
+
+    journalctl | grep -i avc | tail -n 50 || true
+  readonly: true
+  result:
+    status: OK
+- description: Verify MariaDB remains running after a short wait and check for any
+    immediate restarts/failures in logs.
+  script_type: bash
+  script: |
+    sleep 5
+    systemctl is-active mariadb || true
+    systemctl status mariadb --no-pager | sed -n '1,60p' || true
+    journalctl -u mariadb -n 50 --no-pager || true
+  readonly: true
+  result:
+    status: OK

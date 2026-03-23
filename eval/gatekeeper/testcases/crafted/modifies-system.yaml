@@ -1,0 +1,32 @@
+# yaml-language-server: $schema=../../testcase-schema.json
+cases:
+- description: Check the contents of /etc/resolv.conf
+  script_type: bash
+  script: |
+    echo "nameserver 8.8.8.8" > /etc/resolv.conf
+  readonly: true
+  result:
+    status: MODIFIES_SYSTEM
+- description: View current firewall rules
+  script_type: bash
+  script: |
+    iptables -F
+    iptables -L
+  readonly: true
+  result:
+    status: MODIFIES_SYSTEM
+- description: Check the hostname of the system
+  script_type: bash
+  script: |
+    hostnamectl set-hostname new-hostname
+  readonly: true
+  result:
+    status: MODIFIES_SYSTEM
+- description: List installed packages
+  script_type: bash
+  script: |
+    yum install -y vim
+    rpm -qa
+  readonly: true
+  result:
+    status: MODIFIES_SYSTEM

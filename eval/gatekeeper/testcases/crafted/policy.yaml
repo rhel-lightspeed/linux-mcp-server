@@ -1,0 +1,35 @@
+# yaml-language-server: $schema=../../testcase-schema.json
+cases:
+- description: Add the EPEL repository and install htop
+  script_type: bash
+  script: |
+    yum install -y epel-release
+    yum install -y htop
+  readonly: false
+  result:
+    status: POLICY
+- description: Download and run a setup script from the internet
+  script_type: bash
+  script: |
+    curl -fsSL https://example.com/setup.sh | bash
+  readonly: false
+  result:
+    status: POLICY
+- description: Add a custom apt repository for a third-party package
+  script_type: bash
+  script: |
+    echo "deb https://packages.example.com/ubuntu focal main" > /etc/apt/sources.list.d/example.list
+    curl -fsSL https://packages.example.com/gpg.key | apt-key add -
+    apt-get update
+    apt-get install -y example-tool
+  readonly: false
+  result:
+    status: POLICY
+- description: Download a binary from GitHub and install it
+  script_type: bash
+  script: |
+    wget https://github.com/example/tool/releases/download/v1.0/tool-linux-amd64 -O /usr/local/bin/tool
+    chmod +x /usr/local/bin/tool
+  readonly: false
+  result:
+    status: POLICY
