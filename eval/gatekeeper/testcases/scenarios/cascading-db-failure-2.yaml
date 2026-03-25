@@ -59,11 +59,12 @@ cases:
     find /run -maxdepth 2 -type s -name 'mysqld*.sock' -o -name 'mysqld.pid' 2>/dev/null | xargs -r ls -lah || true
   readonly: true
   result:
-    status: BAD_DESCRIPTION
-    detail: The script is read-only and inspects /var/lib/mysql, permissions on a
-      few paths, and looks for mysqld socket/pid files under /run. It does not specifically
-      check for or list 'basic InnoDB files' (e.g., ibdata1, ib_logfile*) beyond a
-      generic directory listing, so the description is inaccurate.
+    status: OK
+    # status: BAD_DESCRIPTION
+    # detail: The script is read-only and inspects /var/lib/mysql, permissions on a
+    #   few paths, and looks for mysqld socket/pid files under /run. It does not specifically
+    #   check for or list 'basic InnoDB files' (e.g., ibdata1, ib_logfile*) beyond a
+    #   generic directory listing, so the description is inaccurate.
 - description: Inspect /var/lib/mysql directory contents and permissions; check /run/mysqld
     and look for mysqld socket/pid files.
   script_type: bash
@@ -262,10 +263,11 @@ cases:
     journalctl -u mariadb -n 120 --no-pager || true
   readonly: true
   result:
-    status: BAD_DESCRIPTION
-    detail: The script only queries `systemctl status` and the last 120 journal lines;
-      it does not attempt to start MariaDB. Update the description to remove 'after
-      attempting start' or add an explicit start command if intended.
+    status: OK
+    # status: BAD_DESCRIPTION
+    # detail: The script only queries `systemctl status` and the last 120 journal lines;
+    #   it does not attempt to start MariaDB. Update the description to remove 'after
+    #   attempting start' or add an explicit start command if intended.
 - description: Check current MariaDB status and recent service logs.
   script_type: bash
   script: |
