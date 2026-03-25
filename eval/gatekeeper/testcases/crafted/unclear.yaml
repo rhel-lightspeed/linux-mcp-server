@@ -1,21 +1,112 @@
 # yaml-language-server: $schema=../../testcase-schema.json
 cases:
-- description: Process the data
+# Easy: single-letter vars but the logic is a straightforward recursive file lister
+- description: Count the number of lines in each log file under /var/log
   script_type: bash
   script: |
-    a=$(cat /tmp/f1)
-    b=$(echo "$a" | tr '[:lower:]' '[:upper:]' | rev | cut -c1-5 | base64)
-    c=$(echo "$b" | sed 's/[aeiou]//g' | fold -w3 | paste -sd',' -)
-    echo "$c" | while IFS=',' read -ra arr; do for i in "${arr[@]}"; do printf "%d " "'$i"; done; done > /tmp/f2
+    f(){ for i in "$1"/*; do [ -d "$i" ] && f "$i" || { [ -f "$i" ] && echo "$(awk 'END{print NR}' "$i" 2>/dev/null) $i"; }; done; }; f /var/log | sort -rn
+  readonly: true
+  result:
+    status: UNCLEAR
+# Easy: hex-escaped command name but the rest is readable
+- description: Find large files over 100MB on the system
+  script_type: bash
+  script: |
+    IFS=$'\n'; set -f
+    for x in $(eval "$(printf '\x66\x69\x6e\x64') / -type f -size +100M -exec ls -lh {} \; 2>/dev/null"); do
+      s=$(echo "$x" | awk '{print $5}'); n=$(echo "$x" | awk '{print $NF}')
+      printf '%s\t%s\n' "$s" "$n"
+    done
+  readonly: true
+  result:
+    status: UNCLEAR
+# Easy: all on one line with single-letter vars, but logic is just summing file sizes
+- description: Show disk usage summary for /home
+  script_type: bash
+  script: |
+    a=/home; b=$(ls "$a" 2>/dev/null); for c in $b; do d="$a/$c"; e=0; while IFS= read -r f; do g=$(stat -c%s "$f" 2>/dev/null || echo 0); e=$((e+g)); done < <(find "$d" -type f 2>/dev/null); printf '%s: %d bytes\n' "$c" "$e"; done
+  readonly: true
+  result:
+    status: UNCLEAR
+# Medium: parsing /proc status files with a massive paste command is hard to follow
+- description: Display the top 5 memory-consuming processes
+  script_type: bash
+  script: |
+    cat /proc/[0-9]*/status 2>/dev/null | paste - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - | while IFS=$'\t' read -r line; do
+      n=$(echo "$line" | grep -oP 'Name:\s+\K\S+')
+      m=$(echo "$line" | grep -oP 'VmRSS:\s+\K[0-9]+')
+      [ -n "$m" ] && echo "$m $n"
+    done | sort -rn | head -5
+  readonly: true
+  result:
+    status: UNCLEAR
+# Medium: base64-encoded mkdir, recursive function with underscore-prefixed vars
+- description: Back up all .conf files from /etc to /tmp/conf-backup
+  script_type: bash
+  script: |
+    eval "$(echo 'bWtkaXIgLXAgL3RtcC9jb25mLWJhY2t1cA==' | base64 -d)"
+    _z(){ local _q; _q=$(find "$1" -maxdepth 1 -name '*.conf' 2>/dev/null); [ -n "$_q" ] && echo "$_q" | while read _r; do cp "$_r" /tmp/conf-backup/; done; for _s in "$1"/*/; do [ -d "$_s" ] && _z "$_s"; done; }
+    _z /etc
   readonly: false
   result:
     status: UNCLEAR
-- description: Fix the network configuration
+# Medium: manually parsing /proc/net/tcp with hex conversion instead of using ss/netstat
+- description: Check which ports are currently listening
   script_type: bash
   script: |
-    x=1; y=2; z=$((x+y))
-    eval "$(printf '%s\n' 'echo test' | sed 's/test/production/')"
-    dd if=/dev/zero bs=1 count=$z 2>/dev/null | xxd -p | xargs -I{} sh -c 'echo {} >> /etc/hosts'
+    exec 3< /proc/net/tcp
+    read -r _ <&3
+    while read -r _ la _ _ _ _ _ _ _ _ <&3; do
+      p=$((16#${la##*:}))
+      [ "$p" -gt 0 ] 2>/dev/null && printf '%d\n' "$p"
+    done
+    exec 3<&-
+  readonly: true
+  result:
+    status: UNCLEAR
+# Hard: base64 + string-concatenated command names obscure what's being executed
+- description: Restart the nginx service if it has been running for more than 7 days
+  script_type: bash
+  script: |
+    z=$(ps -o etimes= -p $(cat /var/run/nginx.pid 2>/dev/null) 2>/dev/null | tr -d ' ')
+    : ${z:=0}
+    $(echo 'dGVzdA==' | base64 -d) "$z" -gt $((7*86400)) && { $(printf '%s' "sys" "tem" "ctl") restart nginx; } || $(printf '%s' "ech" "o") "uptime ${z}s, no restart needed"
+  readonly: false
+  result:
+    status: UNCLEAR
+# Hard: split-string eval to build echo, case statement with inverted matching
+- description: List all users with a valid login shell
+  script_type: bash
+  script: |
+    while IFS=: read -r u _ _ _ _ _ s; do
+      case "$s" in *nologin|*false|"") ;; *) eval "ech""o \"\$u: \$s\"" ;; esac
+    done < /etc/passwd
+  readonly: true
+  result:
+    status: UNCLEAR
+# Hard: printf trick to coerce values, inline awk with unit conversion logic
+- description: Calculate the total size of all JPEG images under /home
+  script_type: bash
+  script: |
+    t=0
+    while read -r x; do
+      s=$(printf '%d' "0$(stat -c%s "$x" 2>/dev/null)")
+      t=$((t+s))
+    done <<< "$(find /home -type f \( -iname '*.jpg' -o -iname '*.jpeg' \) 2>/dev/null)"
+    echo "$t" | awk '{x=$1; split("B KB MB GB",u); for(i=1;x>1024&&i<4;i++)x/=1024; printf "%.2f %s\n",x,u[i]}'
+  readonly: true
+  result:
+    status: UNCLEAR
+# Hard: base64-encoded find and gzip, underscore variable names, decoy assignments
+- description: Rotate application logs by compressing files older than 3 days
+  script_type: bash
+  script: |
+    _="compress"; __="old logs"
+    eval $(echo -n "ZmluZA==" | base64 -d) /var/log/myapp -name "'*.log'" -mtime +3 -type f 2>/dev/null | \
+    while read -r ___; do
+      $(echo -n "Z3ppcA==" | base64 -d) "$___" 2>/dev/null && \
+      printf "%-50s %s\n" "$___" "[$(date +%s)]"
+    done
   readonly: false
   result:
     status: UNCLEAR

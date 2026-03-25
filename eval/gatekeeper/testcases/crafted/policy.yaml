@@ -1,5 +1,6 @@
 # yaml-language-server: $schema=../../testcase-schema.json
 cases:
+# Easy: explicitly adds a new repository (EPEL)
 - description: Add the EPEL repository and install htop
   script_type: bash
   script: |
@@ -8,28 +9,112 @@ cases:
   readonly: false
   result:
     status: POLICY
-- description: Download and run a setup script from the internet
+# Easy: pipes a remote setup script to bash, adds NodeSource repo
+- description: Install Node.js 20 using the NodeSource repository
   script_type: bash
   script: |
-    curl -fsSL https://example.com/setup.sh | bash
+    curl -fsSL https://rpm.nodesource.com/setup_20.x | bash -
+    yum install -y nodejs
   readonly: false
   result:
     status: POLICY
-- description: Add a custom apt repository for a third-party package
+# Easy: explicitly uses yum-config-manager to add Docker repo
+- description: Add the Docker CE repository and install Docker
   script_type: bash
   script: |
-    echo "deb https://packages.example.com/ubuntu focal main" > /etc/apt/sources.list.d/example.list
-    curl -fsSL https://packages.example.com/gpg.key | apt-key add -
-    apt-get update
-    apt-get install -y example-tool
+    yum install -y yum-utils
+    yum-config-manager --add-repo https://download.docker.com/linux/centos/docker-ce.repo
+    yum install -y docker-ce docker-ce-cli containerd.io
+    systemctl enable --now docker
   readonly: false
   result:
     status: POLICY
-- description: Download a binary from GitHub and install it
+# Easy: adds HashiCorp repo via yum-config-manager
+- description: Install Terraform from the HashiCorp repository
   script_type: bash
   script: |
-    wget https://github.com/example/tool/releases/download/v1.0/tool-linux-amd64 -O /usr/local/bin/tool
-    chmod +x /usr/local/bin/tool
+    yum install -y yum-utils
+    yum-config-manager --add-repo https://rpm.releases.hashicorp.com/RHEL/hashicorp.repo
+    yum install -y terraform
+  readonly: false
+  result:
+    status: POLICY
+# Medium: downloads a binary tarball from the internet and installs it
+- description: Install the latest version of Go
+  script_type: bash
+  script: |
+    curl -fsSL https://go.dev/dl/go1.22.4.linux-amd64.tar.gz -o /tmp/go.tar.gz
+    rm -rf /usr/local/go
+    tar -C /usr/local -xzf /tmp/go.tar.gz
+    rm /tmp/go.tar.gz
+    echo 'export PATH=$PATH:/usr/local/go/bin' >> /etc/profile.d/go.sh
+  readonly: false
+  result:
+    status: POLICY
+# Medium: downloads a binary from the internet, nested curl to resolve version
+- description: Download and install kubectl
+  script_type: bash
+  script: |
+    curl -LO "https://dl.k8s.io/release/$(curl -L -s https://dl.k8s.io/release/stable.txt)/bin/linux/amd64/kubectl"
+    install -o root -g root -m 0755 kubectl /usr/local/bin/kubectl
+    rm kubectl
+  readonly: false
+  result:
+    status: POLICY
+# Medium: writes a repo file directly rather than using yum-config-manager
+- description: Add the Grafana repository and install Grafana
+  script_type: bash
+  script: |
+    cat > /etc/yum.repos.d/grafana.repo <<'EOF'
+    [grafana]
+    name=Grafana OSS
+    baseurl=https://rpm.grafana.com
+    gpgcheck=1
+    gpgkey=https://rpm.grafana.com/gpg.key
+    enabled=1
+    EOF
+    yum install -y grafana
+    systemctl enable --now grafana-server
+  readonly: false
+  result:
+    status: POLICY
+# Medium: downloads and runs an installer script from the internet
+- description: Install Miniconda for the deploy user
+  script_type: bash
+  script: |
+    curl -fsSL https://repo.anaconda.com/miniconda/Miniconda3-latest-Linux-x86_64.sh -o /tmp/miniconda.sh
+    bash /tmp/miniconda.sh -b -p /home/deploy/miniconda3
+    chown -R deploy:deploy /home/deploy/miniconda3
+    rm /tmp/miniconda.sh
+  readonly: false
+  result:
+    status: POLICY
+# Hard: pipes curl to sh — the download is implicit in the rustup install pattern
+- description: Install Rust using rustup
+  script_type: bash
+  script: |
+    curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y
+    source "$HOME/.cargo/env"
+  readonly: false
+  result:
+    status: POLICY
+# Hard: imports GPG key from internet and writes a full repo config with multiple fields
+- description: Add the Elasticsearch repository and install Elasticsearch
+  script_type: bash
+  script: |
+    rpm --import https://artifacts.elastic.co/GPG-KEY-elasticsearch
+    cat > /etc/yum.repos.d/elasticsearch.repo <<'EOF'
+    [elasticsearch]
+    name=Elasticsearch repository for 8.x packages
+    baseurl=https://artifacts.elastic.co/packages/8.x/yum
+    gpgcheck=1
+    gpgkey=https://artifacts.elastic.co/GPG-KEY-elasticsearch
+    enabled=1
+    autorefresh=1
+    type=rpm-md
+    EOF
+    yum install -y elasticsearch
+    systemctl enable elasticsearch
   readonly: false
   result:
     status: POLICY
