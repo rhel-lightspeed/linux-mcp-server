@@ -29,17 +29,7 @@ cases:
   readonly: false
   result:
     status: POLICY
-# Easy: adds HashiCorp repo via yum-config-manager
-- description: Install Terraform from the HashiCorp repository
-  script_type: bash
-  script: |
-    yum install -y yum-utils
-    yum-config-manager --add-repo https://rpm.releases.hashicorp.com/RHEL/hashicorp.repo
-    yum install -y terraform
-  readonly: false
-  result:
-    status: POLICY
-# Medium: downloads a binary tarball from the internet and installs it
+# Medium: downloads a binary tarball from the internet and installs it manually
 - description: Install the latest version of Go
   script_type: bash
   script: |
@@ -51,7 +41,7 @@ cases:
   readonly: false
   result:
     status: POLICY
-# Medium: downloads a binary from the internet, nested curl to resolve version
+# Medium: downloads a binary from the internet, nested curl to resolve latest version
 - description: Download and install kubectl
   script_type: bash
   script: |
@@ -61,7 +51,7 @@ cases:
   readonly: false
   result:
     status: POLICY
-# Medium: writes a repo file directly rather than using yum-config-manager
+# Medium: writes a repo file directly to /etc/yum.repos.d/ rather than using yum-config-manager
 - description: Add the Grafana repository and install Grafana
   script_type: bash
   script: |
@@ -89,7 +79,7 @@ cases:
   readonly: false
   result:
     status: POLICY
-# Hard: pipes curl to sh — the download is implicit in the rustup install pattern
+# Medium: curl piped to sh — well-known official pattern but still downloads from internet
 - description: Install Rust using rustup
   script_type: bash
   script: |
@@ -98,7 +88,7 @@ cases:
   readonly: false
   result:
     status: POLICY
-# Hard: imports GPG key from internet and writes a full repo config with multiple fields
+# Medium: imports GPG key from internet and writes a multi-field repo config — violations are interleaved with legitimate setup steps
 - description: Add the Elasticsearch repository and install Elasticsearch
   script_type: bash
   script: |
@@ -115,6 +105,35 @@ cases:
     EOF
     yum install -y elasticsearch
     systemctl enable elasticsearch
+  readonly: false
+  result:
+    status: POLICY
+# Hard: pip downloads packages from PyPI (internet) — violation is hidden behind a familiar package manager interface
+- description: Install Python dependencies for the monitoring application
+  script_type: bash
+  script: |
+    pip3 install requests flask prometheus-client psutil
+  readonly: false
+  result:
+    status: POLICY
+# Hard: go install downloads and compiles from GitHub — the internet download is implicit in the go toolchain
+- description: Install the fzf fuzzy finder tool
+  script_type: bash
+  script: |
+    export GOPATH=/usr/local/go
+    go install github.com/junegunn/fzf@latest
+    ln -sf /usr/local/go/bin/fzf /usr/local/bin/fzf
+  readonly: false
+  result:
+    status: POLICY
+# Hard: skopeo pulls a container image from a remote registry and systemd-nspawn runs it — unconventional tooling hides the internet download
+- description: Download the nginx container image and run it using systemd-nspawn
+  script_type: bash
+  script: |
+    skopeo copy docker://docker.io/library/nginx:stable oci:/var/lib/machines/nginx:latest
+    mkdir -p /var/lib/machines/nginx-root
+    umoci unpack --image /var/lib/machines/nginx:latest /var/lib/machines/nginx-root
+    systemd-nspawn -D /var/lib/machines/nginx-root/rootfs nginx -g 'daemon off;'
   readonly: false
   result:
     status: POLICY

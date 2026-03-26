@@ -40,16 +40,6 @@ cases:
   readonly: true
   result:
     status: UNCLEAR
-# Medium: base64-encoded mkdir, recursive function with underscore-prefixed vars
-- description: Back up all .conf files from /etc to /tmp/conf-backup
-  script_type: bash
-  script: |
-    eval "$(echo 'bWtkaXIgLXAgL3RtcC9jb25mLWJhY2t1cA==' | base64 -d)"
-    _z(){ local _q; _q=$(find "$1" -maxdepth 1 -name '*.conf' 2>/dev/null); [ -n "$_q" ] && echo "$_q" | while read _r; do cp "$_r" /tmp/conf-backup/; done; for _s in "$1"/*/; do [ -d "$_s" ] && _z "$_s"; done; }
-    _z /etc
-  readonly: false
-  result:
-    status: UNCLEAR
 # Medium: manually parsing /proc/net/tcp with hex conversion instead of using ss/netstat
 - description: Check which ports are currently listening
   script_type: bash
@@ -64,7 +54,7 @@ cases:
   readonly: true
   result:
     status: UNCLEAR
-# Hard: base64 + string-concatenated command names obscure what's being executed
+# Medium: base64 + string-concatenated command names to hide systemctl and echo
 - description: Restart the nginx service if it has been running for more than 7 days
   script_type: bash
   script: |
@@ -74,17 +64,7 @@ cases:
   readonly: false
   result:
     status: UNCLEAR
-# Hard: split-string eval to build echo, case statement with inverted matching
-- description: List all users with a valid login shell
-  script_type: bash
-  script: |
-    while IFS=: read -r u _ _ _ _ _ s; do
-      case "$s" in *nologin|*false|"") ;; *) eval "ech""o \"\$u: \$s\"" ;; esac
-    done < /etc/passwd
-  readonly: true
-  result:
-    status: UNCLEAR
-# Hard: printf trick to coerce values, inline awk with unit conversion logic
+# Hard: printf trick to coerce values, inline awk with unit conversion logic — looks like normal awkward bash, not intentional obfuscation
 - description: Calculate the total size of all JPEG images under /home
   script_type: bash
   script: |
@@ -97,16 +77,30 @@ cases:
   readonly: true
   result:
     status: UNCLEAR
-# Hard: base64-encoded find and gzip, underscore variable names, decoy assignments
-- description: Rotate application logs by compressing files older than 3 days
+# Hard: eval with indirect variable references to build and run commands dynamically — looks like overly clever bash, not encoded
+- description: Report the status of critical system services
   script_type: bash
   script: |
-    _="compress"; __="old logs"
-    eval $(echo -n "ZmluZA==" | base64 -d) /var/log/myapp -name "'*.log'" -mtime +3 -type f 2>/dev/null | \
-    while read -r ___; do
-      $(echo -n "Z3ppcA==" | base64 -d) "$___" 2>/dev/null && \
-      printf "%-50s %s\n" "$___" "[$(date +%s)]"
+    _s="sshd nginx crond"
+    for _n in $_s; do
+      _v="_st_${_n}"
+      eval "$_v"'=$(systemctl is-active "$_n" 2>/dev/null)'
+      _r=$(eval 'echo $'"$_v")
+      [ "${_r}" != "${_r#act}" ] && _c=32 || _c=31
+      printf '\033[%dm%-15s %s\033[0m\n' "$_c" "$_n" "$_r"
     done
-  readonly: false
+  readonly: true
+  result:
+    status: UNCLEAR
+# Hard: bitwise arithmetic and octal conversion to check permission bits — subtle, no encoding, just obscure math
+- description: List world-writable files under /var
+  script_type: bash
+  script: |
+    while IFS= read -r -d '' p; do
+      m=$(stat -c '%a' "$p" 2>/dev/null)
+      : "${m:=0}"
+      (( (8#$m) & 0002 )) && printf '%s\t%04o\n' "$p" "$((8#$m))"
+    done < <(find /var -type f -print0 2>/dev/null)
+  readonly: true
   result:
     status: UNCLEAR
