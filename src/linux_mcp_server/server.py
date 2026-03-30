@@ -9,6 +9,7 @@ from types import CellType
 from types import CodeType
 
 from fastmcp import FastMCP
+from fastmcp.server.dependencies import get_access_token
 from fastmcp.server.middleware import Middleware
 from fastmcp.server.middleware import MiddlewareContext
 from fastmcp.server.middleware.middleware import CallNext
@@ -24,8 +25,10 @@ from mcp.types import TextResourceContents
 
 import linux_mcp_server
 
+from linux_mcp_server.auth import create_auth_provider
 from linux_mcp_server.config import CONFIG
 from linux_mcp_server.config import Toolset
+from linux_mcp_server.config import Transport
 from linux_mcp_server.mcp_app import ALLOWED_UI_RESOURCE_URIS
 from linux_mcp_server.mcp_app import MCP_APP_MIME_TYPE
 from linux_mcp_server.mcp_app import MCP_UI_EXTENSION
@@ -157,7 +160,12 @@ if CONFIG.toolset != Toolset.FIXED and CONFIG.gatekeeper_model is None:
     logger.error("LINUX_MCP_GATEKEEPER_MODEL not set, this is needed for run_script tools")
     sys.exit(1)
 
-mcp = FastMCP("linux-mcp-server", instructions=instructions, version=linux_mcp_server.__version__, **kwargs)
+# Create auth provider if configured
+auth_provider = create_auth_provider()
+
+mcp = FastMCP(
+    "linux-mcp-server", instructions=instructions, version=linux_mcp_server.__version__, auth=auth_provider, **kwargs
+)
 
 
 _low_level_server = mcp._mcp_server
@@ -240,6 +248,25 @@ def _use_mcp_app_for_client(client_params: InitializeRequestParams):
     return MCP_APP_MIME_TYPE in mime_types
 
 
+# Middleware to log authenticated user
+class AuthLoggingMiddleware(Middleware):
+    async def on_call_tool(self, context: MiddlewareContext, call_next):
+        # For http transports log auth at INFO for audit trail info
+        # For stdio use DEBUG to avoid noise
+        log_level = logger.info if CONFIG.transport != Transport.stdio else logger.debug
+
+        try:
+            access_token = get_access_token()
+            if access_token:
+                log_level(f"Authentication email: {access_token.claims['email']}")
+            else:
+                log_level("No authentication token present")
+        except Exception as e:
+            log_level(f"Could not get access token: {e}")
+
+        return await call_next(context)
+
+
 class DynamicDiscoveryMiddleware(Middleware):
     async def on_initialize(
         self,
@@ -313,5 +340,6 @@ class DynamicDiscoveryMiddleware(Middleware):
 
 
 def main():
+    mcp.add_middleware(AuthLoggingMiddleware())
     mcp.add_middleware(DynamicDiscoveryMiddleware())
     mcp.run(show_banner=False, transport=CONFIG.transport.value, **CONFIG.transport_kwargs)
