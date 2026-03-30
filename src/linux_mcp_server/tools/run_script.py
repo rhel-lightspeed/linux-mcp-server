@@ -436,3 +436,98 @@ async def run_script_modify(
 async def get_execution_state(id: str):
     script_detail = script_store.get_script_details(id)
     return {"state": script_detail.state}
+
+
+@mcp.tool(
+    tags={"validate_script"},
+    title="Pass a script to the gatekeeper for validation",
+    description="Pass a script to the gatekeeper for validation. The tool will return a unique ID that can be used to get the execution state of the script.",
+)
+@log_tool_call
+@disallow_local_execution_in_containers
+async def validate_script(
+    ctx: Context,
+    description: t.Annotated[
+        str,
+        Field(
+            description="Description of what the script does - e.g. 'Modify file permissions on nginx.conf to fix startup errors.'"
+        ),
+    ],
+    script_type: t.Annotated[
+        ScriptType,
+        Field(description="The type of script to run (python or bash)."),
+    ],
+    script: t.Annotated[
+        str,
+        Field(description="The script to run."),
+    ],
+    host: Host = None,
+    readonly: t.Annotated[bool, Field(description="Should be true if the script does not modify the system.")] = True,
+) -> ToolResult:
+    gatekeeper_result = check_run_script(
+        description,
+        script_type,
+        (BASH_STRICT_PREAMBLE + script) if script_type == SCRIPT_TYPE_BASH else script,
+        readonly=readonly,
+    )
+    id = script_store.add_script(script, script_type, host)
+
+    match gatekeeper_result.status:
+        case GatekeeperStatus.OK:
+            pass
+        case GatekeeperStatus.BAD_DESCRIPTION:
+            script_store.set_script_state(id, "rejected-gatekeeper")
+            raise ToolError(f"Bad description: {gatekeeper_result.detail}")
+        case GatekeeperStatus.POLICY:
+            script_store.set_script_state(id, "rejected-gatekeeper")
+            raise ToolError(f"Policy violation: {gatekeeper_result.detail}")
+        case GatekeeperStatus.MODIFIES_SYSTEM:
+            script_store.set_script_state(id, "rejected-gatekeeper")
+            raise ToolError(f"Script modifies the system - use run_script_modify: {gatekeeper_result.detail}")
+        case GatekeeperStatus.UNCLEAR:
+            script_store.set_script_state(id, "rejected-gatekeeper")
+            raise ToolError(f"Unclear script: {gatekeeper_result.detail}")
+        case GatekeeperStatus.DANGEROUS:
+            script_store.set_script_state(id, "rejected-gatekeeper")
+            raise ToolError(f"Dangerous script: {gatekeeper_result.detail}")
+        case GatekeeperStatus.MALICIOUS:
+            script_store.set_script_state(id, "rejected-gatekeeper")
+            # We don't provide detail here to make it harder for a malicious model
+            # to figure out workarounds
+            raise ToolError("Malicious script: not allowed")
+
+    result = ToolResult(
+        content=[TextContent(type="text", text=f"Script passed gatekeeper validation and is stored with ID {id}")],
+        structured_content={"id": id, "status": gatekeeper_result.status, "detail": gatekeeper_result.detail},
+    )
+    return result
+
+
+@mcp.tool(
+    tags={"validate_script"},
+    title="Run a previously validated script",
+    description="Call this tool to run a previously validated script by its ID.",
+)
+@log_tool_call
+@disallow_local_execution_in_containers
+async def run_script(
+    ctx: Context,
+    id: t.Annotated[str, Field(description="The ID of the script to run")],
+    script: t.Annotated[str, Field(description="The script to run.")],
+) -> str:
+    script_details = script_store.get_script_details(id)
+
+    script_store.set_script_state(id, "executing")
+    try:
+        command = _wrap_script(script_details.script_type, script_details.script)
+        returncode, stdout, stderr = await execute_command(command, host=script_details.host)
+    except Exception:
+        script_store.set_script_state(id, "failure")
+        raise
+
+    if returncode == 0:
+        script_store.set_script_state(id, "success")
+        return stdout if isinstance(stdout, str) else stdout.decode("utf-8", errors="replace")
+    else:
+        script_store.set_script_state(id, "failure")
+        return f"Error executing script: return code {returncode}, stderr: {stderr}"

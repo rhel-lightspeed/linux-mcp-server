@@ -82,6 +82,33 @@ INSTRUCTIONS_RUN_SCRIPT = """You have access to tools that execute Python or Bas
 - **File paths:** must be absolute
 """
 
+INSTRUCTIONS_VALIDATE_SCRIPT = """You have access to tools that validate and execute Python or Bash scripts you supply on the target system, for inspection or for making changes.
+You must validate a script before it will be allowed to run. Once validated, a script can be run using the run_script tool.
+
+## Script tools
+
+- **validate_script:** Validate a Python or Bash script via an external gatekeeper for security and policy compliance.
+- **run_script:** Run a Python or Bash script that has been validated by the gatekeeper. The script must be validated before it can be run.
+
+## Usage
+
+- Prefer readonly scripts when possible.
+- For modifications, choose the minimal change and avoid anything that could harm stability or security.
+- Describe what each script does in the description.
+- Do not fetch content from the internet; use only configured repositories if installing software.
+- Bash scripts run with `set -euo pipefail`; handle expected non-zero exits explicitly.
+- Prefer Bash for a few shell commands and Python when logic is more involved.
+
+## Behavior
+
+- **Remote execution:** Every tool accepts an optional `host` argument. When set, the work runs on that host over SSH instead of locally.
+- **Containers:** If the `container` environment variable is set, tools refuse to run locally; a remote `host` must be used.
+- **Read-only vs destructive:** run_script_readonly is marked read-only; the modify script tool is marked destructive.
+- **Log file access:** requires explicit allowlist configuration via LINUX_MCP_ALLOWED_LOG_PATHS
+- **Service names:** automatically append '.service' suffix if not provided
+- **File paths:** must be absolute
+"""
+
 INSTRUCTIONS_BOTH = """You have access to two kinds of tools: predefined commands that inspect the system, and script runners that execute Python or Bash you supply.
 
 ## Predefined command tools
@@ -129,6 +156,9 @@ match CONFIG.toolset:
     case Toolset.RUN_SCRIPT:
         instructions = INSTRUCTIONS_RUN_SCRIPT
         kwargs["include_tags"] = {"run_script"}
+    case Toolset.VALIDATE_SCRIPT:
+        instructions = INSTRUCTIONS_VALIDATE_SCRIPT
+        kwargs["include_tags"] = {"validate_script"}
     case Toolset.BOTH:
         instructions = INSTRUCTIONS_BOTH
     case _:
