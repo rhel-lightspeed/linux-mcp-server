@@ -9,8 +9,6 @@ on:
       - 'scripts/verify_installation.sh'
 
   pull_request:
-    branches:
-      - main
     paths:
       - 'src/linux_mcp_server/**'
       - 'scripts/verify_installation.sh'
