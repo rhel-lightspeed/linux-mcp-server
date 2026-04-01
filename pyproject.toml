@@ -105,6 +105,7 @@ addopts = [
 asyncio_mode = "auto"
 pythonpath = "src"
 testpaths = ["tests"]
+norecursedirs = ["tests/functional"]
 
 [tool.coverage.run]
 branch = true
