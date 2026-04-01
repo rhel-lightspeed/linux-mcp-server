@@ -9,8 +9,6 @@ on:
       - 'scripts/verify_installation.sh'
 
   pull_request:
-    branches:
-      - main
     paths:
       - 'src/linux_mcp_server/**'
       - 'scripts/verify_installation.sh'
@@ -57,6 +55,17 @@ jobs:
           enable-cache: true
           prune-cache: false
           
+      - name: Install Node.js
+        uses: actions/setup-node@v6.3.0
+        with:
+          node-version: '24'
+
+      - name: Build mcp-app
+        run: |
+          cd mcp-app
+          npm install
+          npm run build:prod
+
       - name: Run Installation and Verification
         shell: bash
         env:

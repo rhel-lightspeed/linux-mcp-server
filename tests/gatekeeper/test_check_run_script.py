@@ -8,8 +8,11 @@ RESULT_CASES = [
     (GatekeeperStatus.OK, "", "OK"),
     (GatekeeperStatus.BAD_DESCRIPTION, "Script does something else", "Bad description: Script does something else"),
     (GatekeeperStatus.POLICY, "Violates policy X", "Policy violation: Violates policy X"),
-    (GatekeeperStatus.MODIFIES_SYSTEM, "Writes to /etc",
-     "Script modifies the system - use run_script_modify: Writes to /etc"),
+    (
+        GatekeeperStatus.MODIFIES_SYSTEM,
+        "Writes to /etc",
+        "Script modifies the system - use run_script_modify: Writes to /etc",
+    ),
     (GatekeeperStatus.UNCLEAR, "Hard to understand", "Unclear script: Hard to understand"),
     (GatekeeperStatus.DANGEROUS, "Could break the system", "Dangerous script: Could break the system"),
     (GatekeeperStatus.MALICIOUS, "Contains backdoor", "Possibly malicious script: not allowed"),

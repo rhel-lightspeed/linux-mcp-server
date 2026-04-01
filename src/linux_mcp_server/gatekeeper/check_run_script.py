@@ -114,7 +114,6 @@ class GatekeeperStatus(StrEnum):
     MALICIOUS = "MALICIOUS"
 
 
-
 class GatekeeperResult(BaseModel):
     status: GatekeeperStatus
     detail: str
@@ -170,7 +169,7 @@ class GatekeeperResult(BaseModel):
         if status == GatekeeperStatus.OK:
             return cls(status=status, detail="")
         else:
-            detail = description[len(prefix):].lstrip(": ").strip()
+            detail = description[len(prefix) :].lstrip(": ").strip()
             return cls(status=status, detail=detail)
 
 
