@@ -1,0 +1,35 @@
+
+/general:
+  test: pytest -svv general/
+  description: |
+    Testing the MCP server protocol features (list tools, etc.)
+
+/system_information:
+  test: pytest -svv system_information/
+  description: |
+    Testing the system information tools provided by the Linux MCP server
+
+/service_management:
+  test: pytest -svv service_management/
+  description: |
+    Testing the service management tools provided by the Linux MCP server
+
+/process_management:
+  test: pytest -svv process_management/
+  description: |
+    Testing the process management tools provided by the Linux MCP server
+
+/logs_audit:
+  test: pytest -svv logs_audit/
+  description: |
+    Testing the logs and audit tools provided by the Linux MCP server
+
+/network_diagnostics:
+  test: pytest -svv network_diagnostics/
+  description: |
+    Testing the network diagnostics tools provided by the Linux MCP server
+
+/storage_disk_analysis:
+  test: pytest -svv storage_disk_analysis/
+  description: |
+    Testing the storage and disk analysis tools provided by the Linux MCP server

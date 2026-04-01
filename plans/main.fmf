@@ -1,0 +1,80 @@
+summary: Functional linux-mcp-server testing
+
+.python_setup: &python_setup |
+  if dnf info python3.12 &>/dev/null; then
+      dnf install -y python3.12 python3.12-pip
+      PYTHON_CMD=python3.12
+  elif dnf info python3.11 &>/dev/null; then
+      dnf install -y python3.11 python3.11-pip
+      PYTHON_CMD=python3.11
+  else
+      dnf install -y python3-pip
+      PYTHON_CMD=python3
+  fi
+  # Install from the current directory (the repo under test)
+  $PYTHON_CMD -m pip install .
+  $PYTHON_CMD -m pip install -r tests/functional/requirements.txt
+  $PYTHON_CMD -m pip freeze | grep linux-mcp-server
+
+discover:
+    how: fmf
+
+execute:
+    how: tmt
+
+
+/general:
+    # provision a 1minutetip machine or run this test plan using TF
+    prepare:
+        how: shell
+        script:
+            # util-linux needed for lsblk command
+            # pciutils needed for lspci command
+            - dnf install util-linux pciutils -y
+            - *python_setup
+
+/container-execution:
+    environment+:
+        MCP_TESTS_CONTAINER_EXECUTION: true
+    provision:
+        how: container
+        image: quay.io/fedora/fedora-coreos:rawhide
+
+    prepare:
+        how: shell
+        # util-linux needed for lsblk command
+        # pciutils needed for lspci command
+        script:
+            - dnf install pciutils util-linux -y
+            - *python_setup
+
+/multihost-execution:
+    # NOTE: This is not supported for all the cases yet. Only actually for the "test_get_system_information" test as of now
+    environment+:
+        MCP_TESTS_MULTIHOST: true
+    provision:
+      - name: client
+        image: Fedora-Rawhide
+        role: client
+
+      - name: mcp-server
+        image: Fedora-Rawhide
+        role: server
+
+    prepare:
+        how: shell
+        script:
+            - dnf install pciutils -y
+            - *python_setup
+        where: server
+
+    discover:
+      - name: server-test
+        how: fmf
+        where: server
+        test: /tests/mcp_tests/
+
+
+/local-execution:
+    provision:
+        how: local
