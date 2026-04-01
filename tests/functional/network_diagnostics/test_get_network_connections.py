@@ -18,7 +18,6 @@ async def test_network_connections(mcp_session):
     assert "Status" in mcp_output
 
     shell_lines = [line for line in shell_output.split("\n")[1:] if line.strip()]
-    expected_count = len(shell_lines)
     # Verify the output has a total connections line (count may slightly vary due to transient connections)
     assert "Total connections:" in mcp_output
 
@@ -32,7 +31,7 @@ async def test_network_connections(mcp_session):
             local_addr = parts[4]
             if local_addr in mcp_output:
                 found_count += 1
-                
+
     if total_checked > 0:
         # At least 80% of connections should match between the two calls
         assert found_count >= total_checked * 0.8, f"Only {found_count} out of {total_checked} connections matched"

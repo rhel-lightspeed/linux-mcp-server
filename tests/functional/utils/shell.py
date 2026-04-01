@@ -1,12 +1,14 @@
 # Copyright Red Hat
 import subprocess
+
 from collections import namedtuple
 from datetime import datetime
+from typing import Any
 
 
 def shell(
     command,
-    expect=0,
+    expect: Any = 0,
     doAssert=True,
     hint="",
     cwd=None,
@@ -68,14 +70,10 @@ def shell(
             host,
             command,
         ]
-        process = subprocess.run(
-            cmd, stdout=subprocess.PIPE, stderr=stderrParameter, cwd=cwd
-        )
+        process = subprocess.run(cmd, stdout=subprocess.PIPE, stderr=stderrParameter, cwd=cwd)
     else:
         cmd = f"set -euo pipefail; {command}"
-        process = subprocess.run(
-            cmd, stdout=subprocess.PIPE, stderr=stderrParameter, cwd=cwd, shell=True
-        )
+        process = subprocess.run(cmd, stdout=subprocess.PIPE, stderr=stderrParameter, cwd=cwd, shell=True)
 
     returncode = process.returncode
     stdout = process.stdout.decode() if process.stdout else ""
@@ -91,9 +89,7 @@ def shell(
             if not silent:
                 print(f"--- shell.FAIL: returncode expected {expect}, got {returncode}")
 
-            raise AssertionError(
-                f" FAIL: returncode expected {expect}, got {returncode}"
-            )
+            raise AssertionError(f" FAIL: returncode expected {expect}, got {returncode}")
         if not silent:
             print(f"--- shell.PASS: returncode expected {expect}, got {returncode}")
     else:
@@ -102,6 +98,4 @@ def shell(
     if not silent:
         print("###################################\n")
 
-    return namedtuple("Result", ["returncode", "stdout", "stderr"])(
-        returncode, stdout, stderr
-    )
+    return namedtuple("Result", ["returncode", "stdout", "stderr"])(returncode, stdout, stderr)

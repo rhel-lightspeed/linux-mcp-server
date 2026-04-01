@@ -6,10 +6,12 @@ import os
 import pytest
 import pytest_asyncio
 import yaml
+
 from mcp import StdioServerParameters
 from mcp.client.session import ClientSession as MCPClientSession
 from mcp.client.stdio import stdio_client
 from utils.shell import shell
+
 
 # --- Default configuration ---
 SERVER_COMMAND = "linux-mcp-server"
@@ -28,9 +30,7 @@ async def mcp_server_lifecycle(env_overrides=None):
     if env_overrides:
         current_env.update(env_overrides)
 
-    server_params = StdioServerParameters(
-        command=SERVER_COMMAND, args=SERVER_ARGS, env=current_env
-    )
+    server_params = StdioServerParameters(command=SERVER_COMMAND, args=SERVER_ARGS, env=current_env)
 
     print("\n--- [SESSION START] MCP Server ---")
 
@@ -51,9 +51,7 @@ async def mcp_server_lifecycle(env_overrides=None):
                     capabilities = await session.initialize()
 
                     print(f"MCP Server Name: **{capabilities.serverInfo.name}**")
-                    print(
-                        f"\nServer started with these environment variables:\n{current_env}"
-                    )
+                    print(f"\nServer started with these environment variables:\n{current_env}")
 
                     # Pass the active session to the fixture
                     session_future.set_result(session)
@@ -145,10 +143,7 @@ def client_hostname():
     """
     This is for multihost execution. Returns the client hostname.
     """
-    if (
-        os.getenv("MCP_TESTS_MULTIHOST")
-        and os.getenv("MCP_TESTS_MULTIHOST").lower() == "true"
-    ):
+    if os.getenv("MCP_TESTS_MULTIHOST", "").lower() == "true":
         path = shell("realpath $TMT_TOPOLOGY_YAML", silent=True).stdout.strip()
         with open(path, "r") as f:
             data = yaml.full_load(f)

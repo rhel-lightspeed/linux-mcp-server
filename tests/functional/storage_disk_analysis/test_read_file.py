@@ -16,9 +16,7 @@ async def test_read_file_happy_path(mcp_session):
         temp_path = f.name
 
     try:
-        response = await mcp_session.call_tool(
-            "read_file", arguments={"path": temp_path}
-        )
+        response = await mcp_session.call_tool("read_file", arguments={"path": temp_path})
         assert response is not None
 
         response_text = response.content[0].text
@@ -40,9 +38,7 @@ async def test_read_file_multiline_content(mcp_session):
         temp_path = f.name
 
     try:
-        response = await mcp_session.call_tool(
-            "read_file", arguments={"path": temp_path}
-        )
+        response = await mcp_session.call_tool("read_file", arguments={"path": temp_path})
         assert response is not None
 
         response_text = response.content[0].text
@@ -59,18 +55,14 @@ async def test_read_file_system_file(mcp_session):
     Uses /etc/hostname which should be readable on most systems.
     """
     # First check if /etc/hostname exists and is readable
-    result = shell(
-        "cat /etc/hostname 2>/dev/null || echo ''", silent=True, doAssert=False
-    )
+    result = shell("cat /etc/hostname 2>/dev/null || echo ''", silent=True, doAssert=False)
     if not result.stdout.strip():
         # Skip if /etc/hostname doesn't exist or isn't readable
         return
 
     expected_hostname = result.stdout.strip()
 
-    response = await mcp_session.call_tool(
-        "read_file", arguments={"path": "/etc/hostname"}
-    )
+    response = await mcp_session.call_tool("read_file", arguments={"path": "/etc/hostname"})
     assert response is not None
 
     response_text = response.content[0].text
@@ -82,9 +74,7 @@ async def test_read_file_non_existing_path(mcp_session):
     Verify the response contains error when file does not exist.
     """
     non_existing_path = "/nonexistent/path/file.txt"
-    response = await mcp_session.call_tool(
-        "read_file", arguments={"path": non_existing_path}
-    )
+    response = await mcp_session.call_tool("read_file", arguments={"path": non_existing_path})
     assert response is not None
 
     response_text = response.content[0].text
@@ -127,9 +117,7 @@ async def test_read_file_empty_file(mcp_session):
         temp_path = f.name
 
     try:
-        response = await mcp_session.call_tool(
-            "read_file", arguments={"path": temp_path}
-        )
+        response = await mcp_session.call_tool("read_file", arguments={"path": temp_path})
         assert response is not None
         # Empty file should return without error
         # The response content may be empty or contain just whitespace
@@ -142,16 +130,12 @@ async def test_read_file_special_characters(mcp_session):
     Verify that the server correctly reads file content with special characters.
     """
     with tempfile.NamedTemporaryFile(mode="w", delete=False, suffix=".txt") as f:
-        test_content = (
-            "Special chars: !@#$%^&*()_+-=[]{}|;':\",./<>?\nTabs:\t\tand spaces"
-        )
+        test_content = "Special chars: !@#$%^&*()_+-=[]{}|;':\",./<>?\nTabs:\t\tand spaces"
         f.write(test_content)
         temp_path = f.name
 
     try:
-        response = await mcp_session.call_tool(
-            "read_file", arguments={"path": temp_path}
-        )
+        response = await mcp_session.call_tool("read_file", arguments={"path": temp_path})
         assert response is not None
 
         response_text = response.content[0].text

@@ -44,17 +44,15 @@ async def test_list_files_order_by_name(mcp_session, tmp_path):
     (tmp_path / "gamma_file.txt").touch()
 
     # 1. Verify that the files are listed in ascending order
-    _, data, node_names = await _call_list_files(
-        mcp_session, path=str(tmp_path), order_by="name", sort="ascending"
-    )
+    _, data, node_names = await _call_list_files(mcp_session, path=str(tmp_path), order_by="name", sort="ascending")
     assert node_names == ["alpha_file.txt", "beta_file.txt", "gamma_file.txt"]
+    assert data is not None
     assert data.get("total") == 3
 
     # 2. Verify that the files are listed in descending order
-    _, data, node_names = await _call_list_files(
-        mcp_session, path=str(tmp_path), order_by="name", sort="descending"
-    )
+    _, data, node_names = await _call_list_files(mcp_session, path=str(tmp_path), order_by="name", sort="descending")
     assert node_names == ["gamma_file.txt", "beta_file.txt", "alpha_file.txt"]
+    assert data is not None
     assert data.get("total") == 3
 
 
@@ -69,17 +67,15 @@ async def test_list_files_order_by_size(mcp_session, tmp_path):
     large_file.write_text("x" * 10000)
 
     # 1. Verify that the files are listed in descending order by size
-    _, data, node_names = await _call_list_files(
-        mcp_session, path=str(tmp_path), order_by="size", sort="descending"
-    )
+    _, data, node_names = await _call_list_files(mcp_session, path=str(tmp_path), order_by="size", sort="descending")
     assert node_names == ["large_file.txt", "small_file.txt"]
+    assert data is not None
     assert data.get("total") == 2
 
     # 2. Verify that the files are listed in ascending order by size
-    _, data, node_names = await _call_list_files(
-        mcp_session, path=str(tmp_path), order_by="size", sort="ascending"
-    )
+    _, data, node_names = await _call_list_files(mcp_session, path=str(tmp_path), order_by="size", sort="ascending")
     assert node_names == ["small_file.txt", "large_file.txt"]
+    assert data is not None
     assert data.get("total") == 2
 
 
@@ -90,9 +86,7 @@ async def test_list_files_with_top_n(mcp_session, tmp_path):
     for i in range(5):
         (tmp_path / f"file_{i}.txt").touch()
 
-    _, _, node_names = await _call_list_files(
-        mcp_session, path=str(tmp_path), order_by="name", top_n=2
-    )
+    _, _, node_names = await _call_list_files(mcp_session, path=str(tmp_path), order_by="name", top_n=2)
 
     assert len(node_names) == 2
 

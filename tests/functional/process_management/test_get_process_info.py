@@ -14,9 +14,7 @@ async def test_get_process_info_non_existing_pid(mcp_session):
     """
     Verify the response contains the error message when the pid is not existing.
     """
-    response = await mcp_session.call_tool(
-        "get_process_info", arguments={"pid": 999999}
-    )
+    response = await mcp_session.call_tool("get_process_info", arguments={"pid": 999999})
     assert response is not None
     assert "Process with PID 999999 does not exist." in response.content[0].text
 
@@ -27,9 +25,7 @@ async def test_get_process_info_existing_pid(mcp_session):
     """
     pid = 1
     actual_pid_info = (
-        shell(f"ps -p {pid} -o pid,user,comm,args | tail -1", silent=True)
-        .stdout.strip()
-        .split(maxsplit=3)
+        shell(f"ps -p {pid} -o pid,user,comm,args | tail -1", silent=True).stdout.strip().split(maxsplit=3)
     )
     pid_user = actual_pid_info[1]
     pid_comm = actual_pid_info[2]

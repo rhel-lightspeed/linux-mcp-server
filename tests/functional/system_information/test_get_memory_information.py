@@ -26,7 +26,7 @@ async def test_get_memory_information(mcp_session):
     assert response is not None
     mcp_output = response.content[0].text
     data = json.loads(mcp_output)
-    
+
     assert "ram" in data
     assert "total" in data["ram"]
     assert "available" in data["ram"]

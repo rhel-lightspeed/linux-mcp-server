@@ -1,5 +1,6 @@
 # Copyright Red Hat
 import json
+
 from utils.shell import shell
 
 
@@ -21,7 +22,7 @@ async def test_get_hw_information(mcp_session):
     lspci_data = data.get("lspci", [])
     assert isinstance(lspci_data, list)
     lspci_data_str = "\n".join(lspci_data)
-        
+
     for line in actual_lspci_output.splitlines():
         assert line in lspci_data_str
 

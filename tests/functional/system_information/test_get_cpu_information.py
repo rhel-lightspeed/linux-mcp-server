@@ -1,5 +1,6 @@
 # Copyright Red Hat
 import json
+
 from utils.shell import shell
 
 
@@ -12,13 +13,9 @@ async def test_get_cpu_information(mcp_session):
     assert response is not None
     data = json.loads(response.content[0].text)
 
-    actual_cpu_model = shell(
-        'grep -m1 "model name" /proc/cpuinfo', silent=True
-    ).stdout.strip()
+    actual_cpu_model = shell('grep -m1 "model name" /proc/cpuinfo', silent=True).stdout.strip()
     actual_cpu_model = actual_cpu_model.split(":")[1].strip()
-    actual_cpu_cores = shell(
-        'grep "cpu cores" /proc/cpuinfo | head -1', silent=True
-    ).stdout.strip()
+    actual_cpu_cores = shell('grep "cpu cores" /proc/cpuinfo | head -1', silent=True).stdout.strip()
     actual_cpu_cores = actual_cpu_cores.split(":")[1].strip()
 
     assert actual_cpu_model == data.get("model")

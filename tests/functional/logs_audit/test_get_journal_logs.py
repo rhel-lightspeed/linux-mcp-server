@@ -1,20 +1,22 @@
 # Copyright Red Hat
 import json
 import os
+
 import pytest
+
 from utils.shell import shell
 
 
 async def _assert_journal_logs_match(mcp_session, arguments, journalctl_cmd):
     """
-    Helper to call get_journal_logs and verify that its output exists within a 
+    Helper to call get_journal_logs and verify that its output exists within a
     wider window of the actual system journal to account for race conditions.
     """
     response = await mcp_session.call_tool("get_journal_logs", arguments=arguments)
     assert response is not None
 
-    # Fetch a wider window (100 lines) from the shell to ensure the tool's 
-    # output (usually 5 lines) is captured even if new logs arrive 
+    # Fetch a wider window (100 lines) from the shell to ensure the tool's
+    # output (usually 5 lines) is captured even if new logs arrive
     # during the millisecond gap between the tool call and the shell call.
     wide_cmd = journalctl_cmd.replace("-n 5", "-n 100")
     actual_journal_logs = shell(wide_cmd, silent=True).stdout.strip()
@@ -24,8 +26,8 @@ async def _assert_journal_logs_match(mcp_session, arguments, journalctl_cmd):
 
     # Verify the tool's output is a contiguous subset of the journal.
     # We join with newlines to ensure we match the exact sequence of log lines.
-    # We don't strictly assert on the count of tool_entries because 
-    # journalctl metadata (like boot markers) can cause the output to exceed 
+    # We don't strictly assert on the count of tool_entries because
+    # journalctl metadata (like boot markers) can cause the output to exceed
     # the requested line count.
     assert "\n".join(tool_entries) in actual_journal_logs
 
@@ -44,9 +46,7 @@ async def test_get_journal_logs(mcp_session):
     )
 
     # 2. Call the tool with the lines=-1 argument. The tool returns an integer error
-    response = await mcp_session.call_tool(
-        "get_journal_logs", arguments={"unit": "systemd-journald", "lines": -1}
-    )
+    response = await mcp_session.call_tool("get_journal_logs", arguments={"unit": "systemd-journald", "lines": -1})
     assert response is not None
     response_text = response.content[0].text
     assert "1 validation error for call[get_journal_logs]" in response_text
@@ -76,10 +76,7 @@ async def test_get_journal_logs(mcp_session):
         "get_journal_logs", arguments={"unit": "systemd-journald", "lines": 5, "since": "1h"}
     )
     assert response is not None
-    assert (
-        "Error reading journal logs: Failed to parse timestamp: 1h"
-        in response.content[0].text
-    )
+    assert "Error reading journal logs: Failed to parse timestamp: 1h" in response.content[0].text
 
 
 async def test_get_journal_logs_non_existing_unit(mcp_session):

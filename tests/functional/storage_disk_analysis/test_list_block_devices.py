@@ -1,7 +1,9 @@
 # Copyright Red Hat
-import os
 import json
+import os
+
 import pytest
+
 from utils.shell import shell
 
 
@@ -31,10 +33,8 @@ async def test_list_block_devices_contains_root_device(mcp_session):
     response = await mcp_session.call_tool("list_block_devices")
     assert response is not None
 
-    root_device_name = shell(
-        "basename $(df --output=source / | tail -1)", silent=True
-    ).stdout.strip()
-    
+    root_device_name = shell("basename $(df --output=source / | tail -1)", silent=True).stdout.strip()
+
     # In some setups, df / gives a mapped device name like luks-...
     # which lsblk doesn't show at top level, but it will be somewhere in the response text.
     # We can just check the raw JSON text as a fallback, or recursively search.

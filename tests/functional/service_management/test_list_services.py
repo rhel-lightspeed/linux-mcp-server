@@ -14,9 +14,7 @@ async def test_list_services_happy_path(mcp_session):
     # Verify the response contains the expected header
     assert "=== System Services ===" in response.content[0].text
 
-    actual_services = shell(
-        "systemctl list-units --type=service --all --no-pager", silent=True
-    ).stdout.strip()
+    actual_services = shell("systemctl list-units --type=service --all --no-pager", silent=True).stdout.strip()
     assert actual_services in response.content[0].text
 
     # Verify that some common services are present (sshd or systemd-journald are common)

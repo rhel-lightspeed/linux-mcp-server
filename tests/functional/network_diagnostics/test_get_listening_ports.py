@@ -24,6 +24,4 @@ async def test_listening_ports(mcp_session):
         parts = line.split()
         if len(parts) >= 5:
             local_addr = parts[4]
-            assert local_addr in mcp_output, (
-                f"Listening port {local_addr} not found in MCP output"
-            )
+            assert local_addr in mcp_output, f"Listening port {local_addr} not found in MCP output"

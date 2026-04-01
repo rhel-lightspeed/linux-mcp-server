@@ -1,7 +1,7 @@
 # Copyright Red Hat
+import json
 import os
 import tempfile
-import json
 
 from utils.shell import shell
 
@@ -12,20 +12,16 @@ async def test_list_directories_happy_path(mcp_session):
     Uses /tmp as a common directory that should exist on all systems.
     """
     shell("echo 'test' > /tmp/test.txt", silent=True)
-    response = await mcp_session.call_tool(
-        "list_directories", arguments={"path": "/tmp"}
-    )
+    response = await mcp_session.call_tool("list_directories", arguments={"path": "/tmp"})
     assert response is not None
 
     response_text = response.content[0].text
     assert response_text is not None
-    
+
     data = json.loads(response_text)
     assert "nodes" in data
-    
-    actual_content = shell(
-        "find /tmp/ -maxdepth 1 -mindepth 1 -type d", silent=True
-    ).stdout.strip()
+
+    actual_content = shell("find /tmp/ -maxdepth 1 -mindepth 1 -type d", silent=True).stdout.strip()
     actual_content = actual_content.replace("/tmp/", "").split("\n")
 
     node_names = {n["name"] for n in data["nodes"]}
@@ -56,7 +52,7 @@ async def test_list_directories_order_by_name(mcp_session):
 
         data = json.loads(response.content[0].text.strip())
         node_names = [n["name"] for n in data["nodes"]]
-        
+
         assert node_names == ["alpha_dir", "beta_dir", "gamma_dir"]
         assert data.get("total") == 3
 
@@ -139,7 +135,7 @@ async def test_list_directories_with_top_n(mcp_session):
 
         data = json.loads(response.content[0].text)
         node_names = [n["name"] for n in data["nodes"]]
-        
+
         # Count occurrences - should be limited to 2
         dir_count = sum(1 for i in range(5) if f"dir_{i}" in node_names)
         assert dir_count <= 2, f"Expected at most 2 directories, got {dir_count}"
@@ -150,9 +146,7 @@ async def test_list_directories_non_existing_path(mcp_session):
     Verify the response contains error when path does not exist.
     """
     non_existing_path = "/nonexistent/path/xyz123"
-    response = await mcp_session.call_tool(
-        "list_directories", arguments={"path": non_existing_path}
-    )
+    response = await mcp_session.call_tool("list_directories", arguments={"path": non_existing_path})
     assert response is not None
 
     response_text = response.content[0].text

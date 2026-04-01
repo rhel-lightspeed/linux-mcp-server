@@ -36,7 +36,5 @@ async def test_list_tools(mcp_session):
 
     # Verify that the sets are equal (order doesn't matter)
     assert actual_tools == expected_tools, (
-        f"Tool lists don't match. "
-        f"Missing: {expected_tools - actual_tools}, "
-        f"Unexpected: {actual_tools - expected_tools}"
+        f"Tool lists don't match. Missing: {expected_tools - actual_tools}, Unexpected: {actual_tools - expected_tools}"
     )

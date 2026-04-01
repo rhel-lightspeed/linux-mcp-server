@@ -2,7 +2,9 @@
 import os
 
 import pytest
+
 from utils.shell import shell
+
 
 SERVICE_NAME = "systemd-journald"
 
@@ -70,16 +72,11 @@ async def test_get_service_logs_lines(mcp_session, lines, expected_lines):
 
     else:
         # Verify the response contains the expected header
-        assert (
-            f"=== Last {expected_lines} log entries for {SERVICE_NAME}.service ==="
-            in response.content[0].text
-        )
+        assert f"=== Last {expected_lines} log entries for {SERVICE_NAME}.service ===" in response.content[0].text
 
         # Verify we got at least the expected number of log lines (excluding header)
         if expected_lines > 0:
-            log_lines = [
-                line for line in response.content[0].text.splitlines() if line.strip()
-            ]
+            log_lines = [line for line in response.content[0].text.splitlines() if line.strip()]
             assert len(log_lines) >= expected_lines
 
 
@@ -89,15 +86,11 @@ async def test_get_service_logs_matches_journalctl(mcp_session):
     """
     lines = 3
 
-    response = await mcp_session.call_tool(
-        "get_service_logs", arguments={"service_name": SERVICE_NAME, "lines": lines}
-    )
+    response = await mcp_session.call_tool("get_service_logs", arguments={"service_name": SERVICE_NAME, "lines": lines})
     assert response is not None
 
     # Get actual logs from journalctl for comparison (use LC_ALL=C to match server locale)
-    actual_logs = shell(
-        f"LC_ALL=C journalctl -u {SERVICE_NAME} -n {lines} --no-pager", silent=True
-    ).stdout.strip()
+    actual_logs = shell(f"LC_ALL=C journalctl -u {SERVICE_NAME} -n {lines} --no-pager", silent=True).stdout.strip()
 
     response_text = response.content[0].text
     assert len(response_text) > 0
@@ -141,21 +134,14 @@ async def test_get_service_logs_with_service_suffix(mcp_session):
     service_name = f"{SERVICE_NAME}.service"
     lines = 5
 
-    response = await mcp_session.call_tool(
-        "get_service_logs", arguments={"service_name": service_name, "lines": lines}
-    )
+    response = await mcp_session.call_tool("get_service_logs", arguments={"service_name": service_name, "lines": lines})
     assert response is not None
 
     # Verify the response contains the expected header (with .service in name)
-    assert (
-        f"=== Last {lines} log entries for {service_name} ==="
-        in response.content[0].text
-    )
+    assert f"=== Last {lines} log entries for {service_name} ===" in response.content[0].text
 
     # Get actual logs from journalctl for comparison (use LC_ALL=C to match server locale)
-    actual_logs = shell(
-        f"LC_ALL=C journalctl -u {service_name} -n {lines} --no-pager", silent=True
-    ).stdout.strip()
+    actual_logs = shell(f"LC_ALL=C journalctl -u {service_name} -n {lines} --no-pager", silent=True).stdout.strip()
 
     response_text = response.content[0].text
     assert len(response_text) > 0

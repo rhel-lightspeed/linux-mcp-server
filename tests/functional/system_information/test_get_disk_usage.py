@@ -1,6 +1,5 @@
 # Copyright Red Hat
 import json
-from utils.shell import shell
 
 
 async def test_get_disk_usage(mcp_session):
