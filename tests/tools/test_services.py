@@ -4,6 +4,8 @@ import sys
 
 import pytest
 
+from fastmcp.exceptions import ToolError
+
 
 @pytest.mark.skipif(sys.platform != "linux", reason="Only passes on Linux")
 class TestServices:
@@ -17,30 +19,15 @@ class TestServices:
 
         assert all(any(n in result_text for n in case) for case in expected), "Did not find all expected values"
 
-    @pytest.mark.parametrize(
-        "service_name, expected",
-        (
-            ("sshd.service", ("active", "inactive", "loaded", "not found")),
-            ("nonexistent-service-xyz123", ("not found", "could not", "error")),
-        ),
-    )
-    async def test_get_service_status(self, mcp_client, service_name, expected):
-        result = await mcp_client.call_tool("get_service_status", arguments={"service_name": service_name})
+    async def test_get_service_status(self, mcp_client):
+        result = await mcp_client.call_tool("get_service_status", arguments={"service_name": "sshd.service"})
         result_text = result.content[0].text.casefold()
-
+        expected = ("active", "inactive", "loaded", "not found")
         assert any(n in result_text for n in expected), "Did not find any expected values"
 
     async def test_get_service_status_with_nonexistent_service(self, mcp_client):
-        result = await mcp_client.call_tool(
-            "get_service_status", arguments={"service_name": "nonexistent-service-xyz123"}
-        )
-        result_text = result.content[0].text.casefold()
-        expected = (
-            "not found",
-            "could not",
-            "error",
-        )
-        assert any(n in result_text for n in expected), "Did not find any expected values"
+        with pytest.raises(ToolError, match="Service 'nonexistent-service-xyz123.service' not found on this system."):
+            await mcp_client.call_tool("get_service_status", arguments={"service_name": "nonexistent-service-xyz123"})
 
     async def test_get_service_status_error(self, mock_execute_with_fallback, mcp_client):
         """Test that get_service_status raises ToolError when systemctl fails."""
