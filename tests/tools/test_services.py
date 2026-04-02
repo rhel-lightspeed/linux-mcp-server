@@ -19,11 +19,18 @@ class TestServices:
 
         assert all(any(n in result_text for n in case) for case in expected), "Did not find all expected values"
 
-    async def test_get_service_status(self, mcp_client):
+    async def test_get_service_status(self, mock_execute_with_fallback, mcp_client):
+        """Test getting service status with mocked systemctl output (no real sshd unit required)."""
+        mock_output = "● sshd.service - OpenSSH server\n   Loaded: loaded\n   Active: active (running)"
+        mock_execute_with_fallback.return_value = (0, mock_output, "")
+
         result = await mcp_client.call_tool("get_service_status", arguments={"service_name": "sshd.service"})
         result_text = result.content[0].text.casefold()
-        expected = ("active", "inactive", "loaded", "not found")
-        assert any(n in result_text for n in expected), "Did not find any expected values"
+
+        assert "sshd.service" in result_text
+        assert "loaded" in result_text
+        assert "active" in result_text
+        mock_execute_with_fallback.assert_called()
 
     async def test_get_service_status_with_nonexistent_service(self, mcp_client):
         with pytest.raises(ToolError, match="Service 'nonexistent-service-xyz123.service' not found on this system."):
