@@ -1,5 +1,6 @@
 """Tests for system information tools."""
 
+import json
 import sys
 
 import pytest
@@ -155,6 +156,47 @@ async def test_get_disk_usage_invalid_json(mcp_client, mock_execute):
 
     with pytest.raises(exceptions.ToolError, match="Error parsing disk usage information"):
         await mcp_client.call_tool("get_disk_usage")
+
+
+async def test_get_disk_usage_null_filesystem_fields(mcp_client, mock_execute):
+    """Test get_disk_usage handles null size/used/avail/use% from container mounts.
+
+    On Kubernetes worker nodes, findmnt returns null for projected volumes,
+    CSI volumes, and subpath mounts.
+    """
+    findmnt_json = json.dumps(
+        {
+            "filesystems": [
+                {
+                    "source": "/dev/sda1",
+                    "fstype": "ext4",
+                    "size": "100G",
+                    "used": "50G",
+                    "avail": "50G",
+                    "use%": "50%",
+                    "target": "/",
+                },
+                {
+                    "source": "tmpfs",
+                    "fstype": "tmpfs",
+                    "size": None,
+                    "used": None,
+                    "avail": None,
+                    "use%": None,
+                    "target": "/var/lib/kubelet/pods/abc/volumes/kubernetes.io~projected/kube-api-access",
+                },
+            ]
+        }
+    )
+    mock_execute.return_value = (0, findmnt_json, "")
+
+    result = await mcp_client.call_tool("get_disk_usage")
+    result_text = result.content[0].text
+    parsed = json.loads(result_text)
+
+    assert len(parsed["filesystems"]) == 2
+    assert parsed["filesystems"][0]["size"] == "100G"
+    assert parsed["filesystems"][1]["size"] is None
 
 
 async def test_get_hardware_information_unexpected_exception(mcp_client, mock_execute):

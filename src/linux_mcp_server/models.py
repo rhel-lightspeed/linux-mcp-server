@@ -133,13 +133,13 @@ class CpuInfo(BaseModel):
 class FilesystemInfo(BaseModel):
     """Individual filesystem entry from findmnt output."""
 
-    source: str = ""
-    fstype: str = ""
-    size: str = ""
-    used: str = ""
-    avail: str = ""
-    use_percent: str = Field(default="", alias="use%")
-    target: str = ""
+    source: str | None = ""
+    fstype: str | None = ""
+    size: str | None = ""
+    used: str | None = ""
+    avail: str | None = ""
+    use_percent: str | None = Field(default="", alias="use%")
+    target: str | None = ""
 
     model_config = {"populate_by_name": True}
 
