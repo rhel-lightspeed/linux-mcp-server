@@ -128,7 +128,7 @@ class GatekeeperResult(BaseModel):
             case GatekeeperStatus.POLICY:
                 return f"Policy violation: {self.detail}"
             case GatekeeperStatus.MODIFIES_SYSTEM:
-                return f"Script modifies the system - use run_script_modify: {self.detail}"
+                return f"Script modifies the system and failed to indicate this intent: {self.detail}"
             case GatekeeperStatus.UNCLEAR:
                 return f"Unclear script: {self.detail}"
             case GatekeeperStatus.DANGEROUS:
