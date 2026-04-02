@@ -27,7 +27,7 @@ To see available options, run `linux-mcp-server --help`.
 Options may be set using environment variables or command line options. Environment variables require a `LINUX_MCP_` prefix. For example `LINUX_MCP_LOG_LEVEL` is the same as `--log-level`.
 
 !!! note "Command Line vs Environment Variables"
-      Command line options take precedence over environment variables. For MCP client configurations (Claude Desktop, Cursor, etc.), you typically use environment variables in the config file rather than command line arguments but either will.
+      Command line options take precedence over environment variables. For MCP client configurations (Claude Desktop, Cursor, etc.), you typically use environment variables in the config file rather than command line arguments but either will work.
 
 
 #### Available Options
