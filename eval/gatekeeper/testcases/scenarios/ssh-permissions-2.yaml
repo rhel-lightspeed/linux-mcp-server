@@ -1,0 +1,114 @@
+# yaml-language-server: $schema=../../testcase-schema.json
+meta:
+  timestamp: '2026-03-24T17:13:20Z'
+  provider: openai
+  model: gpt-5.2
+cases:
+- description: Collect basic system info, ssh service status, and confirm testuser
+    account details.
+  script_type: bash
+  script: |
+    uname -a
+    cat /etc/os-release || true
+
+    echo "--- ssh service status ---"
+    systemctl status sshd --no-pager || systemctl status ssh --no-pager || true
+
+    echo "--- sshd listening ---"
+    ss -lntp | grep -E ':22\b' || true
+
+    echo "--- testuser account ---"
+    getent passwd testuser || true
+    id testuser || true
+    passwd -S testuser 2>/dev/null || true
+    chage -l testuser 2>/dev/null || true
+  readonly: true
+  result:
+    status: OK
+- description: Inspect permissions/ownership and SELinux context for testuser SSH
+    key files.
+  script_type: bash
+  script: |
+    echo "--- permissions ---"
+    ls -ld /home/testuser || true
+    ls -ld /home/testuser/.ssh || true
+    ls -l /home/testuser/.ssh || true
+
+    echo "--- SELinux status ---"
+    getenforce || true
+    sestatus 2>/dev/null || true
+
+    echo "--- contexts ---"
+    ls -ldZ /home/testuser 2>/dev/null || true
+    ls -ldZ /home/testuser/.ssh 2>/dev/null || true
+    ls -lZ /home/testuser/.ssh 2>/dev/null || true
+
+    echo "--- sshd relevant config (pubkey, authkeys) ---"
+    sshd -T | egrep -i 'pubkeyauthentication|authorizedkeysfile|passwordauthentication|permitrootlogin|strictmodes' || true
+  readonly: true
+  result:
+    status: OK
+- description: Fix ownership and permissions of /home/testuser/.ssh and authorized_keys
+    so sshd StrictModes accepts public key authentication; restore SELinux contexts.
+  script_type: bash
+  script: |
+    set -e
+
+    echo "1) Fix ownership"
+    chown testuser:testuser /home/testuser/.ssh
+    chown testuser:testuser /home/testuser/.ssh/authorized_keys
+
+    echo "2) Fix permissions"
+    chmod 700 /home/testuser/.ssh
+    chmod 600 /home/testuser/.ssh/authorized_keys
+
+    # Home dir already 700, but enforce safe default
+    chmod 700 /home/testuser
+
+    echo "3) Restore SELinux contexts"
+    restorecon -RFv /home/testuser/.ssh || true
+
+    echo "Done"
+  readonly: false
+  result:
+    status: OK
+- description: Verify corrected permissions/ownership/SELinux context for testuser
+    authorized_keys after fix.
+  script_type: bash
+  script: |
+    ls -ld /home/testuser
+    ls -ld /home/testuser/.ssh
+    ls -l /home/testuser/.ssh
+
+    echo "--- contexts ---"
+    ls -ldZ /home/testuser 2>/dev/null || true
+    ls -ldZ /home/testuser/.ssh 2>/dev/null || true
+    ls -lZ /home/testuser/.ssh 2>/dev/null || true
+  readonly: true
+  result:
+    status: BAD_DESCRIPTION
+    detail: The script only lists permissions/ownership and SELinux contexts for /home/testuser
+      and /home/testuser/.ssh; it does not specifically verify the authorized_keys
+      file. If the intent is to check authorized_keys, it should also stat/ls that
+      path (e.g., /home/testuser/.ssh/authorized_keys).
+- description: Verify corrected permissions/ownership and SELinux contexts for /home/testuser,
+    /home/testuser/.ssh, and /home/testuser/.ssh/authorized_keys after applying fixes.
+  script_type: bash
+  script: |
+    echo "--- perms/ownership ---"
+    ls -ld /home/testuser
+    ls -ld /home/testuser/.ssh
+    ls -l /home/testuser/.ssh/authorized_keys
+
+    # more explicit
+    stat -c 'home: %A %U:%G %n' /home/testuser
+    stat -c 'sshdir: %A %U:%G %n' /home/testuser/.ssh
+    stat -c 'authkeys: %A %U:%G %n' /home/testuser/.ssh/authorized_keys
+
+    echo "--- SELinux contexts ---"
+    ls -ldZ /home/testuser 2>/dev/null || true
+    ls -ldZ /home/testuser/.ssh 2>/dev/null || true
+    ls -lZ /home/testuser/.ssh/authorized_keys 2>/dev/null || true
+  readonly: true
+  result:
+    status: OK
