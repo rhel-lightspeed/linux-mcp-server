@@ -95,6 +95,7 @@ You must validate a script before it will be allowed to run. Once validated, a s
 - Prefer readonly scripts when possible.
 - For modifications, choose the minimal change and avoid anything that could harm stability or security.
 - Describe what each script does in the description.
+- Set the readonly flag to true if the script does not modify the system.
 - Do not fetch content from the internet; use only configured repositories if installing software.
 - Bash scripts run with `set -euo pipefail`; handle expected non-zero exits explicitly.
 - Prefer Bash for a few shell commands and Python when logic is more involved.
@@ -103,7 +104,6 @@ You must validate a script before it will be allowed to run. Once validated, a s
 
 - **Remote execution:** Every tool accepts an optional `host` argument. When set, the work runs on that host over SSH instead of locally.
 - **Containers:** If the `container` environment variable is set, tools refuse to run locally; a remote `host` must be used.
-- **Read-only vs destructive:** run_script_readonly is marked read-only; the modify script tool is marked destructive.
 - **Log file access:** requires explicit allowlist configuration via LINUX_MCP_ALLOWED_LOG_PATHS
 - **Service names:** automatically append '.service' suffix if not provided
 - **File paths:** must be absolute
