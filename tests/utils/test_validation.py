@@ -136,3 +136,17 @@ class TestValidatePath:
     def test_pathvalidationerror_is_valueerror(self):
         """PathValidationError is a ValueError subclass for compatibility."""
         assert issubclass(PathValidationError, ValueError)
+
+    @pytest.mark.parametrize(
+        "path",
+        [
+            "/tmp/../etc/passwd",
+            "/var/log/../../etc/hosts",
+            "/../root",
+            "/home/user/../../../etc/shadow",
+        ],
+    )
+    def test_rejects_path_traversal(self, path):
+        """Paths containing '..' components are rejected to prevent path traversal."""
+        with pytest.raises(PathValidationError, match=r"invalid component '\.\.'"):
+            validate_path(path)
