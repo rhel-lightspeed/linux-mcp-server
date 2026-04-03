@@ -199,6 +199,13 @@ Returns active network connections with process information.
 
 **Example use case:** "Show me all active network connections."
 
+#### `get_network_routes`
+Returns the system routing table showing destinations, gateways, and interfaces.
+
+**Parameters:** None
+
+**Example use case:** "Show me the routing table for this host."
+
 #### `get_listening_ports`
 Returns ports that are listening on the system.
 
@@ -260,6 +267,7 @@ See [Client Configuration](clients.md) for environment variables and AI agent in
 1. "Show me all network interfaces and their status" → `get_network_interfaces`
 2. "What ports are listening on this system?" → `get_listening_ports`
 3. "Show me active network connections" → `get_network_connections`
+4. "Show me the routing table" → `get_network_routes`
 
 ### Disk Space Problems
 1. "Show me disk usage for all filesystems" → `get_disk_usage`

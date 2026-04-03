@@ -54,6 +54,31 @@ async def get_network_interfaces(
 
 
 @mcp.tool(
+    title="Get network routes",
+    description="Get the routing table showing network destinations, gateways, and interfaces.",
+    tags={"connectivity", "network", "routing"},
+    annotations=ToolAnnotations(readOnlyHint=True),
+)
+@log_tool_call
+@disallow_local_execution_in_containers
+async def get_network_routes(
+    host: Host = None,
+) -> str:
+    """Get network routing table.
+
+    Retrieves the system routing table including destination networks,
+    gateways, interfaces, and route metrics.
+    """
+    cmd = get_command("network_routes")
+
+    returncode, stdout, stderr = await cmd.run(host=host)
+
+    if is_successful_output(returncode, stdout):
+        return f"=== Network Routes ===\n\n{stdout}"
+    return f"Error getting network routes: return code {returncode}, stderr: {stderr}"
+
+
+@mcp.tool(
     title="Get network connections",
     description="Get detailed information about active network connections.",
     tags={"connections", "connectivity", "network"},

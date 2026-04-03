@@ -211,3 +211,56 @@ tcp    LISTEN     0      128    0.0.0.0:22           0.0.0.0:*""",
         match = re.compile(r"error calling tool.*raised intentionally", flags=re.I)
         with pytest.raises(ToolError, match=match):
             await mcp_client.call_tool("get_listening_ports")
+
+
+class TestGetNetworkRoutes:
+    """Test get_network_routes function."""
+
+    @pytest.mark.parametrize(
+        ("host", "mock_output", "expected_content"),
+        [
+            pytest.param(
+                None,
+                "default via 192.168.1.1 dev eth0 proto dhcp metric 100\n192.168.1.0/24 dev eth0 proto kernel scope link src 192.168.1.100",
+                ["network routes", "default via 192.168.1.1", "eth0"],
+                id="local",
+            ),
+            pytest.param(
+                "remote.host",
+                "default via 10.0.0.1 dev enp1s0\n10.0.0.0/24 dev enp1s0 proto kernel scope link src 10.0.0.5",
+                ["network routes", "10.0.0.1", "enp1s0"],
+                id="remote",
+            ),
+        ],
+    )
+    async def test_get_network_routes_success(self, mcp_client, mock_execute, host, mock_output, expected_content):
+        """Test getting network routes with success."""
+        mock_execute.return_value = (0, mock_output, "")
+        result = await mcp_client.call_tool("get_network_routes", arguments={"host": host})
+        result_text = result.content[0].text.casefold()
+
+        assert all(content.casefold() in result_text for content in expected_content), (
+            "Did not find all expected values"
+        )
+
+    @pytest.mark.parametrize(
+        ("return_value",),
+        [
+            pytest.param((1, "", "ip: command not found"), id="command_not_found"),
+            pytest.param((0, "", ""), id="empty_output"),
+        ],
+    )
+    async def test_get_network_routes_failure(self, mcp_client, mock_execute, return_value):
+        """Test getting network routes when command fails or returns empty."""
+        mock_execute.return_value = return_value
+        result = await mcp_client.call_tool("get_network_routes")
+        result_text = result.content[0].text.casefold()
+
+        assert "error" in result_text
+
+    async def test_get_network_routes_error(self, mcp_client, mock_execute):
+        """Test getting network routes with general error."""
+        mock_execute.side_effect = ValueError("Raised intentionally")
+        match = re.compile(r"error calling tool.*raised intentionally", flags=re.I)
+        with pytest.raises(ToolError, match=match):
+            await mcp_client.call_tool("get_network_routes")
