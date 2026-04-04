@@ -1,5 +1,7 @@
 """Verify tool schemas contain expected metadata for LLM guidance."""
 
+import json
+
 import pytest
 
 from linux_mcp_server.server import mcp
@@ -48,3 +50,14 @@ class TestToolSchemaExamples:
         assert param_name in props, f"Parameter '{param_name}' not found in {tool_name}"
         assert "examples" in props[param_name], f"Parameter '{param_name}' in {tool_name} missing examples"
         assert len(props[param_name]["examples"]) > 0, f"Parameter '{param_name}' in {tool_name} has empty examples"
+
+
+class TestToolSchemaSerialization:
+    """Verify tool schemas can be serialized without errors."""
+
+    def test_all_tool_schemas_are_json_serializable(self, mcp_tools: dict) -> None:
+        """Every tool's schema must be serializable to JSON without circular references."""
+        for name, tool in mcp_tools.items():
+            mcp_tool = tool.to_mcp_tool()
+            dumped = mcp_tool.model_dump(mode="json")
+            json.dumps(dumped)

@@ -158,7 +158,7 @@ class BlockDevice(BaseModel):
     mountpoint: str | None = None
     fstype: str | None = None
     model: str | None = None
-    children: list["BlockDevice"] = []
+    children: list[dict[str, t.Any]] = []
 
 
 class BlockDevices(BaseModel):
