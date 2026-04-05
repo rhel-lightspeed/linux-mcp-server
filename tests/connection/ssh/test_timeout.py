@@ -7,6 +7,7 @@ import pytest
 
 from asyncssh import SSHClientConnection
 
+from linux_mcp_server.connection.ssh import _execute_local
 from linux_mcp_server.connection.ssh import SSHConnectionManager
 
 
@@ -111,3 +112,38 @@ async def test_timeout_error_contains_context(mocker, ssh_manager, mock_ssh_conn
     assert "testuser@myhost.example.com" in error_msg
     assert "mycommand" in error_msg
     assert "5s" in error_msg
+
+
+class TestLocalTimeout:
+    """Test timeout behavior for local command execution."""
+
+    async def test_local_command_completes_within_timeout(self, mocker):
+        """Local commands that finish before the timeout succeed normally."""
+        mocker.patch("linux_mcp_server.connection.ssh.CONFIG.command_timeout", 30)
+        mocker.patch("linux_mcp_server.connection.ssh.get_bin_path", return_value="/bin/echo")
+
+        returncode, stdout, stderr = await _execute_local(["/bin/echo", "hello"])
+
+        assert returncode == 0
+        assert isinstance(stdout, str)
+        assert "hello" in stdout
+
+    async def test_local_command_timeout_raises_connection_error(self, mocker):
+        """Local commands exceeding the timeout raise ConnectionError."""
+        mocker.patch("linux_mcp_server.connection.ssh.CONFIG.command_timeout", 1)
+        mocker.patch("linux_mcp_server.connection.ssh.get_bin_path", return_value="/bin/sleep")
+
+        with pytest.raises(ConnectionError, match="Command timed out after 1s on localhost"):
+            await _execute_local(["/bin/sleep", "60"])
+
+    async def test_local_timeout_error_contains_command(self, mocker):
+        """Timeout error message includes the command that timed out."""
+        mocker.patch("linux_mcp_server.connection.ssh.CONFIG.command_timeout", 1)
+        mocker.patch("linux_mcp_server.connection.ssh.get_bin_path", return_value="/bin/sleep")
+
+        with pytest.raises(ConnectionError) as exc_info:
+            await _execute_local(["/bin/sleep", "60"])
+
+        assert "sleep" in str(exc_info.value)
+        assert "1s" in str(exc_info.value)
+        assert "localhost" in str(exc_info.value)

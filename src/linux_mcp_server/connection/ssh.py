@@ -441,10 +441,26 @@ async def _execute_local(
         bin = get_bin_path(bin)
 
     full_command = [bin, *command[1:]]
+    timeout = CONFIG.command_timeout
 
     try:
         proc = await asyncio.create_subprocess_exec(*full_command, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
-        stdout_bytes, stderr_bytes = await proc.communicate()
+        try:
+            stdout_bytes, stderr_bytes = await asyncio.wait_for(proc.communicate(), timeout=timeout)
+        except asyncio.TimeoutError:
+            proc.kill()
+            await proc.wait()
+            duration = time.time() - start_time
+            logger.error(
+                f"Command timed out after {timeout}s",
+                extra={
+                    "event": Event.LOCAL_EXEC_ERROR,
+                    "command": cmd_str,
+                    "duration": f"{duration:.3f}s",
+                    "error": "timeout",
+                },
+            )
+            raise ConnectionError(f"Command timed out after {timeout}s on localhost: {cmd_str}") from None
 
         return_code = proc.returncode if proc.returncode is not None else 0
         stdout = stdout_bytes if encoding is None else stdout_bytes.decode(encoding, errors="replace")
@@ -452,11 +468,12 @@ async def _execute_local(
 
         duration = time.time() - start_time
 
-        # DEBUG level: Log local command execution with timing
         logger.debug(f"LOCAL_EXEC completed: {cmd_str} | exit_code={return_code} | duration={duration:.3f}s")
 
         return return_code, stdout, stderr
 
+    except ConnectionError:
+        raise
     except Exception as e:
         duration = time.time() - start_time
         logger.error(
