@@ -628,6 +628,7 @@ Configure these environment variables in the `env` section of your client config
 | Variable | Required For | Description | Example |
 |----------|--------------|-------------|---------|
 | `LINUX_MCP_ALLOWED_LOG_PATHS` | `read_log_file` tool | Comma-separated allowlist of log files | `/var/log/messages,/var/log/secure` |
+| `LINUX_MCP_MAX_FILE_READ_BYTES` | `read_file` tool | Maximum bytes `read_file` may return (default 1 MiB) | `1048576` |
 
 ### Logging Configuration
 

@@ -2,7 +2,10 @@
 
 from pathlib import Path
 
+import pytest
+
 from pydantic import SecretStr
+from pydantic import ValidationError
 
 from linux_mcp_server.config import Config
 
@@ -19,6 +22,7 @@ class TestConfig:
             log_level="DEBUG",
             log_retention_days=30,
             allowed_log_paths="/var/log:/tmp",
+            max_file_read_bytes=2 * 1024 * 1024,
             ssh_key_path=Path("/home/user/.ssh/id_rsa"),
             key_passphrase=SecretStr("secret"),
             search_for_ssh_key=True,
@@ -29,6 +33,7 @@ class TestConfig:
         assert config.log_level == "DEBUG"
         assert config.log_retention_days == 30
         assert config.allowed_log_paths == "/var/log:/tmp"
+        assert config.max_file_read_bytes == 2 * 1024 * 1024
         assert config.ssh_key_path == Path("/home/user/.ssh/id_rsa")
         assert config.key_passphrase.get_secret_value() == "secret"
         assert config.search_for_ssh_key is True
@@ -97,6 +102,14 @@ class TestConfig:
 
         assert config.allowed_log_paths == "/var/log:/tmp:/home/logs"
 
+    def test_env_var_override_max_file_read_bytes(self, mock_getuser, monkeypatch):
+        """Test that LINUX_MCP_MAX_FILE_READ_BYTES environment variable works"""
+        monkeypatch.setenv("LINUX_MCP_MAX_FILE_READ_BYTES", "524288")
+
+        config = Config()
+
+        assert config.max_file_read_bytes == 524288
+
     def test_env_ignore_empty(self, mock_getuser, monkeypatch):
         """Test that empty environment variables are ignored"""
         monkeypatch.setenv("LINUX_MCP_LOG_LEVEL", "")
@@ -159,6 +172,14 @@ class TestConfig:
         assert isinstance(config.search_for_ssh_key, bool)
         assert config.search_for_ssh_key is True
 
+    def test_max_file_read_bytes_type(self, mock_getuser):
+        """Test that max_file_read_bytes accepts integer"""
+
+        config = Config(max_file_read_bytes=2048)
+
+        assert isinstance(config.max_file_read_bytes, int)
+        assert config.max_file_read_bytes == 2048
+
 
 class TestEffectiveKnownHostsPath:
     """Test cases for the effective_known_hosts_path property."""
@@ -200,6 +221,13 @@ class TestConfigEdgeCases:
         config = Config(log_level="")
 
         assert config.log_level == ""
+
+    @pytest.mark.parametrize("value", [0, -1])
+    def test_max_file_read_bytes_rejects_non_positive(self, mock_getuser, value):
+        """Test that max_file_read_bytes rejects zero and negative values"""
+
+        with pytest.raises(ValidationError, match="max_file_read_bytes"):
+            Config(max_file_read_bytes=value)
 
     def test_special_characters_in_paths(self, mock_getuser):
         """Test that paths with special characters are handled"""
