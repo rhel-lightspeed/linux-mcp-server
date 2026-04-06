@@ -137,6 +137,8 @@ class GatekeeperResult(BaseModel):
                 # We don't provide detail here to make it harder for a malicious model
                 # to figure out workarounds
                 return "Possibly malicious script: not allowed"
+            case _:  # pragma: no cover
+                raise ValueError(f"Unknown status: {self.status}")
 
     @classmethod
     def parse_from_description(cls, description: str) -> "GatekeeperResult":
