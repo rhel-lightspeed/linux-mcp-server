@@ -155,7 +155,7 @@ class GatekeeperResult(BaseModel):
             "OK": GatekeeperStatus.OK,
             "Bad description": GatekeeperStatus.BAD_DESCRIPTION,
             "Policy violation": GatekeeperStatus.POLICY,
-            "Script modifies the system - use run_script_modify": GatekeeperStatus.MODIFIES_SYSTEM,
+            "Script modifies the system and failed to indicate this intent": GatekeeperStatus.MODIFIES_SYSTEM,
             "Unclear script": GatekeeperStatus.UNCLEAR,
             "Dangerous script": GatekeeperStatus.DANGEROUS,
             "Possibly malicious script": GatekeeperStatus.MALICIOUS,

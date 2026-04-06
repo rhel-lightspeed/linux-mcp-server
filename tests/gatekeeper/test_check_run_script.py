@@ -11,7 +11,7 @@ RESULT_CASES = [
     (
         GatekeeperStatus.MODIFIES_SYSTEM,
         "Writes to /etc",
-        "Script modifies the system - use run_script_modify: Writes to /etc",
+        "Script modifies the system and failed to indicate this intent: Writes to /etc",
     ),
     (GatekeeperStatus.UNCLEAR, "Hard to understand", "Unclear script: Hard to understand"),
     (GatekeeperStatus.DANGEROUS, "Could break the system", "Dangerous script: Could break the system"),
