@@ -55,6 +55,7 @@ class ScriptDetails:
     script: str
     script_type: ScriptType
     host: Host
+    readonly: bool
 
 
 # TODO: Might need a cleanup mechanism to limit the maximum number of scripts we can store
@@ -72,7 +73,7 @@ class ScriptStore:
     def __init__(self):
         self._scripts: dict[str, ScriptDetails] = {}
 
-    def add_script(self, description: str, script: str, script_type: ScriptType, host: Host) -> str:
+    def add_script(self, description: str, script: str, script_type: ScriptType, host: Host, readonly: bool) -> str:
         """
         Add a new script to the store and generate a unique ID for it.
 
@@ -89,7 +90,12 @@ class ScriptStore:
         """
         id = secrets.token_urlsafe(16)
         self._scripts[id] = ScriptDetails(
-            state="waiting-approval", description=description, script=script, script_type=script_type, host=host
+            state="waiting-approval",
+            description=description,
+            script=script,
+            script_type=script_type,
+            host=host,
+            readonly=readonly,
         )
         return id
 
@@ -368,7 +374,7 @@ async def run_script_modify_interactive(
 
     # Initialize execution detail to keep execution status persistent
     # Store script and script_type so set_script_approval can retrieve them by id
-    id = script_store.add_script(description, script, script_type, host)
+    id = script_store.add_script(description, script, script_type, host, False)
 
     if gatekeeper_result.status != GatekeeperStatus.OK:
         script_store.set_script_state(id, "rejected-gatekeeper")
@@ -473,7 +479,7 @@ async def validate_script(
         (BASH_STRICT_PREAMBLE + script) if script_type == SCRIPT_TYPE_BASH else script,
         readonly=readonly,
     )
-    id = script_store.add_script(description, script, script_type, host)
+    id = script_store.add_script(description, script, script_type, host, readonly)
 
     if gatekeeper_result.status != GatekeeperStatus.OK:
         script_store.set_script_state(id, "rejected-gatekeeper")
@@ -517,7 +523,12 @@ async def run_script(
 
     # Verify the retrieved script details match the incoming description, script_type, and script
     new_details = ScriptDetails(
-        state="waiting-approval", description=description, script_type=script_type, script=script, host=host
+        state="waiting-approval",
+        description=description,
+        script_type=script_type,
+        script=script,
+        host=host,
+        readonly=readonly,
     )
     if new_details != script_details:
         raise ToolError(
