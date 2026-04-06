@@ -531,9 +531,17 @@ async def run_script(
         readonly=readonly,
     )
     if new_details != script_details:
-        raise ToolError(
-            "Script details do not match the original validation request. Please validate the script again."
+        # Revalidate the script again; this is a convenience for the user to avoid
+        # potentially having to double-approve the same script.
+        gatekeeper_result = check_run_script(
+            description,
+            script_type,
+            (BASH_STRICT_PREAMBLE + script) if script_type == SCRIPT_TYPE_BASH else script,
+            readonly=readonly,
         )
+        if gatekeeper_result.status != GatekeeperStatus.OK:
+            script_store.set_script_state(token, "rejected-gatekeeper")
+            raise ToolError(gatekeeper_result.description)
 
     script_store.set_script_state(token, "executing")
     try:
