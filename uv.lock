@@ -1,5 +1,5 @@
 version = 1
-revision = 3
+revision = 2
 requires-python = ">=3.10"
 resolution-markers = [
     "python_full_version >= '3.12'",
@@ -1174,7 +1174,7 @@ test = [
 [package.metadata]
 requires-dist = [
     { name = "asyncssh", extras = ["bcrypt"], specifier = ">=2.22.0" },
-    { name = "fastmcp", specifier = ">=2.14.4,<3" },
+    { name = "fastmcp", specifier = ">=2.14.4,<2.14.6" },
     { name = "gssapi", marker = "extra == 'gssapi'", specifier = ">=1.11.1" },
     { name = "pydantic", specifier = ">=2.12.5" },
     { name = "pydantic-settings", specifier = ">=2.12.0" },
