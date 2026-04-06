@@ -197,3 +197,9 @@ order-by-type = false
 # Include the bundled mcp app html file
 [tool.hatch.build.targets.wheel.force-include]
 "mcp-app/dist" = "linux_mcp_server/ui_resources"
+
+# Force hatch to pick up the bundled app that is git-ignored
+[tool.hatch.build]
+artifacts = [
+    "mcp-app/dist",
+]
