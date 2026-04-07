@@ -18,6 +18,7 @@ from pydantic import BaseModel
 from pydantic import Field
 
 from linux_mcp_server.audit import log_tool_call
+from linux_mcp_server.config import CONFIG
 from linux_mcp_server.connection.ssh import execute_command
 from linux_mcp_server.gatekeeper import check_run_script
 from linux_mcp_server.gatekeeper import GatekeeperStatus
@@ -57,6 +58,10 @@ class ScriptDetails:
     host: Host
     readonly: bool
 
+    @property
+    def needs_confirmation(self) -> bool:
+        return not self.readonly or CONFIG.always_confirm_scripts
+
 
 # TODO: Might need a cleanup mechanism to limit the maximum number of scripts we can store
 class ScriptStore:
@@ -73,7 +78,14 @@ class ScriptStore:
     def __init__(self):
         self._scripts: dict[str, ScriptDetails] = {}
 
-    def add_script(self, description: str, script: str, script_type: ScriptType, host: Host, readonly: bool) -> str:
+    def add_script(
+        self,
+        description: str,
+        script: str,
+        script_type: ScriptType,
+        host: Host,
+        readonly: bool,
+    ) -> str:
         """
         Add a new script to the store and generate a unique ID for it.
 
@@ -81,9 +93,11 @@ class ScriptStore:
         "waiting-approval". The generated ID can be used to retrieve or update the script later.
 
         Args:
+            description: Human-readable description of what the script does.
             script: The script content to execute (Python or Bash code).
             script_type: The type of script, either "python" or "bash".
             host: The target host where the script will be executed.
+            readonly: Whether the script only reads and does not modify the system.
 
         Returns:
             A unique URL-safe token (16 bytes) identifying this script execution.
@@ -374,7 +388,7 @@ async def run_script_modify_interactive(
 
     # Initialize execution detail to keep execution status persistent
     # Store script and script_type so set_script_approval can retrieve them by id
-    id = script_store.add_script(description, script, script_type, host, False)
+    id = script_store.add_script(description, script, script_type, host, readonly=False)
 
     if gatekeeper_result.status != GatekeeperStatus.OK:
         script_store.set_script_state(id, "rejected-gatekeeper")
@@ -479,7 +493,9 @@ async def validate_script(
         (BASH_STRICT_PREAMBLE + script) if script_type == SCRIPT_TYPE_BASH else script,
         readonly=readonly,
     )
+
     id = script_store.add_script(description, script, script_type, host, readonly)
+    script_details = script_store.get_script_details(id)
 
     if gatekeeper_result.status != GatekeeperStatus.OK:
         script_store.set_script_state(id, "rejected-gatekeeper")
@@ -487,41 +503,35 @@ async def validate_script(
 
     result = ToolResult(
         content=[TextContent(type="text", text=f"Script passed gatekeeper validation and is stored with ID {id}")],
-        structured_content={"id": id, "status": gatekeeper_result.status, "detail": gatekeeper_result.detail},
+        structured_content={
+            "token": id,
+            "needs_confirmation": script_details.needs_confirmation,
+        },
     )
     return result
 
 
-@mcp.tool(
-    tags={"validate_script"},
-    title="Run a script",
-    description="Call this tool to run a previously validated script by its ID. The script must have been validated with the validate_script tool. The description, script_type, and script must match the original validation request.",
-)
-@log_tool_call
-@disallow_local_execution_in_containers
-async def run_script(
-    ctx: Context,
-    description: t.Annotated[
-        str,
-        Field(
-            description="Description of what the script does - e.g. 'Modify file permissions on nginx.conf to fix startup errors.'"
-        ),
-    ],
-    script_type: t.Annotated[
-        ScriptType,
-        Field(description="The type of script to run (python or bash)."),
-    ],
-    script: t.Annotated[
-        str,
-        Field(description="The script to run."),
-    ],
-    host: Host = None,
-    readonly: t.Annotated[bool, Field(description="Should be true if the script does not modify the system.")] = True,
-    token: t.Annotated[str, Field(description="The token returned by the validate_script tool.")] = "",
+async def _run_validated_script(
+    token: str,
+    description: str,
+    script_type: ScriptType,
+    script: str,
+    readonly: bool,
+    host: Host,
+    expect_confirmation: bool,
 ) -> str:
+    """Common implementation for run_script and run_script_with_confirmation."""
     script_details = script_store.get_script_details(token)
 
-    # Verify the retrieved script details match the incoming description, script_type, and script
+    # Verify confirmation expectation matches
+    if expect_confirmation and not script_details.needs_confirmation:
+        raise ToolError(
+            "This script does not require confirmation. Use run_script instead of run_script_with_confirmation."
+        )
+    if not expect_confirmation and script_details.needs_confirmation:
+        raise ToolError("This script requires confirmation. Use run_script_with_confirmation instead of run_script.")
+
+    # Verify the retrieved script details match the incoming parameters
     new_details = ScriptDetails(
         state="waiting-approval",
         description=description,
@@ -557,3 +567,69 @@ async def run_script(
     else:
         script_store.set_script_state(token, "failure")
         return f"Error executing script: return code {returncode}, stderr: {stderr}"
+
+
+@mcp.tool(
+    tags={"validate_script"},
+    title="Run a script",
+    description="Call this tool to run a previously validated script. Use this when validate_script returned needs_confirmation: false. The parameters must match those passed to validate_script.",
+    annotations=ToolAnnotations(readOnlyHint=True),
+)
+@log_tool_call
+@disallow_local_execution_in_containers
+async def run_script(
+    ctx: Context,
+    description: t.Annotated[
+        str,
+        Field(
+            description="Description of what the script does - e.g. 'Collect SELinux messages from the system logs.'"
+        ),
+    ],
+    script_type: t.Annotated[
+        ScriptType,
+        Field(description="The type of script to run (python or bash)."),
+    ],
+    script: t.Annotated[
+        str,
+        Field(description="The script to run."),
+    ],
+    readonly: t.Annotated[bool, Field(description="Should be true if the script does not modify the system.")],
+    token: t.Annotated[str, Field(description="The token returned by the validate_script tool.")],
+    host: Host = None,
+) -> str:
+    return await _run_validated_script(
+        token, description, script_type, script, readonly, host, expect_confirmation=False
+    )
+
+
+@mcp.tool(
+    tags={"validate_script", "mcp_apps_exclude"},
+    title="Run a script with confirmation",
+    description="Call this tool to run a previously validated script that modifies the system. Use this when validate_script returned needs_confirmation: true. The parameters must match those passed to validate_script.",
+    annotations=ToolAnnotations(destructiveHint=True),
+)
+@log_tool_call
+@disallow_local_execution_in_containers
+async def run_script_with_confirmation(
+    ctx: Context,
+    description: t.Annotated[
+        str,
+        Field(
+            description="Description of what the script does - e.g. 'Modify file permissions on nginx.conf to fix startup errors.'"
+        ),
+    ],
+    script_type: t.Annotated[
+        ScriptType,
+        Field(description="The type of script to run (python or bash)."),
+    ],
+    script: t.Annotated[
+        str,
+        Field(description="The script to run."),
+    ],
+    readonly: t.Annotated[bool, Field(description="Should be true if the script does not modify the system.")],
+    token: t.Annotated[str, Field(description="The token returned by the validate_script tool.")],
+    host: Host = None,
+) -> str:
+    return await _run_validated_script(
+        token, description, script_type, script, readonly, host, expect_confirmation=True
+    )

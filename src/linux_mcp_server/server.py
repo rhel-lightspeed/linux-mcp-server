@@ -83,19 +83,28 @@ INSTRUCTIONS_RUN_SCRIPT = """You have access to tools that execute Python or Bas
 """
 
 INSTRUCTIONS_VALIDATE_SCRIPT = """You have access to tools that validate and execute Python or Bash scripts you supply on the target system, for inspection or for making changes.
-You must validate a script before it will be allowed to run. Once validated, a script can be run using the run_script tool.
+You must validate a script before it will be allowed to run.
 
 ## Script tools
 
-- **validate_script:** Validate a Python or Bash script via an external gatekeeper for security and policy compliance.
-- **run_script:** Run a Python or Bash script that has been validated by the gatekeeper. The script must be validated before it can be run.
+- **validate_script:** Validate a Python or Bash script via an external gatekeeper for security and policy compliance. Returns a token and needs_confirmation flag.
+- **run_script:** Run a validated read-only script. Use when validate_script returned needs_confirmation: false.
+- **run_script_with_confirmation:** Run a validated script that modifies the system. Use when validate_script returned needs_confirmation: true.
+
+## Workflow
+
+1. Call validate_script with your script and set readonly appropriately.
+2. Check the needs_confirmation field in the response.
+3. If needs_confirmation is false, call run_script with the same parameters and the token.
+4. If needs_confirmation is true, call run_script_with_confirmation with the same parameters and the token.
 
 ## Usage
 
+- Set readonly to true if the script only reads the system state.
+- Set readonly to false if the script modifies files or settings.
 - Prefer readonly scripts when possible.
 - For modifications, choose the minimal change and avoid anything that could harm stability or security.
 - Describe what each script does in the description.
-- Set the readonly flag to true if the script does not modify the system.
 - Do not fetch content from the internet; use only configured repositories if installing software.
 - Bash scripts run with `set -euo pipefail`; handle expected non-zero exits explicitly.
 - Prefer Bash for a few shell commands and Python when logic is more involved.
