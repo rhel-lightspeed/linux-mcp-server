@@ -4,35 +4,28 @@ Guarded Command Execution is an **experimental** feature of linux-mcp-server.
 When it is enabled (by setting `LINUX_MCP_TOOLSET` to `run_script` or `both`),
 linux-mcp-server exposes additional tools that allow models
 to provide a script to run on the target system,
-instead of simply calling fixed read-only tools.
+instead of simply calling fixed, read-only tools.
 
-This greatly increases the power of linux-mcp-server.
+This greatly increases the functionality of linux-mcp-server.
 It allows models to use all their knowledge of Linux operating systems to diagnose and even fix problems on the target system.
 
 However, along with the increased power,
-comes an increased risk of "prompt injection" attacks.
+comes a greater risk of "prompt injection" attacks.
 In a prompt injection attack, an attacker disguises commands in data that the model reads, and tricks the model into doing something that the user doesn't intend.
 To control these risks, when Guarded Command Execution is enabled,
 there are multiple levels of guardrails enabled:
 
  * **Gatekeeper model**: A separate model called the Gatekeeper does an initial check of the command to make sure that it looks OK and matches the provided description.
  * **Human in the loop**: commands that modify the system are flagged for human approval. The human can review the description and optionally the exact command.
- * **Sandboxing**: When possible, the command is run in an os-level sandbox with limited permissions. (NOTE: sandboxing is currently rudimentary.)
+ * **Sandboxing**: When possible, the command is run in an OS-level sandbox with limited permissions. (NOTE: sandboxing is currently rudimentary.)
 
 ## Step-by-step
 
-Step 1. The model calls the `validate_script` tool to check the script,
-passing in a human-readable description<br>
-Step 2. linux-mcp-server uses the gatekeeper model to check
-that the script is safe.<br>
-Step 3. if checks pass,
-the model calls `run_script` or `run_script_with_confirmation`
-to actually execute the script on the target machine.<br>
-Step 4. If `run_script_with_confirmation` is required,
-the user is asked to approve the call.
-Step 5. the script is executed on the target machine,
-possibly in an operating-system level sandbox.
-
+1. The model calls the `validate_script` tool to check the script, passing in a human-readable description
+2. linux-mcp-server uses the gatekeeper model to check that the script is safe.
+3. if checks pass, the model calls `run_script` or `run_script_with_confirmation` to actually execute the script on the target machine.
+4. If `run_script_with_confirmation` is required, the user is asked to approve the call.
+5. The script is executed on the target machine, in an operating-system level sandbox if possible.
 ## The Gatekeeper Model
 
 The gatekeeper model is simply a *user-provided* chat model.
@@ -99,7 +92,7 @@ Three values are supported for `LINUX_MCP_TOOLSET`:
 * **run_script**: only the Guarded Command Execution tools.
 * **both**: all the tools
 
- Running in `both` mode may not produce better results than `run_script` alone —
+**Note**: Running in `both` mode may not produce better results than `run_script` alone —
  everything can be done with the `run_script` tools,
  and the greater number of tools may confuse the AI agent.
  Try it both ways.
@@ -113,8 +106,8 @@ LINUX_MCP_TOOLSET=run_script
 **Configure a Gatekeeper Model**
 
 Set `LINUX_MCP_GATEKEEPER_MODEL` to the name of the model you want to use. Additional environment
-variables will be needed to configure credentials. See the
-[LiteLLM documentation](https://docs.litellm.ai/docs/providers).
+variables may be needed to configure credentials. See the
+[LiteLLM documentation](https://docs.litellm.ai/docs/providers) for details on how to configure your provider.
 
 Example:
 
@@ -128,9 +121,9 @@ OPENAI_API_KEY=<....>
 
 The following three tools should be configured to be allowed without user confirmation:
 
-`validate_script`<br>
-`run_script`<br>
-`run_script_interactive` (used when mcp-apps are available)
+* `validate_script`
+* `run_script`
+* `run_script_interactive` (used when mcp-apps are available)
 
 The following tool should be configured to ask the user each time:
 

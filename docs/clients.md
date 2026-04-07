@@ -631,7 +631,7 @@ See [Guarded Command Execution](guarded-command-execution.md)
 | `LINUX_MCP_VERIFY_HOST_KEYS` | `False` | Verify remote host identity via known_hosts |
 | `LINUX_MCP_KNOWN_HOSTS_PATH` | (none) | Custom path to known_hosts file |
 
-### Guarded Command Exection settings (run_script toolset)
+### Guarded Command Execution settings (run_script toolset)
 
 These are used when `LINUX_MCP_TOOLSET` is set to `run_script` or `both`
 

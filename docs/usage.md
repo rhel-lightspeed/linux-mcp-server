@@ -248,14 +248,14 @@ This is used when `validate_script` returns `needs_confirmation: false` in the r
 and it will error out if `validate_script` indicated that confirmation was needed.
 
 This tool *does not* need manual user approval, because the tool call is considered to be
-safe. For most secure operation, `LINUX_MCP_ALWAYS_CONFIRM_SCRIPTS` an be set so that scripts must be
+safe. For more secure operation, `LINUX_MCP_ALWAYS_CONFIRM_SCRIPTS` can be set so that scripts must be
 manually confirmed.
 
 **Parameters**
 - `description`: Description of what the script does - e.g. 'Collect SELinux messages from the system logs.'
 - `script_type`: The type of script to run (`python` or `bash`)
 - `script`: The script to run
-- `readonly`: Should be true if the script does not modify the system."
+- `readonly`: Should be true if the script does not modify the system.
 - `token`: token returned from `validate_script`
 
 
@@ -270,7 +270,7 @@ This tool *needs to be manually approved by the user*.
 - `description`: Description of what the script does - e.g. 'Modify file permissions on nginx.conf to fix startup errors.'
 - `script_type`: The type of script to run (`python` or `bash`)
 - `script`: The script to run
-- `readonly`: Should be true if the script does not modify the system."
+- `readonly`: Should be true if the script does not modify the system.
 - `token`: token returned from `validate_script`
 
 
@@ -288,7 +288,7 @@ user interface.
 - `description`: Description of what the script does - e.g. 'Modify file permissions on nginx.conf to fix startup errors.'
 - `script_type`: The type of script to run (`python` or `bash`)
 - `script`: The script to run
-- `readonly`: Should be true if the script does not modify the system."
+- `readonly`: Should be true if the script does not modify the system.
 - `token`: token returned from `validate_script`
 
 
@@ -299,7 +299,7 @@ Called to check a script before running it. This is a safe tool that never modif
 - `description`: Description of what the script does - e.g. 'Modify file permissions on nginx.conf to fix startup errors.'
 - `script_type`: The type of script to run (`python` or `bash`)
 - `script`: The script to run
-- `readonly`: Should be true if the script does not modify the system."
+- `readonly`: Should be true if the script does not modify the system.
 
 Returns an object with the following members:
 
