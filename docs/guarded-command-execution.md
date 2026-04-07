@@ -9,7 +9,7 @@ instead of simply calling fixed, read-only tools.
 This greatly increases the functionality of linux-mcp-server.
 It allows models to use all their knowledge of Linux operating systems to diagnose and even fix problems on the target system.
 
-However, along with the increased power,
+However, along with the increased functionality,
 comes a greater risk of "prompt injection" attacks.
 In a prompt injection attack, an attacker disguises commands in data that the model reads, and tricks the model into doing something that the user doesn't intend.
 To control these risks, when Guarded Command Execution is enabled,
@@ -26,6 +26,7 @@ there are multiple levels of guardrails enabled:
 3. if checks pass, the model calls `run_script` or `run_script_with_confirmation` to actually execute the script on the target machine.
 4. If `run_script_with_confirmation` is required, the user is asked to approve the call.
 5. The script is executed on the target machine, in an operating-system level sandbox if possible.
+
 ## The Gatekeeper Model
 
 The gatekeeper model is simply a *user-provided* chat model.
@@ -127,7 +128,7 @@ The following three tools should be configured to be allowed without user confir
 
 The following tool should be configured to ask the user each time:
 
-`run_script_with_confirmation` (used when mcp-apps are unavailable)
+* `run_script_with_confirmation` (used when mcp-apps are unavailable)
 
 !!! warning
     Setting `run_script_with_confirmation` to Always Allow is dangerous and not recommended.
