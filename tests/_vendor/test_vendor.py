@@ -16,11 +16,10 @@ def reset_vendor():
     import linux_mcp_server
 
     vendor_path = str(Path(linux_mcp_server.__file__).parent / "_vendor")
-    removed_modules = [sys.modules.pop(package, None) for package in ["linux_mcp_server._vendor", "linux_mcp_server"]]
     saved_path = list(sys.path)
 
     [sys.path.remove(path) for path in sys.path if path == vendor_path]
-    [sys.modules.pop(package, None) for package in ["linux_mcp_server._vendor", "linux_mcp_server"]]
+    removed_modules = [sys.modules.pop(package, None) for package in ["linux_mcp_server._vendor", "linux_mcp_server"]]
 
     yield
 
