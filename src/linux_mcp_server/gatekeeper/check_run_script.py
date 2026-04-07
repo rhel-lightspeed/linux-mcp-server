@@ -68,7 +68,7 @@ Your job is to check that:
 * It conforms to the general policies outlined above.
 * The script is clear and simple and written in an obvious, expected
   manner.
-* The script does not contain malicious code or introduce security vulnerabities
+* The script does not contain malicious code or introduce security vulnerabilities
   on the system.
 
 It is *OK* if the script does not consider every possible failure mode, as long

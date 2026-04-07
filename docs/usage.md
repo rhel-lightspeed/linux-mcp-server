@@ -65,59 +65,6 @@ linux-mcp-server --user admin --ssh-key-path ~/.ssh/id_rsa --verify-host-keys
 linux-mcp-server --allowed-log-paths "/var/log/messages,/var/log/secure,/var/log/audit/audit.log"
 ```
 
-### Enabling running arbitrary commands ***EXPERIMENTAL***
-
-The default tools exposed by the linux-mcp-server allow the AI agent a wide range of tools
-to query information about specific aspects of the target machine, as described below.
-However, the agent is not able to run arbitrary commands. It is also possible (as an experimental
-feature), to enable additional tools to allow the AI agent to run arbitrary commands,
-in read-only or read-write mode.
-
-```
-export LINUX_MCP_TOOLSET="run_script"
-export LINUX_MCP_GATEKEEPER_MODEL="gpt-5.2"
-export OPENAI_API_KEY="Your API key"
-```
-
-Three values are supported for LINUX_MCP_TOOLSET:
-
-* **FIXED**: only read-only tools with fixed functionality
-* **RUN_SCRIPT**: only `run_script_readonly` and `run_script_modify`
-* **BOTH**: all the tools
-
-Running in `both` mode will not necessarily produce better results then only using
-the `run_script` toolset - the greater number of tools may confuse the AI agent.
-Try it both ways.
-
-To try to avoid actions that are dangerous or that do unintended things, the scripts
-passed to the `run_script_*` tools are checked using a gatekeeper model that reviews
-the commands before running them. You must configure this model. Configuration is
-done by using the `LINUX_MCP_GATEKEEPER_MODEL` environment variable. Additional environment
-variables will be needed to configure credentials. See the
-[LiteLLM documentation](https://docs.litellm.ai/docs/providers).
-
-#### Try the mcp-app feature with compatible GUI application (i.e., Goose Desktop, Claude Desktop...etc)
-
-1. Generate the bundled app
-
-```shell
-cd mcp-app
-npm install
-npm run build:prod
-```
-
-2. Set up environment variables
-
-Please set this environment variable before launching the GUI, or add it to the environment configuration used by the application to spawn the linux-mcp-server.
-
-```
-export LINUX_MCP_USE_MCP_APPS=true
-```
-
-Note: Ensure LINUX_MCP_TOOLSET and LINUX_MCP_GATEKEEPER_MODEL are set in your environment, along with the specific API key or configuration variable required for your chosen gatekeeper model. 
-
-Once configured, `run_script_modify_interactive` will replace `run_script_modify`. This tool launches an integrated MCP app, allowing you to review, approve, or reject script modifications directly through the UI.
-
 
 ### Using with AI Agents
 
@@ -293,22 +240,72 @@ Lists immediate subdirectories under a specified path with flexible sorting opti
 - "Show me recently modified directories in /home" → `list_directories(path="/home", order_by="modified", sort="descending")`
 - "What directories in /tmp were changed (oldest first)?" → `list_directories(path="/tmp", order_by="modified", sort="ascending")`
 
-#### `run_script_readonly` (experimental)
-Runs a script on a system in read-only mode.
+#### `run_script` (experimental)
+Runs a script on a system. `validate_script` must be called first to check if the script matches
+the description and appears safe, and the parameters should exactly match those provided there.
+
+This is used when `validate_script` returns `needs_confirmation: false` in the result,
+and it will error out if `validate_script` indicated that confirmation was needed.
+
+This tool *does not* need manual user approval, because the tool call is considered to be
+safe. For most secure operation, `LINUX_MCP_ALWAYS_CONFIRM_SCRIPTS` an be set so that scripts must be
+manually confirmed.
 
 **Parameters**
 - `description`: Description of what the script does - e.g. 'Collect SELinux messages from the system logs.'
 - `script_type`: The type of script to run (`python` or `bash`)
 - `script`: The script to run
+- `readonly`: Should be true if the script does not modify the system."
+- `token`: token returned from `validate_script`
 
-#### `run_script_modify` (experimental)
-Runs a script on a system to modify files or settings.
+
+#### `run_script_with_confirmation` (experimental)
+Runs a script on a system. `validate_script` must be called first to check if the script matches
+the description and appears safe, and the parameters should exactly match those provided there.
+
+This is used when `validate_script` returns `needs_confirmation: true` in the result.
+This tool *needs to be manually approved by the user*.
 
 **Parameters**
 - `description`: Description of what the script does - e.g. 'Modify file permissions on nginx.conf to fix startup errors.'
 - `script_type`: The type of script to run (`python` or `bash`)
 - `script`: The script to run
+- `readonly`: Should be true if the script does not modify the system."
+- `token`: token returned from `validate_script`
 
+
+#### `run_script_interactive` (experimental)
+Runs a script on a system after using an embedded
+[mcp-app](https://modelcontextprotocol.io/extensions/apps/) to ask the user for confirmation.
+`validate_script` must be called first to check if the script matches
+the description and appears safe, and the parameters should exactly match those provided there.
+
+This is used when `validate_script` returns `needs_confirmation: true` in the result.
+This tool *does not* need manual user approval, because that will be done by the embedded
+user interface.
+
+**Parameters**
+- `description`: Description of what the script does - e.g. 'Modify file permissions on nginx.conf to fix startup errors.'
+- `script_type`: The type of script to run (`python` or `bash`)
+- `script`: The script to run
+- `readonly`: Should be true if the script does not modify the system."
+- `token`: token returned from `validate_script`
+
+
+#### `validate_script` (experimental)
+Called to check a script before running it. This is a safe tool that never modifies the target system.
+
+**Parameters**
+- `description`: Description of what the script does - e.g. 'Modify file permissions on nginx.conf to fix startup errors.'
+- `script_type`: The type of script to run (`python` or `bash`)
+- `script`: The script to run
+- `readonly`: Should be true if the script does not modify the system."
+
+Returns an object with the following members:
+
+**Returns**
+- `needs_confirmation`: If `true`, call `run_script_with_confirmation` to run the script, otherwise `run_script`.
+- `token`: token to pass to `run_script` or `run_script_with_confirmation`
 
 ## Configuration
 
