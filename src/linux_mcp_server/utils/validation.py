@@ -53,6 +53,10 @@ def validate_path(path: str) -> Path:
     if not Path(path).is_absolute():
         raise PathValidationError(f"Path must be absolute: {path}")
 
+    # Prevent path traversal via '..' components
+    if ".." in path.split("/"):
+        raise PathValidationError(f"Path contains invalid component '..': {path}")
+
     return Path(path)
 
 
