@@ -128,7 +128,7 @@ class GatekeeperResult(BaseModel):
             case GatekeeperStatus.POLICY:
                 return f"Policy violation: {self.detail}"
             case GatekeeperStatus.MODIFIES_SYSTEM:
-                return f"Script modifies the system - use run_script_modify: {self.detail}"
+                return f"Script modifies the system and readonly is true: {self.detail}"
             case GatekeeperStatus.UNCLEAR:
                 return f"Unclear script: {self.detail}"
             case GatekeeperStatus.DANGEROUS:
@@ -157,7 +157,7 @@ class GatekeeperResult(BaseModel):
             "OK": GatekeeperStatus.OK,
             "Bad description": GatekeeperStatus.BAD_DESCRIPTION,
             "Policy violation": GatekeeperStatus.POLICY,
-            "Script modifies the system - use run_script_modify": GatekeeperStatus.MODIFIES_SYSTEM,
+            "Script modifies the system and readonly is true": GatekeeperStatus.MODIFIES_SYSTEM,
             "Unclear script": GatekeeperStatus.UNCLEAR,
             "Dangerous script": GatekeeperStatus.DANGEROUS,
             "Possibly malicious script": GatekeeperStatus.MALICIOUS,

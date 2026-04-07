@@ -51,9 +51,11 @@ SCRIPT_TYPE_BASH = "bash"
 @dataclass()
 class ScriptDetails:
     state: ExecutionState
+    description: str
     script: str
     script_type: ScriptType
     host: Host
+    readonly: bool
 
 
 # TODO: Might need a cleanup mechanism to limit the maximum number of scripts we can store
@@ -71,7 +73,7 @@ class ScriptStore:
     def __init__(self):
         self._scripts: dict[str, ScriptDetails] = {}
 
-    def add_script(self, script: str, script_type: ScriptType, host: Host) -> str:
+    def add_script(self, description: str, script: str, script_type: ScriptType, host: Host, readonly: bool) -> str:
         """
         Add a new script to the store and generate a unique ID for it.
 
@@ -87,7 +89,14 @@ class ScriptStore:
             A unique URL-safe token (16 bytes) identifying this script execution.
         """
         id = secrets.token_urlsafe(16)
-        self._scripts[id] = ScriptDetails(state="waiting-approval", script=script, script_type=script_type, host=host)
+        self._scripts[id] = ScriptDetails(
+            state="waiting-approval",
+            description=description,
+            script=script,
+            script_type=script_type,
+            host=host,
+            readonly=readonly,
+        )
         return id
 
     def get_script_details(self, id: str) -> ScriptDetails:
@@ -365,7 +374,7 @@ async def run_script_modify_interactive(
 
     # Initialize execution detail to keep execution status persistent
     # Store script and script_type so set_script_approval can retrieve them by id
-    id = script_store.add_script(script, script_type, host)
+    id = script_store.add_script(description, script, script_type, host, False)
 
     if gatekeeper_result.status != GatekeeperStatus.OK:
         script_store.set_script_state(id, "rejected-gatekeeper")
@@ -436,3 +445,115 @@ async def run_script_modify(
 async def get_execution_state(id: str):
     script_detail = script_store.get_script_details(id)
     return {"state": script_detail.state}
+
+
+@mcp.tool(
+    tags={"validate_script"},
+    title="Validate a script",
+    description="Request validation of a script from the gatekeeper. The tool will return a unique token that must be included in the run_script tool call.",
+)
+@log_tool_call
+@disallow_local_execution_in_containers
+async def validate_script(
+    ctx: Context,
+    description: t.Annotated[
+        str,
+        Field(
+            description="Description of what the script does - e.g. 'Modify file permissions on nginx.conf to fix startup errors.'"
+        ),
+    ],
+    script_type: t.Annotated[
+        ScriptType,
+        Field(description="The type of script to run (python or bash)."),
+    ],
+    script: t.Annotated[
+        str,
+        Field(description="The script to run."),
+    ],
+    host: Host = None,
+    readonly: t.Annotated[bool, Field(description="Should be true if the script does not modify the system.")] = True,
+) -> ToolResult:
+    gatekeeper_result = check_run_script(
+        description,
+        script_type,
+        (BASH_STRICT_PREAMBLE + script) if script_type == SCRIPT_TYPE_BASH else script,
+        readonly=readonly,
+    )
+    id = script_store.add_script(description, script, script_type, host, readonly)
+
+    if gatekeeper_result.status != GatekeeperStatus.OK:
+        script_store.set_script_state(id, "rejected-gatekeeper")
+        raise ToolError(gatekeeper_result.description)
+
+    result = ToolResult(
+        content=[TextContent(type="text", text=f"Script passed gatekeeper validation and is stored with ID {id}")],
+        structured_content={"id": id, "status": gatekeeper_result.status, "detail": gatekeeper_result.detail},
+    )
+    return result
+
+
+@mcp.tool(
+    tags={"validate_script"},
+    title="Run a script",
+    description="Call this tool to run a previously validated script by its ID. The script must have been validated with the validate_script tool. The description, script_type, and script must match the original validation request.",
+)
+@log_tool_call
+@disallow_local_execution_in_containers
+async def run_script(
+    ctx: Context,
+    description: t.Annotated[
+        str,
+        Field(
+            description="Description of what the script does - e.g. 'Modify file permissions on nginx.conf to fix startup errors.'"
+        ),
+    ],
+    script_type: t.Annotated[
+        ScriptType,
+        Field(description="The type of script to run (python or bash)."),
+    ],
+    script: t.Annotated[
+        str,
+        Field(description="The script to run."),
+    ],
+    host: Host = None,
+    readonly: t.Annotated[bool, Field(description="Should be true if the script does not modify the system.")] = True,
+    token: t.Annotated[str, Field(description="The token returned by the validate_script tool.")] = "",
+) -> str:
+    script_details = script_store.get_script_details(token)
+
+    # Verify the retrieved script details match the incoming description, script_type, and script
+    new_details = ScriptDetails(
+        state="waiting-approval",
+        description=description,
+        script_type=script_type,
+        script=script,
+        host=host,
+        readonly=readonly,
+    )
+    if new_details != script_details:
+        # Revalidate the script again; this is a convenience for the user to avoid
+        # potentially having to double-approve the same script.
+        gatekeeper_result = check_run_script(
+            description,
+            script_type,
+            (BASH_STRICT_PREAMBLE + script) if script_type == SCRIPT_TYPE_BASH else script,
+            readonly=readonly,
+        )
+        if gatekeeper_result.status != GatekeeperStatus.OK:
+            script_store.set_script_state(token, "rejected-gatekeeper")
+            raise ToolError(gatekeeper_result.description)
+
+    script_store.set_script_state(token, "executing")
+    try:
+        command = _wrap_script(script_details.script_type, script_details.script)
+        returncode, stdout, stderr = await execute_command(command, host=script_details.host)
+    except Exception:
+        script_store.set_script_state(token, "failure")
+        raise
+
+    if returncode == 0:
+        script_store.set_script_state(token, "success")
+        return stdout if isinstance(stdout, str) else stdout.decode("utf-8", errors="replace")
+    else:
+        script_store.set_script_state(token, "failure")
+        return f"Error executing script: return code {returncode}, stderr: {stderr}"
