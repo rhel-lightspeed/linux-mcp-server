@@ -195,22 +195,7 @@ complexity such as elaborate logging or handling unlikely corner cases.
 """
 
 
-RUN_SCRIPT_READONLY_DESCRIPTION = (
-    """
-Run a script on a system in read-only mode.
-"""
-    + RUN_SCRIPT_COMMON_DESCRIPTION
-)
-
-
-RUN_SCRIPT_MODIFY_DESCRIPTION = (
-    """
-Run a script on a system to modify files or settings.
-"""
-    + RUN_SCRIPT_COMMON_DESCRIPTION
-)
-
-RUN_SCRIPT_MODIFY_INTERACTIVE = (
+RUN_SCRIPT_INTERACTIVE_DESCRIPTION = (
     """
 Run a script that modifies the system. The user will be asked for approval interactively.
 """
@@ -238,57 +223,6 @@ def _wrap_script(script_type: ScriptType, script: str) -> list[str]:
         script=shlex.quote((BASH_STRICT_PREAMBLE + script) if script_type == SCRIPT_TYPE_BASH else script),
     )
     return ["bash", "-c", wrapper_script]
-
-
-@mcp.tool(
-    tags={"run_script"},
-    title="Run script on system, read-only",
-    description=RUN_SCRIPT_READONLY_DESCRIPTION,
-    annotations=ToolAnnotations(readOnlyHint=True),
-)
-@log_tool_call
-@disallow_local_execution_in_containers
-async def run_script_readonly(
-    ctx: Context,
-    description: t.Annotated[
-        str,
-        Field(
-            description="Description of what the script does - e.g. 'Collect SELinux messages from the system logs.'"
-        ),
-    ],
-    script_type: t.Annotated[
-        ScriptType,
-        Field(description="The type of script to run (python or bash)."),
-    ],
-    script: t.Annotated[
-        str,
-        Field(description="The script to run."),
-    ],
-    host: Host = None,
-) -> str:
-    command = _wrap_script(script_type, script)
-
-    gatekeeper_result = check_run_script(
-        description,
-        script_type,
-        (BASH_STRICT_PREAMBLE + script) if script_type == SCRIPT_TYPE_BASH else script,
-        readonly=True,
-    )
-
-    match gatekeeper_result.status:
-        case GatekeeperStatus.OK:
-            pass
-        case GatekeeperStatus.MODIFIES_SYSTEM:
-            raise RuntimeError("Model returned MODIFIES_SYSTEM error for run_script_modify")
-        case _:
-            raise ToolError(gatekeeper_result.description)
-
-    returncode, stdout, stderr = await execute_command(command, host=host)
-    if returncode == 0:
-        stdout = stdout if isinstance(stdout, str) else stdout.decode("utf-8", errors="replace")
-        return stdout
-    else:
-        return f"Error executing script: return code {returncode}, stderr: {stderr}"
 
 
 @dataclass
@@ -349,15 +283,15 @@ async def reject_script(
 
 @mcp.tool(
     tags={"run_script", "mcp_apps_only"},
-    title="Propose to run a script that modifies system",
-    description=RUN_SCRIPT_MODIFY_INTERACTIVE,
+    title="Run a script with interactive user confirmation",
+    description=RUN_SCRIPT_INTERACTIVE_DESCRIPTION,
     annotations=ToolAnnotations(destructiveHint=True),
     output_schema=RunScriptInteractiveResult.model_json_schema(),
     meta={"ui": {"resourceUri": RUN_SCRIPT_APP_URI}},
 )
 @log_tool_call
 @disallow_local_execution_in_containers
-async def run_script_modify_interactive(
+async def run_script_interactive(
     ctx: Context,
     description: t.Annotated[
         str,
@@ -373,79 +307,52 @@ async def run_script_modify_interactive(
         str,
         Field(description="The script to run."),
     ],
+    readonly: t.Annotated[bool, Field(description="Should be true if the script does not modify the system.")],
+    token: t.Annotated[str, Field(description="The token returned by the validate_script tool.")],
     host: Host = None,
 ) -> ToolResult:
-    gatekeeper_result = check_run_script(description, script_type, script, readonly=False)
-    content: list[ContentBlock] | None = None
+    script_details = script_store.get_script_details(token)
 
-    if gatekeeper_result.status == GatekeeperStatus.OK:
-        content = [
-            TextContent(
-                type="text",
-                text="The user has been asked for approval; please respond nothing to the user yet; the final result will be provided as a separate message later.",
-            )
-        ]
+    # Verify that this script requires confirmation
+    if not script_details.needs_confirmation:
+        raise ToolError("This script does not require confirmation. Use run_script instead of run_script_interactive.")
 
-    # Initialize execution detail to keep execution status persistent
-    # Store script and script_type so set_script_approval can retrieve them by id
-    id = script_store.add_script(description, script, script_type, host, readonly=False)
-
-    if gatekeeper_result.status != GatekeeperStatus.OK:
-        script_store.set_script_state(id, "rejected-gatekeeper")
-
-    structured_content_obj = RunScriptInteractiveResult(
-        id=id, status=gatekeeper_result.status, detail=gatekeeper_result.detail
+    # Check if the passed parameters match the stored script details
+    new_details = ScriptDetails(
+        state="waiting-approval",
+        description=description,
+        script_type=script_type,
+        script=script,
+        host=host,
+        readonly=readonly,
     )
 
-    result = ToolResult(content=content, structured_content=structured_content_obj.model_dump())
+    result_id = token
+    if new_details != script_details:
+        # Parameters don't match - revalidate and create a new script store entry
+        gatekeeper_result = check_run_script(
+            description,
+            script_type,
+            (BASH_STRICT_PREAMBLE + script) if script_type == SCRIPT_TYPE_BASH else script,
+            readonly=readonly,
+        )
+        if gatekeeper_result.status != GatekeeperStatus.OK:
+            script_store.set_script_state(token, "rejected-gatekeeper")
+            raise ToolError(gatekeeper_result.description)
 
-    return result
+        # Create new script store entry with the updated parameters
+        result_id = script_store.add_script(description, script, script_type, host, readonly)
 
+    content: list[ContentBlock] = [
+        TextContent(
+            type="text",
+            text="The user has been asked for approval; please respond nothing to the user yet; the final result will be provided as a separate message later.",
+        )
+    ]
 
-@mcp.tool(
-    tags={"run_script", "mcp_apps_exclude"},
-    title="Run script to modify system",
-    description=RUN_SCRIPT_MODIFY_DESCRIPTION,
-    annotations=ToolAnnotations(destructiveHint=True),
-)
-@log_tool_call
-@disallow_local_execution_in_containers
-async def run_script_modify(
-    ctx: Context,
-    description: t.Annotated[
-        str,
-        Field(
-            description="Description of what the script does - e.g. 'Modify file permissions on nginx.conf to fix startup errors.'"
-        ),
-    ],
-    script_type: t.Annotated[
-        ScriptType,
-        Field(description="The type of script to run (python or bash)."),
-    ],
-    script: t.Annotated[
-        str,
-        Field(description="The script to run."),
-    ],
-    host: Host = None,
-) -> str:
-    command = _wrap_script(script_type, script)
+    structured_content_obj = RunScriptInteractiveResult(id=result_id, status=GatekeeperStatus.OK, detail="")
 
-    gatekeeper_result = check_run_script(
-        description,
-        script_type,
-        (BASH_STRICT_PREAMBLE + script) if script_type == SCRIPT_TYPE_BASH else script,
-        readonly=False,
-    )
-
-    if gatekeeper_result.status != GatekeeperStatus.OK:
-        raise ToolError(gatekeeper_result.description)
-
-    returncode, stdout, stderr = await execute_command(command, host=host)
-    if returncode == 0:
-        stdout = stdout if isinstance(stdout, str) else stdout.decode("utf-8", errors="replace")
-        return stdout
-    else:
-        return f"Error executing script: return code {returncode}, stderr: {stderr}"
+    return ToolResult(content=content, structured_content=structured_content_obj.model_dump())
 
 
 @mcp.tool(
@@ -462,7 +369,7 @@ async def get_execution_state(id: str):
 
 
 @mcp.tool(
-    tags={"validate_script"},
+    tags={"run_script"},
     title="Validate a script",
     description="Request validation of a script from the gatekeeper. The tool will return a unique token that must be included in the run_script tool call.",
 )
@@ -511,25 +418,75 @@ async def validate_script(
     return result
 
 
-async def _run_validated_script(
-    token: str,
-    description: str,
-    script_type: ScriptType,
-    script: str,
-    readonly: bool,
-    host: Host,
-    expect_confirmation: bool,
+@mcp.tool(
+    tags={"run_script"},
+    title="Run a script",
+    description="Call this tool to run a previously validated script. Use this when validate_script returned needs_confirmation: false.",
+    annotations=ToolAnnotations(readOnlyHint=True),
+)
+@log_tool_call
+@disallow_local_execution_in_containers
+async def run_script(
+    ctx: Context,
+    token: t.Annotated[str, Field(description="The token returned by the validate_script tool.")],
 ) -> str:
-    """Common implementation for run_script and run_script_with_confirmation."""
     script_details = script_store.get_script_details(token)
 
-    # Verify confirmation expectation matches
-    if expect_confirmation and not script_details.needs_confirmation:
+    # Verify that this script doesn't require confirmation
+    if script_details.needs_confirmation:
+        raise ToolError("This script requires confirmation. Use run_script_with_confirmation instead of run_script.")
+
+    script_store.set_script_state(token, "executing")
+    try:
+        command = _wrap_script(script_details.script_type, script_details.script)
+        returncode, stdout, stderr = await execute_command(command, host=script_details.host)
+    except Exception:
+        script_store.set_script_state(token, "failure")
+        raise
+
+    if returncode == 0:
+        script_store.set_script_state(token, "success")
+        return stdout if isinstance(stdout, str) else stdout.decode("utf-8", errors="replace")
+    else:
+        script_store.set_script_state(token, "failure")
+        return f"Error executing script: return code {returncode}, stderr: {stderr}"
+
+
+@mcp.tool(
+    tags={"run_script", "mcp_apps_exclude"},
+    title="Run a script with confirmation",
+    description="Call this tool to run a previously validated script that modifies the system. Use this when validate_script returned needs_confirmation: true. The parameters must match those passed to validate_script.",
+    annotations=ToolAnnotations(destructiveHint=True),
+)
+@log_tool_call
+@disallow_local_execution_in_containers
+async def run_script_with_confirmation(
+    ctx: Context,
+    description: t.Annotated[
+        str,
+        Field(
+            description="Description of what the script does - e.g. 'Modify file permissions on nginx.conf to fix startup errors.'"
+        ),
+    ],
+    script_type: t.Annotated[
+        ScriptType,
+        Field(description="The type of script to run (python or bash)."),
+    ],
+    script: t.Annotated[
+        str,
+        Field(description="The script to run."),
+    ],
+    readonly: t.Annotated[bool, Field(description="Should be true if the script does not modify the system.")],
+    token: t.Annotated[str, Field(description="The token returned by the validate_script tool.")],
+    host: Host = None,
+) -> str:
+    script_details = script_store.get_script_details(token)
+
+    # Verify that this script requires confirmation
+    if not script_details.needs_confirmation:
         raise ToolError(
             "This script does not require confirmation. Use run_script instead of run_script_with_confirmation."
         )
-    if not expect_confirmation and script_details.needs_confirmation:
-        raise ToolError("This script requires confirmation. Use run_script_with_confirmation instead of run_script.")
 
     # Verify the retrieved script details match the incoming parameters
     new_details = ScriptDetails(
@@ -567,69 +524,3 @@ async def _run_validated_script(
     else:
         script_store.set_script_state(token, "failure")
         return f"Error executing script: return code {returncode}, stderr: {stderr}"
-
-
-@mcp.tool(
-    tags={"validate_script"},
-    title="Run a script",
-    description="Call this tool to run a previously validated script. Use this when validate_script returned needs_confirmation: false. The parameters must match those passed to validate_script.",
-    annotations=ToolAnnotations(readOnlyHint=True),
-)
-@log_tool_call
-@disallow_local_execution_in_containers
-async def run_script(
-    ctx: Context,
-    description: t.Annotated[
-        str,
-        Field(
-            description="Description of what the script does - e.g. 'Collect SELinux messages from the system logs.'"
-        ),
-    ],
-    script_type: t.Annotated[
-        ScriptType,
-        Field(description="The type of script to run (python or bash)."),
-    ],
-    script: t.Annotated[
-        str,
-        Field(description="The script to run."),
-    ],
-    readonly: t.Annotated[bool, Field(description="Should be true if the script does not modify the system.")],
-    token: t.Annotated[str, Field(description="The token returned by the validate_script tool.")],
-    host: Host = None,
-) -> str:
-    return await _run_validated_script(
-        token, description, script_type, script, readonly, host, expect_confirmation=False
-    )
-
-
-@mcp.tool(
-    tags={"validate_script", "mcp_apps_exclude"},
-    title="Run a script with confirmation",
-    description="Call this tool to run a previously validated script that modifies the system. Use this when validate_script returned needs_confirmation: true. The parameters must match those passed to validate_script.",
-    annotations=ToolAnnotations(destructiveHint=True),
-)
-@log_tool_call
-@disallow_local_execution_in_containers
-async def run_script_with_confirmation(
-    ctx: Context,
-    description: t.Annotated[
-        str,
-        Field(
-            description="Description of what the script does - e.g. 'Modify file permissions on nginx.conf to fix startup errors.'"
-        ),
-    ],
-    script_type: t.Annotated[
-        ScriptType,
-        Field(description="The type of script to run (python or bash)."),
-    ],
-    script: t.Annotated[
-        str,
-        Field(description="The script to run."),
-    ],
-    readonly: t.Annotated[bool, Field(description="Should be true if the script does not modify the system.")],
-    token: t.Annotated[str, Field(description="The token returned by the validate_script tool.")],
-    host: Host = None,
-) -> str:
-    return await _run_validated_script(
-        token, description, script_type, script, readonly, host, expect_confirmation=True
-    )

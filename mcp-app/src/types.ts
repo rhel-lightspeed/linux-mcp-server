@@ -11,12 +11,16 @@ export const McpAppToolParamsSchema = z
     script: z.string(),
     script_type: scriptTypeSchema,
     description: z.string(),
+    readonly: z.boolean(),
+    token: z.string(),
     host: z.string().optional().nullable(),
   })
   .transform((data) => ({
     script: data.script,
     scriptType: data.script_type,
     description: data.description,
+    readonly: data.readonly,
+    token: data.token,
     host: data.host,
   }));
 

@@ -14,9 +14,10 @@ from linux_mcp_server.tools.processes import list_processes
 from linux_mcp_server.tools.run_script import execute_script
 from linux_mcp_server.tools.run_script import get_execution_state
 from linux_mcp_server.tools.run_script import reject_script
-from linux_mcp_server.tools.run_script import run_script_modify
-from linux_mcp_server.tools.run_script import run_script_modify_interactive
-from linux_mcp_server.tools.run_script import run_script_readonly
+from linux_mcp_server.tools.run_script import run_script
+from linux_mcp_server.tools.run_script import run_script_interactive
+from linux_mcp_server.tools.run_script import run_script_with_confirmation
+from linux_mcp_server.tools.run_script import validate_script
 
 # services
 from linux_mcp_server.tools.services import get_service_logs
@@ -60,7 +61,8 @@ __all__ = [
     "read_file",
     "read_log_file",
     "reject_script",
-    "run_script_readonly",
-    "run_script_modify",
-    "run_script_modify_interactive",
+    "run_script",
+    "run_script_interactive",
+    "run_script_with_confirmation",
+    "validate_script",
 ]

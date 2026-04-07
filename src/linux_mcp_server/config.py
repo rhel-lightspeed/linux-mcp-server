@@ -23,7 +23,6 @@ class Toolset(StrEnum):
 
     FIXED = "fixed"
     RUN_SCRIPT = "run_script"
-    VALIDATE_SCRIPT = "validate_script"
     BOTH = "both"
 
 
