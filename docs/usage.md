@@ -242,7 +242,7 @@ Lists immediate subdirectories under a specified path with flexible sorting opti
 
 #### `run_script` (experimental)
 Runs a script on a system. `validate_script` must be called first to check if the script matches
-the description and appears safe, and the parameters should exactly match those provided there.
+the description and appears safe.
 
 This is used when `validate_script` returns `needs_confirmation: false` in the result,
 and it will error out if `validate_script` indicated that confirmation was needed.
@@ -252,19 +252,16 @@ safe. For more secure operation, `LINUX_MCP_ALWAYS_CONFIRM_SCRIPTS` can be set s
 manually confirmed.
 
 **Parameters**
-- `description`: Description of what the script does - e.g. 'Collect SELinux messages from the system logs.'
-- `script_type`: The type of script to run (`python` or `bash`)
-- `script`: The script to run
-- `readonly`: Should be true if the script does not modify the system.
 - `token`: token returned from `validate_script`
 
 
 #### `run_script_with_confirmation` (experimental)
 Runs a script on a system. `validate_script` must be called first to check if the script matches
-the description and appears safe, and the parameters should exactly match those provided there.
+the description and appears safe. The parameters should exactly match those provided to `validate_script`.
 
 This is used when `validate_script` returns `needs_confirmation: true` in the result.
-This tool *needs to be manually approved by the user*.
+This tool *needs to be manually approved by the user*. The parameters are repeated so they
+are visible in the client's approval UI.
 
 **Parameters**
 - `description`: Description of what the script does - e.g. 'Modify file permissions on nginx.conf to fix startup errors.'

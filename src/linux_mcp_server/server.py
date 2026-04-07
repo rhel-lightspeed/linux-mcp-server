@@ -56,33 +56,7 @@ These tools map to six areas:
 - **File paths:** must be absolute
 """
 
-INSTRUCTIONS_RUN_SCRIPT = """You have access to tools that execute Python or Bash scripts you supply on the target system, for inspection or for making changes.
-
-## Script tools
-
-- **run_script_readonly:** Run a Python or Bash script that only inspects the system. Use for queries and data collection.
-- **run_script_modify:** Run a Python or Bash script that may change files or configuration. Use only when changes are required.
-
-## Usage
-
-- Prefer readonly scripts when possible.
-- For modifications, choose the minimal change and avoid anything that could harm stability or security.
-- Describe what each script does in the description.
-- Do not fetch content from the internet; use only configured repositories if installing software.
-- Bash scripts run with `set -euo pipefail`; handle expected non-zero exits explicitly.
-- Prefer Bash for a few shell commands and Python when logic is more involved.
-
-## Behavior
-
-- **Remote execution:** Every tool accepts an optional `host` argument. When set, the work runs on that host over SSH instead of locally.
-- **Containers:** If the `container` environment variable is set, tools refuse to run locally; a remote `host` must be used.
-- **Read-only vs destructive:** run_script_readonly is marked read-only; the modify script tool is marked destructive.
-- **Log file access:** requires explicit allowlist configuration via LINUX_MCP_ALLOWED_LOG_PATHS
-- **Service names:** automatically append '.service' suffix if not provided
-- **File paths:** must be absolute
-"""
-
-INSTRUCTIONS_VALIDATE_SCRIPT = """You have access to tools that validate and execute Python or Bash scripts you supply on the target system, for inspection or for making changes.
+INSTRUCTIONS_RUN_SCRIPT = """You have access to tools that validate and execute Python or Bash scripts you supply on the target system, for inspection or for making changes.
 You must validate a script before it will be allowed to run.
 
 ## Script tools
@@ -95,7 +69,7 @@ You must validate a script before it will be allowed to run.
 
 1. Call validate_script with your script and set readonly appropriately.
 2. Check the needs_confirmation field in the response.
-3. If needs_confirmation is false, call run_script with the same parameters and the token.
+3. If needs_confirmation is false, call run_script with the token.
 4. If needs_confirmation is true, call run_script_with_confirmation with the same parameters and the token.
 
 ## Usage
@@ -133,12 +107,22 @@ These tools map to six areas:
 
 ## Script tools
 
-- **run_script_readonly:** Run a Python or Bash script that only inspects the system. Use for queries and data collection.
-- **run_script_modify:** Run a Python or Bash script that may change files or configuration. Use only when changes are required.
+- **validate_script:** Validate a Python or Bash script via an external gatekeeper for security and policy compliance. Returns a token and needs_confirmation flag.
+- **run_script:** Run a validated read-only script. Use when validate_script returned needs_confirmation: false.
+- **run_script_with_confirmation:** Run a validated script that modifies the system. Use when validate_script returned needs_confirmation: true.
 
-# Usage
+## Workflow
 
-- Prefer fixed commands over readonly scripts when possible.
+1. Call validate_script with your script and set readonly appropriately.
+2. Check the needs_confirmation field in the response.
+3. If needs_confirmation is false, call run_script with the token.
+4. If needs_confirmation is true, call run_script_with_confirmation with the same parameters and the token.
+
+## Usage
+
+- Prefer fixed commands over custom scripts when possible.
+- Set readonly to true if the script only reads the system state.
+- Set readonly to false if the script modifies files or settings.
 - For modifications, choose the minimal change and avoid anything that could harm stability or security.
 - Describe what each script does in the description.
 - Do not fetch content from the internet; use only configured repositories if installing software.
@@ -149,7 +133,6 @@ These tools map to six areas:
 
 - **Remote execution:** Every tool accepts an optional `host` argument. When set, the work runs on that host over SSH instead of locally.
 - **Containers:** If the `container` environment variable is set, tools refuse to run locally; a remote `host` must be used.
-- **Read-only vs destructive:** Tools that only inspect are marked read-only; the modify script tool is marked destructive.
 - **Log file access:** requires explicit allowlist configuration via LINUX_MCP_ALLOWED_LOG_PATHS
 - **Service names:** automatically append '.service' suffix if not provided
 - **File paths:** must be absolute
@@ -165,9 +148,6 @@ match CONFIG.toolset:
     case Toolset.RUN_SCRIPT:
         instructions = INSTRUCTIONS_RUN_SCRIPT
         kwargs["include_tags"] = {"run_script"}
-    case Toolset.VALIDATE_SCRIPT:
-        instructions = INSTRUCTIONS_VALIDATE_SCRIPT
-        kwargs["include_tags"] = {"validate_script"}
     case Toolset.BOTH:
         instructions = INSTRUCTIONS_BOTH
     case _:
@@ -294,7 +274,7 @@ class DynamicDiscoveryMiddleware(Middleware):
                 instructions = session._init_options.instructions
                 if instructions:
                     session._init_options.instructions = instructions.replace(
-                        "run_script_modify", "run_script_modify_interactive"
+                        "run_script_with_confirmation", "run_script_interactive"
                     )
             else:
                 logger.warning("Unable to get ServerSession to update instructions for mcp-apps")
