@@ -1,3 +1,4 @@
+# Arbitrary script execution
 # logs
 from linux_mcp_server.tools.logs import get_journal_logs
 from linux_mcp_server.tools.logs import read_log_file
@@ -10,6 +11,13 @@ from linux_mcp_server.tools.network import get_network_interfaces
 # processes
 from linux_mcp_server.tools.processes import get_process_info
 from linux_mcp_server.tools.processes import list_processes
+from linux_mcp_server.tools.run_script import execute_script
+from linux_mcp_server.tools.run_script import get_execution_state
+from linux_mcp_server.tools.run_script import reject_script
+from linux_mcp_server.tools.run_script import run_script
+from linux_mcp_server.tools.run_script import run_script_interactive
+from linux_mcp_server.tools.run_script import run_script_with_confirmation
+from linux_mcp_server.tools.run_script import validate_script
 
 # services
 from linux_mcp_server.tools.services import get_service_logs
@@ -31,8 +39,10 @@ from linux_mcp_server.tools.system_info import get_system_information
 
 
 __all__ = [
+    "execute_script",
     "get_cpu_information",
     "get_disk_usage",
+    "get_execution_state",
     "get_hardware_information",
     "get_journal_logs",
     "get_listening_ports",
@@ -50,4 +60,9 @@ __all__ = [
     "list_services",
     "read_file",
     "read_log_file",
+    "reject_script",
+    "run_script",
+    "run_script_interactive",
+    "run_script_with_confirmation",
+    "validate_script",
 ]

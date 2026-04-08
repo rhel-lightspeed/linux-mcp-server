@@ -1,0 +1,81 @@
+# yaml-language-server: $schema=../../testcase-schema.json
+meta:
+  timestamp: '2026-03-24T17:24:52Z'
+  provider: openai
+  model: gpt-5.2
+cases:
+- description: Collect basic system and chronyd status plus OOM evidence on mcpvm-calm-mortar.local
+  script_type: bash
+  script: |
+    echo '## host/time'; hostname; date;
+
+    echo '## uptime'; uptime;
+
+    echo '## memory'; free -h;
+
+    echo '## swap'; swapon --show || true;
+
+    echo '## chronyd unit status'; systemctl status chronyd --no-pager -l || true;
+
+    echo '## chronyd recent logs (boot)'; journalctl -u chronyd -b --no-pager -n 200 || true;
+
+    echo '## kernel OOM messages (journal)'; journalctl -k -b --no-pager | grep -i -E 'oom|out of memory|killed process' || true;
+
+    echo '## kernel ring buffer OOM messages (dmesg)'; dmesg -T | grep -i -E 'oom|out of memory|killed process' || true;
+
+    echo '## top memory processes snapshot'; ps aux --sort=-%mem | head -n 20;
+
+    echo '## chrony version'; chronyd --version 2>/dev/null || true; chrony -v 2>/dev/null || true;
+
+    echo '## chrony config (first 120 lines)'; sed -n '1,120p' /etc/chrony.conf 2>/dev/null || true;
+
+    echo '## any drop-in overrides'; systemctl cat chronyd --no-pager -l || true;
+  readonly: true
+  result:
+    status: OK
+- description: Inspect chronyd systemd drop-in that sets MemoryMax and show current
+    property values
+  script_type: bash
+  script: |
+    echo '## drop-in directory listing'; ls -al /etc/systemd/system.control/chronyd.service.d || true;
+
+    echo '## drop-in file contents'; cat /etc/systemd/system.control/chronyd.service.d/50-MemoryMax.conf || true;
+
+    echo '## systemd properties related to memory'; systemctl show chronyd -p MemoryMax -p MemoryHigh -p MemorySwapMax -p OOMPolicy -p ManagedOOMMemoryPressure -p ManagedOOMMemoryPressureLimit -p Slice --no-pager || true;
+  readonly: true
+  result:
+    status: OK
+- description: Remove the erroneous systemd MemoryMax limit for chronyd, reload systemd,
+    and restart chronyd
+  script_type: bash
+  script: |
+    echo '## before: MemoryMax'; systemctl show chronyd -p MemoryMax --no-pager || true
+
+    echo '## revert unit drop-ins created by set-property'; systemctl revert chronyd || true
+
+    echo '## daemon-reload'; systemctl daemon-reload
+
+    echo '## restart chronyd'; systemctl restart chronyd
+
+    echo '## after: status'; systemctl status chronyd --no-pager -l
+
+    echo '## after: MemoryMax'; systemctl show chronyd -p MemoryMax --no-pager
+  readonly: false
+  result:
+    status: OK
+- description: Verify chronyd remains healthy and time sync works; confirm drop-in
+    removal
+  script_type: bash
+  script: |
+    echo '## is-active'; systemctl is-active chronyd || true
+
+    echo '## recent logs'; journalctl -u chronyd -n 50 --no-pager || true
+
+    echo '## check sources'; chronyc sources -v || true
+
+    echo '## tracking'; chronyc tracking || true
+
+    echo '## confirm drop-in directories absent'; ls -al /etc/systemd/system.control/chronyd.service.d 2>/dev/null || echo 'no system.control drop-in dir'
+  readonly: true
+  result:
+    status: OK

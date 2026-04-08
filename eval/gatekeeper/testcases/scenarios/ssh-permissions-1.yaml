@@ -1,0 +1,40 @@
+# yaml-language-server: $schema=../../testcase-schema.json
+meta:
+  timestamp: '2026-03-23T18:45:54Z'
+  provider: google
+  model: gemini-3.1-pro-preview
+cases:
+- description: Check SSH configuration and testuser directory permissions on mcpvm-happy-whisk.local
+  script_type: bash
+  script: |
+    echo "=== SSH daemon status ==="
+    systemctl status sshd || systemctl status ssh || true
+
+    echo "=== sshd_config ==="
+    grep -E "^(PubkeyAuthentication|PermitRootLogin|AllowUsers|DenyUsers|StrictModes)" /etc/ssh/sshd_config || true
+
+    echo "=== User info ==="
+    id testuser || true
+
+    echo "=== Home directory permissions ==="
+    ls -ld /home/testuser || true
+
+    echo "=== .ssh directory permissions ==="
+    ls -ld /home/testuser/.ssh || true
+
+    echo "=== authorized_keys permissions ==="
+    ls -l /home/testuser/.ssh/authorized_keys || true
+
+    echo "=== Recent SSH auth logs ==="
+    journalctl -u ssh -u sshd -n 20 --no-pager || tail -n 20 /var/log/auth.log || tail -n 20 /var/log/secure || true
+  readonly: true
+  result:
+    status: OK
+- description: Fix permissions on testuser's .ssh directory to 700 so SSH public key
+    authentication works
+  script_type: bash
+  script: |
+    chmod 700 /home/testuser/.ssh
+  readonly: false
+  result:
+    status: OK

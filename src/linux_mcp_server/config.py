@@ -18,6 +18,14 @@ class Transport(StrEnum):
     streamable_http = "streamable-http"
 
 
+class Toolset(StrEnum):
+    """Enumeration of available toolsets."""
+
+    FIXED = "fixed"
+    RUN_SCRIPT = "run_script"
+    BOTH = "both"
+
+
 class Config(BaseSettings):
     # The '_' is required in the env_prefix, otherwise, pydantic would
     # interpret the prefix as LINUX_MCPLOG_DIR, instead of LINUX_MCP_LOG_DIR
@@ -60,8 +68,20 @@ class Config(BaseSettings):
     verify_host_keys: bool = True
     known_hosts_path: Path | None = None  # Custom path to known_hosts file
 
+    # What tools are available
+    toolset: Toolset = Toolset.FIXED
+
+    # Gatekeeper model (required for run_script tools)
+    gatekeeper_model: str | None = None
+
     # Command execution timeout (applies to remote SSH commands)
     command_timeout: int = 30  # Timeout in seconds; prevents hung SSH operations
+
+    # Indicate mcp-app compatibility
+    use_mcp_apps: bool | None = None
+
+    # Force all scripts to require confirmation (even readonly ones)
+    always_confirm_scripts: bool = False
 
     @property
     def effective_known_hosts_path(self) -> Path:
@@ -77,6 +97,15 @@ class Config(BaseSettings):
             result["path"] = self.path
 
         return result
+
+    # Experimentally, having the tool fail with an informative error is a lot easier
+    # to debug than a strange Pydantic validation error
+    #
+    # @model_validator(mode="after")
+    # def validate_gatekeeper_model(self):
+    #     if self.toolset != Toolset.FIXED and self.gatekeeper_model is None:
+    #         raise ValueError('gatekeeper_model must be set unless the toolset is "fixed"')
+    #     return self
 
 
 CONFIG = Config()

@@ -65,6 +65,7 @@ linux-mcp-server --user admin --ssh-key-path ~/.ssh/id_rsa --verify-host-keys
 linux-mcp-server --allowed-log-paths "/var/log/messages,/var/log/secure,/var/log/audit/audit.log"
 ```
 
+
 ### Using with AI Agents
 
 For the best experience, integrate the MCP server with an AI Agent of your preference.
@@ -238,6 +239,70 @@ Lists immediate subdirectories under a specified path with flexible sorting opti
 - "Show me directories in /var in reverse alphabetical order" → `list_directories(path="/var", order_by="name", sort="descending")`
 - "Show me recently modified directories in /home" → `list_directories(path="/home", order_by="modified", sort="descending")`
 - "What directories in /tmp were changed (oldest first)?" → `list_directories(path="/tmp", order_by="modified", sort="ascending")`
+
+#### `run_script` (experimental)
+Runs a script on a system. `validate_script` must be called first to check if the script matches
+the description and appears safe.
+
+This is used when `validate_script` returns `needs_confirmation: false` in the result,
+and it will error out if `validate_script` indicated that confirmation was needed.
+
+This tool *does not* need manual user approval, because the tool call is considered to be
+safe. For more secure operation, `LINUX_MCP_ALWAYS_CONFIRM_SCRIPTS` can be set so that scripts must be
+manually confirmed.
+
+**Parameters**
+- `token`: token returned from `validate_script`
+
+
+#### `run_script_with_confirmation` (experimental)
+Runs a script on a system. `validate_script` must be called first to check if the script matches
+the description and appears safe. The parameters should exactly match those provided to `validate_script`.
+
+This is used when `validate_script` returns `needs_confirmation: true` in the result.
+This tool *needs to be manually approved by the user*. The parameters are repeated so they
+are visible in the client's approval UI.
+
+**Parameters**
+- `description`: Description of what the script does - e.g. 'Modify file permissions on nginx.conf to fix startup errors.'
+- `script_type`: The type of script to run (`python` or `bash`)
+- `script`: The script to run
+- `readonly`: Should be true if the script does not modify the system.
+- `token`: token returned from `validate_script`
+
+
+#### `run_script_interactive` (experimental)
+Runs a script on a system after using an embedded
+[mcp-app](https://modelcontextprotocol.io/extensions/apps/) to ask the user for confirmation.
+`validate_script` must be called first to check if the script matches
+the description and appears safe, and the parameters should exactly match those provided there.
+
+This is used when `validate_script` returns `needs_confirmation: true` in the result.
+This tool *does not* need manual user approval, because that will be done by the embedded
+user interface.
+
+**Parameters**
+- `description`: Description of what the script does - e.g. 'Modify file permissions on nginx.conf to fix startup errors.'
+- `script_type`: The type of script to run (`python` or `bash`)
+- `script`: The script to run
+- `readonly`: Should be true if the script does not modify the system.
+- `token`: token returned from `validate_script`
+
+
+#### `validate_script` (experimental)
+Called to check a script before running it. This is a safe tool that never modifies the target system.
+
+**Parameters**
+- `description`: Description of what the script does - e.g. 'Modify file permissions on nginx.conf to fix startup errors.'
+- `script_type`: The type of script to run (`python` or `bash`)
+- `script`: The script to run
+- `readonly`: Should be true if the script does not modify the system.
+
+Returns an object with the following members:
+
+**Returns**
+- `needs_confirmation`: If `true`, call `run_script_with_confirmation` to run the script, otherwise `run_script`.
+- `token`: token to pass to `run_script` or `run_script_with_confirmation`
 
 ## Configuration
 

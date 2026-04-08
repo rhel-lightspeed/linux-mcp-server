@@ -1,0 +1,39 @@
+# yaml-language-server: $schema=../../testcase-schema.json
+meta:
+  timestamp: '2026-03-23T18:49:08Z'
+  provider: google
+  model: gemini-3.1-pro-preview
+cases:
+- description: Diagnose chronyd service OOM by checking systemctl status, logs, and
+    memory limits
+  script_type: bash
+  script: |
+    systemctl status chronyd.service || true
+    echo "--- Logs ---"
+    journalctl -u chronyd.service -n 20 --no-pager
+    echo "--- Service Memory Limits ---"
+    systemctl show chronyd.service -p MemoryMax,MemoryLimit,MemoryAccounting
+    echo "--- Drop-ins ---"
+    find /etc/systemd/system/chronyd.service.d/ -type f -exec cat {} + 2>/dev/null || true
+    echo "--- System Memory ---"
+    free -m
+  readonly: true
+  result:
+    status: OK
+- description: Read the drop-in file causing OOM
+  script_type: bash
+  script: |
+    cat /etc/systemd/system.control/chronyd.service.d/50-MemoryMax.conf
+  readonly: true
+  result:
+    status: OK
+- description: Remove the memory limit from chronyd.service and start the service.
+  script_type: bash
+  script: |
+    systemctl revert chronyd.service
+    systemctl daemon-reload
+    systemctl restart chronyd.service
+    systemctl status chronyd.service
+  readonly: false
+  result:
+    status: OK

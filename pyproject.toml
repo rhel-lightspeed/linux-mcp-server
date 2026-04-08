@@ -17,6 +17,7 @@ requires-python = ">=3.10"
 dependencies = [
     "asyncssh[bcrypt] >= 2.22.0",
     "fastmcp >=2.14.4, <2.14.6",
+    "litellm>=1.80.16",
     "pydantic-settings >= 2.12.0",
     "pydantic >= 2.12.5",
 ]
@@ -192,3 +193,7 @@ force-single-line = true
 lines-after-imports = 2
 lines-between-types = 1
 order-by-type = false
+
+# Include the bundled mcp app html file
+[tool.hatch.build.targets.wheel.force-include]
+"mcp-app/dist" = "linux_mcp_server/ui_resources"
