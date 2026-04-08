@@ -12,9 +12,22 @@ from linux_mcp_server.parsers import parse_proc_net_dev
 from linux_mcp_server.parsers import parse_ss_connections
 from linux_mcp_server.parsers import parse_ss_listening
 from linux_mcp_server.server import mcp
+from linux_mcp_server.utils import StrEnum
 from linux_mcp_server.utils.decorators import disallow_local_execution_in_containers
 from linux_mcp_server.utils.types import Host
 from linux_mcp_server.utils.validation import is_successful_output
+
+
+class RouteFamily(StrEnum):
+    IPV4 = "ipv4"
+    IPV6 = "ipv6"
+    ALL = "all"
+
+
+def _format_route_output(stdout: str, label: str) -> str:
+    lines = [f"=== IP Route Table ({label}) ===\n"]
+    lines.append(stdout.strip())
+    return "\n".join(lines)
 
 
 @mcp.tool(
@@ -103,3 +116,41 @@ async def get_listening_ports(
         ports = parse_ss_listening(stdout)
         return format_listening_ports(ports)
     return f"Error getting listening ports: return code {returncode}, stderr: {stderr}"
+
+
+@mcp.tool(
+    title="Get IP route table",
+    description="Get IPv4/IPv6 route entries using ip route.",
+    tags={"network", "routing"},
+    annotations=ToolAnnotations(readOnlyHint=True),
+)
+@log_tool_call
+@disallow_local_execution_in_containers
+async def get_ip_route_table(
+    family: RouteFamily = RouteFamily.IPV4,
+    host: Host = None,
+) -> str:
+    """Get routing table entries.
+
+    Retrieves routing table entries via the ip command for IPv4, IPv6, or both.
+    """
+    if family == RouteFamily.ALL:
+        outputs: list[str] = []
+        for subcommand, label in (("ipv4", "IPv4"), ("ipv6", "IPv6")):
+            cmd = get_command("ip_route", subcommand)
+            returncode, stdout, stderr = await cmd.run(host=host)
+            if is_successful_output(returncode, stdout):
+                outputs.append(_format_route_output(stdout, label))
+            else:
+                outputs.append(
+                    f"Error getting {label} routes: return code {returncode}, stderr: {stderr}",
+                )
+        return "\n\n".join(outputs)
+
+    cmd = get_command("ip_route", family.value)
+    returncode, stdout, stderr = await cmd.run(host=host)
+
+    if is_successful_output(returncode, stdout):
+        label = "IPv4" if family == RouteFamily.IPV4 else "IPv6"
+        return _format_route_output(stdout, label)
+    return f"Error getting IP routes: return code {returncode}, stderr: {stderr}"

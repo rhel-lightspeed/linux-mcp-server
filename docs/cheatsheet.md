@@ -24,6 +24,22 @@ A quick reference guide for common tasks and the tools to use.
 | **Service Logs** | `get_service_logs` | "Show recent logs for sshd." |
 | **Specific Log File** | `read_log_file` | "Read the last 50 lines of /var/log/messages." |
 
+## 📦 Packages (DNF)
+
+| I want to check... | Use this tool | Example Prompt |
+|-------------------|---------------|----------------|
+| **Installed Packages** | `list_dnf_installed_packages` | "List all installed packages." |
+| **Available Packages** | `list_dnf_available_packages` | "What packages are available in repos?" |
+| **Package Details** | `get_dnf_package_info` | "Show details for bash." |
+| **Repositories** | `list_dnf_repositories` | "Which repositories are enabled?" |
+| **File Provides** | `dnf_provides` | "Which package provides /usr/bin/python3?" |
+| **Repository Info** | `get_dnf_repo_info` | "Show details for baseos." |
+| **Group List** | `list_dnf_groups` | "List all package groups." |
+| **Group Info** | `get_dnf_group_info` | "Show details for Development Tools." |
+| **Group Summary** | `get_dnf_group_summary` | "Summarize installed groups." |
+| **Module List** | `list_dnf_modules` | "List nodejs module streams." |
+| **Module Provides** | `dnf_module_provides` | "Which module provides python3?" |
+
 ## 🌐 Network
 
 | I want to check... | Use this tool | Example Prompt |
@@ -31,6 +47,7 @@ A quick reference guide for common tasks and the tools to use.
 | **IP Addresses** | `get_network_interfaces` | "What is my IP address?" |
 | **Open Ports** | `get_listening_ports` | "What ports are open?" |
 | **Connections** | `get_network_connections` | "Who is connected to port 22?" |
+| **Routes** | `get_ip_route_table` | "Show me the routing table" |
 
 ## 📂 Files & Storage
 
