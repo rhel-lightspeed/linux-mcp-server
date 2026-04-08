@@ -1,4 +1,5 @@
-# Copyright Red Hat
+# Copyright Contributors to the linux-mcp-server project
+# SPDX-License-Identifier: Apache-2.0
 tools_list = [
     "get_system_information",
     "get_cpu_information",

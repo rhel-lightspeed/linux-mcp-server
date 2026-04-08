@@ -1,4 +1,5 @@
-# Copyright Red Hat
+# Copyright Contributors to the linux-mcp-server project
+# SPDX-License-Identifier: Apache-2.0
 async def test_list_processes(mcp_session):
     """
     Verify that the server lists correctly all the running processes.

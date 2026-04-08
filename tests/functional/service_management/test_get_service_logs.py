@@ -1,4 +1,5 @@
-# Copyright Red Hat
+# Copyright Contributors to the linux-mcp-server project
+# SPDX-License-Identifier: Apache-2.0
 import os
 
 import pytest

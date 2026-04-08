@@ -59,18 +59,17 @@ jobs:
         run: |
           echo "Starting functional tests..."
 
-          # Now that tests are in-repo, Testing Farm handles checking out the correct commit natively.
-          # For pull_request_target, we point to the head repo and SHA.
-
           if [[ "${{ github.event_name }}" == "pull_request_target" ]]; then
             GIT_URL="${{ github.event.pull_request.head.repo.clone_url }}"
             GIT_REF="${{ github.event.pull_request.head.sha }}"
           elif [[ "${{ github.event_name }}" == "issue_comment" ]]; then
-            # We would need a small script to fetch the PR head info here, similar to before.
-            # However, for the first pass, we focus on the core merge benefit.
-            # Simplified for now assuming push/PR-target usage.
-            GIT_URL="https://github.com/${{ github.repository }}"
-            GIT_REF="${{ github.sha }}"
+            export PR_API_URL="https://api.github.com/repos/${{ github.repository }}/pulls/${{ github.event.issue.number }}"
+            export GITHUB_TOKEN="${{ secrets.GITHUB_TOKEN }}"
+
+            PR_DATA=$(python3 -c "import urllib.request, json, os; req = urllib.request.Request(os.environ['PR_API_URL'], headers={'Authorization': 'Bearer ' + os.environ['GITHUB_TOKEN']}); print(json.dumps(json.loads(urllib.request.urlopen(req).read().decode('utf-8'))))")
+
+            GIT_URL=$(echo "$PR_DATA" | python3 -c "import sys, json; print(json.load(sys.stdin)['head']['repo']['clone_url'])")
+            GIT_REF=$(echo "$PR_DATA" | python3 -c "import sys, json; print(json.load(sys.stdin)['head']['sha'])")
           else
             GIT_URL="https://github.com/${{ github.repository }}"
             GIT_REF="${{ github.sha }}"
