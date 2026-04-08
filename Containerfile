@@ -4,10 +4,13 @@ FROM base as build
 
 RUN microdnf -y --nodocs --setopt=install_weak_deps=0 install \
         git \
+        nodejs24-npm \
         python3.12 \
         python3.12-pip \
         python-unversioned-command \
-    && microdnf clean all
+    && microdnf clean all \
+    && alternatives --install /usr/bin/node node /usr/bin/node-24 24 \
+    && alternatives --install /usr/bin/npm npm /usr/bin/npm-24 24
 
 ARG PSEUDO_VERSION=0.1.0a
 
@@ -27,6 +30,15 @@ ENV SETUPTOOLS_SCM_PRETEND_VERSION=${PSEUDO_VERSION}
 # the release version.
 ADD uv.lock pyproject.toml README.md "$UV_PROJECT"
 ADD src/ "$UV_PROJECT"/src/
+ADD mcp-app/ "$UV_PROJECT"/mcp-app/
+
+# Build the HTML resource for our mcp-app
+# Without --foreground-scripts, we saw a race condition where
+# downloading/copying the esbuild binary and running it immediately
+# gave an ETXTBUSY error.
+RUN cd "$UV_PROJECT"/mcp-app/ \
+    && npm install --foreground-scripts \
+    && npm run build:prod
 
 # Install the application in its own virtual environment
 RUN python -m venv /opt/venvs/uv \
