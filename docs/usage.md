@@ -45,6 +45,7 @@ Options may be set using environment variables or command line options. Environm
 | `--log-level` | string | `INFO` | Log verbosity level |
 | `--log-retention-days` | integer | 10 | Days to retain log files |
 | `--allowed-log-paths` | string | null | Comma-separated list of allowed log file paths |
+| `--max-file-read-bytes` | integer | 1048576 | Maximum bytes `read_file` may return |
 | `--ssh-key-path` | path | null | Path to SSH private key file |
 | `--key-passphrase` | string | (empty) | Passphrase for encrypted SSH key |
 | `--search-for-ssh-key` | bool | False | Auto-discover SSH keys in `~/.ssh` |

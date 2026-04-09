@@ -13,12 +13,14 @@ from pydantic.functional_validators import BeforeValidator
 from linux_mcp_server.audit import log_tool_call
 from linux_mcp_server.commands import CommandSpec
 from linux_mcp_server.commands import get_command
+from linux_mcp_server.config import CONFIG
 from linux_mcp_server.models import BlockDevices
 from linux_mcp_server.models import NodeEntry
 from linux_mcp_server.models import StorageNodes
 from linux_mcp_server.parsers import parse_directory_listing
 from linux_mcp_server.parsers import parse_file_listing
 from linux_mcp_server.server import mcp
+from linux_mcp_server.utils import format_bytes
 from linux_mcp_server.utils import StrEnum
 from linux_mcp_server.utils.decorators import disallow_local_execution_in_containers
 from linux_mcp_server.utils.types import Host
@@ -191,7 +193,7 @@ async def list_files(
 
 @mcp.tool(
     title="Read file",
-    description="Read the contents of a file using cat",
+    description="Read the contents of a text file up to a safe size limit.",
     tags={"files", "filesystem", "storage"},
     annotations=ToolAnnotations(readOnlyHint=True),
 )
@@ -210,19 +212,36 @@ async def read_file(
 ) -> str:
     """Read the contents of a file.
 
-    Retrieves the full contents of a text file. The path must be absolute
-    and the file must exist. Binary files may not display correctly.
+    Retrieves the full contents of a text file when it fits within the
+    configured safety limit. The path must be absolute, must refer to a
+    regular file, and binary files may not display correctly.
     """
+    limit = CONFIG.max_file_read_bytes
+    limit_text = format_bytes(limit)
+
     if not host:
-        # For local execution, check early if file exists
         if not os.path.isfile(path):
             raise ToolError(f"Path is not a file: {path}")
+        file_size = path.stat().st_size
+        if file_size > limit:
+            raise ToolError(f"File is too large ({format_bytes(file_size)} > {limit_text}): {path}")
+    else:
+        rc, out, _ = await get_command("read_file_size").run(host=host, path=path)
+        if rc == 0:
+            try:
+                remote_size = int(out.strip())
+                if remote_size > limit:
+                    raise ToolError(f"File is too large ({format_bytes(remote_size)} > {limit_text}): {path}")
+            except ValueError:
+                pass
 
     cmd = get_command("read_file")
-
-    returncode, stdout, stderr = await cmd.run_bytes(host=host, path=path)
+    returncode, stdout, stderr = await cmd.run_bytes(host=host, path=path, max_bytes=limit + 1)
 
     if returncode != 0:
         raise ToolError(f"Error running command: command failed with return code {returncode}: {stderr}")
 
-    return stdout.decode("utf-8")
+    if len(stdout) > limit:
+        raise ToolError(f"File is too large (> {limit_text}): {path}")
+
+    return stdout.decode("utf-8", errors="replace")

@@ -4,6 +4,7 @@ import sys
 
 from pathlib import Path
 
+from pydantic import Field
 from pydantic import SecretStr
 from pydantic_settings import BaseSettings
 from pydantic_settings import SettingsConfigDict
@@ -58,6 +59,9 @@ class Config(BaseSettings):
 
     # Log file access control
     allowed_log_paths: str | None = None
+
+    # Storage tool safety limits
+    max_file_read_bytes: int = Field(default=1024 * 1024, ge=1)
 
     # SSH configuration
     ssh_key_path: Path | None = None
