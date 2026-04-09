@@ -235,7 +235,7 @@ COMMANDS: Mapping[str, CommandGroup] = MappingProxyType(
         ),
         "read_file_size": CommandGroup(
             commands={
-                "default": CommandSpec(args=("stat", "-Lc", "%s", "--", "{path}")),
+                "default": CommandSpec(args=("stat", "--dereference", "--format", "%s", "--", "{path}")),
             }
         ),
         # === System Info ===
