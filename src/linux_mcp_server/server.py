@@ -157,7 +157,7 @@ if CONFIG.toolset != Toolset.FIXED and CONFIG.gatekeeper_model is None:
     logger.error("LINUX_MCP_GATEKEEPER_MODEL not set, this is needed for run_script tools")
     sys.exit(1)
 
-mcp = FastMCP("linux-diagnostics", instructions=instructions, **kwargs)
+mcp = FastMCP("linux-mcp-server", instructions=instructions, version=linux_mcp_server.__version__, **kwargs)
 
 
 _low_level_server = mcp._mcp_server
