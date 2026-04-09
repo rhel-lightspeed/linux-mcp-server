@@ -8,8 +8,8 @@
     "build:run-script-app": "tsc --noEmit && cross-env INPUT=run-script-app.html vite build"
   },
   "dependencies": {
-    "@modelcontextprotocol/ext-apps": "^0.2.2",
-    "@modelcontextprotocol/sdk": "^1.24.0",
+    "@modelcontextprotocol/ext-apps": "^1.5.0",
+    "@modelcontextprotocol/sdk": "^1.29.0",
     "react": "^19.2.0",
     "react-dom": "^19.2.0",
     "zod": "^4.1.13"
