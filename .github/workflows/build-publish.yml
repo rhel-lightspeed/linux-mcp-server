@@ -165,6 +165,17 @@ jobs:
             image:
               name: windows-2025
 
+          # tokenizer does not have 3.14t wheels available and it fails to build on macOS.
+          # Once https://github.com/huggingface/tokenizers/pull/1952 is merged,
+          # the wheels should be available and this can be reenabled.
+          - python-version: "3.14t"
+            image:
+              name: macos-15-intel
+
+          - python-version: "3.14t"
+            image:
+              name: macos-26
+
     permissions:
       contents: write
 
