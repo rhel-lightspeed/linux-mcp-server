@@ -128,12 +128,12 @@ class TestLocalTimeout:
         assert isinstance(stdout, str)
         assert "hello" in stdout
 
-    async def test_local_command_timeout_raises_connection_error(self, mocker):
-        """Local commands exceeding the timeout raise ConnectionError."""
+    async def test_local_command_timeout_raises_timeout_error(self, mocker):
+        """Local commands exceeding the timeout raise TimeoutError."""
         mocker.patch("linux_mcp_server.connection.ssh.CONFIG.command_timeout", 1)
         mocker.patch("linux_mcp_server.connection.ssh.get_bin_path", return_value="/bin/sleep")
 
-        with pytest.raises(ConnectionError, match="Command timed out after 1s on localhost"):
+        with pytest.raises(TimeoutError, match="Command timed out after 1s on localhost"):
             await _execute_local(["/bin/sleep", "60"])
 
     async def test_local_timeout_error_contains_command(self, mocker):
@@ -141,7 +141,7 @@ class TestLocalTimeout:
         mocker.patch("linux_mcp_server.connection.ssh.CONFIG.command_timeout", 1)
         mocker.patch("linux_mcp_server.connection.ssh.get_bin_path", return_value="/bin/sleep")
 
-        with pytest.raises(ConnectionError) as exc_info:
+        with pytest.raises(TimeoutError) as exc_info:
             await _execute_local(["/bin/sleep", "60"])
 
         assert "sleep" in str(exc_info.value)

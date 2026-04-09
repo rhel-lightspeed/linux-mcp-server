@@ -78,8 +78,8 @@ class Config(BaseSettings):
     # Gatekeeper model (required for run_script tools)
     gatekeeper_model: str | None = None
 
-    # Command execution timeout (applies to remote SSH commands)
-    command_timeout: int = 30  # Timeout in seconds; prevents hung SSH operations
+    # Command execution timeout (applies to both local and remote commands)
+    command_timeout: int = 30  # Timeout in seconds; prevents hung commands
 
     # Indicate mcp-app compatibility
     use_mcp_apps: bool | None = None

@@ -429,10 +429,15 @@ async def _execute_local(
 
     Args:
         command: Command and arguments to execute
+        encoding: Character encoding for stdout/stderr. Defaults to "utf-8".
+            Set to None to receive raw bytes.
 
     Returns:
         Tuple of (return_code, stdout, stderr) where stdout and stderr are strings
         if encoding is not None, otherwise bytes.
+
+    Raises:
+        TimeoutError: If the command does not complete within ``CONFIG.command_timeout`` seconds.
     """
     cmd_str = " ".join(command)
     start_time = time.time()
@@ -460,7 +465,7 @@ async def _execute_local(
                     "error": "timeout",
                 },
             )
-            raise ConnectionError(f"Command timed out after {timeout}s on localhost: {cmd_str}") from None
+            raise TimeoutError(f"Command timed out after {timeout}s on localhost: {cmd_str}") from None
 
         return_code = proc.returncode if proc.returncode is not None else 0
         stdout = stdout_bytes if encoding is None else stdout_bytes.decode(encoding, errors="replace")
@@ -472,7 +477,7 @@ async def _execute_local(
 
         return return_code, stdout, stderr
 
-    except ConnectionError:
+    except TimeoutError:
         raise
     except Exception as e:
         duration = time.time() - start_time
