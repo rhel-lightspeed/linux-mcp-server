@@ -82,7 +82,6 @@ jobs:
             --compose "$COMPOSE" \
             --tag BusinessUnit=rhel_sst_lightspeed@downstream \
             --plan "$PLAN" \
-            --xunit \
             --timeout 120
 
           echo "Functional tests finished!"
