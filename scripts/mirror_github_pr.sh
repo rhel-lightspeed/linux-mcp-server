@@ -54,10 +54,6 @@ fi
 echo "PR Title: $PR_TITLE"
 echo "PR URL: $PR_URL"
 
-# Configure git
-git config --global user.email "ci@gitlab.cee.redhat.com"
-git config --global user.name "GitLab CI"
-
 # Clone from GitLab (has shared history), then fetch PR commit from GitHub
 echo "Cloning from GitLab..."
 git clone "$GITLAB_REMOTE" repo
