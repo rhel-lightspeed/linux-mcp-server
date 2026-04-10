@@ -3,7 +3,7 @@
 Configure your MCP client - an AI application, to use the Linux MCP Server.
 
 !!! tip "Environment Variables"
-    Most configurations require environment variables for SSH connections and features. See [Environment Variables](#environment-variables) for the full reference.
+    Most configurations require environment variables for SSH connections and features. See the [Configuration Reference](config-reference.md) for the full list of options.
 
 **MCP Client Configuration Examples**
 
@@ -27,7 +27,7 @@ Configure your MCP client - an AI application, to use the Linux MCP Server.
 
 Edit `~/.claude.json`:
 
-=== "pip/uv (Recommended)"
+=== "uv (Recommended)"
 
     ```json
     {
@@ -88,7 +88,7 @@ Edit your Claude Desktop configuration file:
 
 The value for `command` will vary depending on how `linux-mcp-server` was installed.
 
-=== "pip (Recommended)"
+=== "uv (Recommended)"
 
     ```json
     {
@@ -153,7 +153,7 @@ After editing the configuration file:
 
 Edit `~/.codex/config.toml`:
 
-=== "pip/uv (Recommended)"
+=== "uv (Recommended)"
 
     ```toml
     [mcp_servers.linux-mcp-server]
@@ -198,7 +198,7 @@ Edit `~/.codex/config.toml`:
 
 Edit `~/.cursor/mcp.json`:
 
-=== "pip/uv (Recommended)"
+=== "uv (Recommended)"
 
     ```json
     {
@@ -253,7 +253,7 @@ Edit `~/.cursor/mcp.json`:
 
 Edit `~/.gemini/settings.json`:
 
-=== "pip/uv (Recommended)"
+=== "uv (Recommended)"
 
     ```json
     {
@@ -337,7 +337,7 @@ The Goose desktop app provides a wizard for adding extensions:
 
 If you prefer editing config files directly, add to `~/.config/goose/config.yaml`:
 
-=== "pip/uv (Recommended)"
+=== "uv (Recommended)"
 
     ```yaml
     extensions:
@@ -394,7 +394,10 @@ If you prefer editing config files directly, add to `~/.config/goose/config.yaml
     ```
 === "HTTP transport"
 
-    !!! note Start the thing
+    !!! warning "HTTP Transport Security"
+        The HTTP transport does not currently have authentication. It should not be used in production or on untrusted networks.
+
+    !!! note
         `linux-mcp-server` must be started separately when using HTTP transport.
 
     ```yaml
@@ -426,7 +429,7 @@ If you prefer editing config files directly, add to `~/.config/goose/config.yaml
 
 Edit `~/.config/opencode/opencode.json`:
 
-=== "pip/uv (Recommended)"
+=== "uv (Recommended)"
 
     ```json
     {
@@ -485,7 +488,7 @@ VS Code with GitHub Copilot supports MCP servers in agent mode.
 
 Add to your VS Code `mcp.json`:
 
-=== "pip/uv (Recommended)"
+=== "uv (Recommended)"
 
     ```json
     {
@@ -543,7 +546,7 @@ Add to your VS Code `mcp.json`:
 
 Edit `~/.codeium/windsurf/mcp_config.json`:
 
-=== "pip/uv (Recommended)"
+=== "uv (Recommended)"
 
     ```json
     {
@@ -590,81 +593,12 @@ Edit `~/.codeium/windsurf/mcp_config.json`:
 
 ---
 
-## Environment Variables
-
-Configure these environment variables in the `env` section of your client configuration.
-
-### Transport Settings
-
-| Variable | Default | Description |
-|----------|---------|-------------|
-| `LINUX_MCP_TRANSPORT` | `stdio` | Transport type: `stdio`, `http`, or `streamable-http` |
-| `LINUX_MCP_HOST` | `127.0.0.1` | Host address for HTTP transport |
-| `LINUX_MCP_PORT` | 8000 | Port number for HTTP transport |
-| `LINUX_MCP_PATH` | /mcp | Path for HTTP transport |
-
-!!! note "When to use HTTP transports"
-    Some clients, like Claude Desktop, require `stdio`.
-
-### Enabled tools
-
-| Variable | Default | Description |
-|----------|---------|-------------|
-| `LINUX_MCP_TOOLSET` | `fixed` | Toolset: `fixed`, `run_script`, or `both` |
-
-See [Guarded Command Execution](guarded-command-execution.md)
-
-### SSH Connection Settings
-
-| Variable | Description | Example |
-|----------|-------------|---------|
-| `LINUX_MCP_USER` | Default username for SSH connections | `admin` |
-| `LINUX_MCP_SSH_KEY_PATH` | Path to SSH private key | `~/.ssh/id_ed25519` |
-| `LINUX_MCP_KEY_PASSPHRASE` | Passphrase for encrypted SSH key | (set value in env) |
-| `LINUX_MCP_SEARCH_FOR_SSH_KEY` | Auto-discover keys in `~/.ssh` | `yes` |
-| `LINUX_MCP_COMMAND_TIMEOUT` | SSH command timeout in seconds (default: 30) | `60` |
-
-### SSH Security Settings
-
-| Variable | Default | Description |
-|----------|---------|-------------|
-| `LINUX_MCP_VERIFY_HOST_KEYS` | `False` | Verify remote host identity via known_hosts |
-| `LINUX_MCP_KNOWN_HOSTS_PATH` | (none) | Custom path to known_hosts file |
-
-### Guarded Command Execution settings (run_script toolset)
-
-These are used when `LINUX_MCP_TOOLSET` is set to `run_script` or `both`
-
-| Variable | Default | Description |
-|----------|---------|-------------|
-| `LINUX_MCP_GATEKEEPER_MODEL` | (none) | Required: [LiteLLM model name](https://docs.litellm.ai/docs/providers) to use |
-| `LINUX_MCP_ALWAYS_CONFIRM_SCRIPTS` | `False` | All scripts must be confirmed by the user |
-| Other environment variables | (none) | As required by the LiteLLM provider, .e.g. OPENAI_API_KEY |
-
-See [Guarded Command Execution](guarded-command-execution.md)
-### Feature-Specific Settings
-
-| Variable | Required For | Description | Example |
-|----------|--------------|-------------|---------|
-| `LINUX_MCP_ALLOWED_LOG_PATHS` | `read_log_file` tool | Comma-separated allowlist of log files | `/var/log/messages,/var/log/secure` |
-| `LINUX_MCP_MAX_FILE_READ_BYTES` | `read_file` tool | Maximum bytes `read_file` may return (default 1 MiB) | `1048576` |
-
-### Logging Configuration
-
-| Variable | Default | Description |
-|----------|---------|-------------|
-| `LINUX_MCP_LOG_DIR` | `/home/YOUR_USER/.local/share/linux-mcp-server/logs` | Server log directory |
-| `LINUX_MCP_LOG_LEVEL` | `INFO` | Log verbosity (`DEBUG`, `INFO`, `WARNING`) |
-| `LINUX_MCP_LOG_RETENTION_DAYS` | `10` | Days to keep log files |
-
----
-
 ## Other MCP Clients
 
 The Linux MCP Server works with any MCP-compatible client. The general configuration pattern is:
 
 1. **Command**: Path to `linux-mcp-server` executable (or `podman`/`docker` for container)
 2. **Arguments**: Empty for native install, or container run arguments
-3. **Environment**: Set variables from the table above as needed
+3. **Environment**: Set variables as needed (see [Configuration Reference](config-reference.md))
 
 Refer to your client's documentation for the specific configuration format.

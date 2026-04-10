@@ -30,9 +30,9 @@ Read on for detailed setup and contribution guidelines.
 
 ## Development Setup
 
-### Option 1: Using uv (Recommended)
+### Using uv
 
-[uv](https://github.com/astral-sh/uv) is the fastest way to set up your environment.
+[uv](https://github.com/astral-sh/uv) is required for development.
 
 ```bash
 # Clone the repository
@@ -47,28 +47,6 @@ uv run linux-mcp-server --help
 
 # Run tests
 uv run pytest
-```
-
-### Option 2: Using pip
-
-```bash
-# Clone the repository
-git clone https://github.com/rhel-lightspeed/linux-mcp-server.git
-cd linux-mcp-server
-
-# Create and activate virtual environment
-python3 -m venv .venv
-source .venv/bin/activate  # Linux/macOS
-# .venv\Scripts\activate   # Windows
-
-# Install in editable mode with dev dependencies
-pip install -e ".[dev]"
-
-# Verify installation
-python -m linux_mcp_server --help
-
-# Run tests
-pytest
 ```
 
 ---
@@ -206,7 +184,6 @@ async def test_server_exposes_my_tool():
 
 ### 4. Update Documentation
 
-- Add tool description to the [Usage Guide](usage.md)
 - Update the README if it's a significant feature
 
 ---
@@ -379,16 +356,6 @@ Your PR should include:
 - [ ] All operations are read-only
 - [ ] Error handling is appropriate
 - [ ] Input validation is present
-
----
-
-## Related Documentation
-
-- **[Installation Guide](install.md)**: Setting up the server for end users
-- **[Usage Guide](usage.md)**: Available tools and examples
-- **[Architecture](architecture.md)**: System design overview
-- **[API Reference](api/index.md)**: Detailed API documentation
-- **[Troubleshooting](troubleshooting.md)**: Common issues and solutions
 
 ---
 
