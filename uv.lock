@@ -1937,6 +1937,7 @@ name = "linux-mcp-server"
 source = { editable = "." }
 dependencies = [
     { name = "asyncssh", extra = ["bcrypt"] },
+    { name = "fakeredis" },
     { name = "fastmcp" },
     { name = "litellm" },
     { name = "pydantic" },
@@ -1986,6 +1987,7 @@ test = [
 [package.metadata]
 requires-dist = [
     { name = "asyncssh", extras = ["bcrypt"], specifier = ">=2.22.0" },
+    { name = "fakeredis", specifier = "<2.35" },
     { name = "fastmcp", specifier = ">=2.14.4,<2.14.6" },
     { name = "google-cloud-aiplatform", marker = "extra == 'gcp'", specifier = ">=1.147.0" },
     { name = "gssapi", marker = "extra == 'gssapi'", specifier = ">=1.11.1" },
