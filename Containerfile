@@ -32,12 +32,14 @@ ADD uv.lock pyproject.toml README.md "$UV_PROJECT"
 ADD src/ "$UV_PROJECT"/src/
 ADD mcp-app/ "$UV_PROJECT"/mcp-app/
 
-# Build the HTML resource for our mcp-app
-# Without --foreground-scripts, we saw a race condition where
-# downloading/copying the esbuild binary and running it immediately
+# Build the HTML resource for our mcp-app; using npm rebuild
+# here is a workaround for a race condition where the
+# downloading the esbuild binary and running it immediately
 # gave an ETXTBUSY error.
 RUN cd "$UV_PROJECT"/mcp-app/ \
-    && npm install --foreground-scripts \
+    && npm ci --ignore-scripts \
+    && sync \
+    && npm rebuild \
     && npm run build:prod
 
 # Install the application in its own virtual environment
