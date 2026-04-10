@@ -80,6 +80,9 @@ linux-mcp-server
 !!! note
     The `gssapi` package is needed for the server to connect via SSH authentication to Kerberos registered systems. It may be installed as an optional dependency with `linux_mcp_server[gssapi]`.
 
+!!! note
+    The `gcp` package is needed to use Google Cloud Platform with the gatekeeper model. It may be installed as an optional dependency with `linux_mcp_server[gcp]`.
+
 ### Run in a container (Podman)
 
 A container runtime such as [Podman](https://podman-desktop.io) is required.
