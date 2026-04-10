@@ -236,9 +236,9 @@ class TestRunScriptMCP:
             host=None,
             readonly=True,
         )
-        patch_execute_command.return_value = (0, b"byte-out", "")
+        patch_execute_command.return_value = (0, "café".encode("utf-8"), "")
         result = await mcp_client.call_tool("run_script", {"token": "tokb"})
-        assert _tool_text(result) == "byte-out"
+        assert _tool_text(result) == "café"
 
     async def test_nonzero_return(
         self,
