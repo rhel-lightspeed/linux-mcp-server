@@ -1,3 +1,4 @@
+# hello
 import importlib.metadata
 
 import linux_mcp_server._vendor  # noqa: F401
