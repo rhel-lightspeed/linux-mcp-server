@@ -20,6 +20,10 @@ dependencies = [
     "litellm>=1.80.16",
     "pydantic-settings >= 2.12.0",
     "pydantic >= 2.12.5",
+    # pydocket is incompatible with newer versions of fakeredis.
+    # This can be removed once pydocket releases a fix.
+    # https://github.com/chrisguidry/docket/issues/388
+    "fakeredis<2.35",
 ]
 dynamic = ["version"]
 license-files = ["LICENSE", "licenses/GPL-3.0.txt"]
