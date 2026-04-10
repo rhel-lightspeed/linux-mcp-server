@@ -105,6 +105,7 @@ addopts = [
 asyncio_mode = "auto"
 pythonpath = "src"
 testpaths = ["tests"]
+norecursedirs = ["tests/functional"]
 
 [tool.coverage.run]
 branch = true
@@ -186,6 +187,7 @@ ignore = [
 
 [tool.ruff.lint.per-file-ignores]
 "scripts/*" = ["T201"]
+"tests/functional/*" = ["T201", "C901"]
 
 [tool.ruff.lint.isort]
 case-sensitive = false
