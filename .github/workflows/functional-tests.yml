@@ -5,6 +5,7 @@ on:
     branches:
       - main
   pull_request_target:
+    types: [opened, synchronize, labeled]
     branches:
       - main
   issue_comment:
@@ -14,6 +15,7 @@ on:
 permissions:
   contents: read
   pull-requests: read
+  statuses: write
 
 jobs:
   check-authorization:
@@ -29,7 +31,9 @@ jobs:
           if [[ "${{ github.event_name }}" == "push" ]]; then
             AUTHORIZED=true
           elif [[ "${{ github.event_name }}" == "pull_request_target" ]]; then
-            if [[ "${{ github.event.pull_request.author_association }}" =~ ^(OWNER|MEMBER|COLLABORATOR)$ ]]; then
+            if [[ "${{ github.event.action }}" == "labeled" && "${{ github.event.label.name }}" != "functional-tests" ]]; then
+              AUTHORIZED=false
+            elif [[ "${{ contains(github.event.pull_request.labels.*.name, 'functional-tests') }}" == "true" ]]; then
               AUTHORIZED=true
             fi
           elif [[ "${{ github.event_name }}" == "issue_comment" && "${{ github.event.issue.pull_request }}" != "" ]]; then
@@ -46,42 +50,78 @@ jobs:
     needs: check-authorization
     if: needs.check-authorization.outputs.authorized == 'true'
     runs-on: ubuntu-latest
-    container:
-      image: quay.io/testing-farm/cli
-    env:
-      ARCH: x86_64
-      COMPOSE: Fedora-43
-      PLAN: general
-      TESTING_FARM_API_TOKEN: ${{ secrets.TESTING_FARM_API_TOKEN }}
 
     steps:
+      - name: Determine PR Coordinates
+        id: prep
+        uses: actions/github-script@v7
+        with:
+          script: |
+            let gitUrl = 'https://github.com/${{ github.repository }}';
+            let gitRef = '${{ github.sha }}';
+
+            if (context.eventName === 'pull_request_target') {
+              gitUrl = context.payload.pull_request.head.repo.clone_url;
+              gitRef = context.payload.pull_request.head.sha;
+            } else if (context.eventName === 'issue_comment') {
+              const { data: pr } = await github.rest.pulls.get({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                pull_number: context.issue.number
+              });
+              gitUrl = pr.head.repo.clone_url;
+              gitRef = pr.head.sha;
+            }
+
+            core.setOutput('GIT_URL', gitUrl);
+            core.setOutput('GIT_REF', gitRef);
+
+      - name: Update commit status to pending
+        if: github.event_name == 'issue_comment'
+        uses: actions/github-script@v7
+        with:
+          script: |
+            await github.rest.repos.createCommitStatus({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              sha: '${{ steps.prep.outputs.GIT_REF }}',
+              state: 'pending',
+              target_url: `${process.env.GITHUB_SERVER_URL}/${context.repo.owner}/${context.repo.repo}/actions/runs/${process.env.GITHUB_RUN_ID}`,
+              description: 'Testing Farm tests are running',
+              context: 'Functional Tests (Testing Farm)'
+            });
+
       - name: Run TF request tests
+        id: tf-request
+        env:
+          TESTING_FARM_API_TOKEN: ${{ secrets.TESTING_FARM_API_TOKEN }}
+          GIT_URL: ${{ steps.prep.outputs.GIT_URL }}
+          GIT_REF: ${{ steps.prep.outputs.GIT_REF }}
         run: |
           echo "Starting functional tests..."
-
-          if [[ "${{ github.event_name }}" == "pull_request_target" ]]; then
-            GIT_URL="${{ github.event.pull_request.head.repo.clone_url }}"
-            GIT_REF="${{ github.event.pull_request.head.sha }}"
-          elif [[ "${{ github.event_name }}" == "issue_comment" ]]; then
-            export PR_API_URL="https://api.github.com/repos/${{ github.repository }}/pulls/${{ github.event.issue.number }}"
-            export GITHUB_TOKEN="${{ secrets.GITHUB_TOKEN }}"
-
-            PR_DATA=$(python3 -c "import urllib.request, json, os; req = urllib.request.Request(os.environ['PR_API_URL'], headers={'Authorization': 'Bearer ' + os.environ['GITHUB_TOKEN']}); print(json.dumps(json.loads(urllib.request.urlopen(req).read().decode('utf-8'))))")
-
-            GIT_URL=$(echo "$PR_DATA" | python3 -c "import sys, json; print(json.load(sys.stdin)['head']['repo']['clone_url'])")
-            GIT_REF=$(echo "$PR_DATA" | python3 -c "import sys, json; print(json.load(sys.stdin)['head']['sha'])")
-          else
-            GIT_URL="https://github.com/${{ github.repository }}"
-            GIT_REF="${{ github.sha }}"
-          fi
-
-          TESTING_FARM_API_TOKEN=$TESTING_FARM_API_TOKEN testing-farm request \
+          podman run --rm \
+            -e TESTING_FARM_API_TOKEN="$TESTING_FARM_API_TOKEN" \
+            quay.io/testing-farm/cli testing-farm request \
             --git-url "$GIT_URL" \
             --git-ref "$GIT_REF" \
-            --arch "$ARCH" \
-            --compose "$COMPOSE" \
-            --tag BusinessUnit=rhel_sst_lightspeed@downstream \
-            --plan "$PLAN" \
+            --arch "x86_64" \
+            --compose "Fedora-43" \
+            --tag "BusinessUnit=rhel_sst_lightspeed@downstream" \
+            --plan "general" \
             --timeout 120
 
-          echo "Functional tests finished!"
+      - name: Update commit status to success/failure
+        if: always() && github.event_name == 'issue_comment'
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const isSuccess = '${{ steps.tf-request.outcome }}' === 'success';
+            await github.rest.repos.createCommitStatus({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              sha: '${{ steps.prep.outputs.GIT_REF }}',
+              state: isSuccess ? 'success' : 'failure',
+              target_url: `${process.env.GITHUB_SERVER_URL}/${context.repo.owner}/${context.repo.repo}/actions/runs/${process.env.GITHUB_RUN_ID}`,
+              description: isSuccess ? 'Testing Farm tests passed' : 'Testing Farm tests failed',
+              context: 'Functional Tests (Testing Farm)'
+            });
