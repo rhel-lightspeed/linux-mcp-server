@@ -1,0 +1,31 @@
+# GitLab CI configuration for GitHub PR mirroring
+# This pipeline is manually triggered to create MRs from GitHub PRs for internal testing
+#
+# Required CI/CD Variable:
+#   GITLAB_TOKEN - Personal/Project Access Token with 'write_repository' scope
+#                  Configure at: Settings > CI/CD > Variables (Protected + Masked)
+
+workflow:
+  rules:
+    - if: $CI_PIPELINE_SOURCE == "web"
+      when: always
+    - when: never
+
+variables:
+  GITHUB_PR_NUMBER:
+    description: "GitHub PR number to mirror"
+  GITHUB_COMMIT_SHA:
+    description: "GitHub commit SHA to fetch"
+
+stages:
+  - mirror
+
+mirror-github-pr:
+  stage: mirror
+  image: registry.access.redhat.com/ubi10-minimal
+  before_script:
+    - microdnf install -y jq git-core
+  script:
+    - bash scripts/mirror_github_pr.sh
+  rules:
+    - if: $GITHUB_PR_NUMBER && $GITHUB_COMMIT_SHA

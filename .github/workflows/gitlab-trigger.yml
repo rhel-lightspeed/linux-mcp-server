@@ -1,0 +1,36 @@
+name: GitLab Trigger Comment
+
+on:
+  pull_request_target:
+    types: [opened, synchronize, reopened]
+
+permissions:
+  pull-requests: write
+
+jobs:
+  post-gitlab-link:
+    name: Post GitLab Trigger Link
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Add GitLab trigger comment
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const prNumber = context.payload.pull_request.number;
+            const commitSha = context.payload.pull_request.head.sha;
+            const shortSha = commitSha.substring(0, 7);
+
+            const gitlabUrl = new URL('https://gitlab.cee.redhat.com/rhel-lightspeed/mcp/linux-mcp-server/-/pipelines/new');
+            gitlabUrl.searchParams.set('ref', 'main');
+            gitlabUrl.searchParams.set('var[GITHUB_PR_NUMBER]', prNumber.toString());
+            gitlabUrl.searchParams.set('var[GITHUB_COMMIT_SHA]', commitSha);
+
+            const body = `For team members: [test commit \`${shortSha}\` in internal GitLab](${gitlabUrl.toString()})`;
+
+            await github.rest.issues.createComment({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: prNumber,
+              body: body
+            });
