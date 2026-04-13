@@ -46,42 +46,57 @@ jobs:
     needs: check-authorization
     if: needs.check-authorization.outputs.authorized == 'true'
     runs-on: ubuntu-latest
-    container:
-      image: quay.io/testing-farm/cli
-    env:
-      ARCH: x86_64
-      COMPOSE: Fedora-43
-      PLAN: general
-      TESTING_FARM_API_TOKEN: ${{ secrets.TESTING_FARM_API_TOKEN }}
 
     steps:
+      - name: Determine PR Coordinates
+        id: prep
+        uses: actions/github-script@v7
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          script: |
+            let gitUrl = `https://github.com/${context.repo.owner}/${context.repo.repo}`;
+            let gitRef = context.sha;
+
+            let prNumber;
+            if (context.eventName === 'pull_request_target') {
+              prNumber = context.payload.pull_request.number;
+            } else if (context.eventName === 'issue_comment') {
+              prNumber = context.issue.number;
+            }
+
+            if (prNumber) {
+              try {
+                const { data: refData } = await github.rest.git.getRef({
+                  owner: context.repo.owner,
+                  repo: context.repo.repo,
+                  ref: `pull/${prNumber}/merge`
+                });
+                gitRef = refData.object.sha;
+                console.log(`Dereferenced pull/${prNumber}/merge to SHA: ${gitRef}`);
+              } catch (error) {
+                core.setFailed(`Failed to dereference merge commit for PR #${prNumber}. Ensure the PR is free of merge conflicts.`);
+                return;
+              }
+            }
+
+            core.exportVariable('GIT_URL', gitUrl);
+            core.exportVariable('GIT_REF', gitRef);
       - name: Run TF request tests
+        id: tf-request
+        env:
+          TESTING_FARM_API_TOKEN: ${{ secrets.TESTING_FARM_API_TOKEN }}
+          ARCH: x86_64
+          COMPOSE: Fedora-43
+          PLAN: general
         run: |
           echo "Starting functional tests..."
-
-          if [[ "${{ github.event_name }}" == "pull_request_target" ]]; then
-            GIT_URL="${{ github.event.pull_request.head.repo.clone_url }}"
-            GIT_REF="${{ github.event.pull_request.head.sha }}"
-          elif [[ "${{ github.event_name }}" == "issue_comment" ]]; then
-            export PR_API_URL="https://api.github.com/repos/${{ github.repository }}/pulls/${{ github.event.issue.number }}"
-            export GITHUB_TOKEN="${{ secrets.GITHUB_TOKEN }}"
-
-            PR_DATA=$(python3 -c "import urllib.request, json, os; req = urllib.request.Request(os.environ['PR_API_URL'], headers={'Authorization': 'Bearer ' + os.environ['GITHUB_TOKEN']}); print(json.dumps(json.loads(urllib.request.urlopen(req).read().decode('utf-8'))))")
-
-            GIT_URL=$(echo "$PR_DATA" | python3 -c "import sys, json; print(json.load(sys.stdin)['head']['repo']['clone_url'])")
-            GIT_REF=$(echo "$PR_DATA" | python3 -c "import sys, json; print(json.load(sys.stdin)['head']['sha'])")
-          else
-            GIT_URL="https://github.com/${{ github.repository }}"
-            GIT_REF="${{ github.sha }}"
-          fi
-
-          TESTING_FARM_API_TOKEN=$TESTING_FARM_API_TOKEN testing-farm request \
+          podman run --rm \
+            -e TESTING_FARM_API_TOKEN="$TESTING_FARM_API_TOKEN" \
+            quay.io/testing-farm/cli testing-farm request \
             --git-url "$GIT_URL" \
             --git-ref "$GIT_REF" \
             --arch "$ARCH" \
             --compose "$COMPOSE" \
-            --tag BusinessUnit=rhel_sst_lightspeed@downstream \
+            --tag "BusinessUnit=rhel_sst_lightspeed@downstream" \
             --plan "$PLAN" \
             --timeout 120
-
-          echo "Functional tests finished!"
