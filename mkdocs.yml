@@ -8,9 +8,7 @@ theme:
   name: material
   features:
     - navigation.instant
-    - navigation.tabs
     - navigation.sections
-    - navigation.expand
     - navigation.top
     - content.code.copy
     - content.code.annotate
@@ -36,16 +34,6 @@ theme:
 
 plugins:
   - search
-  - mkdocstrings:
-      handlers:
-        python:
-          paths: [src]
-          options:
-            docstring_style: google
-            show_signature_annotations: true
-            separate_signature: true
-          import:
-            - https://docs.python.org/3/objects.inv
 
 markdown_extensions:
   - admonition
@@ -69,33 +57,17 @@ nav:
   - Home: index.md
   - Getting Started:
       - Installation: install.md
+      - SSH Configuration: ssh.md
       - Client Configuration: clients.md
-      - Usage: usage.md
       - Troubleshooting: troubleshooting.md
-  - Reference:
-      - Cheatsheet: cheatsheet.md
+  - Usage:
+      - Configuration Reference: config-reference.md
+      - Guarded Command Execution: guarded-command-execution.md
+      - Security Best Practices: security.md
       - Architecture: architecture.md
       - Debug Logging: debugging.md
-  - API Reference:
-      - api/index.md
-      - Core:
-          - Server: api/server.md
-          - Config: api/config.md
-          - Commands: api/commands.md
-          - Audit: api/audit.md
-      - Tools:
-          - System Info: api/tools/system_info.md
-          - Services: api/tools/services.md
-          - Processes: api/tools/processes.md
-          - Logs: api/tools/logs.md
-          - Network: api/tools/network.md
-          - Storage: api/tools/storage.md
-      - Utilities:
-          - Connection: api/connection.md
-          - Formatters: api/formatters.md
-          - Parsers: api/parsers.md
-  - Development:
-      - Contributing: contributing.md
+  - Tools: tools.md
+  - Contributing: contributing.md
 
 extra:
   social:

@@ -28,11 +28,8 @@ npm install -g @modelcontextprotocol/inspector
 **Run the inspector with your MCP server:**
 
 ```bash
-# For pip-installed version
+# For uv-installed version
 mcp-inspector linux-mcp-server
-
-# For uvx version
-mcp-inspector uvx linux-mcp-server
 
 # For development version
 cd /path/to/linux-mcp-server
@@ -49,96 +46,7 @@ The inspector provides a web UI where you can:
 
 ---
 
-## Local Debugging of Tool Calls
-
-You can test MCP server tools locally without Claude Desktop or the inspector.
-
-### Method 1: Interactive Python Session
-
-```bash
-# Activate your virtual environment first
-source .venv/bin/activate  # Linux/macOS
-# OR
-.venv\Scripts\activate     # Windows
-
-# Start Python
-python
-
-# Import and test tools
->>> from linux_mcp_server.tools import system_info
->>> import asyncio
->>> result = asyncio.run(system_info.get_system_information())
->>> print(result)
-```
-
-### Method 2: Create a Test Script
-
-Create a file `test_tool.py`:
-
-```python
-import asyncio
-from linux_mcp_server.tools import system_info, services
-
-async def main():
-    # Test system info tool
-    print("=== System Info ===")
-    result = await system_info.get_system_information()
-    print(result)
-
-    # Test service listing
-    print("\n=== Services ===")
-    result = await services.list_services()
-    print(result)
-
-if __name__ == "__main__":
-    asyncio.run(main())
-```
-
-Run it:
-```bash
-python test_tool.py
-```
-
-### Method 3: Run pytest in verbose mode
-
-```bash
-# Run specific test
-pytest tests/test_system_info.py -v
-
-# Run with output showing
-pytest tests/test_system_info.py -v -s
-
-# Run all tests for a module
-pytest tests/ -k "system_info" -v
-```
-
----
-
 ## Common Installation Issues
-
-### "command not found: linux-mcp-server"
-
-**Cause:** The package isn't installed or the installation directory isn't in your PATH.
-
-**Solutions:**
-
-1. Verify installation: `pip show linux-mcp-server`
-2. Try running as module: `python -m linux_mcp_server`
-3. Check if pip install location is in PATH:
-   ```bash
-   pip show linux-mcp-server | grep Location
-   ```
-4. Add pip's bin directory to PATH, or use a virtual environment
-
-### "No module named 'linux_mcp_server'"
-
-**Cause:** The package isn't installed in the current Python environment.
-
-**Solutions:**
-
-1. Ensure you're using the correct Python: `which python` or `where python`
-2. Install the package: `pip install linux-mcp-server`
-3. If using virtual environment, make sure it's activated
 
 ### "Permission denied" when reading system logs
 
@@ -178,24 +86,6 @@ Common causes:
 - **Command not in PATH:** Use full path in `command` field or ensure command is in PATH
 - **Server won't start:** Test command manually; check Claude Desktop logs (`~/Library/Logs/Claude/` on macOS, `~/.config/Claude/logs/` on Linux, `%APPDATA%\Claude\logs\` on Windows)
 - **Config not reloaded:** Completely quit and restart Claude Desktop
-
-### ImportError or ModuleNotFoundError during development
-
-**Cause:** Dependencies aren't installed or virtual environment isn't activated.
-
-**Solutions:**
-
-1. Ensure virtual environment is activated:
-   ```bash
-   source .venv/bin/activate  # Linux/macOS
-   .venv\Scripts\activate     # Windows
-   ```
-2. Reinstall dependencies:
-   ```bash
-   uv sync --group dev
-   # OR
-   pip install -e ".[dev]"
-   ```
 
 ---
 
@@ -250,6 +140,8 @@ Common causes:
    }
    ```
 
+See [SSH Configuration](ssh.md#managing-host-keys) for more details on host key management.
+
 ### Connection timeouts
 
 **Cause:** Network issues, firewall blocking SSH, or incorrect hostname.
@@ -293,42 +185,22 @@ Common causes:
 
 ## Platform-Specific Issues
 
-This section explains issues that may be present when using the MCP server to interact with a system that is not compatible.
-
 ### Linux: "systemctl: command not found"
 
-**Cause:** System doesn't use systemd (very old distributions or non-standard systems).
+**Cause:** System doesn't use systemd.
 
-**Solution:** This MCP server requires systemd to be available on the target system for certain tools to function properly.
+**Solution:** The Linux MCP Server requires systemd on the target system for service-related tools. The main use case is modern RHEL-family distributions (RHEL 9+, Fedora, CentOS Stream).
 
-- The main use case is to troubleshoot modern RHEL-alike Linux systems (e.g. RHEL 9.x, 10.x, Fedora 40 and above, etc.)
-- Consider upgrading to a modern Linux distribution (RHEL 7+, Fedora, etc.).
+### macOS / Windows: Tools not working locally
 
-### macOS: Limited functionality warnings
-
-**Cause:** Some Linux-specific commands don't exist or behave differently on macOS.
-
-**Note:** This is expected. The MCP server is designed to diagnose Linux systems (see above).
-
-- Some tools may work on macOS, but some may have reduced functionality or not work at all.
-
-### Windows: Most or all tools not working
-
-**Cause:** The MCP server relies on Linux-specific tools (systemd, journalctl, etc.) that don't exist on Windows.
-
-**Solution:** This is expected behavior. The MCP server is not designed to diagnose Windows systems.
-
-- On Windows, use the MCP server primarily for:
-  - Remote SSH execution to manage Linux servers
-  - Testing and development
-- For local Windows management, use a Windows-specific MCP server
+Local execution (without the `host` parameter) is only supported on Linux. On macOS and Windows, use the MCP server to manage remote Linux systems via SSH by specifying a `host` parameter.
 
 ---
 
 ## Getting Additional Help
 
-1. **Check logs:** Server logs in `~/.local/share/linux-mcp-server/logs/`, Claude Desktop logs (see above)
-2. **Enable debug:** Set `"LINUX_MCP_LOG_LEVEL": "DEBUG"` in config, restart your AI Agent (e.g. Claude Desktop)
+1. **Check logs:** Server logs in `~/.local/share/linux-mcp-server/logs/` (see [Debug Logging](debugging.md))
+2. **Enable debug:** Set `"LINUX_MCP_LOG_LEVEL": "DEBUG"` in config, restart your MCP client
 3. **Test with MCP Inspector:** Isolate whether issue is with server or client
 4. **Run the MCP server manually:** Make sure the MCP server does not crash upon start and is able to receive messages.
 5. **Open an issue:** https://github.com/rhel-lightspeed/linux-mcp-server/issues
