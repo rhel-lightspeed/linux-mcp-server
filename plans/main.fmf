@@ -1,20 +1,23 @@
 summary: Functional linux-mcp-server testing
 
 .python_setup: &python_setup |
-  if dnf info python3.12 &>/dev/null; then
-      dnf install -y python3.12 python3.12-pip
-      PYTHON_CMD=python3.12
-  elif dnf info python3.11 &>/dev/null; then
-      dnf install -y python3.11 python3.11-pip
-      PYTHON_CMD=python3.11
-  else
-      dnf install -y python3-pip
-      PYTHON_CMD=python3
+  dnf install -y python3 python3-pip
+  PYTHON_CMD=python3
+
+  # If system python is < 3.10 (e.g. RHEL 9), fallback to installing a newer version
+  if ! $PYTHON_CMD -c "import sys; sys.exit(0 if sys.version_info >= (3, 10) else 1)" 2>/dev/null; then
+      for ver in 3.12 3.11; do
+          if dnf info python$ver &>/dev/null; then
+              dnf install -y python$ver python${ver}-pip || dnf install -y python$ver python3-pip
+              PYTHON_CMD=python$ver
+              break
+          fi
+      done
   fi
   # Install from the current directory (the repo under test)
   $PYTHON_CMD -m pip install .
   $PYTHON_CMD -m pip install -r tests/functional/requirements.txt
-  $PYTHON_CMD -m pip freeze | grep linux-mcp-server
+  $PYTHON_CMD -m pip freeze
 
 discover:
     how: fmf
