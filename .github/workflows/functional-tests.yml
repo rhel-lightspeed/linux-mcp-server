@@ -65,17 +65,32 @@ jobs:
             }
 
             if (prNumber) {
-              try {
-                const { data: refData } = await github.rest.git.getRef({
+              const maxRetries = 5;
+              const delayMs = 30000; // 30 seconds
+              const sleep = ms => new Promise(resolve => setTimeout(resolve, ms));
+
+              for (let i = 0; i < maxRetries; i++) {
+                const { data: pr } = await github.rest.pulls.get({
                   owner: context.repo.owner,
                   repo: context.repo.repo,
-                  ref: `pull/${prNumber}/merge`
+                  pull_number: prNumber
                 });
-                gitRef = refData.object.sha;
-                console.log(`Dereferenced pull/${prNumber}/merge to SHA: ${gitRef}`);
-              } catch (error) {
-                core.setFailed(`Failed to dereference merge commit for PR #${prNumber}. Ensure the PR is free of merge conflicts.`);
-                return;
+
+                if (pr.mergeable === true) {
+                  core.info(`\u2705 PR is mergeable. Merge commit SHA: ${pr.merge_commit_sha}`);
+                  gitRef = pr.merge_commit_sha;
+                  break;
+                } else if (pr.mergeable === false) {
+                  core.setFailed(`\u274c PR #${prNumber} has merge conflicts. Cannot proceed.`);
+                  return;
+                } else if (pr.mergeable === null) {
+                  core.info(`\u23f3 GitHub is computing mergeability (status: null). Retrying in ${delayMs / 1000} seconds... (${i + 1}/${maxRetries})`);
+                  if (i === maxRetries - 1) {
+                    core.setFailed(`\U0001f6a8 Timeout: GitHub did not finish computing mergeability after ${maxRetries} attempts.`);
+                    return;
+                  }
+                  await sleep(delayMs);
+                }
               }
             }
 
