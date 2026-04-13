@@ -39,8 +39,18 @@ jobs:
           enable-cache: true
           prune-cache: false
 
+      - name: Install Node.js
+        uses: actions/setup-node@v6.3.0
+        with:
+          node-version: '24'
+
       - name: Install dependencies
-        run: uv sync --locked --group docs
+        run: |
+          cd mcp-app
+          npm install
+          npm run build:prod
+          cd ..
+          uv sync --locked --group docs
 
       - name: Build documentation
         run: uv run --locked mkdocs build --strict
