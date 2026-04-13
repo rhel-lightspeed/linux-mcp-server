@@ -22,12 +22,10 @@ stages:
 
 mirror-github-pr:
   stage: mirror
-  image: registry.access.redhat.com/ubi10-minimal
+  image: images.paas.redhat.com/repository/it-cloud-ocp-proxy-lib/python:3.14
   tags:
     - rhel-lightspeed
-  before_script:
-    - microdnf install -y jq git-core
   script:
-    - bash scripts/mirror_github_pr.sh
+    - python3 scripts/mirror_github_pr.py
   rules:
     - if: $GITHUB_PR_NUMBER && $GITHUB_COMMIT_SHA
