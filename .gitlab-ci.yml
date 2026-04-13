@@ -23,6 +23,8 @@ stages:
 mirror-github-pr:
   stage: mirror
   image: registry.access.redhat.com/ubi10-minimal
+  tags:
+    - rhel-lightspeed
   before_script:
     - microdnf install -y jq git-core
   script:
