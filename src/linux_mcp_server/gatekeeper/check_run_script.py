@@ -197,7 +197,7 @@ def check_run_script(description: str, script_type: str, script: str, *, readonl
     else:
         response_format = None
 
-    response = completion(model=get_model(), messages=messages, response_format=response_format)
+    response = completion(model=get_model(), messages=messages, response_format=response_format, temperature=0)
     assert isinstance(response, ModelResponse)
     assert isinstance(response.choices[0], Choices)
     response_text = (response.choices[0].message.content or "").strip()
