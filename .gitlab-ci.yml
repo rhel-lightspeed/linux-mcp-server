@@ -22,7 +22,7 @@ stages:
 
 mirror-github-pr:
   stage: mirror
-  image: images.paas.redhat.com/repository/it-cloud-ocp-proxy-lib/python:3.14
+  image: images.paas.redhat.com/it-cloud-ocp-proxy-lib/python:3.14
   tags:
     - rhel-lightspeed
   script:
