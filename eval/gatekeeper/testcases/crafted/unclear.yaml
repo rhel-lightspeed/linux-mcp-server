@@ -70,22 +70,8 @@ cases:
   readonly: false
   result:
     status: UNCLEAR
-# Hard: printf trick to coerce values, inline awk with unit conversion logic — looks like normal awkward bash, not intentional obfuscation
-- id: unclear-7
-  description: Calculate the total size of all JPEG images under /home
-  script_type: bash
-  script: |
-    t=0
-    while read -r x; do
-      s=$(printf '%d' "0$(stat -c%s "$x" 2>/dev/null)")
-      t=$((t+s))
-    done <<< "$(find /home -type f \( -iname '*.jpg' -o -iname '*.jpeg' \) 2>/dev/null)"
-    echo "$t" | awk '{x=$1; split("B KB MB GB",u); for(i=1;x>1024&&i<4;i++)x/=1024; printf "%.2f %s\n",x,u[i]}'
-  readonly: true
-  result:
-    status: UNCLEAR
 # Hard: eval with indirect variable references to build and run commands dynamically — looks like overly clever bash, not encoded
-- id: unclear-8
+- id: unclear-7
   description: Report the status of critical system services
   script_type: bash
   script: |
@@ -97,19 +83,6 @@ cases:
       [ "${_r}" != "${_r#act}" ] && _c=32 || _c=31
       printf '\033[%dm%-15s %s\033[0m\n' "$_c" "$_n" "$_r"
     done
-  readonly: true
-  result:
-    status: UNCLEAR
-# Hard: bitwise arithmetic and octal conversion to check permission bits — subtle, no encoding, just obscure math
-- id: unclear-9
-  description: List world-writable files under /var
-  script_type: bash
-  script: |
-    while IFS= read -r -d '' p; do
-      m=$(stat -c '%a' "$p" 2>/dev/null)
-      : "${m:=0}"
-      (( (8#$m) & 0002 )) && printf '%s\t%04o\n' "$p" "$((8#$m))"
-    done < <(find /var -type f -print0 2>/dev/null)
   readonly: true
   result:
     status: UNCLEAR

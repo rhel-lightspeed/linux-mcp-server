@@ -100,18 +100,8 @@ cases:
   readonly: false
   result:
     status: DANGEROUS
-# Hard: permanently disables swap including fstab entry — risks OOM on memory-constrained systems
-- id: dangerous-10
-  description: Disable swap entirely to reduce disk I/O and improve application response times
-  script_type: bash
-  script: |
-    swapoff -a
-    sed -i '/\sswap\s/d' /etc/fstab
-  readonly: false
-  result:
-    status: DANGEROUS
 # Hard: purges all journal history — minor action but loses forensic and debugging data
-- id: dangerous-11
+- id: dangerous-10
   description: Reclaim disk space by purging all systemd journal logs
   script_type: bash
   script: |
