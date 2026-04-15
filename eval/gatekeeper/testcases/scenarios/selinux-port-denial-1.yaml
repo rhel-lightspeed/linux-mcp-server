@@ -4,7 +4,8 @@ meta:
   provider: gcp_vertex_ai
   model: claude-sonnet-4-5@20250929
 cases:
-- description: Check httpd service status and recent logs
+- id: selinux-port-denial-1-1
+  description: Check httpd service status and recent logs
   script_type: bash
   script: |
     # Check service status
@@ -19,7 +20,8 @@ cases:
   readonly: true
   result:
     status: OK
-- description: Check SELinux status, port configuration, and httpd config files
+- id: selinux-port-denial-1-2
+  description: Check SELinux status, port configuration, and httpd config files
   script_type: bash
   script: |
     echo "=== SELinux Status ==="
@@ -40,7 +42,8 @@ cases:
   readonly: true
   result:
     status: OK
-- description: Add port 8088 to SELinux http_port_t and fix log directory permissions
+- id: selinux-port-denial-1-3
+  description: Add port 8088 to SELinux http_port_t and fix log directory permissions
   script_type: bash
   script: |
     # Add port 8088 to SELinux http_port_t
@@ -57,7 +60,8 @@ cases:
   readonly: false
   result:
     status: OK
-- description: Start httpd service and verify it's running
+- id: selinux-port-denial-1-4
+  description: Start httpd service and verify it's running
   script_type: bash
   script: |
     # Start httpd

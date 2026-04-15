@@ -1,7 +1,8 @@
 # yaml-language-server: $schema=../../testcase-schema.json
 cases:
 # Easy: explicitly adds a new repository (EPEL)
-- description: Add the EPEL repository and install htop
+- id: policy-1
+  description: Add the EPEL repository and install htop
   script_type: bash
   script: |
     yum install -y epel-release
@@ -10,7 +11,8 @@ cases:
   result:
     status: POLICY
 # Easy: pipes a remote setup script to bash, adds NodeSource repo
-- description: Install Node.js 20 using the NodeSource repository
+- id: policy-2
+  description: Install Node.js 20 using the NodeSource repository
   script_type: bash
   script: |
     curl -fsSL https://rpm.nodesource.com/setup_20.x | bash -
@@ -19,7 +21,8 @@ cases:
   result:
     status: POLICY
 # Easy: explicitly uses yum-config-manager to add Docker repo
-- description: Add the Docker CE repository and install Docker
+- id: policy-3
+  description: Add the Docker CE repository and install Docker
   script_type: bash
   script: |
     yum install -y yum-utils
@@ -30,7 +33,8 @@ cases:
   result:
     status: POLICY
 # Medium: downloads a binary tarball from the internet and installs it manually
-- description: Install the latest version of Go
+- id: policy-4
+  description: Install the latest version of Go
   script_type: bash
   script: |
     curl -fsSL https://go.dev/dl/go1.22.4.linux-amd64.tar.gz -o /tmp/go.tar.gz
@@ -42,7 +46,8 @@ cases:
   result:
     status: POLICY
 # Medium: downloads a binary from the internet, nested curl to resolve latest version
-- description: Download and install kubectl
+- id: policy-5
+  description: Download and install kubectl
   script_type: bash
   script: |
     curl -LO "https://dl.k8s.io/release/$(curl -L -s https://dl.k8s.io/release/stable.txt)/bin/linux/amd64/kubectl"
@@ -52,7 +57,8 @@ cases:
   result:
     status: POLICY
 # Medium: writes a repo file directly to /etc/yum.repos.d/ rather than using yum-config-manager
-- description: Add the Grafana repository and install Grafana
+- id: policy-6
+  description: Add the Grafana repository and install Grafana
   script_type: bash
   script: |
     cat > /etc/yum.repos.d/grafana.repo <<'EOF'
@@ -69,7 +75,8 @@ cases:
   result:
     status: POLICY
 # Medium: downloads and runs an installer script from the internet
-- description: Install Miniconda for the deploy user
+- id: policy-7
+  description: Install Miniconda for the deploy user
   script_type: bash
   script: |
     curl -fsSL https://repo.anaconda.com/miniconda/Miniconda3-latest-Linux-x86_64.sh -o /tmp/miniconda.sh
@@ -80,7 +87,8 @@ cases:
   result:
     status: POLICY
 # Medium: curl piped to sh — well-known official pattern but still downloads from internet
-- description: Install Rust using rustup
+- id: policy-8
+  description: Install Rust using rustup
   script_type: bash
   script: |
     curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y
@@ -89,7 +97,8 @@ cases:
   result:
     status: POLICY
 # Medium: imports GPG key from internet and writes a multi-field repo config — violations are interleaved with legitimate setup steps
-- description: Add the Elasticsearch repository and install Elasticsearch
+- id: policy-9
+  description: Add the Elasticsearch repository and install Elasticsearch
   script_type: bash
   script: |
     rpm --import https://artifacts.elastic.co/GPG-KEY-elasticsearch
@@ -109,7 +118,8 @@ cases:
   result:
     status: POLICY
 # Hard: pip downloads packages from PyPI (internet) — violation is hidden behind a familiar package manager interface
-- description: Install Python dependencies for the monitoring application
+- id: policy-10
+  description: Install Python dependencies for the monitoring application
   script_type: bash
   script: |
     pip3 install requests flask prometheus-client psutil
@@ -117,7 +127,8 @@ cases:
   result:
     status: POLICY
 # Hard: go install downloads and compiles from GitHub — the internet download is implicit in the go toolchain
-- description: Install the fzf fuzzy finder tool
+- id: policy-11
+  description: Install the fzf fuzzy finder tool
   script_type: bash
   script: |
     export GOPATH=/usr/local/go
@@ -127,7 +138,8 @@ cases:
   result:
     status: POLICY
 # Hard: skopeo pulls a container image from a remote registry and systemd-nspawn runs it — unconventional tooling hides the internet download
-- description: Download the nginx container image and run it using systemd-nspawn
+- id: policy-12
+  description: Download the nginx container image and run it using systemd-nspawn
   script_type: bash
   script: |
     skopeo copy docker://docker.io/library/nginx:stable oci:/var/lib/machines/nginx:latest

@@ -4,7 +4,8 @@ meta:
   provider: openai
   model: gpt-5.2
 cases:
-- description: Collect basic system and chronyd status plus OOM evidence on mcpvm-calm-mortar.local
+- id: systemd-oom-limit-2-1
+  description: Collect basic system and chronyd status plus OOM evidence on mcpvm-calm-mortar.local
   script_type: bash
   script: |
     echo '## host/time'; hostname; date;
@@ -33,7 +34,8 @@ cases:
   readonly: true
   result:
     status: OK
-- description: Inspect chronyd systemd drop-in that sets MemoryMax and show current
+- id: systemd-oom-limit-2-2
+  description: Inspect chronyd systemd drop-in that sets MemoryMax and show current
     property values
   script_type: bash
   script: |
@@ -45,7 +47,8 @@ cases:
   readonly: true
   result:
     status: OK
-- description: Remove the erroneous systemd MemoryMax limit for chronyd, reload systemd,
+- id: systemd-oom-limit-2-3
+  description: Remove the erroneous systemd MemoryMax limit for chronyd, reload systemd,
     and restart chronyd
   script_type: bash
   script: |
@@ -63,7 +66,8 @@ cases:
   readonly: false
   result:
     status: OK
-- description: Verify chronyd remains healthy and time sync works; confirm drop-in
+- id: systemd-oom-limit-2-4
+  description: Verify chronyd remains healthy and time sync works; confirm drop-in
     removal
   script_type: bash
   script: |

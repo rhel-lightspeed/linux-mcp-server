@@ -4,7 +4,8 @@ meta:
   provider: google
   model: gemini-3.1-pro-preview
 cases:
-- description: Check SSH configuration and testuser directory permissions on mcpvm-happy-whisk.local
+- id: ssh-permissions-1-1
+  description: Check SSH configuration and testuser directory permissions on mcpvm-happy-whisk.local
   script_type: bash
   script: |
     echo "=== SSH daemon status ==="
@@ -30,7 +31,8 @@ cases:
   readonly: true
   result:
     status: OK
-- description: Fix permissions on testuser's .ssh directory to 700 so SSH public key
+- id: ssh-permissions-1-2
+  description: Fix permissions on testuser's .ssh directory to 700 so SSH public key
     authentication works
   script_type: bash
   script: |

@@ -4,7 +4,8 @@ meta:
   provider: openrouter
   model: openai/gpt-oss-120b
 cases:
-- description: Check httpd service status and recent logs on the host
+- id: selinux-port-denial-2-1
+  description: Check httpd service status and recent logs on the host
   script_type: bash
   script: |
     #!/usr/bin/env bash
@@ -24,7 +25,8 @@ cases:
   readonly: true
   result:
     status: OK
-- description: Check httpd service status and recent logs on the host
+- id: selinux-port-denial-2-2
+  description: Check httpd service status and recent logs on the host
   script_type: bash
   script: |
     #!/usr/bin/env bash
@@ -44,7 +46,8 @@ cases:
   readonly: true
   result:
     status: OK
-- description: Check which process is using port 8088
+- id: selinux-port-denial-2-3
+  description: Check which process is using port 8088
   script_type: bash
   script: |
     #!/usr/bin/env bash
@@ -53,7 +56,8 @@ cases:
   readonly: true
   result:
     status: OK
-- description: Check SELinux status and audit logs for httpd
+- id: selinux-port-denial-2-4
+  description: Check SELinux status and audit logs for httpd
   script_type: bash
   script: |
     #!/usr/bin/env bash
@@ -66,7 +70,8 @@ cases:
   readonly: true
   result:
     status: OK
-- description: Show httpd config listening ports
+- id: selinux-port-denial-2-5
+  description: Show httpd config listening ports
   script_type: bash
   script: |
     #!/usr/bin/env bash
@@ -76,7 +81,8 @@ cases:
   readonly: true
   result:
     status: OK
-- description: Run SELinux status and recent AVC denials for httpd with sudo
+- id: selinux-port-denial-2-6
+  description: Run SELinux status and recent AVC denials for httpd with sudo
   script_type: bash
   script: |
     #!/usr/bin/env bash
@@ -91,7 +97,8 @@ cases:
   readonly: true
   result:
     status: OK
-- description: Check SELinux mode and list any processes using port 8088
+- id: selinux-port-denial-2-7
+  description: Check SELinux mode and list any processes using port 8088
   script_type: bash
   script: |
     #!/usr/bin/env bash
@@ -105,7 +112,8 @@ cases:
   readonly: true
   result:
     status: OK
-- description: Check if semanage command exists
+- id: selinux-port-denial-2-8
+  description: Check if semanage command exists
   script_type: bash
   script: |
     #!/usr/bin/env bash
@@ -114,7 +122,8 @@ cases:
   readonly: true
   result:
     status: OK
-- description: Allow httpd to bind to port 8088 via SELinux policy and restart service
+- id: selinux-port-denial-2-9
+  description: Allow httpd to bind to port 8088 via SELinux policy and restart service
   script_type: bash
   script: |
     #!/usr/bin/env bash
