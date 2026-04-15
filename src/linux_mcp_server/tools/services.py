@@ -123,7 +123,7 @@ async def get_service_logs(
     short format, same style as get_journal_logs).
 
     Raises:
-        ToolError: If an error occurs while retrieving logs.
+        ToolError: If journal output is empty, or journalctl fails.
 
     Returns:
         LogEntries: Structured log lines, unit name, and line count.

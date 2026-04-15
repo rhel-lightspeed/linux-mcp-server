@@ -61,11 +61,16 @@ class TestServices:
         assert content["unit"] == "sshd.service"
         mock_execute_with_fallback.assert_called()
 
-    async def test_get_service_logs_with_nonexistent_service(self, mcp_client):
+    async def test_get_service_logs_with_nonexistent_service(self, mock_execute_with_fallback, mcp_client):
+        """Empty journal (e.g. unknown unit with no lines) raises; real journalctl output is not deterministic."""
+        mock_execute_with_fallback.return_value = (0, "", "")
+
         with pytest.raises(ToolError, match="No log entries found for service 'nonexistent-service-xyz123.service'."):
             await mcp_client.call_tool(
                 "get_service_logs", arguments={"service_name": "nonexistent-service-xyz123", "lines": 10}
             )
+
+        mock_execute_with_fallback.assert_called()
 
     async def test_get_service_logs_error(self, mock_execute_with_fallback, mcp_client):
         """Test that get_service_logs raises ToolError when journalctl fails."""
