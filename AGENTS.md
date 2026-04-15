@@ -51,4 +51,6 @@ Types: `feat`, `fix`, `docs`, `test`, `refactor`, `perf`, `chore`
 
 ## Docs
 
-Full details: `docs/contributing.md` | Architecture: `docs/architecture.md` | API: `docs/api/`
+Full details: `docs/contributing.md` | Architecture: `docs/architecture.md`
+
+Tool docs under `docs/tools/` are auto-generated — run `uv run python scripts/generate_tool_docs.py` after adding or modifying tools.

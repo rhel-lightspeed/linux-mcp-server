@@ -66,7 +66,14 @@ nav:
       - Security Best Practices: security.md
       - Architecture: architecture.md
       - Debug Logging: debugging.md
-  - Tools: tools.md
+  - Tools:
+      - System Information: tools/system-information.md
+      - Services: tools/services.md
+      - Processes: tools/processes.md
+      - Logs: tools/logs.md
+      - Network: tools/network.md
+      - Storage: tools/storage.md
+      - Script Execution: tools/script-execution.md
   - Contributing: contributing.md
 
 extra:

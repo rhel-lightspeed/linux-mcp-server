@@ -238,6 +238,26 @@ Coverage reports are generated in `coverage/htmlcov/index.html`.
 
 ---
 
+## Building Documentation
+
+The [Tools](tools/system-information.md) pages are auto-generated from the server's runtime tool
+metadata. You must run the generation script before building the docs:
+
+```bash
+# Generate tool documentation, then build the site
+uv run python scripts/generate_tool_docs.py
+uv run mkdocs build --strict
+
+# Or for local preview
+uv run python scripts/generate_tool_docs.py
+uv run mkdocs serve
+```
+
+The generated files live in `docs/tools/` (gitignored). If you add or
+modify a tool, re-run the generation script to update the docs.
+
+---
+
 ## Security Guidelines
 
 ### Read-Only Operations Only

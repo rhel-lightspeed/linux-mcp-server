@@ -39,6 +39,7 @@ htmlcov/
 
 # Documentation build
 site/
+docs/tools/
 
 # IDEs
 .vscode/
