@@ -17,7 +17,7 @@ from utils.shell import shell
 # --- Default configuration ---
 SERVER_COMMAND = "linux-mcp-server"
 SERVER_ARGS = []
-DEFAULT_SERVER_ENV = {"LINUX_MCP_LOG_LEVEL": "DEBUG"}
+DEFAULT_SERVER_ENV = {"LINUX_MCP_LOG_LEVEL": "INFO"}
 
 
 @contextlib.asynccontextmanager
