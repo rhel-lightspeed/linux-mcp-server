@@ -393,6 +393,7 @@ async def validate_script(
     ],
     host: Host = None,
     readonly: t.Annotated[bool, Field(description="Should be true if the script does not modify the system.")] = True,
+    annotations=ToolAnnotations(readOnlyHint=True),
 ) -> ToolResult:
     gatekeeper_result = check_run_script(
         description,
