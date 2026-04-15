@@ -9,6 +9,7 @@ from pydantic import Field
 
 from linux_mcp_server.audit import log_tool_call
 from linux_mcp_server.commands import get_command
+from linux_mcp_server.models import LogEntries
 from linux_mcp_server.server import mcp
 from linux_mcp_server.utils.decorators import disallow_local_execution_in_containers
 from linux_mcp_server.utils.types import Host
@@ -115,17 +116,17 @@ async def get_service_logs(
     ],
     lines: t.Annotated[int, Field(description="Number of log lines to retrieve.", ge=1, le=10_000)] = 50,
     host: Host = None,
-) -> list[dict[str, str]]:
+) -> LogEntries:
     """Get recent logs for a specific systemd service.
 
-    Retrieves journal entries for the specified service unit, including
-    timestamps, priority levels, and log messages.
+    Retrieves journal lines for the specified service unit (default journalctl
+    short format, same style as get_journal_logs).
 
     Raises:
         ToolError: If an error occurs while retrieving logs.
 
     Returns:
-        list[dict[str, str]]: A list of dictionaries containing log entries.
+        LogEntries: Structured log lines, unit name, and line count.
     """
     # Ensure service name has .service suffix if not present
     if not service_name.endswith(".service") and "." not in service_name:
@@ -140,4 +141,6 @@ async def get_service_logs(
     if is_empty_output(stdout):
         raise ToolError(f"No log entries found for service '{service_name}'.")
 
-    return t.cast(list[dict[str, str]], json.loads(stdout))
+    entries = [line for line in stdout.strip().splitlines() if line]
+
+    return LogEntries(entries=entries, unit=service_name)

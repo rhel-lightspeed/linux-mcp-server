@@ -45,16 +45,20 @@ class TestServices:
 
     async def test_get_service_logs(self, mock_execute_with_fallback, mcp_client):
         """Test getting service logs with mocked output."""
-        mock_output = '[{"__REALTIME_TIMESTAMP": "1600000000000000", "MESSAGE": "sshd: session opened for user test", "PRIORITY": "6", "_PID": "1234"}, {"__REALTIME_TIMESTAMP": "1600000001000000", "MESSAGE": "sshd: session closed for user test", "PRIORITY": "6", "_PID": "1234"}]'
+        mock_output = (
+            "Jan 01 12:00:00 host sshd[1234]: session opened for user test\n"
+            "Jan 01 12:00:01 host sshd[1234]: session closed for user test"
+        )
         mock_execute_with_fallback.return_value = (0, mock_output, "")
 
         result = await mcp_client.call_tool("get_service_logs", arguments={"service_name": "sshd.service", "lines": 5})
 
         assert result.structured_content is not None, "Expected structured data"
-        logs = result.structured_content["result"]
-        assert isinstance(logs, list)
-        assert len(logs) == 2
-        assert logs[0]["MESSAGE"] == "sshd: session opened for user test"
+        content = result.structured_content
+        assert content["lines_count"] == 2
+        assert len(content["entries"]) == 2
+        assert "session opened for user test" in content["entries"][0]
+        assert content["unit"] == "sshd.service"
         mock_execute_with_fallback.assert_called()
 
     async def test_get_service_logs_with_nonexistent_service(self, mcp_client):
@@ -114,7 +118,7 @@ class TestRemoteServices:
 
     async def test_get_service_logs_remote(self, mock_execute_with_fallback, mcp_client):
         """Test getting service logs on a remote host."""
-        mock_output = '[{"_REALTIME_TIMESTAMP": "Jan 01 12:00:00", "_PID": "1234", "MESSAGE": "Starting Nginx"}, {"_REALTIME_TIMESTAMP": "Jan 01 12:00:01", "_PID": "1234", "MESSAGE": "Started"}]'
+        mock_output = "Jan 01 12:00:00 remote nginx[1]: Starting Nginx\nJan 01 12:00:01 remote nginx[1]: Started"
         mock_execute_with_fallback.return_value = (0, mock_output, "")
 
         result = await mcp_client.call_tool(
@@ -122,10 +126,11 @@ class TestRemoteServices:
         )
 
         assert result.structured_content is not None
-        data = result.structured_content["result"]
+        content = result.structured_content
 
-        assert isinstance(data, list)
-        assert len(data) == 2
-        assert data[0]["MESSAGE"] == "Starting Nginx"
-        assert data[1]["MESSAGE"] == "Started"
+        assert content["lines_count"] == 2
+        assert len(content["entries"]) == 2
+        assert "Starting Nginx" in content["entries"][0]
+        assert "Started" in content["entries"][1]
+        assert content["unit"] == "nginx.service"
         mock_execute_with_fallback.assert_called()
