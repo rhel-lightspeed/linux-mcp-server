@@ -13,6 +13,7 @@ from linux_mcp_server.models import NetworkConnection
 from linux_mcp_server.models import NetworkInterface
 from linux_mcp_server.models import NodeEntry
 from linux_mcp_server.models import ProcessInfo
+from linux_mcp_server.models import Route
 from linux_mcp_server.models import SwapInfo
 from linux_mcp_server.models import SystemInfo
 from linux_mcp_server.models import SystemMemory
@@ -278,6 +279,81 @@ def parse_ip_brief(stdout: str) -> dict[str, NetworkInterface]:
             )
 
     return interfaces
+
+
+def parse_ip_route(stdout: str) -> list[Route]:
+    """Parse ip route output into Route objects.
+
+    Handles standard ``ip route`` output where each line describes a route.
+    Key-value tokens (e.g. ``via``, ``dev``, ``proto``, ``scope``, ``src``,
+    ``metric``) are extracted into the corresponding model fields.
+
+    Args:
+        stdout: Raw output from ip route command.
+
+    Returns:
+        List of Route objects.
+    """
+    routes: list[Route] = []
+    lines = stdout.strip().split("\n")
+
+    for line in lines:
+        line = line.strip()
+        if not line:
+            continue
+
+        parts = line.split()
+        if not parts:
+            continue
+
+        destination = parts[0]
+        gateway = ""
+        device = ""
+        protocol = ""
+        scope = ""
+        source = ""
+        metric: int | None = None
+
+        i = 1
+        while i < len(parts):
+            token = parts[i]
+            if token == "via" and i + 1 < len(parts):
+                gateway = parts[i + 1]
+                i += 2
+            elif token == "dev" and i + 1 < len(parts):
+                device = parts[i + 1]
+                i += 2
+            elif token == "proto" and i + 1 < len(parts):
+                protocol = parts[i + 1]
+                i += 2
+            elif token == "scope" and i + 1 < len(parts):
+                scope = parts[i + 1]
+                i += 2
+            elif token == "src" and i + 1 < len(parts):
+                source = parts[i + 1]
+                i += 2
+            elif token == "metric" and i + 1 < len(parts):
+                try:
+                    metric = int(parts[i + 1])
+                except ValueError:
+                    pass
+                i += 2
+            else:
+                i += 1
+
+        routes.append(
+            Route(
+                destination=destination,
+                gateway=gateway,
+                device=device,
+                protocol=protocol,
+                scope=scope,
+                source=source,
+                metric=metric,
+            )
+        )
+
+    return routes
 
 
 def parse_system_info(results: dict[str, str]) -> SystemInfo:

@@ -7,7 +7,9 @@ from linux_mcp_server.commands import get_command
 from linux_mcp_server.formatters import format_listening_ports
 from linux_mcp_server.formatters import format_network_connections
 from linux_mcp_server.formatters import format_network_interfaces
+from linux_mcp_server.formatters import format_routes
 from linux_mcp_server.parsers import parse_ip_brief
+from linux_mcp_server.parsers import parse_ip_route
 from linux_mcp_server.parsers import parse_proc_net_dev
 from linux_mcp_server.parsers import parse_ss_connections
 from linux_mcp_server.parsers import parse_ss_listening
@@ -103,3 +105,29 @@ async def get_listening_ports(
         ports = parse_ss_listening(stdout)
         return format_listening_ports(ports)
     return f"Error getting listening ports: return code {returncode}, stderr: {stderr}"
+
+
+@mcp.tool(
+    title="Get network routes",
+    description="Get the system routing table showing network routes, gateways, and interfaces.",
+    tags={"connectivity", "network", "routing"},
+    annotations=ToolAnnotations(readOnlyHint=True),
+)
+@log_tool_call
+@disallow_local_execution_in_containers
+async def get_network_routes(
+    host: Host = None,
+) -> str:
+    """Get network routing table.
+
+    Retrieves the system routing table including destination networks,
+    gateways, devices, protocols, scopes, source addresses, and metrics.
+    """
+    cmd = get_command("network_routes")
+
+    returncode, stdout, stderr = await cmd.run(host=host)
+
+    if is_successful_output(returncode, stdout):
+        routes = parse_ip_route(stdout)
+        return format_routes(routes)
+    return f"Error getting network routes: return code {returncode}, stderr: {stderr}"

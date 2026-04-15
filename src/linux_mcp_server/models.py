@@ -43,6 +43,18 @@ class ListeningPort(BaseModel):
     process: str = ""
 
 
+class Route(BaseModel):
+    """Parsed route entry from ip route output."""
+
+    destination: str
+    gateway: str = ""
+    device: str = ""
+    protocol: str = ""
+    scope: str = ""
+    source: str = ""
+    metric: int | None = None
+
+
 class NetworkInterface(BaseModel):
     """Parsed network interface information."""
 

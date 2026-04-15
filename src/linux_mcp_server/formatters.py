@@ -8,6 +8,7 @@ from linux_mcp_server.models import ListeningPort
 from linux_mcp_server.models import NetworkConnection
 from linux_mcp_server.models import NetworkInterface
 from linux_mcp_server.models import ProcessInfo
+from linux_mcp_server.models import Route
 from linux_mcp_server.utils import format_bytes
 
 
@@ -137,6 +138,37 @@ def format_network_interfaces(
             if stat.rx_dropped or stat.tx_dropped:
                 lines.append(f"  Dropped: RX={stat.rx_dropped}, TX={stat.tx_dropped}")
 
+    return "\n".join(lines)
+
+
+def format_routes(
+    routes: list[Route],
+    header: str = "=== Routing Table ===\n",
+) -> str:
+    """Format routing table entries into a readable string.
+
+    Args:
+        routes: List of Route objects.
+        header: Header text for the output.
+
+    Returns:
+        Formatted string representation.
+    """
+    lines = [header]
+    lines.append(
+        f"{'Destination':<20} {'Gateway':<18} {'Device':<10} {'Protocol':<10} {'Scope':<10} {'Source':<18} {'Metric'}"
+    )
+    lines.append("-" * 110)
+
+    for route in routes:
+        gateway = route.gateway or "-"
+        metric = str(route.metric) if route.metric is not None else "-"
+        lines.append(
+            f"{route.destination:<20} {gateway:<18} {route.device:<10} {route.protocol:<10} "
+            f"{route.scope:<10} {route.source:<18} {metric}"
+        )
+
+    lines.append(f"\n\nTotal routes: {len(routes)}")
     return "\n".join(lines)
 
 
