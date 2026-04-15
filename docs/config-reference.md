@@ -30,7 +30,7 @@ To see available options, run `linux-mcp-server --help`.
 | `--ssh-key-path`<br>`LINUX_MCP_SSH_KEY_PATH` | *(none)* | Path to SSH private key file |
 | `--key-passphrase`<br>`LINUX_MCP_KEY_PASSPHRASE` | *(empty)* | Passphrase for encrypted SSH key |
 | `--search-for-ssh-key`<br>`LINUX_MCP_SEARCH_FOR_SSH_KEY` | `False` | Auto-discover SSH keys in `~/.ssh` |
-| `--command-timeout`<br>`LINUX_MCP_COMMAND_TIMEOUT` | `30` | SSH command timeout in seconds |
+| `--command-timeout`<br>`LINUX_MCP_COMMAND_TIMEOUT` | `30` | Local and remote command timeout in seconds |
 
 ## SSH Security Settings
 
