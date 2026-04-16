@@ -6,7 +6,8 @@ from linux_mcp_server.connection.ssh import SSHConnectionManager
 
 @pytest.fixture
 def mock_connection(mocker):
-    mock_connection = mocker.AsyncMock(asyncssh.SSHClientConnection, name="connection", _username="testuser")
+    mock_connection = mocker.AsyncMock(asyncssh.SSHClientConnection, name="connection")
+    mock_connection.get_extra_info.return_value = "testuser"
     mock_connection.run.return_value = mocker.Mock(exit_status=0, stdout="remote output", stderr="")
     mock_connection.is_closed.return_value = False
 
@@ -55,8 +56,10 @@ async def test_get_connection_different_hosts(mocker, mock_asyncssh_connect):
     manager = SSHConnectionManager()
     manager._connections.clear()
 
-    mock_conn1 = mocker.AsyncMock(asyncssh.SSHClientConnection, return_value=False, _username="testuser")
-    mock_conn2 = mocker.AsyncMock(asyncssh.SSHClientConnection, return_value=False, _username="testuser")
+    mock_conn1 = mocker.AsyncMock(asyncssh.SSHClientConnection, return_value=False)
+    mock_conn1.get_extra_info.return_value = "testuser"
+    mock_conn2 = mocker.AsyncMock(asyncssh.SSHClientConnection, return_value=False)
+    mock_conn2.get_extra_info.return_value = "testuser"
 
     async def async_connect(*args, **kwargs):
         return mock_conn1 if kwargs.get("host") == "host1" else mock_conn2
@@ -135,12 +138,10 @@ async def test_close_connections(mocker, mock_asyncssh_connect):
     manager = SSHConnectionManager()
     manager._connections.clear()
 
-    mock_conn1 = mocker.AsyncMock(
-        asyncssh.SSHClientConnection, return_value=False, wait_closed=mocker.AsyncMock(), _username="testuser"
-    )
-    mock_conn2 = mocker.AsyncMock(
-        asyncssh.SSHClientConnection, return_value=False, wait_closed=mocker.AsyncMock(), _username="testuser"
-    )
+    mock_conn1 = mocker.AsyncMock(asyncssh.SSHClientConnection, return_value=False, wait_closed=mocker.AsyncMock())
+    mock_conn1.get_extra_info.return_value = "testuser"
+    mock_conn2 = mocker.AsyncMock(asyncssh.SSHClientConnection, return_value=False, wait_closed=mocker.AsyncMock())
+    mock_conn2.get_extra_info.return_value = "testuser"
 
     async def async_connect(*args, **kwargs):
         return mock_conn1 if kwargs.get("host") == "host1" else mock_conn2
