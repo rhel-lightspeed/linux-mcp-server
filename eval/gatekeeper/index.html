@@ -1,0 +1,413 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Gatekeeper Model Benchmark</title>
+    <style>
+      body {
+        font-family: system-ui, sans-serif;
+        margin: 0;
+        display: flex;
+        height: 100vh;
+      }
+      main {
+        flex: 1;
+        padding: 20px;
+        overflow: auto;
+      }
+      table {
+        width: 100%;
+        border-collapse: collapse;
+      }
+      td {
+        border: 1px solid #ccc;
+        padding: 10px;
+        text-align: center;
+        cursor: pointer;
+        transition: background 0.2s;
+      }
+      td:hover {
+        background-color: #e9ecef;
+      }
+
+      .success {
+        background-color: oklch(79.2% 0.209 151.711);
+      }
+
+      .success:hover {
+        background-color: oklch(87.1% 0.15 154.449);
+      }
+
+      .danger {
+        background-color: oklch(70.4% 0.191 22.216);
+      }
+
+      .danger:hover {
+        background-color: oklch(80.8% 0.114 19.571);
+      }
+
+      .missing {
+        background-color: oklch(70.7% 0.022 261.325);
+      }
+
+      .missing:hover {
+        background-color: oklch(87.2% 0.01 258.338);
+      }
+
+      #popup {
+        display: none;
+        position: fixed;
+        background: #fff;
+        border: 1px solid #ccc;
+        border-radius: 8px;
+        box-shadow: 0 4px 16px rgba(0, 0, 0, 0.15);
+        padding: 16px;
+        max-width: 520px;
+        min-width: 300px;
+        z-index: 1000;
+        font-size: 14px;
+        line-height: 1.5;
+        max-height: 350px;
+        overflow-y: auto;
+      }
+      #popup .popup-close {
+        position: sticky;
+        top: 0;
+        float: right;
+        background: #fff;
+        border: 1px solid black;
+        border-radius: 8px;
+        font-size: 20px;
+        cursor: pointer;
+        color: #666;
+        line-height: 1;
+        padding: 2px 6px;
+        z-index: 1;
+      }
+      #popup .popup-close:hover {
+        color: #000;
+      }
+      #popup .popup-field {
+        margin-bottom: 6px;
+      }
+      #popup .popup-label {
+        font-weight: 600;
+        color: #555;
+      }
+      #popup pre {
+        background: #1e1e1e;
+        color: #d4d4d4;
+        padding: 12px;
+        border-radius: 6px;
+        overflow-x: auto;
+        margin: 4px 0 6px 0;
+        font-family: "SF Mono", "Fira Code", "Consolas", monospace;
+        font-size: 13px;
+        line-height: 1.4;
+        white-space: pre;
+      }
+
+      #error-display {
+        display: none;
+        color: oklch(63.7% 0.237 25.331);
+      }
+    </style>
+  </head>
+  <body>
+    <main>
+      <h2>Gatekeeper Model Benchmark</h2>
+      <table id="grid">
+        <tbody id="grid-body"></tbody>
+      </table>
+
+      <div id="error-display"></div>
+    </main>
+
+    <div id="popup"></div>
+
+    <script>
+      const gridBody = document.getElementById("grid-body");
+      const errorDisplay = document.getElementById("error-display");
+
+      async function fetchJsonFile(url) {
+        const response = await fetch(url);
+        return response.json();
+      }
+
+      function createResultLookup(testResult) {
+        const cases = testResult.cases;
+
+        lookup = {};
+        for (const eachCase of cases) {
+          lookup[eachCase.id] = { ...eachCase };
+        }
+
+        return lookup;
+      }
+
+      function setClassForComparison(comparison) {
+        switch (comparison) {
+          case "same":
+          case "other_mismatch":
+            return "success";
+          case "ok_to_forbidden":
+          case "forbidden_to_ok":
+            return "danger";
+          default:
+            return "missing";
+        }
+      }
+
+      function setScoreColor(score) {
+        if (score >= 85) {
+          return "oklch(72.3% 0.219 149.579)";
+        } else if (score >= 60) {
+          return "oklch(79.5% 0.184 86.047)";
+        } else {
+          return "oklch(63.7% 0.237 25.331)";
+        }
+      }
+
+      function computeScore(summary) {
+        let totalNumOfTests = 0;
+        let curScore = 0;
+
+        curScore += summary.same * 3;
+        totalNumOfTests += summary.same;
+
+        curScore += summary.other_mismatch * 2;
+        totalNumOfTests += summary.other_mismatch;
+
+        totalNumOfTests += summary.ok_to_forbidden + summary.forbidden_to_ok;
+
+        return (curScore / (totalNumOfTests * 3)) * 100;
+      }
+
+      function compareResult(expectedResult, actualResult) {
+        if (expectedResult === actualResult) {
+          return "same";
+        } else if (expectedResult === "OK") {
+          return "ok_to_forbidden";
+        } else if (actualResult === "OK") {
+          return "forbidden_to_ok";
+        } else {
+          return "other_mismatch";
+        }
+      }
+
+      async function loadAllTestResults() {
+        let jsonUrls;
+
+        // Try manifest file first (for GitLab artifacts / environments without directory listing)
+        try {
+          const manifestResponse = await fetch("./data/manifest.txt");
+          if (manifestResponse.ok) {
+            const text = await manifestResponse.text();
+            jsonUrls = text
+              .trim()
+              .split("\n")
+              .filter((f) => f.endsWith(".json"))
+              .map((filename) => {
+                const model = filename.replace(/\.json$/, "");
+                return [model, `./data/${filename}`];
+              });
+          }
+        } catch (e) {}
+
+        // Fall back to directory listing (local dev with http-server)
+        if (!jsonUrls) {
+          const dirResponse = await fetch("./data/");
+          if (!dirResponse.ok) throw new Error("Could not find /data folder");
+          const dirHtml = await dirResponse.text();
+
+          const parser = new DOMParser();
+          const doc = parser.parseFromString(dirHtml, "text/html");
+          const links = Array.from(doc.querySelectorAll("a"));
+
+          jsonUrls = links
+            .map((link) => link.href)
+            .filter((href) => href.endsWith(".json"))
+            .map((filename) => {
+              const parts = filename.split("/");
+              const model = parts[parts.length - 1].replace(/\.json$/, "");
+              parts.splice(parts.length - 1, 0, "data");
+              return [model, parts.join("/")];
+            });
+        }
+
+        if (jsonUrls.length === 0) throw new Error("No json files found");
+
+        const combinedResult = {};
+        const models = [];
+        let testCases = [];
+        const scores = [];
+
+        for (const [model, url] of jsonUrls) {
+          const jsonObject = await fetchJsonFile(url);
+          const lookup = createResultLookup(jsonObject);
+
+          combinedResult[model] = lookup;
+          models.push(model);
+          scores.push(computeScore(jsonObject.summary));
+
+          curTestCases = Object.keys(lookup);
+          if (curTestCases.length > testCases.length) {
+            testCases = curTestCases;
+          }
+        }
+
+        testCases.sort((a, b) =>
+          a.localeCompare(b, undefined, { numeric: true }),
+        );
+
+        return [models, testCases, combinedResult, scores];
+      }
+
+      function createFirstRow(models, scores) {
+        const firstRow = document.createElement("tr");
+        const testCase = document.createElement("td");
+        testCase.textContent = "Test Case";
+        firstRow.appendChild(testCase);
+
+        models.forEach((model, index) => {
+          const modelCol = document.createElement("td");
+          const score = scores[index];
+          // It's okay to modify innerHTML because the content is safe
+          modelCol.innerHTML = `${escapeHtml(model)} (<span style="color: ${setScoreColor(score)};">${escapeHtml(score.toFixed(1))}</span>)`;
+          modelCol.style.whiteSpace = "nowrap";
+          firstRow.appendChild(modelCol);
+        });
+
+        return firstRow;
+      }
+
+      async function constructTable() {
+        try {
+          const [models, testCases, combinedResult, scores] =
+            await loadAllTestResults();
+
+          const firstRow = createFirstRow(models, scores);
+          gridBody.appendChild(firstRow);
+
+          for (const testCase of testCases) {
+            const thisRow = document.createElement("tr");
+            const firstCol = document.createElement("td");
+            firstCol.textContent = testCase;
+            thisRow.appendChild(firstCol);
+
+            for (const model of models) {
+              const entry = combinedResult[model][testCase];
+              const thisCell = document.createElement("td");
+
+              // Deal with missing test results because of exception during eval
+              if (!entry) {
+                thisCell.textContent = "missing";
+                thisCell.classList.add("missing");
+                thisRow.appendChild(thisCell);
+                continue;
+              }
+
+              const comparison = compareResult(
+                entry.expected_result.status,
+                entry.result.status,
+              );
+              thisCell.textContent = comparison;
+              thisCell.classList.add(setClassForComparison(comparison));
+              thisCell._popupData = {
+                id: testCase,
+                model: model,
+                description: entry.description ?? "",
+                script_type: entry.script_type ?? "",
+                script: entry.script ?? "",
+                readonly: entry.readonly ?? "",
+                result: entry.result ?? {},
+                expectedResult: entry.expected_result ?? {},
+              };
+
+              thisRow.appendChild(thisCell);
+            }
+
+            gridBody.appendChild(thisRow);
+          }
+        } catch (e) {
+          errorDisplay.textContent = e.message;
+          errorDisplay.style.display = "block";
+        }
+      }
+
+      const popup = document.getElementById("popup");
+
+      // The output from this function is safe
+      function escapeHtml(str) {
+        const div = document.createElement("div");
+        // textContent treats the content as literal text which mitigates XSS attacks
+        div.textContent = str;
+        return div.innerHTML;
+      }
+
+      // The output from this function is safe
+      function renderObjectAsDivs(obj) {
+        return Object.entries(obj)
+          .map(([key, value]) => {
+            const display =
+              typeof value === "object" && value !== null
+                ? JSON.stringify(value)
+                : String(value);
+            return `<div class="popup-field" style="padding-left:12px"><span class="popup-label">${escapeHtml(key)}:</span> ${escapeHtml(display)}</div>`;
+          })
+          .join("");
+      }
+
+      function showPopup(td, event) {
+        const data = td._popupData;
+        if (!data) return;
+
+        // The content of this html is safe so assign it to innerHTML is okay
+        let html = `
+                <button class="popup-close" onclick="popup.style.display='none'">&times;</button>
+                <div class="popup-field"><span class="popup-label">Id:</span> ${escapeHtml(data.id)}</div>
+                <div class="popup-field"><span class="popup-label">Model:</span> ${escapeHtml(data.model)}</div>
+                <div class="popup-field"><span class="popup-label">Description:</span> ${escapeHtml(data.description)}</div>
+                <div class="popup-field"><span class="popup-label">Script Type:</span> ${escapeHtml(data.script_type)}</div>
+                <div class="popup-field"><span class="popup-label">Script:</span></div>
+                <pre>${escapeHtml(data.script)}</pre>
+                <div class="popup-field"><span class="popup-label">Readonly:</span> ${escapeHtml(String(data.readonly))}</div>
+                <div class="popup-field"><span class="popup-label">Expected Result:</span></div>
+                ${renderObjectAsDivs(data.expectedResult)}
+                <div class="popup-field"><span class="popup-label">Actual Result:</span></div>
+                ${renderObjectAsDivs(data.result)}
+            `;
+
+        popup.innerHTML = html;
+        popup.style.display = "block";
+        positionPopup(event);
+      }
+
+      function positionPopup(event) {
+        const margin = 12;
+        let x = event.clientX + margin;
+        let y = event.clientY + margin;
+
+        const popupRect = popup.getBoundingClientRect();
+        if (x + popupRect.width > window.innerWidth) {
+          x = event.clientX - popupRect.width - margin;
+        }
+        if (y + popupRect.height > window.innerHeight) {
+          y = event.clientY - popupRect.height - margin;
+        }
+
+        popup.style.left = x + "px";
+        popup.style.top = y + "px";
+      }
+
+      document.getElementById("grid").addEventListener("click", (event) => {
+        if (event.target.tagName === "TD" && event.target._popupData) {
+          showPopup(event.target, event);
+        }
+      });
+
+      constructTable();
+    </script>
+  </body>
+</html>
