@@ -24,22 +24,30 @@ jobs:
     steps:
       - name: Check if user is authorized
         id: check
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           AUTHORIZED=false
-          if [[ "${{ github.event_name }}" == "push" ]]; then
+          USER_LOGIN="${{ github.event.sender.login }}"
+
+          if [[ "${{ github.event_name }}" == "push" ]] || [[ "${{ github.event_name }}" == "workflow_dispatch" ]]; then
             AUTHORIZED=true
-          elif [[ "${{ github.event_name }}" == "pull_request_target" ]]; then
-            if [[ "${{ github.event.pull_request.author_association }}" =~ ^(OWNER|MEMBER|COLLABORATOR)$ ]]; then
-              AUTHORIZED=true
+          else
+            # Check effective repository permissions using GitHub API
+            PERMISSION=$(gh api repos/${{ github.repository }}/collaborators/$USER_LOGIN/permission --jq '.permission' || echo "none")
+            if [[ "$PERMISSION" =~ ^(admin|write|maintain)$ ]]; then
+              if [[ "${{ github.event_name }}" == "pull_request_target" ]] || ([[ "${{ github.event_name }}" == "issue_comment" ]] && [[ "${{ github.event.comment.body }}" =~ ^/(test-functional|retest) ]]); then
+                AUTHORIZED=true
+              fi
             fi
-          elif [[ "${{ github.event_name }}" == "issue_comment" && "${{ github.event.issue.pull_request }}" != "" ]]; then
-            if [[ "${{ github.event.comment.author_association }}" =~ ^(OWNER|MEMBER|COLLABORATOR)$ ]] && [[ "${{ github.event.comment.body }}" =~ ^/(test-functional|retest) ]]; then
-              AUTHORIZED=true
-            fi
-          elif [[ "${{ github.event_name }}" == "workflow_dispatch" ]]; then
-            AUTHORIZED=true
           fi
-          echo "authorized=$AUTHORIZED" >> $GITHUB_OUTPUT
+
+          if [[ "$AUTHORIZED" == "false" ]]; then
+            echo "::error::User $USER_LOGIN is not authorized. A maintainer with write access must comment /test-functional or /retest to trigger tests."
+            exit 1
+          fi
+
+          echo "authorized=true" >> $GITHUB_OUTPUT
 
   tf-functional-tests:
     name: Functional Tests (Testing Farm)
