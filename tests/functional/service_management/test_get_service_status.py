@@ -1,6 +1,13 @@
 # Copyright Contributors to the linux-mcp-server project
 # SPDX-License-Identifier: Apache-2.0
+import re
+
 from utils.shell import shell
+
+
+def clean_status(text: str) -> str:
+    # Normalize the 'since ...' line to remove dynamic timestamps and elapsed time, ensuring stable assertions.
+    return re.sub(r"since [^\n]+", "since ...", text)
 
 
 async def test_get_service_status_happy_path(mcp_session):
@@ -19,7 +26,7 @@ async def test_get_service_status_happy_path(mcp_session):
     # In case the service is not running then the systemctl status command will return non zero return code.
     # So do not assert the return code here.
     actual_status = shell(f"systemctl status {service_name} | head -n 5", silent=True, doAssert=False).stdout.strip()
-    assert actual_status in response.content[0].text
+    assert clean_status(actual_status) in clean_status(response.content[0].text)
 
 
 async def test_get_service_status_with_service_suffix(mcp_session):
@@ -34,7 +41,7 @@ async def test_get_service_status_with_service_suffix(mcp_session):
     # In case the service is not running then the systemctl status command will return non zero return code.
     # So do not assert the return code here.
     actual_status = shell(f"systemctl status {service_name} | head -n 5", silent=True, doAssert=False).stdout.strip()
-    assert actual_status in response.content[0].text
+    assert clean_status(actual_status) in clean_status(response.content[0].text)
 
 
 async def test_get_service_status_non_existing_service(mcp_session):
