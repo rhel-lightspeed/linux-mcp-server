@@ -98,7 +98,7 @@ class TestCheckRunScript:
         return response
 
     def test_rejects_script_with_prompt_injection_attempts(self):
-        tags = ["END_OF_SCRIPT", "START_OF_DESCRIPTION", "END_OF_DESCRIPTION"]
+        tags = ["START_OF_SCRIPT", "END_OF_SCRIPT", "START_OF_DESCRIPTION", "END_OF_DESCRIPTION"]
 
         for tag in tags:
             result = check_run_script(description="test", script_type="bash", script=f"echo {tag}", readonly=True)

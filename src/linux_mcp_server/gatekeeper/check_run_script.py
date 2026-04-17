@@ -177,8 +177,10 @@ class GatekeeperResult(BaseModel):
 
 def check_run_script(description: str, script_type: str, script: str, *, readonly: bool) -> GatekeeperResult:
     # Check that the script does what is described
-    if "end_of_script" in script.lower():
-        return GatekeeperResult(status=GatekeeperStatus.MALICIOUS, detail="Script contains 'end_of_script'")
+    if "start_of_script" in script.lower() or "end_of_script" in script.lower():
+        return GatekeeperResult(
+            status=GatekeeperStatus.MALICIOUS, detail="Script contains 'start_of_script' or 'end_of_script'"
+        )
 
     if "start_of_description" in script.lower() or "end_of_description" in script.lower():
         return GatekeeperResult(
