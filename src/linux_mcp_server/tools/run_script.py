@@ -498,7 +498,11 @@ async def run_script_with_confirmation(
         host=host,
         readonly=readonly,
     )
-    if new_details != script_details:
+
+    details_changed = new_details != script_details
+    execute_details = new_details if details_changed else script_details
+
+    if details_changed:
         # Revalidate the script again; this is a convenience for the user to avoid
         # potentially having to double-approve the same script.
         gatekeeper_result = check_run_script(
@@ -510,18 +514,22 @@ async def run_script_with_confirmation(
         if gatekeeper_result.status != GatekeeperStatus.OK:
             script_store.set_script_state(token, "rejected-gatekeeper")
             raise ToolError(gatekeeper_result.description)
+    else:
+        script_store.set_script_state(token, "executing")
 
-    script_store.set_script_state(token, "executing")
     try:
-        command = _wrap_script(script_details.script_type, script_details.script)
-        returncode, stdout, stderr = await execute_command(command, host=script_details.host)
+        command = _wrap_script(execute_details.script_type, execute_details.script)
+        returncode, stdout, stderr = await execute_command(command, host=execute_details.host)
     except Exception:
-        script_store.set_script_state(token, "failure")
+        if not details_changed:
+            script_store.set_script_state(token, "failure")
         raise
 
     if returncode == 0:
-        script_store.set_script_state(token, "success")
+        if not details_changed:
+            script_store.set_script_state(token, "success")
         return stdout if isinstance(stdout, str) else stdout.decode("utf-8", errors="replace")
     else:
-        script_store.set_script_state(token, "failure")
+        if not details_changed:
+            script_store.set_script_state(token, "failure")
         return f"Error executing script: return code {returncode}, stderr: {stderr}"
