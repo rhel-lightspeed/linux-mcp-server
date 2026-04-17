@@ -97,10 +97,13 @@ class TestCheckRunScript:
         response.choices = [choice]
         return response
 
-    def test_rejects_script_with_end_of_script(self):
-        result = check_run_script(description="test", script_type="bash", script="echo END_OF_SCRIPT", readonly=True)
-        assert result.status == GatekeeperStatus.MALICIOUS
-        assert "end_of_script" in result.detail
+    def test_rejects_script_with_prompt_injection_attempts(self):
+        tags = ["END_OF_SCRIPT", "START_OF_DESCRIPTION", "END_OF_DESCRIPTION"]
+
+        for tag in tags:
+            result = check_run_script(description="test", script_type="bash", script=f"echo {tag}", readonly=True)
+            assert result.status == GatekeeperStatus.MALICIOUS
+            assert tag.lower() in result.detail
 
     @pytest.mark.parametrize(
         "supported_params,expect_response_format",

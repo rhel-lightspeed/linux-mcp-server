@@ -180,6 +180,11 @@ def check_run_script(description: str, script_type: str, script: str, *, readonl
     if "end_of_script" in script.lower():
         return GatekeeperResult(status=GatekeeperStatus.MALICIOUS, detail="Script contains 'end_of_script'")
 
+    if "start_of_description" in script.lower() or "end_of_description" in script.lower():
+        return GatekeeperResult(
+            status=GatekeeperStatus.MALICIOUS, detail="Script contains 'start_of_description' or 'end_of_description'"
+        )
+
     prompt = PROMPT.format(
         script_type=script_type,
         script=script,
