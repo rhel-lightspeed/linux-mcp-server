@@ -117,7 +117,7 @@ jobs:
 
     steps:
       - name: Create GitHub Release
-        uses: softprops/action-gh-release@v2.6.1
+        uses: softprops/action-gh-release@v3.0.0
         with:
           tag_name: ${{ github.ref_name }}
           generate_release_notes: true
@@ -207,7 +207,7 @@ jobs:
         run: make zipapp ZIPAPP_OUTPUT=linux-mcp-server-py${{ matrix.python-version }}-${{ matrix.image.family }}-${{ matrix.image.arch }}.pyz
 
       - name: Upload to GitHub Release
-        uses: softprops/action-gh-release@v2.6.1
+        uses: softprops/action-gh-release@v3.0.0
         with:
           files: linux-mcp-server-py${{ matrix.python-version }}-${{ matrix.image.family }}-${{ matrix.image.arch }}.pyz
           tag_name: ${{ github.ref_name }}
