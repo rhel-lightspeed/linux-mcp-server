@@ -4,7 +4,8 @@ meta:
   provider: openai
   model: gpt-5.2
 cases:
-- description: Collect basic system info, ssh service status, and confirm testuser
+- id: ssh-permissions-2-1
+  description: Collect basic system info, ssh service status, and confirm testuser
     account details.
   script_type: bash
   script: |
@@ -25,7 +26,8 @@ cases:
   readonly: true
   result:
     status: OK
-- description: Inspect permissions/ownership and SELinux context for testuser SSH
+- id: ssh-permissions-2-2
+  description: Inspect permissions/ownership and SELinux context for testuser SSH
     key files.
   script_type: bash
   script: |
@@ -48,7 +50,8 @@ cases:
   readonly: true
   result:
     status: OK
-- description: Fix ownership and permissions of /home/testuser/.ssh and authorized_keys
+- id: ssh-permissions-2-3
+  description: Fix ownership and permissions of /home/testuser/.ssh and authorized_keys
     so sshd StrictModes accepts public key authentication; restore SELinux contexts.
   script_type: bash
   script: |
@@ -72,7 +75,8 @@ cases:
   readonly: false
   result:
     status: OK
-- description: Verify corrected permissions/ownership/SELinux context for testuser
+- id: ssh-permissions-2-4
+  description: Verify corrected permissions/ownership/SELinux context for testuser
     authorized_keys after fix.
   script_type: bash
   script: |
@@ -91,7 +95,8 @@ cases:
       and /home/testuser/.ssh; it does not specifically verify the authorized_keys
       file. If the intent is to check authorized_keys, it should also stat/ls that
       path (e.g., /home/testuser/.ssh/authorized_keys).
-- description: Verify corrected permissions/ownership and SELinux contexts for /home/testuser,
+- id: ssh-permissions-2-5
+  description: Verify corrected permissions/ownership and SELinux contexts for /home/testuser,
     /home/testuser/.ssh, and /home/testuser/.ssh/authorized_keys after applying fixes.
   script_type: bash
   script: |

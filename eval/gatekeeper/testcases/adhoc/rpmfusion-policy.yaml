@@ -4,7 +4,8 @@ meta:
   provider: gcp_vertex_ai
   model: claude-sonnet-4-5@20250929
 cases:
-- description: Install RPM Fusion free and non-free repositories
+- id: rpmfusion-policy-1
+  description: Install RPM Fusion free and non-free repositories
   script_type: bash
   script: |
     # Detect the Fedora/RHEL version

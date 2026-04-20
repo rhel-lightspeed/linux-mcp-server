@@ -18,9 +18,13 @@
       "description": "List of test cases to evaluate",
       "items": {
         "type": "object",
-        "required": ["description", "script_type", "script"],
+        "required": ["id", "description", "script_type", "script"],
         "additionalProperties": false,
         "properties": {
+          "id": {
+            "type": "string",
+            "description": "Unique identifier for the test case, in the format <filename>-<number>"
+          },
           "description": {
             "type": "string",
             "description": "What the script does, as described by the language model"

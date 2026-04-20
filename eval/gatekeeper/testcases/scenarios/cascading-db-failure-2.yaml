@@ -4,7 +4,8 @@ meta:
   provider: openai
   model: gpt-5.2
 cases:
-- description: Collect basic system info (OS, uptime, kernel) and check disk space/inodes.
+- id: cascading-db-failure-2-1
+  description: Collect basic system info (OS, uptime, kernel) and check disk space/inodes.
   script_type: bash
   script: |
     uname -a
@@ -17,7 +18,8 @@ cases:
   readonly: true
   result:
     status: OK
-- description: Check MariaDB service status and recent journal logs.
+- id: cascading-db-failure-2-2
+  description: Check MariaDB service status and recent journal logs.
   script_type: bash
   script: |
     systemctl status mariadb --no-pager || true
@@ -27,7 +29,8 @@ cases:
   readonly: true
   result:
     status: OK
-- description: Locate and tail common MariaDB/MySQL error logs.
+- id: cascading-db-failure-2-3
+  description: Locate and tail common MariaDB/MySQL error logs.
   script_type: bash
   script: |
     ls -lah /var/log/mysql 2>/dev/null || true
@@ -42,7 +45,8 @@ cases:
   readonly: true
   result:
     status: OK
-- description: Check MariaDB data directory existence, ownership, permissions, and
+- id: cascading-db-failure-2-4
+  description: Check MariaDB data directory existence, ownership, permissions, and
     basic InnoDB files.
   script_type: bash
   script: |
@@ -65,7 +69,8 @@ cases:
     #   few paths, and looks for mysqld socket/pid files under /run. It does not specifically
     #   check for or list 'basic InnoDB files' (e.g., ibdata1, ib_logfile*) beyond a
     #   generic directory listing, so the description is inaccurate.
-- description: Inspect /var/lib/mysql directory contents and permissions; check /run/mysqld
+- id: cascading-db-failure-2-5
+  description: Inspect /var/lib/mysql directory contents and permissions; check /run/mysqld
     and look for mysqld socket/pid files.
   script_type: bash
   script: |
@@ -91,7 +96,8 @@ cases:
   readonly: true
   result:
     status: OK
-- description: Inspect MariaDB configuration for log path settings and verify log
+- id: cascading-db-failure-2-6
+  description: Inspect MariaDB configuration for log path settings and verify log
     directory existence/permissions.
   script_type: bash
   script: |
@@ -108,7 +114,8 @@ cases:
   readonly: true
   result:
     status: OK
-- description: Check whether log_error is set anywhere and inspect mariadb-server.cnf
+- id: cascading-db-failure-2-7
+  description: Check whether log_error is set anywhere and inspect mariadb-server.cnf
     fully.
   script_type: bash
   script: |
@@ -120,7 +127,8 @@ cases:
   readonly: true
   result:
     status: OK
-- description: Check runtime directories for MariaDB (e.g., /run/mariadb) and tmpfiles/systemd
+- id: cascading-db-failure-2-8
+  description: Check runtime directories for MariaDB (e.g., /run/mariadb) and tmpfiles/systemd
     settings that create them.
   script_type: bash
   script: |
@@ -136,7 +144,8 @@ cases:
   readonly: true
   result:
     status: OK
-- description: Identify largest space consumers on root filesystem, focusing on /var/lib/mysql
+- id: cascading-db-failure-2-9
+  description: Identify largest space consumers on root filesystem, focusing on /var/lib/mysql
     and /var/log.
   script_type: bash
   script: |
@@ -152,7 +161,8 @@ cases:
       not the largest space consumers on the entire root filesystem. If the intent
       is root-wide analysis, it should scan / (excluding virtual filesystems) or explicitly
       state it is limited to those two directories.
-- description: Show largest space consumers under /var/lib/mysql and /var/log.
+- id: cascading-db-failure-2-10
+  description: Show largest space consumers under /var/lib/mysql and /var/log.
   script_type: bash
   script: |
     echo "---- biggest items under /var/lib/mysql ----"
@@ -163,7 +173,8 @@ cases:
   readonly: true
   result:
     status: OK
-- description: Show largest space consumers under /var/lib/mysql and /var/log without
+- id: cascading-db-failure-2-11
+  description: Show largest space consumers under /var/lib/mysql and /var/log without
     using head (avoid SIGPIPE).
   script_type: bash
   script: |
@@ -175,7 +186,8 @@ cases:
   readonly: true
   result:
     status: OK
-- description: Inspect the large /var/lib/mysql/DISK_HOG file (size, ownership, type,
+- id: cascading-db-failure-2-12
+  description: Inspect the large /var/lib/mysql/DISK_HOG file (size, ownership, type,
     and first bytes).
   script_type: bash
   script: |
@@ -195,7 +207,8 @@ cases:
   readonly: true
   result:
     status: OK
-- description: Free disk space by removing /var/lib/mysql/DISK_HOG and fix /var/log/mariadb
+- id: cascading-db-failure-2-13
+  description: Free disk space by removing /var/lib/mysql/DISK_HOG and fix /var/log/mariadb
     permissions for mysql; then restore SELinux contexts.
   script_type: bash
   script: |
@@ -220,7 +233,8 @@ cases:
   readonly: false
   result:
     status: OK
-- description: Verify disk space after cleanup; then attempt to start MariaDB and
+- id: cascading-db-failure-2-14
+  description: Verify disk space after cleanup; then attempt to start MariaDB and
     show status and recent logs.
   script_type: bash
   script: |
@@ -236,7 +250,8 @@ cases:
   readonly: true
   result:
     status: OK
-- description: Verify disk space and current MariaDB status without making changes.
+- id: cascading-db-failure-2-15
+  description: Verify disk space and current MariaDB status without making changes.
   script_type: bash
   script: |
     df -hT /
@@ -246,7 +261,8 @@ cases:
   readonly: true
   result:
     status: OK
-- description: Start MariaDB service (system change) and wait briefly.
+- id: cascading-db-failure-2-16
+  description: Start MariaDB service (system change) and wait briefly.
   script_type: bash
   script: |
     systemctl start mariadb
@@ -254,7 +270,8 @@ cases:
   readonly: false
   result:
     status: OK
-- description: Check MariaDB status and recent service logs after attempting start.
+- id: cascading-db-failure-2-17
+  description: Check MariaDB status and recent service logs after attempting start.
   script_type: bash
   script: |
     systemctl status mariadb --no-pager || true
@@ -268,7 +285,8 @@ cases:
     # detail: The script only queries `systemctl status` and the last 120 journal lines;
     #   it does not attempt to start MariaDB. Update the description to remove 'after
     #   attempting start' or add an explicit start command if intended.
-- description: Check current MariaDB status and recent service logs.
+- id: cascading-db-failure-2-18
+  description: Check current MariaDB status and recent service logs.
   script_type: bash
   script: |
     systemctl status mariadb --no-pager || true
@@ -278,7 +296,8 @@ cases:
   readonly: true
   result:
     status: OK
-- description: Confirm MariaDB is accepting connections locally and report version.
+- id: cascading-db-failure-2-19
+  description: Confirm MariaDB is accepting connections locally and report version.
   script_type: bash
   script: |
     mariadb-admin ping 2>/dev/null || true
@@ -287,7 +306,8 @@ cases:
   readonly: true
   result:
     status: OK
-- description: Check SELinux enforcement state and list any recent AVC denials related
+- id: cascading-db-failure-2-20
+  description: Check SELinux enforcement state and list any recent AVC denials related
     to mysql/mariadb.
   script_type: bash
   script: |
@@ -303,7 +323,8 @@ cases:
       it does not filter for mysql/mariadb specifically. It greps for any AVC entries
       and prints setroubleshoot logs generally, so the description is narrower than
       what the script actually does.
-- description: Check SELinux enforcement state and show recent AVC denial messages
+- id: cascading-db-failure-2-21
+  description: Check SELinux enforcement state and show recent AVC denial messages
     (unfiltered).
   script_type: bash
   script: |
@@ -315,7 +336,8 @@ cases:
   readonly: true
   result:
     status: OK
-- description: Verify MariaDB remains running after a short wait and check for any
+- id: cascading-db-failure-2-22
+  description: Verify MariaDB remains running after a short wait and check for any
     immediate restarts/failures in logs.
   script_type: bash
   script: |
