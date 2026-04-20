@@ -52,6 +52,9 @@ jobs:
           cd ..
           uv sync --locked --group docs
 
+      - name: Generate tool documentation
+        run: uv run --locked python scripts/generate_tool_docs.py
+
       - name: Build documentation
         run: uv run --locked mkdocs build --strict
 
