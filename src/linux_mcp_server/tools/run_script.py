@@ -372,6 +372,7 @@ async def get_execution_state(id: str):
     tags={"run_script"},
     title="Validate a script",
     description="Request validation of a script from the gatekeeper. The tool will return a unique token that must be included in the run_script tool call.",
+    annotations=ToolAnnotations(readOnlyHint=True),
 )
 @log_tool_call
 @disallow_local_execution_in_containers
@@ -393,7 +394,6 @@ async def validate_script(
     ],
     host: Host = None,
     readonly: t.Annotated[bool, Field(description="Should be true if the script does not modify the system.")] = True,
-    annotations=ToolAnnotations(readOnlyHint=True),
 ) -> ToolResult:
     gatekeeper_result = check_run_script(
         description,
