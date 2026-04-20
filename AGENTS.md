@@ -26,7 +26,8 @@ make verify                  # All checks (required before commit)
 **Testing:**
 - Run `make verify` before committing
 - Use parameterized tests and fixtures (shared fixtures go in `conftest.py`)
-- Use `autospec=True` when patching; `spec=<object>` with MagicMock
+- Use pytest-mock (`mocker` fixture) for mocking instead of `unittest.mock` imports
+- Use `autospec=True` when patching; `spec=<object>` with Mock
 - 100% patch coverage for new code
 
 **Security (Critical):**
