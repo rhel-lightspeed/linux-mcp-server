@@ -449,7 +449,13 @@ async def _execute_local(
     timeout = CONFIG.command_timeout
 
     try:
-        proc = await asyncio.create_subprocess_exec(*full_command, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+        proc = await asyncio.create_subprocess_exec(
+            *full_command,
+            start_new_session=True,
+            stdin=subprocess.DEVNULL,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+        )
         try:
             stdout_bytes, stderr_bytes = await asyncio.wait_for(proc.communicate(), timeout=timeout)
         except asyncio.TimeoutError:
