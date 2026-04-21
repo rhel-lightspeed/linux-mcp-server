@@ -1,0 +1,5 @@
+mirror-github-pr:
+  stage: mirror
+  image: images.paas.redhat.com/it-cloud-ocp-proxy-lib/python:3.14
+  script:
+    - python3 scripts/mirror_github_pr.py
