@@ -120,7 +120,11 @@ class SSHConnectionManager:
                 logger.debug(f"SSH_REUSE: {key} | pool_size={len(self._connections)}")
                 # Use audit log with connection reuse info
                 log_ssh_connect(
-                    host, username=conn._username, status=Status.success, reused=True, key_path=self._ssh_key
+                    host,
+                    username=conn.get_extra_info("username"),
+                    status=Status.success,
+                    reused=True,
+                    key_path=self._ssh_key,
                 )
                 return conn
             else:
@@ -156,7 +160,13 @@ class SSHConnectionManager:
             self._connections[key] = conn
 
             # Log successful connection using audit function
-            log_ssh_connect(host, username=conn._username, status=Status.success, reused=False, key_path=self._ssh_key)
+            log_ssh_connect(
+                host,
+                username=conn.get_extra_info("username"),
+                status=Status.success,
+                reused=False,
+                key_path=self._ssh_key,
+            )
 
             # DEBUG level: Log pool state
             logger.debug(f"SSH_POOL: add_connection | connections={len(self._connections)}")
@@ -234,7 +244,7 @@ class SSHConnectionManager:
                     },
                 )
                 raise ConnectionError(
-                    f"Command timed out after {timeout}s on {conn._username}@{host}: {cmd_str}"
+                    f"Command timed out after {timeout}s on {conn.get_extra_info('username')}@{host}: {cmd_str}"
                 ) from None
 
             return_code = result.exit_status if result.exit_status is not None else 0
@@ -315,14 +325,14 @@ async def get_remote_bin_path(
         result = await connection.run(shlex.join(["command", "-v", command]), timeout=timeout)
     except asyncssh.Error as err:
         raise ConnectionError(
-            f"Error when trying to locate command '{command}' on {connection._username}@{hostname}: {err}"
+            f"Error when trying to locate command '{command}' on {connection.get_extra_info('username')}@{hostname}: {err}"
         )
 
     if result.exit_status == 0 and result.stdout:
         stdout = result.stdout.decode() if isinstance(result.stdout, bytes) else result.stdout
         return stdout.strip()
 
-    raise FileNotFoundError(f"Unable to find command '{command}' on {connection._username}@{hostname}")
+    raise FileNotFoundError(f"Unable to find command '{command}' on {connection.get_extra_info('username')}@{hostname}")
 
 
 async def execute_command(

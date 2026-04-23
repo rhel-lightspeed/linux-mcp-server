@@ -42,7 +42,8 @@ def ssh_manager():
 @pytest.fixture
 def mock_ssh_connection(mocker):
     """Provide a mock SSH connection with asyncssh.connect patched."""
-    mock_conn = Mock(spec=SSHClientConnection, _username="testuser")
+    mock_conn = Mock(spec=SSHClientConnection)
+    mock_conn.get_extra_info.return_value = "testuser"
     mock_conn.is_closed.return_value = False
 
     mock_connect = AsyncMock(spec=asyncssh.connect)

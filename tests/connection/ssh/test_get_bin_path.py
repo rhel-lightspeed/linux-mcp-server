@@ -12,7 +12,8 @@ def test_get_bin_path_not_found(mocker):
 
 
 async def test_get_remote_bin_path_error(mocker):
-    connection = mocker.Mock(asyncssh.SSHClientConnection, _username="testuser")
+    connection = mocker.Mock(asyncssh.SSHClientConnection)
+    connection.get_extra_info.return_value = "testuser"
     connection.run = mocker.AsyncMock(side_effect=asyncssh.Error(1, "Raised intentionally"))
 
     with pytest.raises(ConnectionError, match="Raised intentionally"):
@@ -20,7 +21,8 @@ async def test_get_remote_bin_path_error(mocker):
 
 
 async def test_get_remote_bin_not_found(mocker):
-    connection = mocker.Mock(asyncssh.SSHClientConnection, _username="testuser")
+    connection = mocker.Mock(asyncssh.SSHClientConnection)
+    connection.get_extra_info.return_value = "testuser"
     connection.run = mocker.AsyncMock(return_value=mocker.Mock(exit_status=0, stdout="", stderr=""))
 
     with pytest.raises(FileNotFoundError, match="Unable to find command"):
