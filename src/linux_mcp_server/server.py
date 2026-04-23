@@ -15,7 +15,6 @@ from fastmcp.server.middleware.middleware import CallNext
 from mcp import ServerSession
 from mcp.types import BlobResourceContents
 from mcp.types import InitializeRequest
-from mcp.types import InitializeRequestParams
 from mcp.types import InitializeResult
 from mcp.types import ReadResourceRequest
 from mcp.types import ReadResourceResult
@@ -28,7 +27,7 @@ from linux_mcp_server.config import CONFIG
 from linux_mcp_server.config import Toolset
 from linux_mcp_server.mcp_app import ALLOWED_UI_RESOURCE_URIS
 from linux_mcp_server.mcp_app import MCP_APP_MIME_TYPE
-from linux_mcp_server.mcp_app import MCP_UI_EXTENSION
+from linux_mcp_server.mcp_app import use_mcp_app_for_client
 
 
 logger = logging.getLogger("linux-mcp-server")
@@ -222,24 +221,6 @@ _low_level_server.request_handlers[ReadResourceRequest] = _read_resource_with_me
 from linux_mcp_server.tools import *  # noqa: E402, F403
 
 
-def _use_mcp_app_for_client(client_params: InitializeRequestParams):
-    # The configuration can overwrite the MCP app support detection, so we have the flexibility to
-    # manually turn the Mcp app feature on/off for developing/testing purposes.
-    if CONFIG.use_mcp_apps is not None:
-        return CONFIG.use_mcp_apps
-
-    # For python-sdk -1.x, count on extensibility of protocol types - while this is being
-    # removed for v2, hopefully extensions will be there properly.
-    capabilities = client_params.capabilities
-    extensions = getattr(capabilities, "extensions", {})
-    mcp_ui_extension = extensions.get(MCP_UI_EXTENSION) or {}
-    mime_types = mcp_ui_extension.get("mimeTypes") or []
-
-    # The configuration can overwrite the MCP app support detection, so we have the flexibility to
-    # manually turn the Mcp app feature on/off for developing/testing purposes.
-    return MCP_APP_MIME_TYPE in mime_types
-
-
 class DynamicDiscoveryMiddleware(Middleware):
     async def on_initialize(
         self,
@@ -253,7 +234,7 @@ class DynamicDiscoveryMiddleware(Middleware):
         # away in the ServerSession object, so we need to modify that based
         # on whether we'll use mcp-apps with the client making the InitializeRequest.
 
-        if _use_mcp_app_for_client(context.message.params):
+        if use_mcp_app_for_client(context.message.params):
             # Getting the ServerSession object is easy for FastMCP 3.x - it's
             # just context.fastcmp_context.session, but the property getter
             # will raise RuntimeError for FastMCP 2.x, so we check _session instead.
@@ -304,7 +285,7 @@ class DynamicDiscoveryMiddleware(Middleware):
             "FastMCP framework error: client_params should not be None inside on_list_tools"
         )
 
-        if _use_mcp_app_for_client(client_params):
+        if use_mcp_app_for_client(client_params):
             filtered_tools = [t for t in filtered_tools if "mcp_apps_exclude" not in t.tags]
         else:
             filtered_tools = [t for t in filtered_tools if "mcp_apps_only" not in t.tags]
