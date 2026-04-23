@@ -24,6 +24,7 @@ from linux_mcp_server.connection.ssh import execute_command
 from linux_mcp_server.gatekeeper import check_run_script
 from linux_mcp_server.gatekeeper import GatekeeperStatus
 from linux_mcp_server.mcp_app import RUN_SCRIPT_APP_URI
+from linux_mcp_server.mcp_app import use_mcp_app_for_client
 from linux_mcp_server.server import mcp
 from linux_mcp_server.utils.decorators import disallow_local_execution_in_containers
 from linux_mcp_server.utils.types import Host
@@ -369,6 +370,15 @@ async def get_execution_state(id: str):
     return {"state": script_detail.state}
 
 
+def _pick_execution_tool(needs_confirmation: bool):
+    if not needs_confirmation:
+        return "run_script"
+    elif use_mcp_app_for_client():
+        return "run_script_interactive"
+    else:
+        return "run_script_with_confirmation"
+
+
 @mcp.tool(
     tags={"run_script"},
     title="Validate a script",
@@ -411,7 +421,12 @@ async def validate_script(
         raise ToolError(gatekeeper_result.description)
 
     result = ToolResult(
-        content=[TextContent(type="text", text=f"Script passed gatekeeper validation and is stored with ID {id}")],
+        content=[
+            TextContent(
+                type="text",
+                text=f"Script passed gatekeeper validation and is stored with ID {id}. Please use {_pick_execution_tool(script_details.needs_confirmation)} to execute the validated script.",
+            )
+        ],
         structured_content={
             "token": id,
             "needs_confirmation": script_details.needs_confirmation,
@@ -436,7 +451,7 @@ async def run_script(
 
     # Verify that this script doesn't require confirmation
     if script_details.needs_confirmation:
-        raise ToolError("This script requires confirmation. Use run_script_with_confirmation instead of run_script.")
+        raise ToolError(f"This script requires confirmation. Use {_pick_execution_tool(True)} instead of run_script.")
 
     script_store.set_script_state(token, "executing")
     try:
