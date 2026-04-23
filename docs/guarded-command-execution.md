@@ -66,6 +66,28 @@ The scores give an approximate sense of the capability of the model acting as a 
 actual performance in real-world situations may vary.
 Smaller models than those listed above are *not recommended*.
 
+## Session-Based Behavior Tracking
+
+In addition to the per-script gatekeeper check,
+linux-mcp-server tracks gatekeeper verdicts across each session
+using a `BehaviorRecord`.
+This detects patterns of malicious activity
+that might not be obvious from any single script.
+
+Each session maintains counters for consecutive and total malicious actions.
+A session is escalated to require confirmation for **all** subsequent scripts if either threshold is met:
+
+ * **3** consecutive scripts flagged as `MALICIOUS` by the gatekeeper.
+ * **4** total scripts flagged as `MALICIOUS` across the session.
+
+Once a session is permanently flagged, the flag cannot be cleared.
+
+A single `MALICIOUS` verdict triggers a **temporary warning**
+that forces the next script to require human confirmation,
+even if it would otherwise run without approval.
+The temporary warning is cleared once the human approves execution.
+A non-malicious verdict resets the consecutive counter but not the total counter.
+
 ## Human In The Loop
 
 To provide a better experience for the human approving the call:
