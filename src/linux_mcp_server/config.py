@@ -142,6 +142,9 @@ class Config(BaseSettings):
     # Authentication configuration
     auth: AuthConfig | None = None
 
+    # Authorization policy path
+    policy_path: Path | None = None
+
     @property
     def effective_known_hosts_path(self) -> Path:
         """Return the known_hosts path, using default ~/.ssh/known_hosts if not configured."""
