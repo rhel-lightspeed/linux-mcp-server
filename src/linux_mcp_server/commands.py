@@ -139,7 +139,7 @@ COMMANDS: Mapping[str, CommandGroup] = MappingProxyType(
         "journal_logs": CommandGroup(
             commands={
                 "default": CommandSpec(
-                    args=("journalctl", "-n", "{lines}", "--no-pager"),
+                    args=("/bin/sh", "-c", 'journalctl --no-pager "$@" | head -n {lines}', "journalctl"),
                     optional_flags={
                         "unit": ("--unit", "{unit}"),
                         "priority": ("--priority", "{priority}"),
