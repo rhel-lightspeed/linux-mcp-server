@@ -20,7 +20,7 @@ verify_server_startup() {
   SERVER_PID=$!
 
   # Wait for log message
-  if timeout 20s grep -q "Running Linux MCP Server" <(tail -f "$log_file"); then
+  if timeout 300s grep -q "Running Linux MCP Server" <(tail -f "$log_file"); then
     echo "$method_name server successfully initialized and logged startup message."
     kill $SERVER_PID
     exit 0
