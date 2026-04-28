@@ -23,6 +23,7 @@ from linux_mcp_server.connection.ssh import execute_command
 from linux_mcp_server.gatekeeper import check_run_script
 from linux_mcp_server.gatekeeper import GatekeeperStatus
 from linux_mcp_server.mcp_app import RUN_SCRIPT_APP_URI
+from linux_mcp_server.mcp_app import use_mcp_app_for_client
 from linux_mcp_server.server import mcp
 from linux_mcp_server.utils.decorators import disallow_local_execution_in_containers
 from linux_mcp_server.utils.types import Host
@@ -368,6 +369,16 @@ async def get_execution_state(id: str):
     return {"state": script_detail.state}
 
 
+def _pick_execution_tool(readonly: bool, needs_confirmation: bool, use_mcp_app: bool):
+    if not needs_confirmation and readonly:
+        return "run_script"
+
+    if use_mcp_app:
+        return "run_script_interactive"
+    else:
+        return "run_script_with_confirmation"
+
+
 @mcp.tool(
     tags={"run_script"},
     title="Validate a script",
@@ -409,8 +420,20 @@ async def validate_script(
         script_store.set_script_state(id, "rejected-gatekeeper")
         raise ToolError(gatekeeper_result.description)
 
+    client_params = ctx.session.client_params
+    assert client_params is not None, "FastMCP framework error: client_params should not be None inside tool"
+
+    execution_tool = _pick_execution_tool(
+        readonly, script_details.needs_confirmation, use_mcp_app_for_client(client_params)
+    )
+
     result = ToolResult(
-        content=[TextContent(type="text", text=f"Script passed gatekeeper validation and is stored with ID {id}")],
+        content=[
+            TextContent(
+                type="text",
+                text=f"Script passed gatekeeper validation and is stored with ID {id}. Please use {execution_tool} to execute the validated script.",
+            )
+        ],
         structured_content={
             "token": id,
             "needs_confirmation": script_details.needs_confirmation,
@@ -433,9 +456,17 @@ async def run_script(
 ) -> str:
     script_details = script_store.get_script_details(token)
 
+    client_params = ctx.session.client_params
+    assert client_params is not None, "FastMCP framework error: client_params should not be None inside tool"
+
+    if use_mcp_app_for_client(client_params):
+        confirmation_tool_name = "run_script_interactive"
+    else:
+        confirmation_tool_name = "run_script_with_confirmation"
+
     # Verify that this script doesn't require confirmation
     if script_details.needs_confirmation:
-        raise ToolError("This script requires confirmation. Use run_script_with_confirmation instead of run_script.")
+        raise ToolError(f"This script requires confirmation. Use {confirmation_tool_name} instead of run_script.")
 
     script_store.set_script_state(token, "executing")
     try:
