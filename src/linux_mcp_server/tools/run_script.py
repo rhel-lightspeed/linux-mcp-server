@@ -3,6 +3,7 @@ import secrets
 import shlex
 import typing as t
 
+from collections import deque
 from dataclasses import asdict
 from dataclasses import dataclass
 
@@ -152,7 +153,64 @@ class ScriptStore:
 
 
 script_store = ScriptStore()
+MAX_CONSECUTIVE_MALICIOUS_ACTIONS = 3
 
+
+class BehaviorRecord:
+    """
+    Tracks gatekeeper verdicts for a single session to detect malicious behavior.
+
+    A session is flagged as malicious if it accumulates 10+ total malicious actions
+    or MAX_CONSECUTIVE_MALICIOUS_ACTIONS consecutive malicious actions.
+    Once flagged, the session is permanently marked and all subsequent scripts require confirmation.
+    """
+
+    def __init__(self):
+        self._recent_record: deque[GatekeeperStatus] = deque(maxlen=MAX_CONSECUTIVE_MALICIOUS_ACTIONS)
+        self._total_malicious_action_counts = 0
+        self._is_malicious: bool = False
+
+    def add_record(self, status: GatekeeperStatus):
+        """Record a gatekeeper verdict and update the malicious flag if thresholds are met."""
+        # No need to update the record if it's already considered malicious
+        if self._is_malicious:
+            return
+
+        self._recent_record.append(status)
+
+        if status == GatekeeperStatus.MALICIOUS:
+            self._total_malicious_action_counts += 1
+
+        # Check if the record matches the conditions of being considered as malicious
+        if self._total_malicious_action_counts >= 10:
+            self._is_malicious = True
+            return
+
+        if len(self._recent_record) == self._recent_record.maxlen and all(
+            r == GatekeeperStatus.MALICIOUS for r in self._recent_record
+        ):
+            self._is_malicious = True
+
+    @property
+    def is_malicious(self) -> bool:
+        return self._is_malicious
+
+
+class BehaviorRecordManager:
+    """Manages per-session BehaviorRecords, creating them on first access."""
+
+    def __init__(self):
+        self._records: dict[str, BehaviorRecord] = dict()
+
+    def get_record_by_session_id(self, session_id: str) -> BehaviorRecord:
+        """Return the BehaviorRecord for a session, creating one if it doesn't exist."""
+        if session_id not in self._records:
+            self._records[session_id] = BehaviorRecord()
+
+        return self._records[session_id]
+
+
+behavior_record_manager = BehaviorRecordManager()
 
 BASH_STRICT_PREAMBLE = "set -euo pipefail; "
 
@@ -313,8 +371,10 @@ async def run_script_interactive(
 ) -> ToolResult:
     script_details = script_store.get_script_details(token)
 
+    behavior_record = behavior_record_manager.get_record_by_session_id(ctx.session_id)
+
     # Verify that this script requires confirmation
-    if not script_details.needs_confirmation:
+    if not (script_details.needs_confirmation or behavior_record.is_malicious):
         raise ToolError("This script does not require confirmation. Use run_script instead of run_script_interactive.")
 
     # Check if the passed parameters match the stored script details
@@ -336,6 +396,8 @@ async def run_script_interactive(
             (BASH_STRICT_PREAMBLE + script) if script_type == SCRIPT_TYPE_BASH else script,
             readonly=readonly,
         )
+        behavior_record.add_record(gatekeeper_result.status)
+
         if gatekeeper_result.status != GatekeeperStatus.OK:
             script_store.set_script_state(token, "rejected-gatekeeper")
             raise ToolError(gatekeeper_result.description)
@@ -402,6 +464,9 @@ async def validate_script(
         readonly=readonly,
     )
 
+    behavior_record = behavior_record_manager.get_record_by_session_id(ctx.session_id)
+    behavior_record.add_record(gatekeeper_result.status)
+
     id = script_store.add_script(description, script, script_type, host, readonly)
     script_details = script_store.get_script_details(id)
 
@@ -413,7 +478,7 @@ async def validate_script(
         content=[TextContent(type="text", text=f"Script passed gatekeeper validation and is stored with ID {id}")],
         structured_content={
             "token": id,
-            "needs_confirmation": script_details.needs_confirmation,
+            "needs_confirmation": script_details.needs_confirmation or behavior_record.is_malicious,
         },
     )
     return result
@@ -432,9 +497,10 @@ async def run_script(
     token: t.Annotated[str, Field(description="The token returned by the validate_script tool.")],
 ) -> str:
     script_details = script_store.get_script_details(token)
+    behavior_record = behavior_record_manager.get_record_by_session_id(ctx.session_id)
 
     # Verify that this script doesn't require confirmation
-    if script_details.needs_confirmation:
+    if script_details.needs_confirmation or behavior_record.is_malicious:
         raise ToolError("This script requires confirmation. Use run_script_with_confirmation instead of run_script.")
 
     script_store.set_script_state(token, "executing")
@@ -482,9 +548,10 @@ async def run_script_with_confirmation(
     host: Host = None,
 ) -> str:
     script_details = script_store.get_script_details(token)
+    behavior_record = behavior_record_manager.get_record_by_session_id(ctx.session_id)
 
     # Verify that this script requires confirmation
-    if not script_details.needs_confirmation:
+    if not (script_details.needs_confirmation or behavior_record.is_malicious):
         raise ToolError(
             "This script does not require confirmation. Use run_script instead of run_script_with_confirmation."
         )
@@ -511,6 +578,8 @@ async def run_script_with_confirmation(
             (BASH_STRICT_PREAMBLE + script) if script_type == SCRIPT_TYPE_BASH else script,
             readonly=readonly,
         )
+        behavior_record.add_record(gatekeeper_result.status)
+
         if gatekeeper_result.status != GatekeeperStatus.OK:
             script_store.set_script_state(token, "rejected-gatekeeper")
             raise ToolError(gatekeeper_result.description)
