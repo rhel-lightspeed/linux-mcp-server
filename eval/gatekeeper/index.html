@@ -90,6 +90,8 @@
       }
       #popup .popup-field {
         margin-bottom: 6px;
+        padding-left: 12px;
+        text-indent: -12px;
       }
       #popup .popup-label {
         font-weight: 600;
@@ -273,8 +275,12 @@
         models.forEach((model, index) => {
           const modelCol = document.createElement("td");
           const score = scores[index];
-          // It's okay to modify innerHTML because the content is safe
-          modelCol.innerHTML = `${escapeHtml(model)} (<span style="color: ${setScoreColor(score)};">${escapeHtml(score.toFixed(1))}</span>)`;
+          modelCol.append(model + " (");
+          const scoreSpan = document.createElement("span");
+          scoreSpan.style.color = setScoreColor(score);
+          scoreSpan.textContent = score.toFixed(1);
+          modelCol.appendChild(scoreSpan);
+          modelCol.append(")");
           modelCol.style.whiteSpace = "nowrap";
           firstRow.appendChild(modelCol);
         });
@@ -338,48 +344,67 @@
 
       const popup = document.getElementById("popup");
 
-      // The output from this function is safe
-      function escapeHtml(str) {
+      function createPopupField(label, value) {
         const div = document.createElement("div");
-        // textContent treats the content as literal text which mitigates XSS attacks
-        div.textContent = str;
-        return div.innerHTML;
+        div.className = "popup-field";
+        const span = document.createElement("span");
+        span.className = "popup-label";
+        span.textContent = label + ":";
+        div.appendChild(span);
+        if (value !== undefined) {
+          div.append(" " + value);
+        }
+        return div;
       }
 
-      // The output from this function is safe
-      function renderObjectAsDivs(obj) {
-        return Object.entries(obj)
-          .map(([key, value]) => {
-            const display =
-              typeof value === "object" && value !== null
-                ? JSON.stringify(value)
-                : String(value);
-            return `<div class="popup-field" style="padding-left:12px"><span class="popup-label">${escapeHtml(key)}:</span> ${escapeHtml(display)}</div>`;
-          })
-          .join("");
+      function appendObjectFields(parent, obj) {
+        const div = document.createElement("div");
+        for (const [key, value] of Object.entries(obj)) {
+          const display =
+            typeof value === "object" && value !== null
+              ? JSON.stringify(value)
+              : String(value);
+          const field = createPopupField(key, display);
+          div.appendChild(field);
+        }
+        div.style.paddingLeft = "12px";
+        parent.appendChild(div);
       }
 
       function showPopup(td, event) {
         const data = td._popupData;
         if (!data) return;
 
-        // The content of this html is safe so assign it to innerHTML is okay
-        let html = `
-                <button class="popup-close" onclick="popup.style.display='none'">&times;</button>
-                <div class="popup-field"><span class="popup-label">Id:</span> ${escapeHtml(data.id)}</div>
-                <div class="popup-field"><span class="popup-label">Model:</span> ${escapeHtml(data.model)}</div>
-                <div class="popup-field"><span class="popup-label">Description:</span> ${escapeHtml(data.description)}</div>
-                <div class="popup-field"><span class="popup-label">Script Type:</span> ${escapeHtml(data.script_type)}</div>
-                <div class="popup-field"><span class="popup-label">Script:</span></div>
-                <pre>${escapeHtml(data.script)}</pre>
-                <div class="popup-field"><span class="popup-label">Readonly:</span> ${escapeHtml(String(data.readonly))}</div>
-                <div class="popup-field"><span class="popup-label">Expected Result:</span></div>
-                ${renderObjectAsDivs(data.expectedResult)}
-                <div class="popup-field"><span class="popup-label">Actual Result:</span></div>
-                ${renderObjectAsDivs(data.result)}
-            `;
+        const fragment = document.createDocumentFragment();
 
-        popup.innerHTML = html;
+        const closeBtn = document.createElement("button");
+        closeBtn.className = "popup-close";
+        closeBtn.textContent = "×";
+        closeBtn.addEventListener(
+          "click",
+          () => (popup.style.display = "none"),
+        );
+        fragment.appendChild(closeBtn);
+
+        fragment.appendChild(createPopupField("Id", data.id));
+        fragment.appendChild(createPopupField("Model", data.model));
+        fragment.appendChild(createPopupField("Description", data.description));
+        fragment.appendChild(createPopupField("Script Type", data.script_type));
+        fragment.appendChild(createPopupField("Script"));
+
+        const pre = document.createElement("pre");
+        pre.textContent = data.script;
+        fragment.appendChild(pre);
+
+        fragment.appendChild(createPopupField("Readonly", data.readonly));
+
+        fragment.appendChild(createPopupField("Expected Result"));
+        appendObjectFields(fragment, data.expectedResult);
+
+        fragment.appendChild(createPopupField("Actual Result"));
+        appendObjectFields(fragment, data.result);
+
+        popup.replaceChildren(fragment);
         popup.style.display = "block";
         positionPopup(event);
       }
