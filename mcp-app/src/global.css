@@ -75,11 +75,17 @@
   }
 
   .code-block {
-    @apply bg-app-bg-secondary text-app-fg-secondary rounded-lg p-4 font-mono text-sm relative;
+    @apply font-mono text-sm relative;
   }
 
   .code-block .language-label {
     @apply absolute top-2 right-2 text-app-fg-tertiary text-xs;
+  }
+
+  .code-block pre {
+    @apply overflow-x-auto bg-app-bg-secondary text-app-fg-secondary rounded-lg p-4;
+    scrollbar-width: thin;
+    scrollbar-color: var(--color-app-fg-secondary) transparent;
   }
 
   .status-allowed {
