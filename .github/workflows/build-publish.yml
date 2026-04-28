@@ -25,7 +25,7 @@ jobs:
           prune-cache: false
 
       - name: Install Node.js
-        uses: actions/setup-node@v6.3.0
+        uses: actions/setup-node@v6.4.0
         with:
           node-version: '24'
 
@@ -190,7 +190,7 @@ jobs:
         uses: astral-sh/setup-uv@v8.1.0
 
       - name: Install Node.js
-        uses: actions/setup-node@v6.3.0
+        uses: actions/setup-node@v6.4.0
         with:
           node-version: '24'
 
