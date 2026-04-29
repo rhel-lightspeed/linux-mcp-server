@@ -27,11 +27,63 @@ class Toolset(StrEnum):
     BOTH = "both"
 
 
+class AuthProvider(StrEnum):
+    """Authentication provider types."""
+
+    GOOGLE = "google"
+    GITHUB = "github"
+    JWT = "jwt"
+    INTROSPECTION = "introspection"
+
+
+class GoogleAuthConfig(BaseSettings):
+    """Google OAuth authentication configuration."""
+
+    client_id: str
+    client_secret: SecretStr
+
+
+class GitHubAuthConfig(BaseSettings):
+    """GitHub OAuth authentication configuration."""
+
+    client_id: str
+    client_secret: SecretStr
+
+
+class JWTAuthConfig(BaseSettings):
+    """JWT authentication configuration."""
+
+    jwks_uri: str
+    issuer: str
+    audience: str | None = None
+
+
+class IntrospectionAuthConfig(BaseSettings):
+    """Token introspection authentication configuration."""
+
+    introspection_url: str
+    issuer: str
+    client_id: str
+    client_secret: SecretStr
+    timeout_seconds: int = 10
+
+
+class AuthConfig(BaseSettings):
+    """Authentication configuration."""
+
+    provider: AuthProvider | None = None
+    google: GoogleAuthConfig | None = None
+    github: GitHubAuthConfig | None = None
+    jwt: JWTAuthConfig | None = None
+    introspection: IntrospectionAuthConfig | None = None
+
+
 class Config(BaseSettings):
     # The '_' is required in the env_prefix, otherwise, pydantic would
     # interpret the prefix as LINUX_MCPLOG_DIR, instead of LINUX_MCP_LOG_DIR
     model_config = SettingsConfigDict(
         env_prefix="LINUX_MCP_",
+        env_nested_delimiter="__",
         env_ignore_empty=True,
         cli_hide_none_type=True,
         cli_implicit_flags=True,
@@ -86,6 +138,12 @@ class Config(BaseSettings):
 
     # Force all scripts to require confirmation (even readonly ones)
     always_confirm_scripts: bool = False
+
+    # Authentication configuration
+    auth: AuthConfig | None = None
+
+    # Authorization policy path
+    policy_path: Path | None = None
 
     @property
     def effective_known_hosts_path(self) -> Path:

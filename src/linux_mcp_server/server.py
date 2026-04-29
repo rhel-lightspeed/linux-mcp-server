@@ -9,6 +9,7 @@ from types import CellType
 from types import CodeType
 
 from fastmcp import FastMCP
+from fastmcp.server.dependencies import get_access_token
 from fastmcp.server.middleware import Middleware
 from fastmcp.server.middleware import MiddlewareContext
 from fastmcp.server.middleware.middleware import CallNext
@@ -24,8 +25,12 @@ from mcp.types import TextResourceContents
 
 import linux_mcp_server
 
+from linux_mcp_server.auth import create_auth_provider
+from linux_mcp_server.auth_policy import evaluate_policy
+from linux_mcp_server.auth_policy import PolicyAction
 from linux_mcp_server.config import CONFIG
 from linux_mcp_server.config import Toolset
+from linux_mcp_server.config import Transport
 from linux_mcp_server.mcp_app import ALLOWED_UI_RESOURCE_URIS
 from linux_mcp_server.mcp_app import MCP_APP_MIME_TYPE
 from linux_mcp_server.mcp_app import MCP_UI_EXTENSION
@@ -157,7 +162,12 @@ if CONFIG.toolset != Toolset.FIXED and CONFIG.gatekeeper_model is None:
     logger.error("LINUX_MCP_GATEKEEPER_MODEL not set, this is needed for run_script tools")
     sys.exit(1)
 
-mcp = FastMCP("linux-mcp-server", instructions=instructions, version=linux_mcp_server.__version__, **kwargs)
+# Create auth provider if configured
+auth_provider = create_auth_provider()
+
+mcp = FastMCP(
+    "linux-mcp-server", instructions=instructions, version=linux_mcp_server.__version__, auth=auth_provider, **kwargs
+)
 
 
 _low_level_server = mcp._mcp_server
@@ -240,6 +250,157 @@ def _use_mcp_app_for_client(client_params: InitializeRequestParams):
     return MCP_APP_MIME_TYPE in mime_types
 
 
+# Middleware to enforce authorization policy
+class AuthorizationMiddleware(Middleware):
+    async def on_call_tool(self, context: MiddlewareContext, call_next):
+        # Extract tool metadata
+        tool_name = context.message.name
+        tool_args = context.message.arguments or {}
+        target_host = tool_args.get("host")
+
+        # Get tool tags from FastMCP (needed for policy evaluation)
+        if context.fastmcp_context is None:
+            logger.error("FastMCP context not available in middleware")
+            raise ValueError("Internal error: FastMCP context not available")
+
+        tool = await context.fastmcp_context.fastmcp.get_tool(tool_name)
+        tool_tags = tool.tags if tool.tags else set()
+
+        # Skip authorization for stdio transport when auth is not configured
+        # For HTTP, auth is required or explicit allow_unauthorized in policy
+        if CONFIG.auth is None:
+            if CONFIG.transport == Transport.stdio:
+                return await call_next(context)
+
+            # For HTTP without auth, check if policy allows unauthorized access
+            if CONFIG.policy_path is None:
+                logger.error("HTTP transport requires either authentication or a policy with allow_unauthorized")
+                raise ValueError("Authentication required for HTTP transport")
+
+            # Check policy with empty claims to see if unauthorized access is allowed
+            action, ssh_key_config, allow_unauthorized = evaluate_policy(tool_name, tool_tags, target_host, {})
+
+            if not allow_unauthorized:
+                logger.warning(f"Unauthorized HTTP request denied: tool={tool_name}, host={target_host or 'local'}")
+                raise ValueError("Authentication required: no policy rule allows unauthorized access")
+
+            logger.info(
+                f"Allowing unauthorized HTTP request via policy: tool={tool_name}, host={target_host or 'local'}, action={action.value}"
+            )
+
+            # Validate that action matches execution mode
+            is_local_execution = not target_host
+
+            # Block local execution with SSH action
+            if is_local_execution and action in [PolicyAction.SSH_KEY, PolicyAction.SSH_DEFAULT]:
+                logger.error(f"Policy error: SSH action for local execution - tool={tool_name}, action={action.value}")
+                raise ValueError(f"Authorization denied: Cannot use SSH action ('{action.value}') for local execution")
+
+            # Block remote host with local action
+            if not is_local_execution and action == PolicyAction.LOCAL:
+                logger.error(f"Policy error: Local action for remote host: tool={tool_name}, host={target_host}")
+                raise ValueError(f"Authorization denied: Cannot use local action for remote host '{target_host}'")
+
+            if action == PolicyAction.DENY:
+                logger.warning(f"Authorization denied: tool={tool_name}, host={target_host or 'local'}")
+                raise ValueError(f"Authorization denied: tool '{tool_name}' on host '{target_host or 'local'}'")
+
+            # For SSH_KEY action, validate ssh_key_config
+            if action == PolicyAction.SSH_KEY:
+                if not ssh_key_config:
+                    logger.error(f"Policy error: SSH_KEY action requires ssh_key configuration - tool={tool_name}")
+                    raise ValueError(
+                        "Authorization denied: SSH_KEY action requires ssh_key configuration in policy rule"
+                    )
+                logger.debug(f"SSH key override: path={ssh_key_config.path}, user={ssh_key_config.user}")
+
+            # Unauthorized request is allowed, proceed without further auth checks
+            return await call_next(context)
+
+        # For http transports log auth at INFO for audit trail info
+        # For stdio use DEBUG to avoid noise
+        log_level = logger.info if CONFIG.transport != Transport.stdio else logger.debug
+
+        # Get authenticated user claims
+        try:
+            access_token = get_access_token()
+            if not access_token:
+                logger.warning("No authentication token, request denied")
+                raise ValueError("Authentication required")
+
+            claims = access_token.claims
+            email = claims.get("email", "unknown")
+        except Exception as e:
+            logger.error(f"Failed to get access token: {e}")
+            raise ValueError(f"Authentication error: {e}") from e
+
+        # Log authorization attempt
+        log_level(f"Tool call: {tool_name}, Host: {target_host}, User: {email}")
+
+        # If auth policy is configured evaluate it
+        if CONFIG.policy_path is not None:
+            action, ssh_key_config, allow_unauthorized = evaluate_policy(tool_name, tool_tags, target_host, claims)
+
+            # Validate that action matches execution mode
+            is_local_execution = not target_host
+
+            # Block local execution with SSH action
+            if is_local_execution and action in [PolicyAction.SSH_KEY, PolicyAction.SSH_DEFAULT]:
+                logger.error(
+                    f"Policy error: SSH action for local execution - tool={tool_name}, action={action.value}, user={email}"
+                )
+                raise ValueError(f"Authorization denied: Cannot use SSH action ('{action.value}') for local execution")
+
+            # Block remote host with local action
+            if not is_local_execution and action == PolicyAction.LOCAL:
+                logger.error(
+                    f"Policy error: Local action for remote host: tool={tool_name}, host={target_host}, user={email}"
+                )
+                raise ValueError(f"Authorization denied: Cannot use local action for remote host '{target_host}'")
+
+            if action == PolicyAction.DENY:
+                logger.warning(f"Authorization denied: tool={tool_name}, host={target_host or 'local'}, user={email}")
+                raise ValueError(f"Authorization denied: tool '{tool_name}' on host '{target_host or 'local'}'")
+
+            # Log the authorized action
+            log_level(
+                f"Authorized: tool={tool_name}, host={target_host or 'local'}, action={action.value}, user={email}"
+            )
+
+            # LOCAL and SSH_DEFAULT already handled by execute_command()
+            # TODO: Pass ssh_key_config (path and user) to connection manager for SSH_KEY action
+            if action == PolicyAction.SSH_KEY:
+                if not ssh_key_config:
+                    logger.error(
+                        f"Policy error: SSH_KEY action requires ssh_key configuration: tool={tool_name}, user={email}"
+                    )
+                    raise ValueError(
+                        "Authorization denied: SSH_KEY action requires ssh_key configuration in policy rule"
+                    )
+                logger.debug(f"SSH key override: path={ssh_key_config.path}, user={ssh_key_config.user}")
+
+        return await call_next(context)
+
+
+# Middleware to log authenticated user
+class AuthLoggingMiddleware(Middleware):
+    async def on_call_tool(self, context: MiddlewareContext, call_next):
+        # For http transports log auth at INFO for audit trail info
+        # For stdio use DEBUG to avoid noise
+        log_level = logger.info if CONFIG.transport != Transport.stdio else logger.debug
+
+        try:
+            access_token = get_access_token()
+            if access_token:
+                log_level(f"Authentication email: {access_token.claims['email']}")
+            else:
+                log_level("No authentication token present")
+        except Exception as e:
+            log_level(f"Could not get access token: {e}")
+
+        return await call_next(context)
+
+
 class DynamicDiscoveryMiddleware(Middleware):
     async def on_initialize(
         self,
@@ -313,5 +474,7 @@ class DynamicDiscoveryMiddleware(Middleware):
 
 
 def main():
+    mcp.add_middleware(AuthorizationMiddleware())
+    mcp.add_middleware(AuthLoggingMiddleware())
     mcp.add_middleware(DynamicDiscoveryMiddleware())
     mcp.run(show_banner=False, transport=CONFIG.transport.value, **CONFIG.transport_kwargs)
