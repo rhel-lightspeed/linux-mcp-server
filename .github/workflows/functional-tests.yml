@@ -24,30 +24,45 @@ jobs:
     steps:
       - name: Check if user is authorized
         id: check
-        env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: |
-          AUTHORIZED=false
-          USER_LOGIN="${{ github.event.sender.login }}"
+        uses: actions/github-script@v9
+        with:
+          script: |
+            const user = context.actor;
+            const eventName = context.eventName;
+            let authorized = false;
 
-          if [[ "${{ github.event_name }}" == "push" ]] || [[ "${{ github.event_name }}" == "workflow_dispatch" ]]; then
-            AUTHORIZED=true
-          else
-            # Check effective repository permissions using GitHub API
-            PERMISSION=$(gh api repos/${{ github.repository }}/collaborators/$USER_LOGIN/permission --jq '.permission' || echo "none")
-            if [[ "$PERMISSION" =~ ^(admin|write|maintain)$ ]]; then
-              if [[ "${{ github.event_name }}" == "pull_request_target" ]] || ([[ "${{ github.event_name }}" == "issue_comment" ]] && [[ "${{ github.event.comment.body }}" =~ ^/(test-functional|retest) ]]); then
-                AUTHORIZED=true
-              fi
-            fi
-          fi
+            if (eventName === 'push' || eventName === 'workflow_dispatch') {
+              authorized = true;
+            } else {
+              try {
+                const { data: permission } = await github.rest.repos.getCollaboratorPermissionLevel({
+                  owner: context.repo.owner,
+                  repo: context.repo.repo,
+                  username: user,
+                });
 
-          if [[ "$AUTHORIZED" == "false" ]]; then
-            echo "::error::User $USER_LOGIN is not authorized. A maintainer with write access must comment /test-functional or /retest to trigger tests."
-            exit 1
-          fi
+                const role = permission.permission; // admin, write, maintain, read, none
+                if (['admin', 'write', 'maintain'].includes(role)) {
+                  if (eventName === 'pull_request_target') {
+                    authorized = true;
+                  } else if (eventName === 'issue_comment' && context.payload.issue.pull_request) {
+                    const body = context.payload.comment.body;
+                    if (/^\/(test-functional|retest)/.test(body)) {
+                      authorized = true;
+                    }
+                  }
+                }
+              } catch (error) {
+                core.error(`Failed to check permissions for ${user}: ${error.message}`);
+              }
+            }
 
-          echo "authorized=true" >> $GITHUB_OUTPUT
+            if (!authorized) {
+              core.setFailed(`User ${user} is not authorized. A maintainer with write access must trigger the tests.`);
+            } else {
+              core.info(`User ${user} authorized via ${eventName}`);
+              core.setOutput('authorized', 'true');
+            }
 
   tf-functional-tests:
     name: Functional Tests (Testing Farm)
