@@ -1,0 +1,104 @@
+# ==========================================
+# EVAL WORKFLOW - SETUP
+# ==========================================
+setup-uv-and-mcp-apps:
+  stage: setup
+  image: images.paas.redhat.com/it-cloud-ocp-proxy-lib/python:3.14
+  variables:
+    HOME: "$CI_PROJECT_DIR"
+  script:
+    # Install uv
+    - export PYTHONUSERBASE=$CI_PROJECT_DIR/.local
+    - pip install --user uv
+
+    # Install nvm to set up node and npm
+    - curl -o- https://raw.githubusercontent.com/nvm-sh/nvm/v0.40.4/install.sh | bash
+    - \. "$HOME/.nvm/nvm.sh"
+    - nvm install 24
+
+    # Generate the bundled html file
+    - cd mcp-app && npm install && npm run build:prod
+  artifacts:
+    paths:
+      - .local/
+      - mcp-app/dist/
+    expire_in: 1 hour
+
+# ==========================================
+# EVAL WORKFLOW - TEMPLATES
+# ==========================================
+# Base template for all eval jobs
+.eval-base:
+  stage: eval
+  image: images.paas.redhat.com/it-cloud-ocp-proxy-lib/python:3.14
+  needs:
+    - job: setup-uv-and-mcp-apps
+      artifacts: true
+  before_script:
+    - export PATH="$CI_PROJECT_DIR/.local/bin:$PATH"
+    - uv sync --locked
+    - mkdir -p "$CI_PROJECT_DIR/data"
+  artifacts:
+    paths: 
+      - data/
+    expire_in: 1 hour
+
+# Template specific to corporate models needing the Red Hat cert
+.eval-corp-base:
+  extends: .eval-base
+  before_script:
+    - !reference [.eval-base, before_script]
+    - export SSL_CERT_FILE="$CI_PROJECT_DIR/cert.pem"
+    - cp /etc/ssl/certs/ca-certificates.crt $SSL_CERT_FILE
+    - curl https://certs.corp.redhat.com/certs/2022-IT-Root-CA.pem >> $SSL_CERT_FILE
+
+# ==========================================
+# EVAL WORKFLOW - JOBS
+# ==========================================
+gatekeeper-eval-claude-4.6-opus: 
+  extends: .eval-base
+  variables:
+    MODEL_NAME: "claude-4.6-opus"
+  script:
+    - export LINUX_MCP_GATEKEEPER_MODEL="openrouter/anthropic/$MODEL_NAME"
+    - uv run eval/gatekeeper/run-eval.py --all -f json --output-all -o "$CI_PROJECT_DIR/data/$MODEL_NAME.json"
+  rules:
+    - if: $OPENROUTER_API_KEY
+
+gatekeeper-eval-models-corp-gemini:
+  extends: .eval-corp-base
+  variables:
+    MODEL_NAME: "gemini-3.1-pro-preview"
+  script:
+    - export OPENAI_API_KEY="$MODELS_CORP_GEMINI_API_KEY"
+    - export MODEL="$MODEL_NAME"
+    - ./eval/gatekeeper/run-eval-models-corp.sh --all -f json --output-all -o "$CI_PROJECT_DIR/data/$MODEL_NAME.json"
+  rules:
+    - if: $MODELS_CORP_GEMINI_API_KEY
+
+gatekeeper-eval-models-corp-gpt-oss-20b:
+  extends: .eval-corp-base
+  variables:
+    MODEL_NAME: "gpt-oss-20b"
+  script:
+    - export OPENAI_API_KEY="$MODELS_CORP_GPT_OSS_20B_API_KEY"
+    - export MODEL="openai/$MODEL_NAME"
+    - ./eval/gatekeeper/run-eval-models-corp.sh --all -f json --output-all -o "$CI_PROJECT_DIR/data/$MODEL_NAME.json"
+  rules:
+    - if: $MODELS_CORP_GPT_OSS_20B_API_KEY
+
+# ==========================================
+# EVAL WORKFLOW - POST-EVAL
+# ==========================================
+post-eval-result:
+  stage: post-eval
+  image: images.paas.redhat.com/it-cloud-ocp-proxy-lib/bash
+  script:
+    - cp eval/gatekeeper/index.html "$CI_PROJECT_DIR/index.html"
+
+      # Create the manifest file for the rendering app to correctly gather the data
+    - ls data/*.json | xargs -n1 basename > data/manifest.txt
+  artifacts:
+    paths:
+      - data/
+      - index.html

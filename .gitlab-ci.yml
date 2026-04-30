@@ -5,27 +5,49 @@
 #   GITLAB_TOKEN - Personal/Project Access Token with 'write_repository' scope
 #                  Configure at: Settings > CI/CD > Variables (Protected + Masked)
 
-workflow:
-  rules:
-    - if: $CI_PIPELINE_SOURCE == "web"
-      when: always
-    - when: never
-
 variables:
+  WORKFLOW:
+    description: "Select workflow for manual runs. Leave 'auto' for pushes/MRs."
+    value: "mirror"
+    options:
+      - "mirror"
+      - "gatekeeper_eval"
   GITHUB_PR_NUMBER:
     description: "GitHub PR number to mirror"
   GITHUB_COMMIT_SHA:
     description: "GitHub commit SHA to fetch"
 
+# Define all possible stages globally so child files can just attach to them
 stages:
+  - setup
+  - eval
+  - post-eval
   - mirror
+
+default:
+  tags:
+    - rhel-lightspeed
 
 mirror-github-pr:
   stage: mirror
   image: images.paas.redhat.com/it-cloud-ocp-proxy-lib/python:3.14
-  tags:
-    - rhel-lightspeed
   script:
     - python3 scripts/mirror_github_pr.py
   rules:
-    - if: $GITHUB_PR_NUMBER && $GITHUB_COMMIT_SHA
+    - if: $WORKFLOW == "mirror" || ($GITHUB_PR_NUMBER && $GITHUB_COMMIT_SHA)
+
+# ==========================================
+# ROUTER: Dynamically include child workflows
+# ==========================================
+include:
+  # 1. GATEKEEPER EVAL
+  - local: '.gitlab/ci/eval-gatekeeper.yml'
+    rules:
+      # Trigger A: Manual selection from UI
+      - if: $WORKFLOW == "gatekeeper_eval"
+      # Trigger B: Automated MR or Push, BUT only if specific files changed
+      - if: $CI_PIPELINE_SOURCE == "merge_request_event" || $CI_PIPELINE_SOURCE == "push"
+        changes:
+          - "eval/gatekeeper/**/*"
+          - "src/linux_mcp_server/gatekeeper/**/*"
+
