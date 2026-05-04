@@ -1,0 +1,14 @@
+{
+  "name": "linux-mcp-server",
+  "description": "Connect Claude Code to Linux systems for inspection and administration via linux-mcp-server",
+  "version": "0.1.0",
+  "repository": "https://github.com/rhel-lightspeed/linux-mcp-server",
+  "userConfig": {
+    "toolset": {
+      "type": "string",
+      "required": true,
+      "title": "Toolset",
+      "description": "Which tools to expose: 'fixed' = inspection/info tools only, 'run_script' = script execution only, 'both' = all tools"
+    }
+  }
+}
