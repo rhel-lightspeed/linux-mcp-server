@@ -1,5 +1,3 @@
-"""Tests for middleware in server.py"""
-
 import importlib
 
 import pytest
@@ -179,3 +177,164 @@ class TestDynamicDiscoveryMiddlewareOnListTools:
         assert len(result) == 2
         result_names = {tool.name for tool in result}
         assert result_names == {"regular", "excluded"}
+
+
+class TestAuthorizationMiddlewareOnCallTool:
+    @pytest.fixture
+    def middleware(self):
+        return server_module.AuthorizationMiddleware()
+
+    @pytest.fixture
+    def mock_context(self, mocker):
+        # Create a mock MiddlewareContext for tool calls
+        context = mocker.Mock()
+        context.message = mocker.Mock()
+        context.message.name = "test_tool"
+        context.message.arguments = {}
+
+        # Mock FastMCP context with get_tool
+        fastmcp_context = mocker.Mock()
+        tool = mocker.Mock()
+        tool.tags = set()
+        fastmcp_context.fastmcp.get_tool = mocker.AsyncMock(return_value=tool)
+        context.fastmcp_context = fastmcp_context
+
+        # Mock user_info
+        context.user_info = None
+
+        return context
+
+    async def test_no_auth_stdio_transport_allows(self, middleware, mock_context, mocker):
+        # No auth configured, stdio transport with no policy, should allow
+        mocker.patch.object(
+            server_module, "CONFIG", auth=None, transport=server_module.Transport.stdio, policy_path=None
+        )
+
+        call_next = mocker.AsyncMock(return_value="result")
+        result = await middleware.on_call_tool(mock_context, call_next)
+
+        assert result == "result"
+        call_next.assert_called_once()
+
+    async def test_no_auth_http_with_all_users(self, middleware, mock_context, mocker):
+        # No auth, HTTP, but policy allows all_users
+        mocker.patch.object(server_module, "CONFIG", auth=None, transport=server_module.Transport.http)
+        mocker.patch(
+            "linux_mcp_server.server.evaluate_policy",
+            return_value=(server_module.PolicyAction.LOCAL, None),
+        )
+
+        call_next = mocker.AsyncMock(return_value="result")
+        result = await middleware.on_call_tool(mock_context, call_next)
+
+        assert result == "result"
+
+    async def test_with_auth_policy_deny(self, middleware, mock_context, mocker):
+        # Auth configured, policy returns DENY
+        mock_context.user_info = {"email": "user@example.com"}
+        mocker.patch.object(server_module, "CONFIG", auth=mocker.Mock(), transport=server_module.Transport.http)
+
+        # Mock get_access_token to return authenticated user
+        mock_access_token = mocker.Mock()
+        mock_access_token.claims = {"email": "user@example.com"}
+        mocker.patch("linux_mcp_server.server.get_access_token", return_value=mock_access_token)
+
+        mocker.patch(
+            "linux_mcp_server.server.evaluate_policy",
+            return_value=(server_module.PolicyAction.DENY, None),
+        )
+
+        call_next = mocker.AsyncMock()
+
+        with pytest.raises(ValueError, match="Authorization denied"):
+            await middleware.on_call_tool(mock_context, call_next)
+
+    async def test_with_auth_policy_local(self, middleware, mock_context, mocker):
+        # Auth configured, policy allows LOCAL action
+        mock_context.user_info = {"email": "user@example.com"}
+        mocker.patch.object(server_module, "CONFIG", auth=mocker.Mock(), transport=server_module.Transport.http)
+
+        # Mock get_access_token to return authenticated user
+        mock_access_token = mocker.Mock()
+        mock_access_token.claims = {"email": "user@example.com"}
+        mocker.patch("linux_mcp_server.server.get_access_token", return_value=mock_access_token)
+
+        mocker.patch(
+            "linux_mcp_server.server.evaluate_policy",
+            return_value=(server_module.PolicyAction.LOCAL, None),
+        )
+
+        call_next = mocker.AsyncMock(return_value="result")
+        result = await middleware.on_call_tool(mock_context, call_next)
+
+        assert result == "result"
+
+    async def test_ssh_default_with_no_host_raises(self, middleware, mock_context, mocker):
+        # SSH_DEFAULT action but no host in arguments
+        mock_context.user_info = {"email": "user@example.com"}
+        mocker.patch.object(server_module, "CONFIG", auth=mocker.Mock(), transport=server_module.Transport.http)
+
+        # Mock get_access_token to return authenticated user
+        mock_access_token = mocker.Mock()
+        mock_access_token.claims = {"email": "user@example.com"}
+        mocker.patch("linux_mcp_server.server.get_access_token", return_value=mock_access_token)
+
+        mocker.patch(
+            "linux_mcp_server.server.evaluate_policy",
+            return_value=(server_module.PolicyAction.SSH_DEFAULT, None),
+        )
+
+        call_next = mocker.AsyncMock()
+
+        with pytest.raises(RuntimeError, match="Policy validation error: Cannot use SSH action"):
+            await middleware.on_call_tool(mock_context, call_next)
+
+    async def test_ssh_key_with_config_allows(self, middleware, mock_context, mocker):
+        # SSH_KEY action with config, should allow and log
+        mock_context.message.arguments = {"host": "db-server"}
+        mock_context.user_info = {"email": "admin@example.com"}
+
+        ssh_key_config = mocker.Mock()
+        ssh_key_config.path = "/keys/db-key"
+        ssh_key_config.user = "db-admin"
+
+        mocker.patch.object(server_module, "CONFIG", auth=mocker.Mock(), transport=server_module.Transport.http)
+
+        # Mock get_access_token to return authenticated user
+        mock_access_token = mocker.Mock()
+        mock_access_token.claims = {"email": "admin@example.com"}
+        mocker.patch("linux_mcp_server.server.get_access_token", return_value=mock_access_token)
+
+        mocker.patch(
+            "linux_mcp_server.server.evaluate_policy",
+            return_value=(server_module.PolicyAction.SSH_KEY, ssh_key_config),
+        )
+        mock_logger = mocker.patch.object(server_module, "logger")
+
+        call_next = mocker.AsyncMock(return_value="result")
+        result = await middleware.on_call_tool(mock_context, call_next)
+
+        assert result == "result"
+        # Verify SSH key override was logged
+        mock_logger.debug.assert_called()
+
+    async def test_local_action_with_host_raises(self, middleware, mock_context, mocker):
+        # LOCAL action but host is specified
+        mock_context.message.arguments = {"host": "remote-host"}
+        mock_context.user_info = {"email": "user@example.com"}
+        mocker.patch.object(server_module, "CONFIG", auth=mocker.Mock(), transport=server_module.Transport.http)
+
+        # Mock get_access_token to return authenticated user
+        mock_access_token = mocker.Mock()
+        mock_access_token.claims = {"email": "user@example.com"}
+        mocker.patch("linux_mcp_server.server.get_access_token", return_value=mock_access_token)
+
+        mocker.patch(
+            "linux_mcp_server.server.evaluate_policy",
+            return_value=(server_module.PolicyAction.LOCAL, None),
+        )
+
+        call_next = mocker.AsyncMock()
+
+        with pytest.raises(RuntimeError, match="Policy validation error: Cannot use local action for remote host"):
+            await middleware.on_call_tool(mock_context, call_next)
