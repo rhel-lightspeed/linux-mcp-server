@@ -1,0 +1,11 @@
+{
+  "mcpServers": {
+    "linux-mcp-server": {
+      "command": "uv",
+      "args": ["--directory", "${CLAUDE_PLUGIN_ROOT}/..", "run", "linux-mcp-server", "--external-script-checks"],
+      "env": {
+        "LINUX_MCP_TOOLSET": "${user_config.toolset}"
+      }
+    }
+  }
+}

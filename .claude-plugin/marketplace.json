@@ -1,0 +1,13 @@
+{
+  "name": "owtaylor-mcp",
+  "owner": {
+    "name": "Owen Taylor"
+  },
+  "plugins": [
+    {
+      "name": "linux-mcp-server",
+      "source": "./plugins/claude",
+      "description": "Adds an MCP server to manage and diagnose remote systems"
+    }
+  ]
+}

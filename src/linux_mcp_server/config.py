@@ -87,6 +87,9 @@ class Config(BaseSettings):
     # Force all scripts to require confirmation (even readonly ones)
     always_confirm_scripts: bool = False
 
+    # Script safety checks are handled externally (e.g. by Claude Code hooks)
+    external_script_checks: bool = False
+
     @property
     def effective_known_hosts_path(self) -> Path:
         """Return the known_hosts path, using default ~/.ssh/known_hosts if not configured."""

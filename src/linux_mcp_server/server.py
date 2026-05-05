@@ -138,6 +138,69 @@ These tools map to six areas:
 - **File paths:** must be absolute
 """
 
+INSTRUCTIONS_EXTERNAL_RUN_SCRIPT = """You have access to a tool that executes Python or Bash scripts you supply on the target system, for inspection or for making changes. Script safety checks are handled externally.
+
+## Script tool
+
+- **run_script:** Run a Python or Bash script on the target system.
+
+## Usage
+
+- Set readonly to true if the script only reads the system state.
+- Set readonly to false if the script modifies files or settings.
+- Prefer readonly scripts when possible.
+- For modifications, choose the minimal change and avoid anything that could harm stability or security.
+- Describe what each script does in the description.
+- Do not fetch content from the internet; use only configured repositories if installing software.
+- Bash scripts run with `set -euo pipefail`; handle expected non-zero exits explicitly.
+- Prefer Bash for a few shell commands and Python when logic is more involved.
+
+## Behavior
+
+- **Remote execution:** Every tool accepts an optional `host` argument. When set, the work runs on that host over SSH instead of locally.
+- **Containers:** If the `container` environment variable is set, tools refuse to run locally; a remote `host` must be used.
+- **Log file access:** requires explicit allowlist configuration via LINUX_MCP_ALLOWED_LOG_PATHS
+- **Service names:** automatically append '.service' suffix if not provided
+- **File paths:** must be absolute
+"""
+
+INSTRUCTIONS_EXTERNAL_BOTH = """You have access to two kinds of tools: predefined commands that inspect the system, and a script runner that executes Python or Bash you supply. Script safety checks are handled externally.
+
+## Predefined command tools
+
+These tools map to six areas:
+
+- **System:** hostname, OS, kernel, uptime, CPU details, memory and swap, disk usage, hardware (PCI, USB, DMI).
+- **Services:** list systemd units with state; status and journal output for a given unit. Unit names get a `.service` suffix when omitted.
+- **Network:** interfaces and stats, active connections, listening ports and processes.
+- **Processes:** full process list and detailed info for a given PID.
+- **Storage and files:** block devices; list directories or files under a path (sort by size, name, or modification time); read a file. Paths must be absolute.
+- **Logs:** systemd journal with filters (unit, priority, time, transport) and tail of a specific log file. Log file paths are restricted to an allowlist (LINUX_MCP_ALLOWED_LOG_PATHS).
+
+## Script tool
+
+- **run_script:** Run a Python or Bash script on the target system.
+
+## Usage
+
+- Prefer fixed commands over custom scripts when possible.
+- Set readonly to true if the script only reads the system state.
+- Set readonly to false if the script modifies files or settings.
+- For modifications, choose the minimal change and avoid anything that could harm stability or security.
+- Describe what each script does in the description.
+- Do not fetch content from the internet; use only configured repositories if installing software.
+- Bash scripts run with `set -euo pipefail`; handle expected non-zero exits explicitly.
+- Prefer Bash for a few shell commands and Python when logic is more involved.
+
+## Behavior
+
+- **Remote execution:** Every tool accepts an optional `host` argument. When set, the work runs on that host over SSH instead of locally.
+- **Containers:** If the `container` environment variable is set, tools refuse to run locally; a remote `host` must be used.
+- **Log file access:** requires explicit allowlist configuration via LINUX_MCP_ALLOWED_LOG_PATHS
+- **Service names:** automatically append '.service' suffix if not provided
+- **File paths:** must be absolute
+"""
+
 
 kwargs = {}
 
@@ -146,14 +209,20 @@ match CONFIG.toolset:
         instructions = INSTRUCTIONS_FIXED
         kwargs["exclude_tags"] = {"run_script"}
     case Toolset.RUN_SCRIPT:
-        instructions = INSTRUCTIONS_RUN_SCRIPT
+        if CONFIG.external_script_checks:
+            instructions = INSTRUCTIONS_EXTERNAL_RUN_SCRIPT
+        else:
+            instructions = INSTRUCTIONS_RUN_SCRIPT
         kwargs["include_tags"] = {"run_script"}
     case Toolset.BOTH:
-        instructions = INSTRUCTIONS_BOTH
+        if CONFIG.external_script_checks:
+            instructions = INSTRUCTIONS_EXTERNAL_BOTH
+        else:
+            instructions = INSTRUCTIONS_BOTH
     case _:
         assert False, f"Unknown toolset configuration: {CONFIG.toolset}"
 
-if CONFIG.toolset != Toolset.FIXED and CONFIG.gatekeeper_model is None:
+if CONFIG.toolset != Toolset.FIXED and CONFIG.gatekeeper_model is None and not CONFIG.external_script_checks:
     logger.error("LINUX_MCP_GATEKEEPER_MODEL not set, this is needed for run_script tools")
     sys.exit(1)
 
@@ -283,6 +352,9 @@ class DynamicDiscoveryMiddleware(Middleware):
 
     async def on_list_tools(self, context: MiddlewareContext, call_next):
         tools = await call_next(context)
+
+        import os
+        logger.info("List tools, toolset=%s, os.environ=%s", CONFIG.toolset, os.environ)
 
         # Eventually, the tagging of the tools via _meta.ui.visiblity as "app" or "model" will
         # hide this tool but Goose doesn't support this yet. On the other hand, goose is happy

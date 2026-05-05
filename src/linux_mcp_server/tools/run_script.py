@@ -1,6 +1,5 @@
 import logging
 import secrets
-import shlex
 import typing as t
 
 from dataclasses import asdict
@@ -13,7 +12,6 @@ from mcp.types import ContentBlock
 from mcp.types import TextContent
 from mcp.types import ToolAnnotations
 
-# from pydantic import BaseModel
 from pydantic import BaseModel
 from pydantic import Field
 
@@ -24,6 +22,12 @@ from linux_mcp_server.gatekeeper import check_run_script
 from linux_mcp_server.gatekeeper import GatekeeperStatus
 from linux_mcp_server.mcp_app import RUN_SCRIPT_APP_URI
 from linux_mcp_server.server import mcp
+from linux_mcp_server.tools.run_script_common import BASH_STRICT_PREAMBLE
+from linux_mcp_server.tools.run_script_common import RUN_SCRIPT_COMMON_DESCRIPTION
+from linux_mcp_server.tools.run_script_common import ScriptType
+from linux_mcp_server.tools.run_script_common import SCRIPT_TYPE_BASH
+from linux_mcp_server.tools.run_script_common import SCRIPT_TYPE_PYTHON
+from linux_mcp_server.tools.run_script_common import _wrap_script
 from linux_mcp_server.utils.decorators import disallow_local_execution_in_containers
 from linux_mcp_server.utils.types import Host
 
@@ -33,20 +37,6 @@ logger = logging.getLogger("linux-mcp-server")
 ExecutionState = t.Literal[
     "waiting-approval", "success", "failure", "executing", "rejected-user", "rejected-gatekeeper"
 ]
-
-# This would make more sense as a StrEnum, but that generates a schema with
-# the enum in $defs, which deeply confuses (at least) the combination of
-# Claude Sonnet 4.5 and Claude Desktop - the model knows that it's supposed
-# to use "python" or "bash" and passes it in the call, but the UI sees `null`
-# instead.
-#
-# Future versions of FastMCP may automatically dereference references
-# (https://github.com/jlowin/fastmcp/pulls/2814) but that doesn't currently
-# happen as of v2.14.5 (https://github.com/jlowin/fastmcp/issues/3153).
-#
-ScriptType = t.Literal["python", "bash"]
-SCRIPT_TYPE_PYTHON = "python"
-SCRIPT_TYPE_BASH = "bash"
 
 
 @dataclass()
@@ -154,47 +144,6 @@ class ScriptStore:
 script_store = ScriptStore()
 
 
-BASH_STRICT_PREAMBLE = "set -euo pipefail; "
-
-SYSTEMD_RUN_ARGS = [
-    "--quiet",
-    "--pipe",
-    "--collect",
-    "--wait",
-    "--property=WorkingDirectory=/tmp",
-    "--property=PrivateTmp=true",
-    "--property=NoNewPrivileges=true",
-]
-SYSTEMD_RUN_READONLY_ARGS = [
-    "--property=ReadOnlyPaths=/",
-    "--property=RestrictAddressFamilies=AF_UNIX",
-]
-SYSTEMD_RUN_COMMAND = "/usr/bin/sudo /usr/bin/systemd-run {args}"
-
-# Wrapper for run_script_readonly: use sudo+systemd-run when available, else run script
-# directly. Template uses {script_type} and {script}; script is escaped via shlex.quote().
-WRAPPER_TEMPLATE = """\
-set -euo pipefail
-SCRIPT={script}
-if command -v sudo >/dev/null 2>&1 && command -v systemd-run >/dev/null 2>&1 && sudo -l whoami >/dev/null 2>&1; then
-  exec {systemd_run_command} {script_type} -c "$SCRIPT"
-else
-  exec {script_type} -c "$SCRIPT"
-fi
-"""
-
-RUN_SCRIPT_COMMON_DESCRIPTION = """\
-A bash script should be used for simple operations that can be expressed cleanly
-as a few shell commands, but a Python script should be used if complex processing
-is needed. Bash scripts are run with strict mode (set -euo pipefail) applied by
-the invocation, so handle expected non-zero exit codes in the script (e.g. with
-`|| true`) where needed.
-
-Write short, simple scripts that are easy to review - do not include unnecessary
-complexity such as elaborate logging or handling unlikely corner cases.
-"""
-
-
 RUN_SCRIPT_INTERACTIVE_DESCRIPTION = (
     """
 Run a script that modifies the system. The user will be asked for approval interactively.
@@ -213,16 +162,6 @@ class RunScriptInteractiveResult(BaseModel):
 #    name: str
 #    age: int
 #
-
-
-def _wrap_script(script_type: ScriptType, script: str) -> list[str]:
-    """Wrap a script in a wrapper script that uses sudo+systemd-run when available, else run script directly."""
-    wrapper_script = WRAPPER_TEMPLATE.format(
-        systemd_run_command=SYSTEMD_RUN_COMMAND.format(args=" ".join(SYSTEMD_RUN_ARGS)),
-        script_type=script_type,
-        script=shlex.quote((BASH_STRICT_PREAMBLE + script) if script_type == SCRIPT_TYPE_BASH else script),
-    )
-    return ["bash", "-c", wrapper_script]
 
 
 @dataclass

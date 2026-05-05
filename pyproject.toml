@@ -201,12 +201,14 @@ lines-after-imports = 2
 lines-between-types = 1
 order-by-type = false
 
-# Include the bundled mcp app html file
-[tool.hatch.build.targets.wheel.force-include]
-"mcp-app/dist" = "linux_mcp_server/ui_resources"
-
 # Force hatch to pick up the bundled app that is git-ignored
 [tool.hatch.build]
 artifacts = [
     "mcp-app/dist",
 ]
+
+# Include the bundled mcp app html file - but ignore it if the
+# is missing (enabling installing without MCP app support directly
+# from git.)
+[tool.hatch.build.targets.wheel.hooks.custom]
+path = "hatch_build.py"
