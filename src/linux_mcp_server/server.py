@@ -9,6 +9,7 @@ from types import CellType
 from types import CodeType
 
 from fastmcp import FastMCP
+from fastmcp.server.dependencies import get_access_token
 from fastmcp.server.middleware import Middleware
 from fastmcp.server.middleware import MiddlewareContext
 from fastmcp.server.middleware.middleware import CallNext
@@ -24,11 +25,16 @@ from mcp.types import TextResourceContents
 
 import linux_mcp_server
 
+from linux_mcp_server.auth import create_auth_provider
+from linux_mcp_server.auth_policy import evaluate_policy
+from linux_mcp_server.auth_policy import PolicyAction
 from linux_mcp_server.config import CONFIG
 from linux_mcp_server.config import Toolset
+from linux_mcp_server.config import Transport
 from linux_mcp_server.mcp_app import ALLOWED_UI_RESOURCE_URIS
 from linux_mcp_server.mcp_app import MCP_APP_MIME_TYPE
 from linux_mcp_server.mcp_app import MCP_UI_EXTENSION
+from linux_mcp_server.toolset import get_toolset
 
 
 logger = logging.getLogger("linux-mcp-server")
@@ -139,25 +145,35 @@ These tools map to six areas:
 """
 
 
-kwargs = {}
-
 match CONFIG.toolset:
     case Toolset.FIXED:
         instructions = INSTRUCTIONS_FIXED
-        kwargs["exclude_tags"] = {"run_script"}
     case Toolset.RUN_SCRIPT:
         instructions = INSTRUCTIONS_RUN_SCRIPT
-        kwargs["include_tags"] = {"run_script"}
     case Toolset.BOTH:
         instructions = INSTRUCTIONS_BOTH
     case _:
         assert False, f"Unknown toolset configuration: {CONFIG.toolset}"
 
+toolset = get_toolset(CONFIG.toolset.value)
+assert toolset is not None, f"Toolset not found in registry: {CONFIG.toolset}"
+
+kwargs = {}
+if toolset.include_tags:
+    kwargs["include_tags"] = toolset.include_tags
+if toolset.exclude_tags:
+    kwargs["exclude_tags"] = toolset.exclude_tags
+
 if CONFIG.toolset != Toolset.FIXED and CONFIG.gatekeeper_model is None:
     logger.error("LINUX_MCP_GATEKEEPER_MODEL not set, this is needed for run_script tools")
     sys.exit(1)
 
-mcp = FastMCP("linux-mcp-server", instructions=instructions, version=linux_mcp_server.__version__, **kwargs)
+# Create auth provider if configured
+auth_provider = create_auth_provider()
+
+mcp = FastMCP(
+    "linux-mcp-server", instructions=instructions, version=linux_mcp_server.__version__, auth=auth_provider, **kwargs
+)
 
 
 _low_level_server = mcp._mcp_server
@@ -240,6 +256,71 @@ def _use_mcp_app_for_client(client_params: InitializeRequestParams):
     return MCP_APP_MIME_TYPE in mime_types
 
 
+# Middleware to enforce authorization policy
+class AuthorizationMiddleware(Middleware):
+    async def on_call_tool(self, context: MiddlewareContext, call_next):
+        # Extract tool metadata
+        tool_args = context.message.arguments or {}
+        target_host = tool_args.get("host")
+
+        # Get tool from FastMCP else fail closed if not found
+        if context.fastmcp_context is None:
+            logger.error("FastMCP context not available in middleware")
+            raise ValueError("Internal error: FastMCP context not available")
+
+        tool = await context.fastmcp_context.fastmcp.get_tool(context.message.name)
+        if tool is None:
+            logger.error(f"Tool not found: {context.message.name}")
+            raise ValueError(f"Tool not found: {context.message.name}")
+
+        # For stdio without policy configured, allow everything
+        if CONFIG.transport == Transport.stdio and CONFIG.policy_path is None:
+            return await call_next(context)
+
+        # For http transports log auth at INFO for audit trail info
+        # For stdio use DEBUG to avoid noise
+        log_level = logger.info if CONFIG.transport != Transport.stdio else logger.debug
+
+        # Get claims from access token if available else use empty claims
+        access_token = get_access_token()
+        claims = access_token.claims if access_token else {}
+        email = claims.get("email", "unauthenticated")
+
+        # Log authorization attempt
+        log_level(f"Tool call: {tool.name}, Host: {target_host or 'local'}, User: {email}")
+
+        # Evaluate policy by tool, host and claims matching
+        action, ssh_key_config = evaluate_policy(tool, target_host, claims)
+
+        # Validate that action matches execution mode (should be prevented by policy validation)
+        is_local_execution = not target_host
+
+        # Block local execution with SSH action (should be prevented by policy validation)
+        if is_local_execution and action in [PolicyAction.SSH_KEY, PolicyAction.SSH_DEFAULT]:
+            raise RuntimeError(
+                f"Policy validation error: Cannot use SSH action ('{action.value}') for local execution."
+            )
+
+        # Block remote host with local action (should be prevented by policy validation)
+        if not is_local_execution and action == PolicyAction.LOCAL:
+            raise RuntimeError(f"Policy validation error: Cannot use local action for remote host '{target_host}'. ")
+
+        if action == PolicyAction.DENY:
+            logger.warning(f"Authorization denied: tool={tool.name}, host={target_host or 'local'}, user={email}")
+            raise ValueError(f"Authorization denied: tool '{tool.name}' on host '{target_host or 'local'}'")
+
+        # Log the authorized action
+        log_level(f"Authorized: tool={tool.name}, host={target_host or 'local'}, action={action.value}, user={email}")
+
+        # For SSH_KEY action, validate ssh_key_config (should be prevented by policy validation)
+        if action == PolicyAction.SSH_KEY:
+            if not ssh_key_config:
+                raise RuntimeError("Policy validation error: SSH_KEY action requires ssh_key configuration.")
+            logger.debug(f"SSH key override: p`ath={ssh_key_config.path}, user={ssh_key_config.user}")
+
+        return await call_next(context)
+
+
 class DynamicDiscoveryMiddleware(Middleware):
     async def on_initialize(
         self,
@@ -313,5 +394,6 @@ class DynamicDiscoveryMiddleware(Middleware):
 
 
 def main():
+    mcp.add_middleware(AuthorizationMiddleware())
     mcp.add_middleware(DynamicDiscoveryMiddleware())
     mcp.run(show_banner=False, transport=CONFIG.transport.value, **CONFIG.transport_kwargs)
