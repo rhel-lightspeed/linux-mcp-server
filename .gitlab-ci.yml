@@ -50,7 +50,7 @@ include:
       # Trigger A: Manual selection from UI
       - if: $WORKFLOW == "gatekeeper_eval"
       # Trigger B: Automated MR or Push, BUT only if specific files changed
-      - if: '!$WORKFLOW && ($CI_PIPELINE_SOURCE == "merge_request_event" || $CI_PIPELINE_SOURCE == "push")'
+      - if: '($WORKFLOW == null || $WORKFLOW == "") && ($CI_PIPELINE_SOURCE == "merge_request_event" || $CI_PIPELINE_SOURCE == "push")'
         changes:
           - "eval/gatekeeper/**/*"
           - "src/linux_mcp_server/gatekeeper/**/*"
