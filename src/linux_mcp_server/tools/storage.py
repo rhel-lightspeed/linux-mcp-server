@@ -79,7 +79,7 @@ async def _list_resources(
 @mcp.tool(
     title="List block devices",
     description="List block devices on the system",
-    tags={"devices", "storage"},
+    tags={"fixed", "devices", "storage"},
     annotations=ToolAnnotations(readOnlyHint=True),
 )
 @log_tool_call
@@ -104,7 +104,7 @@ async def list_block_devices(
 @mcp.tool(
     title="List directories",
     description="List directories under a specified path with various sorting options.",
-    tags={"directories", "filesystem", "storage"},
+    tags={"fixed", "directories", "filesystem", "storage"},
     annotations=ToolAnnotations(readOnlyHint=True),
 )
 @log_tool_call
@@ -149,7 +149,7 @@ async def list_directories(
 @mcp.tool(
     title="List files",
     description="List files under a specified path with various sorting options.",
-    tags={"files", "filesystem", "storage"},
+    tags={"fixed", "files", "filesystem", "storage"},
     annotations=ToolAnnotations(readOnlyHint=True),
 )
 @log_tool_call
@@ -194,7 +194,7 @@ async def list_files(
 @mcp.tool(
     title="Read file",
     description="Read the contents of a text file up to a safe size limit.",
-    tags={"files", "filesystem", "storage"},
+    tags={"fixed", "files", "filesystem", "storage"},
     annotations=ToolAnnotations(readOnlyHint=True),
 )
 @log_tool_call

@@ -1,4 +1,4 @@
-"""Integration-style tests for ``run_script`` MCP tools via ``mcp_client``.
+"""Integration-style tests for ``run_script`` MCP tools.
 
 Patches apply to ``linux_mcp_server.tools.run_script`` (the module object). The in-process
 server is built with ``LINUX_MCP_TOOLSET=both`` (see ``tests/conftest.py``).
@@ -14,6 +14,7 @@ import pytest
 
 from fastmcp.exceptions import ToolError
 
+from linux_mcp_server.config import Toolset
 from linux_mcp_server.connection.ssh import execute_command
 from linux_mcp_server.gatekeeper import GatekeeperResult
 from linux_mcp_server.gatekeeper import GatekeeperStatus
@@ -31,6 +32,16 @@ run_script_mod = import_module("linux_mcp_server.tools.run_script")
 def _tool_text(result: Any) -> str:
     """``run_script`` family tools return the string body in ``structured_content['result']``."""
     return str(result.structured_content["result"])
+
+
+@pytest.fixture
+async def client(setup_client):
+    yield await setup_client(toolset=Toolset.RUN_SCRIPT)
+
+
+@pytest.fixture
+async def app_client(setup_client):
+    yield await setup_client(toolset=Toolset.RUN_SCRIPT, mcp_apps=True)
 
 
 @pytest.fixture
@@ -118,11 +129,11 @@ class TestWrapScript:
 
 
 class TestValidateScriptMCP:
-    """``validate_script`` through ``mcp_client.call_tool``."""
+    """``validate_script`` through ``client.call_tool``."""
 
     async def test_ok(
         self,
-        mcp_client: Any,
+        client: Any,
         script_store_fresh: ScriptStore,
         patch_check_run_script: Any,
         monkeypatch: pytest.MonkeyPatch,
@@ -130,7 +141,7 @@ class TestValidateScriptMCP:
         """Approval stores the script; structured content has ``token`` and ``needs_confirmation``."""
         _stub_secrets_token(monkeypatch, "val-id")
         patch_check_run_script.return_value = _ok()
-        result = await mcp_client.call_tool(
+        result = await client.call_tool(
             "validate_script",
             {
                 "description": "d",
@@ -149,7 +160,7 @@ class TestValidateScriptMCP:
 
     async def test_gatekeeper_fail_raises_and_marks_rejected(
         self,
-        mcp_client: Any,
+        client: Any,
         script_store_fresh: ScriptStore,
         patch_check_run_script: Any,
         monkeypatch: pytest.MonkeyPatch,
@@ -158,7 +169,7 @@ class TestValidateScriptMCP:
         _stub_secrets_token(monkeypatch, "val-id-2")
         patch_check_run_script.return_value = GatekeeperResult(status=GatekeeperStatus.POLICY, detail="bad")
         with pytest.raises(ToolError, match="Policy violation"):
-            await mcp_client.call_tool(
+            await client.call_tool(
                 "validate_script",
                 {
                     "description": "d",
@@ -171,7 +182,7 @@ class TestValidateScriptMCP:
 
     async def test_bash_passes_strict_script_to_gatekeeper(
         self,
-        mcp_client: Any,
+        client: Any,
         patch_check_run_script: Any,
         patch_execute_command: Any,
         monkeypatch: pytest.MonkeyPatch,
@@ -179,7 +190,7 @@ class TestValidateScriptMCP:
         """Bash scripts are checked with the same strict preamble the runner will use."""
         _stub_secrets_token(monkeypatch, "bash-val")
         patch_check_run_script.return_value = _ok()
-        await mcp_client.call_tool(
+        await client.call_tool(
             "validate_script",
             {
                 "description": "d",
@@ -198,11 +209,11 @@ class TestValidateScriptMCP:
 
 
 class TestRunScriptMCP:
-    """``run_script`` (token only) via ``mcp_client``."""
+    """``run_script`` (token only) via ``client``."""
 
     async def test_success_string_stdout(
         self,
-        mcp_client: Any,
+        client: Any,
         script_store_fresh: ScriptStore,
         patch_execute_command: Any,
     ) -> None:
@@ -216,14 +227,14 @@ class TestRunScriptMCP:
             readonly=True,
         )
         patch_execute_command.return_value = (0, "output", "")
-        result = await mcp_client.call_tool("run_script", {"token": "tok"})
+        result = await client.call_tool("run_script", {"token": "tok"})
         assert _tool_text(result) == "output"
         patch_execute_command.assert_awaited_once()
         assert script_store_fresh.get_script_details("tok").state == "success"
 
     async def test_success_bytes_stdout(
         self,
-        mcp_client: Any,
+        client: Any,
         script_store_fresh: ScriptStore,
         patch_execute_command: Any,
     ) -> None:
@@ -237,12 +248,12 @@ class TestRunScriptMCP:
             readonly=True,
         )
         patch_execute_command.return_value = (0, "café".encode("utf-8"), "")
-        result = await mcp_client.call_tool("run_script", {"token": "tokb"})
+        result = await client.call_tool("run_script", {"token": "tokb"})
         assert _tool_text(result) == "café"
 
     async def test_nonzero_return(
         self,
-        mcp_client: Any,
+        client: Any,
         script_store_fresh: ScriptStore,
         patch_execute_command: Any,
     ) -> None:
@@ -256,14 +267,14 @@ class TestRunScriptMCP:
             readonly=True,
         )
         patch_execute_command.return_value = (1, "", "err")
-        out = _tool_text(await mcp_client.call_tool("run_script", {"token": "toknz"}))
+        out = _tool_text(await client.call_tool("run_script", {"token": "toknz"}))
         assert "return code 1" in out
         assert "err" in out
         assert script_store_fresh.get_script_details("toknz").state == "failure"
 
     async def test_execute_exception_sets_failure(
         self,
-        mcp_client: Any,
+        client: Any,
         script_store_fresh: ScriptStore,
         patch_execute_command: Any,
     ) -> None:
@@ -278,12 +289,12 @@ class TestRunScriptMCP:
         )
         patch_execute_command.side_effect = ValueError("nope")
         with pytest.raises(ToolError, match="nope"):
-            await mcp_client.call_tool("run_script", {"token": "tokex"})
+            await client.call_tool("run_script", {"token": "tokex"})
         assert script_store_fresh.get_script_details("tokex").state == "failure"
 
     async def test_wrong_tool_when_confirmation_required(
         self,
-        mcp_client: Any,
+        client: Any,
         script_store_fresh: ScriptStore,
         patch_execute_command: Any,
     ) -> None:
@@ -297,16 +308,16 @@ class TestRunScriptMCP:
             readonly=False,
         )
         with pytest.raises(ToolError, match="run_script_with_confirmation"):
-            await mcp_client.call_tool("run_script", {"token": "mod"})
+            await client.call_tool("run_script", {"token": "mod"})
         patch_execute_command.assert_not_awaited()
 
 
 class TestRunScriptWithConfirmationMCP:
-    """``run_script_with_confirmation`` via ``mcp_client``."""
+    """``run_script_with_confirmation`` via ``client``."""
 
     async def test_success_matching_params(
         self,
-        mcp_client: Any,
+        client: Any,
         script_store_fresh: ScriptStore,
         patch_execute_command: Any,
         patch_check_run_script: Any,
@@ -322,7 +333,7 @@ class TestRunScriptWithConfirmationMCP:
         )
         patch_execute_command.return_value = (0, "ran", "")
         out = _tool_text(
-            await mcp_client.call_tool(
+            await client.call_tool(
                 "run_script_with_confirmation",
                 {
                     "description": "same",
@@ -339,7 +350,7 @@ class TestRunScriptWithConfirmationMCP:
 
     async def test_mismatch_revalidates_and_executes(
         self,
-        mcp_client: Any,
+        client: Any,
         script_store_fresh: ScriptStore,
         patch_execute_command: Any,
         patch_check_run_script: Any,
@@ -356,7 +367,7 @@ class TestRunScriptWithConfirmationMCP:
         patch_check_run_script.return_value = _ok()
         patch_execute_command.return_value = (0, "out", "")
         out = _tool_text(
-            await mcp_client.call_tool(
+            await client.call_tool(
                 "run_script_with_confirmation",
                 {
                     "description": "same",
@@ -372,7 +383,7 @@ class TestRunScriptWithConfirmationMCP:
 
     async def test_mismatch_gatekeeper_fails(
         self,
-        mcp_client: Any,
+        client: Any,
         script_store_fresh: ScriptStore,
         patch_execute_command: Any,
         patch_check_run_script: Any,
@@ -388,7 +399,7 @@ class TestRunScriptWithConfirmationMCP:
         )
         patch_check_run_script.return_value = GatekeeperResult(status=GatekeeperStatus.MALICIOUS, detail="x")
         with pytest.raises(ToolError):
-            await mcp_client.call_tool(
+            await client.call_tool(
                 "run_script_with_confirmation",
                 {
                     "description": "same",
@@ -403,7 +414,7 @@ class TestRunScriptWithConfirmationMCP:
 
     async def test_nonzero_return(
         self,
-        mcp_client: Any,
+        client: Any,
         script_store_fresh: ScriptStore,
         patch_execute_command: Any,
         patch_check_run_script: Any,
@@ -419,7 +430,7 @@ class TestRunScriptWithConfirmationMCP:
         )
         patch_execute_command.return_value = (3, "", "stderr-here")
         out = _tool_text(
-            await mcp_client.call_tool(
+            await client.call_tool(
                 "run_script_with_confirmation",
                 {
                     "description": "same",
@@ -435,7 +446,7 @@ class TestRunScriptWithConfirmationMCP:
 
     async def test_wrong_tool_when_no_confirmation_needed(
         self,
-        mcp_client: Any,
+        client: Any,
         script_store_fresh: ScriptStore,
         patch_execute_command: Any,
         patch_check_run_script: Any,
@@ -450,7 +461,7 @@ class TestRunScriptWithConfirmationMCP:
             readonly=True,
         )
         with pytest.raises(ToolError, match="run_script instead"):
-            await mcp_client.call_tool(
+            await client.call_tool(
                 "run_script_with_confirmation",
                 {
                     "description": "d",
@@ -465,7 +476,7 @@ class TestRunScriptWithConfirmationMCP:
 
     async def test_bytes_stdout(
         self,
-        mcp_client: Any,
+        client: Any,
         script_store_fresh: ScriptStore,
         patch_execute_command: Any,
         patch_check_run_script: Any,
@@ -482,7 +493,7 @@ class TestRunScriptWithConfirmationMCP:
         raw = b"\xff\xfe"
         patch_execute_command.return_value = (0, raw, "")
         out = _tool_text(
-            await mcp_client.call_tool(
+            await client.call_tool(
                 "run_script_with_confirmation",
                 {
                     "description": "same",
@@ -497,11 +508,11 @@ class TestRunScriptWithConfirmationMCP:
 
 
 class TestRunScriptInteractiveMCP:
-    """``run_script_interactive`` via ``mcp_client``."""
+    """``run_script_interactive`` via ``app_client``."""
 
     async def test_ok_matching_returns_same_token(
         self,
-        mcp_client: Any,
+        app_client: Any,
         script_store_fresh: ScriptStore,
         patch_check_run_script: Any,
     ) -> None:
@@ -514,7 +525,7 @@ class TestRunScriptInteractiveMCP:
             host=None,
             readonly=False,
         )
-        result = await mcp_client.call_tool(
+        result = await app_client.call_tool(
             "run_script_interactive",
             {
                 "description": "d",
@@ -530,7 +541,7 @@ class TestRunScriptInteractiveMCP:
 
     async def test_mismatch_revalidates_new_id(
         self,
-        mcp_client: Any,
+        app_client: Any,
         script_store_fresh: ScriptStore,
         patch_check_run_script: Any,
         monkeypatch: pytest.MonkeyPatch,
@@ -546,7 +557,7 @@ class TestRunScriptInteractiveMCP:
         )
         patch_check_run_script.return_value = _ok()
         _stub_secrets_token(monkeypatch, "new-id")
-        result = await mcp_client.call_tool(
+        result = await app_client.call_tool(
             "run_script_interactive",
             {
                 "description": "d",
@@ -562,7 +573,7 @@ class TestRunScriptInteractiveMCP:
 
     async def test_mismatch_gatekeeper_fails(
         self,
-        mcp_client: Any,
+        app_client: Any,
         script_store_fresh: ScriptStore,
         patch_check_run_script: Any,
     ) -> None:
@@ -577,7 +588,7 @@ class TestRunScriptInteractiveMCP:
         )
         patch_check_run_script.return_value = GatekeeperResult(status=GatekeeperStatus.DANGEROUS, detail="no")
         with pytest.raises(ToolError, match="Dangerous"):
-            await mcp_client.call_tool(
+            await app_client.call_tool(
                 "run_script_interactive",
                 {
                     "description": "d",
@@ -591,7 +602,7 @@ class TestRunScriptInteractiveMCP:
 
     async def test_wrong_tool_when_no_confirmation_needed(
         self,
-        mcp_client: Any,
+        app_client: Any,
         script_store_fresh: ScriptStore,
         patch_check_run_script: Any,
     ) -> None:
@@ -605,7 +616,7 @@ class TestRunScriptInteractiveMCP:
             readonly=True,
         )
         with pytest.raises(ToolError, match="run_script instead"):
-            await mcp_client.call_tool(
+            await app_client.call_tool(
                 "run_script_interactive",
                 {
                     "description": "d",
@@ -619,11 +630,11 @@ class TestRunScriptInteractiveMCP:
 
 
 class TestExecuteScriptMCP:
-    """``execute_script`` via ``mcp_client``."""
+    """``execute_script`` via ``app_client``."""
 
     async def test_success(
         self,
-        mcp_client: Any,
+        app_client: Any,
         script_store_fresh: ScriptStore,
         patch_execute_command: Any,
     ) -> None:
@@ -637,13 +648,13 @@ class TestExecuteScriptMCP:
             readonly=False,
         )
         patch_execute_command.return_value = (0, "out", "")
-        result = await mcp_client.call_tool("execute_script", {"id": "tok"})
+        result = await app_client.call_tool("execute_script", {"id": "tok"})
         assert result.structured_content == {"state": "success", "output": "out"}
         assert script_store_fresh.get_script_details("tok").state == "success"
 
     async def test_failure_return_code(
         self,
-        mcp_client: Any,
+        app_client: Any,
         script_store_fresh: ScriptStore,
         patch_execute_command: Any,
     ) -> None:
@@ -657,13 +668,13 @@ class TestExecuteScriptMCP:
             readonly=False,
         )
         patch_execute_command.return_value = (2, "", "stderr-msg")
-        result = await mcp_client.call_tool("execute_script", {"id": "tok2"})
+        result = await app_client.call_tool("execute_script", {"id": "tok2"})
         assert result.structured_content["state"] == "failure"
         assert "return code 2" in result.structured_content["output"]
 
     async def test_execute_exception_sets_failure(
         self,
-        mcp_client: Any,
+        app_client: Any,
         script_store_fresh: ScriptStore,
         patch_execute_command: Any,
     ) -> None:
@@ -678,16 +689,16 @@ class TestExecuteScriptMCP:
         )
         patch_execute_command.side_effect = OSError("boom")
         with pytest.raises(ToolError, match="boom"):
-            await mcp_client.call_tool("execute_script", {"id": "tok3"})
+            await app_client.call_tool("execute_script", {"id": "tok3"})
         assert script_store_fresh.get_script_details("tok3").state == "failure"
 
 
 class TestRejectAndGetExecutionStateMCP:
-    """``reject_script`` and ``get_execution_state`` via ``mcp_client``."""
+    """``reject_script`` and ``get_execution_state`` via ``app_client``."""
 
     async def test_reject_script(
         self,
-        mcp_client: Any,
+        app_client: Any,
         script_store_fresh: ScriptStore,
     ) -> None:
         """``reject_script`` moves the stored entry to ``rejected-user``."""
@@ -699,10 +710,10 @@ class TestRejectAndGetExecutionStateMCP:
             host=None,
             readonly=True,
         )
-        await mcp_client.call_tool("reject_script", {"id": "r"})
+        await app_client.call_tool("reject_script", {"id": "r"})
         assert script_store_fresh.get_script_details("r").state == "rejected-user"
 
-    async def test_get_execution_state(self, mcp_client: Any, script_store_fresh: ScriptStore) -> None:
+    async def test_get_execution_state(self, app_client: Any, script_store_fresh: ScriptStore) -> None:
         """Expose the current lifecycle state string for UI polling."""
         script_store_fresh._scripts["g"] = ScriptDetails(
             state="executing",
@@ -712,5 +723,5 @@ class TestRejectAndGetExecutionStateMCP:
             host="host",
             readonly=True,
         )
-        result = await mcp_client.call_tool("get_execution_state", {"id": "g"})
+        result = await app_client.call_tool("get_execution_state", {"id": "g"})
         assert result.structured_content == {"state": "executing"}
