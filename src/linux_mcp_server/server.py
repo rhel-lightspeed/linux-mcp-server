@@ -5,23 +5,17 @@ import sys
 
 from importlib import resources
 from pathlib import Path
-from types import CellType
-from types import CodeType
 
 from fastmcp import FastMCP
+from fastmcp.resources import ResourceContent
+from fastmcp.resources import ResourceResult
 from fastmcp.server.dependencies import get_access_token
 from fastmcp.server.middleware import Middleware
 from fastmcp.server.middleware import MiddlewareContext
 from fastmcp.server.middleware.middleware import CallNext
-from mcp import ServerSession
-from mcp.types import BlobResourceContents
 from mcp.types import InitializeRequest
 from mcp.types import InitializeRequestParams
 from mcp.types import InitializeResult
-from mcp.types import ReadResourceRequest
-from mcp.types import ReadResourceResult
-from mcp.types import ServerResult
-from mcp.types import TextResourceContents
 
 import linux_mcp_server
 
@@ -31,10 +25,24 @@ from linux_mcp_server.auth_policy import PolicyAction
 from linux_mcp_server.config import CONFIG
 from linux_mcp_server.config import Toolset
 from linux_mcp_server.config import Transport
-from linux_mcp_server.mcp_app import ALLOWED_UI_RESOURCE_URIS
 from linux_mcp_server.mcp_app import MCP_APP_MIME_TYPE
 from linux_mcp_server.mcp_app import MCP_UI_EXTENSION
+from linux_mcp_server.mcp_app import RUN_SCRIPT_APP_URI
 from linux_mcp_server.toolset import get_toolset
+
+
+def monkeypatch_fastmcp_for_app_visibility():
+    # fastmcp 3.2.4 has a bug where tools defined with
+    # visibility=["app"] aren't returned by tools/list
+    # https://github.com/PrefectHQ/fastmcp/issues/4088
+    # https://github.com/PrefectHQ/fastmcp/pull/4112
+    import fastmcp.server.server as m
+
+    if hasattr(m, "_is_model_visible"):
+        m._is_model_visible = lambda _tool: True
+
+
+monkeypatch_fastmcp_for_app_visibility()
 
 
 logger = logging.getLogger("linux-mcp-server")
@@ -158,12 +166,6 @@ match CONFIG.toolset:
 toolset = get_toolset(CONFIG.toolset.value)
 assert toolset is not None, f"Toolset not found in registry: {CONFIG.toolset}"
 
-kwargs = {}
-if toolset.include_tags:
-    kwargs["include_tags"] = toolset.include_tags
-if toolset.exclude_tags:
-    kwargs["exclude_tags"] = toolset.exclude_tags
-
 if CONFIG.toolset != Toolset.FIXED and CONFIG.gatekeeper_model is None:
     logger.error("LINUX_MCP_GATEKEEPER_MODEL not set, this is needed for run_script tools")
     sys.exit(1)
@@ -171,68 +173,48 @@ if CONFIG.toolset != Toolset.FIXED and CONFIG.gatekeeper_model is None:
 # Create auth provider if configured
 auth_provider = create_auth_provider()
 
-mcp = FastMCP(
-    "linux-mcp-server", instructions=instructions, version=linux_mcp_server.__version__, auth=auth_provider, **kwargs
+mcp = FastMCP("linux-mcp-server", instructions=instructions, version=linux_mcp_server.__version__, auth=auth_provider)
+
+if toolset.include_tags:
+    mcp.enable(tags=toolset.include_tags, only=True)
+else:
+    mcp.enable()
+
+if toolset.exclude_tags:
+    mcp.disable(tags=toolset.exclude_tags)
+
+
+@mcp.resource(
+    RUN_SCRIPT_APP_URI,
+    tags={"run_script"},
 )
+def run_script_app_html() -> ResourceResult:
+    filename = "run-script-app.html"
 
+    # Try ui_resources first (wheel install)
+    ui_resources_path = resources.files(linux_mcp_server).joinpath("ui_resources")
+    resource_file = ui_resources_path.joinpath(filename)
+    logger.debug(f"Checking for UI resource at: {resource_file}")
+    # Check if we need to fall back to mcp-app/dist (editable install)
+    if not resource_file.is_file():
+        package_path = Path(linux_mcp_server.__file__).parent
+        repo_root = package_path.parent.parent
+        mcp_app_dist = repo_root / "mcp-app" / "dist" / filename
+        logger.debug(f"Checking for UI resource at: {mcp_app_dist}")
+        if mcp_app_dist.exists():
+            resource_file = mcp_app_dist
+        else:
+            logger.error(f"UI resource not found: {filename}")
+            raise FileNotFoundError(f"Resource {filename} not found")
+    # Read the file
+    try:
+        html = resource_file.read_text()
+        logger.info(f"Serving UI resource from: {resource_file}")
+    except Exception as e:
+        logger.error(f"Failed to read UI resource from {resource_file}: {e}")
+        raise
 
-_low_level_server = mcp._mcp_server
-_original_resource_request_handler = _low_level_server.request_handlers[ReadResourceRequest]
-
-
-async def _read_resource_with_meta(req: ReadResourceRequest):
-    uri = str(req.params.uri)
-    fallback_contents: list[TextResourceContents | BlobResourceContents] = [
-        TextResourceContents(uri=req.params.uri, mimeType="text/plain", text="Resource not found")
-    ]
-
-    if uri.startswith("ui://"):
-        if uri in ALLOWED_UI_RESOURCE_URIS:
-            filename = uri.split("/")[-1]
-
-            # Try ui_resources first (wheel install)
-            ui_resources_path = resources.files(linux_mcp_server).joinpath("ui_resources")
-            resource_file = ui_resources_path.joinpath(filename)
-            logger.debug(f"Checking for UI resource at: {resource_file}")
-
-            # Check if we need to fall back to mcp-app/dist (editable install)
-            if not resource_file.is_file():
-                package_path = Path(linux_mcp_server.__file__).parent
-                repo_root = package_path.parent.parent
-                mcp_app_dist = repo_root / "mcp-app" / "dist" / filename
-                logger.debug(f"Checking for UI resource at: {mcp_app_dist}")
-
-                if mcp_app_dist.exists():
-                    resource_file = mcp_app_dist
-                else:
-                    logger.error(f"UI resource not found: {filename}")
-                    raise FileNotFoundError(f"Resource {filename} not found")
-
-            # Read the file
-            try:
-                html = resource_file.read_text()
-                logger.info(f"Serving UI resource from: {resource_file}")
-            except Exception as e:
-                logger.error(f"Failed to read UI resource from {resource_file}: {e}")
-                raise
-
-            content = TextResourceContents.model_validate(
-                {
-                    "uri": uri,
-                    "mimeType": MCP_APP_MIME_TYPE,
-                    "text": html,
-                }
-            )
-
-            return ServerResult(ReadResourceResult(contents=[content]))
-    else:
-        if _original_resource_request_handler:
-            return await _original_resource_request_handler(req)
-
-    return ServerResult(ReadResourceResult(contents=fallback_contents))
-
-
-_low_level_server.request_handlers[ReadResourceRequest] = _read_resource_with_meta
+    return ResourceResult(contents=[ResourceContent(html, mime_type=MCP_APP_MIME_TYPE)])
 
 
 from linux_mcp_server.tools import *  # noqa: E402, F403
@@ -334,31 +316,15 @@ class DynamicDiscoveryMiddleware(Middleware):
         # away in the ServerSession object, so we need to modify that based
         # on whether we'll use mcp-apps with the client making the InitializeRequest.
 
-        if _use_mcp_app_for_client(context.message.params):
-            # Getting the ServerSession object is easy for FastMCP 3.x - it's
-            # just context.fastcmp_context.session, but the property getter
-            # will raise RuntimeError for FastMCP 2.x, so we check _session instead.
-            assert context.fastmcp_context is not None, "fastmcp_context should be set in on_initialize"
-            session: ServerSession | None = getattr(context.fastmcp_context, "_session", None)
-            if session is None:
-                # FastMCP 2.x - let's pull out the hacks! call_next is a closure within a method
-                # of fastmcp.server.low_level.MiddlewareServerSession. The "self" variable used
-                # in the closure is what we need. Assuming CPython, we can dig and and get it!
-                code: CodeType | None = getattr(call_next, "__code__", None)
-                closure: tuple[CellType, ...] | None = getattr(call_next, "__closure__", None)
-                if code and closure:
-                    # co_freevars gives us the names of the variables captured in __closure__
-                    closure_dict = dict(zip(code.co_freevars, [c.cell_contents for c in closure]))
-                    session = closure_dict.get("self")
+        assert context.fastmcp_context
+        session = context.fastmcp_context.session
 
-            if session and isinstance(session, ServerSession):
-                instructions = session._init_options.instructions
-                if instructions:
-                    session._init_options.instructions = instructions.replace(
-                        "run_script_with_confirmation", "run_script_interactive"
-                    )
-            else:
-                logger.warning("Unable to get ServerSession to update instructions for mcp-apps")
+        if _use_mcp_app_for_client(context.message.params):
+            instructions = session._init_options.instructions
+            if instructions:
+                session._init_options.instructions = instructions.replace(
+                    "run_script_with_confirmation", "run_script_interactive"
+                )
 
         return await call_next(context)
 

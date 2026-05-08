@@ -7,8 +7,9 @@ from dataclasses import asdict
 from dataclasses import dataclass
 
 from fastmcp import Context
+from fastmcp.apps import AppConfig
 from fastmcp.exceptions import ToolError
-from fastmcp.tools.tool import ToolResult
+from fastmcp.tools import ToolResult
 from mcp.types import ContentBlock
 from mcp.types import TextContent
 from mcp.types import ToolAnnotations
@@ -234,7 +235,7 @@ class ExecuteScriptResult:
 @mcp.tool(
     tags={"run_script", "hidden_from_model"},
     description="Execute a script; this is only available to the our mcp-app",
-    meta={"ui": {"visibility": ["app"]}},
+    app=AppConfig(visibility=["app"]),
 )
 @log_tool_call
 @disallow_local_execution_in_containers
@@ -271,7 +272,7 @@ async def execute_script(
 @mcp.tool(
     tags={"run_script", "hidden_from_model"},
     description="Reject a script; this is only available to the our mcp-app",
-    meta={"ui": {"visibility": ["app"]}},
+    app=AppConfig(visibility=["app"]),
 )
 @log_tool_call
 @disallow_local_execution_in_containers
@@ -287,7 +288,7 @@ async def reject_script(
     description=RUN_SCRIPT_INTERACTIVE_DESCRIPTION,
     annotations=ToolAnnotations(destructiveHint=True),
     output_schema=RunScriptInteractiveResult.model_json_schema(),
-    meta={"ui": {"resourceUri": RUN_SCRIPT_APP_URI}},
+    app=AppConfig(resourceUri=RUN_SCRIPT_APP_URI),
 )
 @log_tool_call
 @disallow_local_execution_in_containers
@@ -359,7 +360,7 @@ async def run_script_interactive(
     tags={"run_script", "hidden_from_model"},
     title="Get the execution state with request ID",
     description="Get the execution state with request ID",
-    meta={"ui": {"visibility": ["app"]}},
+    app=AppConfig(visibility=["app"]),
 )
 @log_tool_call
 @disallow_local_execution_in_containers
