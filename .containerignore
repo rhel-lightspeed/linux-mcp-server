@@ -1,0 +1,14 @@
+.git
+.github
+tests/
+eval/
+docs/
+*.md
+*.lock
+.pre-commit-config.yaml
+.secrets.baseline
+__pycache__
+*.pyc
+.mypy_cache
+.ruff_cache
+.pytest_cache

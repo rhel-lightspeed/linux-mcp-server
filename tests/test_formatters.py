@@ -1,3 +1,5 @@
+# Copyright Contributors to the linux-mcp-server project
+# SPDX-License-Identifier: Apache-2.0
 """Tests for formatters module."""
 
 from linux_mcp_server.formatters import format_disk_usage

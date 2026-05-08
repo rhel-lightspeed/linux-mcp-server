@@ -1,4 +1,6 @@
 #!/usr/bin/env python3
+# Copyright Contributors to the linux-mcp-server project
+# SPDX-License-Identifier: Apache-2.0
 
 import json
 import os

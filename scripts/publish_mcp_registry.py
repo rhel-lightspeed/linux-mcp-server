@@ -1,4 +1,6 @@
 #!/usr/bin/env python3
+# Copyright Contributors to the linux-mcp-server project
+# SPDX-License-Identifier: Apache-2.0
 """
 Script to publish the MCP server to the Model Context Protocol registry.
 This script is designed to run in GitHub Actions but can be tested locally.

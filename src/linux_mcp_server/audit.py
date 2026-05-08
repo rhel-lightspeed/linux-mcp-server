@@ -1,3 +1,5 @@
+# Copyright Contributors to the linux-mcp-server project
+# SPDX-License-Identifier: Apache-2.0
 """Audit logging utilities for Linux MCP Server.
 
 This module provides helper functions for consistent audit logging across

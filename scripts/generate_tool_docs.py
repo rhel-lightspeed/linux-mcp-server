@@ -1,4 +1,6 @@
 #!/usr/bin/env python3
+# Copyright Contributors to the linux-mcp-server project
+# SPDX-License-Identifier: Apache-2.0
 """Generate tools documentation from MCP server metadata.
 
 Produces one markdown file per tool category under docs/tools/ by

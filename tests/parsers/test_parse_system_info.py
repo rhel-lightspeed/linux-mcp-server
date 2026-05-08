@@ -1,3 +1,5 @@
+# Copyright Contributors to the linux-mcp-server project
+# SPDX-License-Identifier: Apache-2.0
 from linux_mcp_server.parsers import parse_system_info
 
 

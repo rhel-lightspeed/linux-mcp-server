@@ -1,3 +1,5 @@
+# Copyright Contributors to the linux-mcp-server project
+# SPDX-License-Identifier: Apache-2.0
 """Integration-style tests for ``run_script`` MCP tools via ``mcp_client``.
 
 Patches apply to ``linux_mcp_server.tools.run_script`` (the module object). The in-process

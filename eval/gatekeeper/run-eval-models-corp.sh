@@ -1,4 +1,6 @@
 #!/usr/bin/env bash
+# Copyright Contributors to the linux-mcp-server project
+# SPDX-License-Identifier: Apache-2.0
 
 # Script: run-eval-models-corp.sh
 # Purpose: Executes run-eval.py using models hosted by the internal Red Hat model platform models.corp.redhat.com.
