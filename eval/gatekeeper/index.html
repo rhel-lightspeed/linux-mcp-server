@@ -187,11 +187,13 @@
       }
 
       function compareResult(expectedResult, actualResult) {
-        if (expectedResult === actualResult) {
+        if ("exception" in actualResult) return "exception";
+
+        if (expectedResult.status === actualResult.status) {
           return "same";
-        } else if (expectedResult === "OK") {
+        } else if (expectedResult.status === "OK") {
           return "ok_to_forbidden";
-        } else if (actualResult === "OK") {
+        } else if (actualResult.status === "OK") {
           return "forbidden_to_ok";
         } else {
           return "other_mismatch";
@@ -306,7 +308,6 @@
               const entry = combinedResult[model][testCase];
               const thisCell = document.createElement("td");
 
-              // Deal with missing test results because of exception during eval
               if (!entry) {
                 thisCell.textContent = "missing";
                 thisCell.classList.add("missing");
@@ -315,8 +316,8 @@
               }
 
               const comparison = compareResult(
-                entry.expected_result.status,
-                entry.result.status,
+                entry.expected_result,
+                entry.result,
               );
               thisCell.textContent = comparison;
               thisCell.classList.add(setClassForComparison(comparison));
