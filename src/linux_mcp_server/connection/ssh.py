@@ -1,3 +1,5 @@
+# Copyright Contributors to the linux-mcp-server project
+# SPDX-License-Identifier: Apache-2.0
 """SSH executor for remote command execution.
 
 This module provides functionality to execute commands on remote systems via SSH,

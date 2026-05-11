@@ -1,3 +1,5 @@
+# Copyright Contributors to the linux-mcp-server project
+# SPDX-License-Identifier: Apache-2.0
 """Centralized logging configuration for Linux MCP Server.
 
 Simplified logging setup with standard Python logging infrastructure.

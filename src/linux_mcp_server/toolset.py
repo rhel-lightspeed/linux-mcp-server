@@ -1,3 +1,5 @@
+# Copyright Contributors to the linux-mcp-server project
+# SPDX-License-Identifier: Apache-2.0
 # Toolset matching for authorization policies
 # Maps @fixed/@run_script/@both in policy rules to tag-based tool filters.
 

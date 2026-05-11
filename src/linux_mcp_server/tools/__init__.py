@@ -1,3 +1,5 @@
+# Copyright Contributors to the linux-mcp-server project
+# SPDX-License-Identifier: Apache-2.0
 # Arbitrary script execution
 # logs
 from linux_mcp_server.tools.logs import get_journal_logs

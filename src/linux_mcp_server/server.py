@@ -1,3 +1,5 @@
+# Copyright Contributors to the linux-mcp-server project
+# SPDX-License-Identifier: Apache-2.0
 """Core MCP server for Linux diagnostics using FastMCP."""
 
 import logging

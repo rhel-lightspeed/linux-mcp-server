@@ -1,3 +1,5 @@
+# Copyright Contributors to the linux-mcp-server project
+# SPDX-License-Identifier: Apache-2.0
 """Verify tool schemas contain expected metadata for LLM guidance."""
 
 import pytest
