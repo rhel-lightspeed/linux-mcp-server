@@ -6,8 +6,10 @@ import pytest
 
 from litellm import Choices
 from litellm import ModelResponse
+from pydantic import ValidationError
 
 from linux_mcp_server.gatekeeper import GatekeeperResult
+from linux_mcp_server.gatekeeper import GatekeeperResultStrict
 from linux_mcp_server.gatekeeper import GatekeeperStatus
 from linux_mcp_server.gatekeeper.check_run_script import check_run_script
 from linux_mcp_server.gatekeeper.check_run_script import get_model
@@ -123,22 +125,31 @@ class TestCheckRunScript:
 
         call_kwargs = mock_completion.call_args.kwargs
         if expect_response_format:
-            assert call_kwargs["response_format"] is GatekeeperResult
+            assert call_kwargs["response_format"] is GatekeeperResultStrict
         else:
             assert call_kwargs["response_format"] is None
 
+    def test_missing_detail_defaults_to_empty(self, mock_litellm):
+        mock_completion, mock_get_params = mock_litellm
+        mock_get_params.return_value = ["response_format"]
+        mock_completion.return_value = self._make_response('{"status": "OK"}')
+
+        result = check_run_script(description="test", script_type="bash", script="echo hi", readonly=True)
+        assert result.status == GatekeeperStatus.OK
+        assert result.detail == ""
+
     @pytest.mark.parametrize(
-        "response_text,error_match",
+        "response_text,error_type,error_match",
         [
-            ("not valid json", "Failed to parse response"),
-            ('"just a string"', "Invalid response format"),
-            ('{"status": "INVALID_STATUS"}', "Bad status"),
+            ("not valid json", ValidationError, "input_value='not valid json'"),
+            ('"just a string"', ValidationError, "input_value='just a string'"),
+            ('{"status": "INVALID_STATUS"}', ValidationError, "input_value='INVALID_STATUS'"),
         ],
     )
-    def test_parse_errors(self, mock_litellm, response_text, error_match):
+    def test_parse_errors(self, mock_litellm, response_text, error_type, error_match):
         mock_completion, mock_get_params = mock_litellm
         mock_get_params.return_value = None  # No response_format support
         mock_completion.return_value = self._make_response(response_text)
 
-        with pytest.raises(RuntimeError, match=error_match):
+        with pytest.raises(error_type, match=error_match):
             check_run_script(description="test", script_type="bash", script="echo hi", readonly=True)

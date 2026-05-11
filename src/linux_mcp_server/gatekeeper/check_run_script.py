@@ -1,4 +1,3 @@
-import json
 import logging
 
 from litellm import Choices
@@ -96,6 +95,8 @@ If the status is not OK, the detail should be short 1-3 sentence description of
 what is wrong with the script. Be specific to allow the language model to correct
 the problem.
 
+If status is OK, the detail should be an empty string.
+
 If the script seems buggy but does not fall into any of the categories above, return
 a status of `OK`.
 
@@ -116,7 +117,7 @@ class GatekeeperStatus(StrEnum):
 
 class GatekeeperResult(BaseModel):
     status: GatekeeperStatus
-    detail: str
+    detail: str = ""
 
     @property
     def description(self) -> str:
@@ -175,6 +176,10 @@ class GatekeeperResult(BaseModel):
             return cls(status=status, detail=detail)
 
 
+class GatekeeperResultStrict(GatekeeperResult):
+    detail: str  # type:ignore
+
+
 def check_run_script(description: str, script_type: str, script: str, *, readonly: bool) -> GatekeeperResult:
     # Check that the script does what is described
     if "start_of_script" in script.lower() or "end_of_script" in script.lower():
@@ -200,7 +205,7 @@ def check_run_script(description: str, script_type: str, script: str, *, readonl
 
     params = get_supported_openai_params(model=get_model())
     if params is not None and "response_format" in params:
-        response_format = GatekeeperResult
+        response_format = GatekeeperResultStrict
     else:
         response_format = None
 
@@ -211,22 +216,4 @@ def check_run_script(description: str, script_type: str, script: str, *, readonl
 
     logger.info(f"Gatekeeper response: {response_text}")
 
-    if response_format is not None:
-        return GatekeeperResult.model_validate_json(response_text)
-
-    try:
-        response_data = json.loads(response_text)
-    except json.JSONDecodeError:
-        raise RuntimeError("Failed to parse response from gatekeeper model")
-
-    if not isinstance(response_data, dict):
-        raise RuntimeError("Invalid response format from gatekeeper model")
-
-    try:
-        status = GatekeeperStatus(response_data.get("status", ""))
-    except ValueError:
-        raise RuntimeError("Bad status in gatekeeper model response")
-
-    detail = response_data.get("detail", "")
-
-    return GatekeeperResult(status=status, detail=detail)
+    return GatekeeperResult.model_validate_json(response_text)
