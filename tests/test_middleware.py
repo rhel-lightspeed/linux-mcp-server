@@ -59,61 +59,23 @@ class TestDynamicDiscoveryMiddlewareOnInitialize:
         mock_session = mocker.Mock(spec=ServerSession)
         mock_session._init_options = mocker.Mock()
         mock_session._init_options.instructions = "Use run_script_with_confirmation for changes"
-        mock_context.fastmcp_context._session = mock_session
+        mock_context.fastmcp_context.session = mock_session
 
         await middleware.on_initialize(mock_context, mocker.AsyncMock(return_value=mocker.Mock()))
 
         assert mock_session._init_options.instructions == "Use run_script_with_confirmation for changes"
 
-    async def test_modifies_instructions_fastmcp_3x(self, middleware, mock_context, mocker):
-        # Test instruction modification with FastMCP 3.x
+    async def test_modifies_instructions(self, middleware, mock_context, mocker):
         mocker.patch.object(server_module, "_use_mcp_app_for_client", return_value=True)
 
         mock_session = mocker.Mock(spec=ServerSession)
         mock_session._init_options = mocker.Mock()
         mock_session._init_options.instructions = "Use run_script_with_confirmation for changes"
-        mock_context.fastmcp_context._session = mock_session
+        mock_context.fastmcp_context.session = mock_session
 
         await middleware.on_initialize(mock_context, mocker.AsyncMock(return_value=mocker.Mock()))
 
         assert mock_session._init_options.instructions == "Use run_script_interactive for changes"
-
-    async def test_modifies_instructions_fastmcp_2x(self, middleware, mock_context, mocker):
-        # Test instruction modification with FastMCP 2.x via closure extraction
-        mocker.patch.object(server_module, "_use_mcp_app_for_client", return_value=True)
-        mock_context.fastmcp_context._session = None
-
-        mock_session = mocker.Mock(spec=ServerSession)
-        mock_session._init_options = mocker.Mock()
-        mock_session._init_options.instructions = "Use run_script_with_confirmation for changes"
-
-        def make_call_next(session_obj):
-            self = session_obj
-
-            async def call_next_func(_ctx):
-                _ = self
-                return mocker.Mock()
-
-            return call_next_func
-
-        await middleware.on_initialize(mock_context, make_call_next(mock_session))
-
-        assert mock_session._init_options.instructions == "Use run_script_interactive for changes"
-
-    async def test_handles_extraction_failure(self, middleware, mock_context, mocker):
-        # Test graceful handling when session extraction fails
-        mocker.patch.object(server_module, "_use_mcp_app_for_client", return_value=True)
-        mock_logger = mocker.patch.object(server_module, "logger")
-
-        mock_context.fastmcp_context._session = None
-        call_next = mocker.AsyncMock(return_value=mocker.Mock())
-        call_next.__code__ = mocker.Mock()
-        call_next.__code__.co_freevars = []
-        call_next.__closure__ = None
-
-        await middleware.on_initialize(mock_context, call_next)
-
-        mock_logger.warning.assert_called_once()
 
 
 class TestDynamicDiscoveryMiddlewareOnListTools:

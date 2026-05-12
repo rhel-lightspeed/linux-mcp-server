@@ -5,25 +5,6 @@ import pytest
 from linux_mcp_server.server import mcp
 
 
-@pytest.fixture(scope="module")
-async def mcp_tools() -> dict:
-    """Fetch all MCP tools using the public API."""
-    return await mcp.get_tools()
-
-
-@pytest.fixture
-def tool_properties(mcp_tools: dict):
-    """Get the properties dict for a tool's parameters schema."""
-
-    def _tool_properties(tool_name: str) -> dict:
-        tool = mcp_tools.get(tool_name)
-        if tool is None:
-            raise ValueError(f"Tool '{tool_name}' not found")  # pragma: no cover
-        return tool.parameters.get("properties", {})
-
-    return _tool_properties
-
-
 class TestToolSchemaExamples:
     """Verify parameters have examples for LLM guidance."""
 
@@ -42,8 +23,10 @@ class TestToolSchemaExamples:
             ("read_file", "path"),
         ],
     )
-    def test_parameter_has_examples(self, tool_name: str, param_name: str, tool_properties) -> None:
-        props = tool_properties(tool_name)
+    async def test_parameter_has_examples(self, tool_name: str, param_name: str) -> None:
+        tool = await mcp.get_tool(tool_name)
+        assert tool
+        props = tool.parameters.get("properties", {})
 
         assert param_name in props, f"Parameter '{param_name}' not found in {tool_name}"
         assert "examples" in props[param_name], f"Parameter '{param_name}' in {tool_name} missing examples"
