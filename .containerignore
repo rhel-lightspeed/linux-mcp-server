@@ -1,14 +1,11 @@
+# Toplevel inclusion is controlled by ADD lines in the Containerfile
+# Exclude possible nested leftover files
+**/__pycache__
+**/*.pyc
+**/*.bak
+**/*~
+# Exclude large directories from context for performance
 .git
-.github
-tests/
-eval/
-docs/
-*.md
-*.lock
-.pre-commit-config.yaml
-.secrets.baseline
-__pycache__
-*.pyc
-.mypy_cache
-.ruff_cache
-.pytest_cache
+.venv/
+dist/
+mcp-app/node_modules
