@@ -1,14 +1,19 @@
 import logging
+import time
 
 from typing import Any
 
 import litellm
 
+from litellm import acompletion
 from litellm import Choices
-from litellm import completion
+from litellm import completion_cost
 from litellm import get_supported_openai_params
 from litellm import ModelResponse
+from litellm import Usage
+from litellm.exceptions import Timeout
 from pydantic import BaseModel
+from pydantic import ValidationError
 
 from linux_mcp_server.config import CONFIG
 from linux_mcp_server.config import ReasoningEffort
@@ -114,6 +119,12 @@ a status of `OK`.
 Example response (respond with only the JSON object - do not wrap it in a code block).
 {{ "status": "DANGEROUS", "detail": "The critical example file `/etc/example.conf` will be deleted if an error occurs in the first call to sed." }}
 """
+
+
+# Maximum number of completion tokens (including reasoning)
+GATEKEEPER_MAX_TOKENS = 8000
+# Timeout (s)
+GATEKEEPER_TIMEOUT = 120
 
 
 class GatekeeperStatus(StrEnum):
@@ -223,17 +234,52 @@ def _build_completion_kwargs():
     return extra_kwargs
 
 
-def check_run_script(description: str, script_type: str, script: str, *, readonly: bool) -> GatekeeperResult:
+class GatekeeperStats(BaseModel):
+    prompt_tokens: int = 0
+    completion_tokens: int = 0
+    cost: float = 0
+    latency: float = 0
+
+
+class GatekeeperException(Exception):
+    def __init__(self, message: str, *, stats: GatekeeperStats | None = None):
+        super().__init__(message)
+        self.stats = stats
+
+
+def _get_cost(response: ModelResponse) -> float:
+    usage: Usage = response.usage  # pyright: ignore[reportAttributeAccessIssue]
+
+    cost: float | None = usage.get("cost")
+    if cost:
+        return cost
+
+    if CONFIG.gatekeeper.cost is not None:
+        custom_cost_per_token = dict(
+            input_cost_per_token=CONFIG.gatekeeper.cost[0], output_cost_per_token=CONFIG.gatekeeper.cost[1]
+        )
+    else:
+        custom_cost_per_token = None
+
+    try:
+        return completion_cost(response, custom_cost_per_token=custom_cost_per_token)
+    except Exception:
+        return 0.0
+
+
+async def check_run_script_with_stats(
+    description: str, script_type: str, script: str, *, readonly: bool
+) -> tuple[GatekeeperResult, GatekeeperStats]:
     # Check that the script does what is described
     if "start_of_script" in script.lower() or "end_of_script" in script.lower():
         return GatekeeperResult(
             status=GatekeeperStatus.MALICIOUS, detail="Script contains 'start_of_script' or 'end_of_script'"
-        )
+        ), GatekeeperStats()
 
     if "start_of_description" in script.lower() or "end_of_description" in script.lower():
         return GatekeeperResult(
             status=GatekeeperStatus.MALICIOUS, detail="Script contains 'start_of_description' or 'end_of_description'"
-        )
+        ), GatekeeperStats()
 
     prompt = PROMPT.format(
         script_type=script_type,
@@ -248,16 +294,43 @@ def check_run_script(description: str, script_type: str, script: str, *, readonl
 
     extra_kwargs = _build_completion_kwargs()
 
-    response = completion(
-        model=get_model(),
-        messages=messages,
-        temperature=CONFIG.gatekeeper.temperature,
-        **extra_kwargs,
-    )
+    time_before = time.perf_counter()
+    try:
+        response = await acompletion(
+            model=get_model(),
+            messages=messages,
+            temperature=CONFIG.gatekeeper.temperature,
+            max_tokens=GATEKEEPER_MAX_TOKENS,
+            timeout=GATEKEEPER_TIMEOUT,
+            **extra_kwargs,
+        )
+    except Timeout:
+        raise GatekeeperException("Timeout calling gatekeeper model")
     assert isinstance(response, ModelResponse)
+
+    usage: Usage = response.usage  # pyright: ignore[reportAttributeAccessIssue]
+    stats = GatekeeperStats(
+        prompt_tokens=usage.prompt_tokens,
+        completion_tokens=usage.completion_tokens,
+        cost=_get_cost(response),
+        latency=time.perf_counter() - time_before,
+    )
+
     assert isinstance(response.choices[0], Choices)
+    if response.choices[0].finish_reason == "length":
+        raise GatekeeperException("Gatekeeper model output limit reached", stats=stats)
+
     response_text = (response.choices[0].message.content or "").strip()
 
     logger.info(f"Gatekeeper response: {response_text}")
 
-    return GatekeeperResult.model_validate_json(response_text)
+    try:
+        return GatekeeperResult.model_validate_json(response_text), stats
+    except ValidationError as e:
+        logger.warning("Failed to Failed to parse gatekeeper model output: %s", e)
+        raise GatekeeperException("Failed to parse gatekeeper model output", stats=stats) from e
+
+
+async def check_run_script(description: str, script_type: str, script: str, *, readonly: bool) -> GatekeeperResult:
+    result, _ = await check_run_script_with_stats(description, script_type, script, readonly=readonly)
+    return result

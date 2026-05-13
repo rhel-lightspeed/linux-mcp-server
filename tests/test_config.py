@@ -324,3 +324,18 @@ class TestGatekeeperConfig:
         """Test default value for template_kwargs"""
         config = Config()
         assert config.gatekeeper.template_kwargs == {}
+
+    def test_cost(self, monkeypatch):
+        monkeypatch.setenv("LINUX_MCP_GATEKEEPER__COST", "1e-6:4e-6")
+        config = Config()
+        assert config.gatekeeper.cost == (1e-6, 4e-6)
+
+    @pytest.mark.parametrize(
+        "value",
+        ["not_a_float", "not_a_float:not_a_float", "1e-6"],
+    )
+    def test_invalid_cost(self, monkeypatch, value):
+        monkeypatch.setenv("LINUX_MCP_GATEKEEPER__COST", value)
+
+        with pytest.raises(ValidationError, match=r"Cost must be formatted as '<float>:<float>'"):
+            Config()
