@@ -219,9 +219,9 @@ def main(
         typer.echo("Must specify either a test case file or --all.", err=True)
         raise typer.Exit(code=1)
 
-    if "LINUX_MCP_GATEKEEPER_MODEL" not in os.environ:
+    if "LINUX_MCP_GATEKEEPER__MODEL" not in os.environ and "LINUX_MCP_GATEKEEPER_MODEL" not in os.environ:
         typer.echo(
-            "Please set the LINUX_MCP_GATEKEEPER_MODEL environment variable to specify the Gatekeeper model to use."
+            "Please set the LINUX_MCP_GATEKEEPER__MODEL environment variable to specify the Gatekeeper model to use."
         )
         raise typer.Exit(code=1)
 

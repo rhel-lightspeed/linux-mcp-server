@@ -106,14 +106,14 @@ LINUX_MCP_TOOLSET=run_script
 
 **Configure a Gatekeeper Model**
 
-Set `LINUX_MCP_GATEKEEPER_MODEL` to the name of the model you want to use. Additional environment
+Set `LINUX_MCP_GATEKEEPER__MODEL` to the name of the model you want to use. Additional environment
 variables may be needed to configure credentials. See the
 [LiteLLM documentation](https://docs.litellm.ai/docs/providers) for details on how to configure your provider.
 
 Example:
 
 ```sh
-LINUX_MCP_GATEKEEPER_MODEL=openai/chatgpt-5.2
+LINUX_MCP_GATEKEEPER__MODEL=openai/chatgpt-5.2
 OPENAI_API_KEY=<....>
 ```
 

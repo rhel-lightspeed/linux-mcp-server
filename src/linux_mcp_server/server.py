@@ -178,8 +178,8 @@ def _current_toolset():
 
 
 def _check_gatekeeper_model():
-    if CONFIG.toolset != Toolset.FIXED and CONFIG.gatekeeper_model is None:
-        logger.error("LINUX_MCP_GATEKEEPER_MODEL not set, this is needed for run_script tools")
+    if CONFIG.toolset != Toolset.FIXED and CONFIG.gatekeeper.model is None:
+        logger.error("LINUX_MCP_GATEKEEPER__MODEL not set, this is needed for run_script tools")
         sys.exit(1)
 
 

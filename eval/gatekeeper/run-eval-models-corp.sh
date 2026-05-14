@@ -38,8 +38,8 @@ get_MC_base_url() {
 }
 
 [[ -z "${MODEL}" ]] && echo "$MODEL must be set" && exit 1
-export LINUX_MCP_GATEKEEPER_MODEL
-LINUX_MCP_GATEKEEPER_MODEL="openai/$MODEL"
+export LINUX_MCP_GATEKEEPER__MODEL
+LINUX_MCP_GATEKEEPER__MODEL="openai/$MODEL"
 export OPENAI_API_BASE
 OPENAI_API_BASE="$(get_MC_base_url "$MODEL")"
 

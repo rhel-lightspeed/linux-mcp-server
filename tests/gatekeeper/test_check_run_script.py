@@ -8,6 +8,9 @@ from litellm import Choices
 from litellm import ModelResponse
 from pydantic import ValidationError
 
+from linux_mcp_server.config import CONFIG
+from linux_mcp_server.config import GatekeeperConfig
+from linux_mcp_server.config import ReasoningEffort
 from linux_mcp_server.gatekeeper import GatekeeperResult
 from linux_mcp_server.gatekeeper import GatekeeperStatus
 from linux_mcp_server.gatekeeper.check_run_script import check_run_script
@@ -60,31 +63,19 @@ class TestGatekeeperResultDescription:
 
 class TestGetModel:
     def test_returns_configured_model(self, mocker):
-        mocker.patch.object(
-            check_run_script_module,
-            "CONFIG",
-            gatekeeper_model="test-model",
-        )
+        mocker.patch.object(CONFIG.gatekeeper, "model", "test-model")
         assert get_model() == "test-model"
 
     def test_raises_when_model_not_configured(self, mocker):
-        mocker.patch.object(
-            check_run_script_module,
-            "CONFIG",
-            gatekeeper_model=None,
-        )
-        with pytest.raises(ValueError, match="must set gatekeeper_model"):
+        mocker.patch.object(CONFIG.gatekeeper, "model", None)
+        with pytest.raises(ValueError, match="To use run_script tools, you must set LINUX_MCP_GATEKEEPER__MODEL"):
             get_model()
 
 
 class TestCheckRunScript:
     @pytest.fixture
     def mock_litellm(self, mocker):
-        mocker.patch.object(
-            check_run_script_module,
-            "CONFIG",
-            gatekeeper_model="test-model",
-        )
+        mocker.patch.object(CONFIG.gatekeeper, "model", "test-model")
         mock_completion = mocker.patch.object(check_run_script_module, "completion")
         mock_get_params = mocker.patch.object(check_run_script_module, "get_supported_openai_params")
         return mock_completion, mock_get_params
@@ -107,26 +98,85 @@ class TestCheckRunScript:
             assert tag.lower() in result.detail
 
     @pytest.mark.parametrize(
-        "supported_params,expect_response_format",
+        "structured_output,supported_params,expect_response_format",
         [
-            (["response_format", "temperature"], True),
-            (["temperature"], False),
-            (None, False),
+            (None, ["response_format"], True),
+            (None, [""], False),
+            (None, None, False),
+            (False, ["response_format"], False),
+            (True, [""], True),
         ],
     )
-    def test_response_format_handling(self, mock_litellm, supported_params, expect_response_format):
+    def test_gatekeeper_structured_output(
+        self, mock_litellm, mocker, structured_output, supported_params, expect_response_format
+    ):
         mock_completion, mock_get_params = mock_litellm
         mock_get_params.return_value = supported_params
         mock_completion.return_value = self._make_response('{"status": "OK", "detail": ""}')
+        mocker.patch.object(CONFIG.gatekeeper, "structured_output", structured_output)
 
-        result = check_run_script(description="test", script_type="bash", script="echo hi", readonly=True)
-        assert result.status == GatekeeperStatus.OK
+        check_run_script(description="test", script_type="bash", script="echo hi", readonly=True)
 
         call_kwargs = mock_completion.call_args.kwargs
         if expect_response_format:
             assert call_kwargs["response_format"] is GatekeeperResult
         else:
-            assert call_kwargs["response_format"] is None
+            assert "response_format" not in call_kwargs
+
+    @pytest.mark.parametrize(
+        "gatekeeper_config,expected_kwargs",
+        [
+            (
+                GatekeeperConfig(model="openai/gpt-5.4", reasoning_effort=ReasoningEffort.LOW),
+                {"model": "openai/gpt-5.4", "reasoning_effort": "low", "temperature": 0.0},
+            ),
+            (
+                GatekeeperConfig(model="openrouter/openai/gpt-5.4", reasoning_effort=ReasoningEffort.NONE),
+                {
+                    "model": "openrouter/openai/gpt-5.4",
+                    "reasoning": {"enabled": False},
+                    "provider": {"require_parameters": True},
+                    "temperature": 0.0,
+                },
+            ),
+            (
+                GatekeeperConfig(model="openrouter/openai/gpt-5.4", reasoning_effort=ReasoningEffort.LOW),
+                {
+                    "model": "openrouter/openai/gpt-5.4",
+                    "reasoning": {"enabled": True, "effort": "low"},
+                    "provider": {"require_parameters": True},
+                    "temperature": 0.0,
+                },
+            ),
+            (
+                GatekeeperConfig(model="openai/gpt-5.4", template_kwargs={"enable_thinking": False}),
+                {"model": "openai/gpt-5.4", "chat_template_kwargs": {"enable_thinking": False}, "temperature": 0.0},
+            ),
+            (
+                GatekeeperConfig(model="openrouter/qwen/qwen3.5-9b", quantization="bf16"),
+                {
+                    "model": "openrouter/qwen/qwen3.5-9b",
+                    "provider": {"require_parameters": True, "quantizations": ["bf16"]},
+                    "temperature": 0.0,
+                },
+            ),
+            (
+                GatekeeperConfig(model="openai/gpt-5.4", temperature=1.0),
+                {"model": "openai/gpt-5.4", "temperature": 1.0},
+            ),
+        ],
+    )
+    def test_gatekeeper_config_to_completion_parameters(self, mock_litellm, mocker, gatekeeper_config, expected_kwargs):
+        mock_completion, mock_get_params = mock_litellm
+        mock_get_params.return_value = []
+        mock_completion.return_value = self._make_response('{"status": "OK", "detail": ""}')
+        mocker.patch.object(CONFIG, "gatekeeper", gatekeeper_config)
+
+        check_run_script(description="test", script_type="bash", script="echo hi", readonly=True)
+
+        call_kwargs = mock_completion.call_args.kwargs
+        del call_kwargs["messages"]
+        assert call_kwargs == expected_kwargs
 
     def test_missing_detail_defaults_to_empty(self, mock_litellm):
         mock_completion, mock_get_params = mock_litellm

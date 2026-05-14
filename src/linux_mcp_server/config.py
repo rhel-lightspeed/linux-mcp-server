@@ -1,16 +1,23 @@
 """Settings for linux-mcp-server"""
 
+import logging
+import os
 import sys
 
 from pathlib import Path
+from typing import Any
 
 from pydantic import Field
+from pydantic import model_validator
 from pydantic import SecretStr
 from pydantic_settings import BaseSettings
 from pydantic_settings import SettingsConfigDict
 
 from linux_mcp_server.utils.enum import StrEnum
 from linux_mcp_server.utils.types import UpperCase
+
+
+logger = logging.getLogger(__name__)
 
 
 class Transport(StrEnum):
@@ -25,6 +32,18 @@ class Toolset(StrEnum):
     FIXED = "fixed"
     RUN_SCRIPT = "run_script"
     BOTH = "both"
+
+
+class ReasoningEffort(StrEnum):
+    """Reasoning effort levels for the gatekeeper model."""
+
+    NONE = "none"
+    MINIMAL = "minimal"
+    LOW = "low"
+    MEDIUM = "medium"
+    HIGH = "high"
+    XHIGH = "xhigh"
+    DEFAULT = "default"
 
 
 class AuthProvider(StrEnum):
@@ -78,6 +97,27 @@ class AuthConfig(BaseSettings):
     introspection: IntrospectionAuthConfig | None = None
 
 
+class GatekeeperConfig(BaseSettings):
+    """Gatekeeper Model configuration"""
+
+    model: str | None = None
+
+    # model quantization (e.g. fp8, bf16 - only supported for openrouter)
+    quantization: str | None = None
+
+    # reasoning effort
+    reasoning_effort: ReasoningEffort | None = None
+
+    # Whether we should use structured output (default, autodetect support)
+    structured_output: bool | None = None
+
+    # dict of extra template keyword arguments
+    template_kwargs: dict[str, Any] = Field(default_factory=dict)
+
+    # Temperature for gatekeeper model
+    temperature: float = 0.0
+
+
 class Config(BaseSettings):
     # The '_' is required in the env_prefix, otherwise, pydantic would
     # interpret the prefix as LINUX_MCPLOG_DIR, instead of LINUX_MCP_LOG_DIR
@@ -127,8 +167,7 @@ class Config(BaseSettings):
     # What tools are available
     toolset: Toolset = Toolset.FIXED
 
-    # Gatekeeper model (required for run_script tools)
-    gatekeeper_model: str | None = None
+    gatekeeper: GatekeeperConfig = Field(default_factory=GatekeeperConfig)
 
     # Command execution timeout (applies to both local and remote commands)
     command_timeout: int = 30  # Timeout in seconds; prevents hung commands
@@ -165,9 +204,25 @@ class Config(BaseSettings):
     #
     # @model_validator(mode="after")
     # def validate_gatekeeper_model(self):
-    #     if self.toolset != Toolset.FIXED and self.gatekeeper_model is None:
-    #         raise ValueError('gatekeeper_model must be set unless the toolset is "fixed"')
+    #     if self.toolset != Toolset.FIXED and self.gatekeeper.model is None:
+    #         raise ValueError('gatekeeper.model must be set unless the toolset is "fixed"')
     #     return self
+
+    @model_validator(mode="before")
+    @staticmethod
+    def handle_deprecated_aliases(data: Any) -> Any:
+        if isinstance(data, dict):
+            old_value = os.environ.get("LINUX_MCP_GATEKEEPER_MODEL")
+            if old_value is not None:
+                logger.warning(
+                    "LINUX_MCP_GATEKEEPER_MODEL is deprecated. Please use LINUX_MCP_GATEKEEPER__MODEL instead.",
+                )
+
+                gatekeeper_data = data.setdefault("gatekeeper", {})
+                if isinstance(gatekeeper_data, dict) and "model" not in gatekeeper_data:
+                    gatekeeper_data["model"] = old_value
+
+        return data
 
 
 CONFIG = Config()

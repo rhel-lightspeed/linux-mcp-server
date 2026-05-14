@@ -1,5 +1,7 @@
 import logging
 
+from typing import Any
+
 import litellm
 
 from litellm import Choices
@@ -9,6 +11,7 @@ from litellm import ModelResponse
 from pydantic import BaseModel
 
 from linux_mcp_server.config import CONFIG
+from linux_mcp_server.config import ReasoningEffort
 from linux_mcp_server.utils import StrEnum
 
 
@@ -23,10 +26,10 @@ logger = logging.getLogger("linux-mcp-server")
 
 
 def get_model() -> str:
-    if CONFIG.gatekeeper_model is None:
-        raise ValueError("To use run_script tools, you must set gatekeeper_model in the linux-mcp-server config")
+    if CONFIG.gatekeeper.model:
+        return CONFIG.gatekeeper.model
     else:
-        return CONFIG.gatekeeper_model
+        raise ValueError("To use run_script tools, you must set LINUX_MCP_GATEKEEPER__MODEL")
 
 
 READONLY_INSTRUCTION = """
@@ -184,6 +187,42 @@ class GatekeeperResult(BaseModel):
             return cls(status=status, detail=detail)
 
 
+def _build_completion_kwargs():
+    extra_kwargs: dict[str, Any] = {}
+    model = get_model()
+
+    structured_output = CONFIG.gatekeeper.structured_output
+    if structured_output is None:
+        params = get_supported_openai_params(model=model)
+        structured_output = params is not None and "response_format" in params
+
+    if structured_output:
+        extra_kwargs["response_format"] = GatekeeperResult
+
+    reasoning_effort = CONFIG.gatekeeper.reasoning_effort
+    if reasoning_effort is not None:
+        if model.startswith("openrouter/"):
+            if reasoning_effort == ReasoningEffort.NONE:
+                extra_kwargs["reasoning"] = {"enabled": False}
+            else:
+                extra_kwargs["reasoning"] = {"enabled": True, "effort": reasoning_effort.value}
+        else:
+            extra_kwargs["reasoning_effort"] = reasoning_effort.value
+
+    if model.startswith("openrouter/"):
+        provider: dict[str, Any] = {
+            "require_parameters": True,
+        }
+        extra_kwargs["provider"] = provider
+        if CONFIG.gatekeeper.quantization:
+            provider["quantizations"] = [CONFIG.gatekeeper.quantization]
+
+    if CONFIG.gatekeeper.template_kwargs:
+        extra_kwargs["chat_template_kwargs"] = CONFIG.gatekeeper.template_kwargs
+
+    return extra_kwargs
+
+
 def check_run_script(description: str, script_type: str, script: str, *, readonly: bool) -> GatekeeperResult:
     # Check that the script does what is described
     if "start_of_script" in script.lower() or "end_of_script" in script.lower():
@@ -207,13 +246,14 @@ def check_run_script(description: str, script_type: str, script: str, *, readonl
 
     messages = [{"role": "user", "content": prompt}]
 
-    params = get_supported_openai_params(model=get_model())
-    if params is not None and "response_format" in params:
-        response_format = GatekeeperResult
-    else:
-        response_format = None
+    extra_kwargs = _build_completion_kwargs()
 
-    response = completion(model=get_model(), messages=messages, response_format=response_format, temperature=0)
+    response = completion(
+        model=get_model(),
+        messages=messages,
+        temperature=CONFIG.gatekeeper.temperature,
+        **extra_kwargs,
+    )
     assert isinstance(response, ModelResponse)
     assert isinstance(response.choices[0], Choices)
     response_text = (response.choices[0].message.content or "").strip()
