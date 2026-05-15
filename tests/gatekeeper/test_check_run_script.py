@@ -9,7 +9,6 @@ from litellm import ModelResponse
 from pydantic import ValidationError
 
 from linux_mcp_server.gatekeeper import GatekeeperResult
-from linux_mcp_server.gatekeeper import GatekeeperResultStrict
 from linux_mcp_server.gatekeeper import GatekeeperStatus
 from linux_mcp_server.gatekeeper.check_run_script import check_run_script
 from linux_mcp_server.gatekeeper.check_run_script import get_model
@@ -125,7 +124,7 @@ class TestCheckRunScript:
 
         call_kwargs = mock_completion.call_args.kwargs
         if expect_response_format:
-            assert call_kwargs["response_format"] is GatekeeperResultStrict
+            assert call_kwargs["response_format"] is GatekeeperResult
         else:
             assert call_kwargs["response_format"] is None
 
