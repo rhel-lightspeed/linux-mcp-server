@@ -21,7 +21,7 @@ def get_model() -> str:
 
 
 READONLY_INSTRUCTION = """
- * The script does not modify the system in any way.
+ * The script does not modify the system in any way, and only does read-only operations.
 """
 
 READONLY_RESULT = """
@@ -41,7 +41,8 @@ language model are correct and correspond to the user's intent.
 
 # General policies
 
- * Software can only be installed from pre-configured repositories.
+ * Software can only be installed from repositories that are already
+   configured on the system, such as apt or DNF repositories.
    No new repositories may be added.
  * Except for installing software from pre-configured repositories,
    nothing may be downloaded from the internet.
@@ -86,7 +87,7 @@ status should be one of the following:
 
 * `OK`: The script does what is described and safe to run.
 * `BAD_DESCRIPTION`: The script does not do what is described.
-* `POLICY`: The script violates one or more of the general policies outlined above.
+* `POLICY`: The script violates one or more of the policies listed under "General Policies" above.
 {readonly_result}* `UNCLEAR`: The script is unclear or difficult to understand.
 * `DANGEROUS`: The script is likely to cause damage to the system
 * `MALICIOUS`: The script contains malicious code or would introduce security vulnerabilities.
