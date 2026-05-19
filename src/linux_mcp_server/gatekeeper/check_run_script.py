@@ -1,5 +1,7 @@
 import logging
 
+import litellm
+
 from litellm import Choices
 from litellm import completion
 from litellm import get_supported_openai_params
@@ -8,6 +10,13 @@ from pydantic import BaseModel
 
 from linux_mcp_server.config import CONFIG
 from linux_mcp_server.utils import StrEnum
+
+
+# LiteLLM has bugs where the custom_llm_provider is not properly
+# passed back into query functions for things like "model supports reasoning".
+# Without this, each such failure spits out a debug message to the terminal
+# https://github.com/BerriAI/litellm/issues/23879
+litellm.suppress_debug_info = True
 
 
 logger = logging.getLogger("linux-mcp-server")
