@@ -128,6 +128,8 @@ jobs:
           PLAN: general
         run: |
           echo "Starting functional tests..."
+          # --skip-summary is needed because outside the Red Hat VPN, we
+          # don't have access to artifact storage.
           podman run --rm \
             -e TESTING_FARM_API_TOKEN="$TESTING_FARM_API_TOKEN" \
             quay.io/testing-farm/cli testing-farm request \
@@ -137,4 +139,5 @@ jobs:
             --compose "$COMPOSE" \
             --tag "BusinessUnit=rhel_sst_lightspeed@downstream" \
             --plan "$PLAN" \
-            --timeout 120
+            --timeout 120 \
+            --skip-summary
