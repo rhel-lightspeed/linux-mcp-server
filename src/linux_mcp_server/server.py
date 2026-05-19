@@ -3,16 +3,20 @@
 import logging
 import sys
 
+from dataclasses import dataclass
 from importlib import resources
 from pathlib import Path
 
+from fastmcp import Context
 from fastmcp import FastMCP
+from fastmcp.exceptions import NotFoundError
 from fastmcp.resources import ResourceContent
 from fastmcp.resources import ResourceResult
 from fastmcp.server.dependencies import get_access_token
 from fastmcp.server.middleware import Middleware
 from fastmcp.server.middleware import MiddlewareContext
 from fastmcp.server.middleware.middleware import CallNext
+from fastmcp.utilities.components import FastMCPComponent
 from mcp.types import InitializeRequest
 from mcp.types import InitializeRequestParams
 from mcp.types import InitializeResult
@@ -29,6 +33,7 @@ from linux_mcp_server.mcp_app import MCP_APP_MIME_TYPE
 from linux_mcp_server.mcp_app import MCP_UI_EXTENSION
 from linux_mcp_server.mcp_app import RUN_SCRIPT_APP_URI
 from linux_mcp_server.toolset import get_toolset
+from linux_mcp_server.toolset import Toolset as ToolsetInfo
 
 
 def monkeypatch_fastmcp_for_app_visibility():
@@ -153,40 +158,42 @@ These tools map to six areas:
 """
 
 
-match CONFIG.toolset:
-    case Toolset.FIXED:
-        instructions = INSTRUCTIONS_FIXED
-    case Toolset.RUN_SCRIPT:
-        instructions = INSTRUCTIONS_RUN_SCRIPT
-    case Toolset.BOTH:
-        instructions = INSTRUCTIONS_BOTH
-    case _:
-        assert False, f"Unknown toolset configuration: {CONFIG.toolset}"
+def _get_instructions() -> str:
+    match CONFIG.toolset:
+        case Toolset.FIXED:
+            return INSTRUCTIONS_FIXED
+        case Toolset.RUN_SCRIPT:
+            return INSTRUCTIONS_RUN_SCRIPT
+        case Toolset.BOTH:
+            return INSTRUCTIONS_BOTH
+        case _:  # pragma: no cover
+            assert False, f"Unknown toolset configuration: {CONFIG.toolset}"
 
-toolset = get_toolset(CONFIG.toolset.value)
-assert toolset is not None, f"Toolset not found in registry: {CONFIG.toolset}"
 
-if CONFIG.toolset != Toolset.FIXED and CONFIG.gatekeeper_model is None:
-    logger.error("LINUX_MCP_GATEKEEPER_MODEL not set, this is needed for run_script tools")
-    sys.exit(1)
+def _current_toolset():
+    toolset = get_toolset(CONFIG.toolset.value)
+    assert toolset is not None, f"Toolset not found in registry: {CONFIG.toolset}"
+
+    return toolset
+
+
+def _check_gatekeeper_model():
+    if CONFIG.toolset != Toolset.FIXED and CONFIG.gatekeeper_model is None:
+        logger.error("LINUX_MCP_GATEKEEPER_MODEL not set, this is needed for run_script tools")
+        sys.exit(1)
+
+
+_check_gatekeeper_model()
 
 # Create auth provider if configured
 auth_provider = create_auth_provider()
 
-mcp = FastMCP("linux-mcp-server", instructions=instructions, version=linux_mcp_server.__version__, auth=auth_provider)
-
-if toolset.include_tags:
-    mcp.enable(tags=toolset.include_tags, only=True)
-else:
-    mcp.enable()
-
-if toolset.exclude_tags:
-    mcp.disable(tags=toolset.exclude_tags)
+mcp = FastMCP("linux-mcp-server", version=linux_mcp_server.__version__, auth=auth_provider)
 
 
 @mcp.resource(
     RUN_SCRIPT_APP_URI,
-    tags={"run_script"},
+    tags={"run_script", "mcp_apps_only"},
 )
 def run_script_app_html() -> ResourceResult:
     filename = "run-script-app.html"
@@ -238,6 +245,64 @@ def _use_mcp_app_for_client(client_params: InitializeRequestParams):
     return MCP_APP_MIME_TYPE in mime_types
 
 
+def _hide_app_tools_for_client(client_params: InitializeRequestParams):
+    # Versions of goose before 1.29.0 don't understand _meta.ui.visiblity, so would
+    # leak our app-only tools to the model. However, they also are happy to let the
+    # model call tools that aren't listed as well. So if we see such an old version
+    # of goose, we strip out the app-only tools.
+    client_info = getattr(client_params, "clientInfo", None)
+    if client_info and client_info.name and client_info.name.startswith("goose"):
+        try:
+            major, minor = client_info.version.split(".")[0:2]
+            if (int(major), int(minor)) < (1, 29):
+                return True
+        except ValueError:
+            return False
+
+    return False
+
+
+@dataclass
+class ComponentFilter:
+    """
+    Determines what components (tools/resources) should be visible for a client
+    given the current config.
+    """
+
+    mcp_apps: bool
+    toolset: ToolsetInfo
+    hide_app_tools: bool
+
+    def includes(self, component: FastMCPComponent):
+        if not self.toolset.includes_tool(component.tags):
+            return False
+
+        if self.mcp_apps:
+            if "mcp_apps_exclude" in component.tags:
+                return False
+        else:
+            if "mcp_apps_only" in component.tags:
+                return False
+
+        if self.hide_app_tools and "hidden_from_model" in component.tags:
+            return False
+
+        return True
+
+    @staticmethod
+    def get(context: Context, *, is_list_tools=False):
+        client_params = context.session.client_params
+        assert client_params is not None
+        mcp_apps = _use_mcp_app_for_client(client_params)
+        hide_app_tools = mcp_apps and is_list_tools and _hide_app_tools_for_client(client_params)
+
+        return ComponentFilter(
+            mcp_apps=mcp_apps,
+            toolset=_current_toolset(),
+            hide_app_tools=hide_app_tools,
+        )
+
+
 # Middleware to enforce authorization policy
 class AuthorizationMiddleware(Middleware):
     async def on_call_tool(self, context: MiddlewareContext, call_next):
@@ -245,15 +310,12 @@ class AuthorizationMiddleware(Middleware):
         tool_args = context.message.arguments or {}
         target_host = tool_args.get("host")
 
-        # Get tool from FastMCP else fail closed if not found
-        if context.fastmcp_context is None:
-            logger.error("FastMCP context not available in middleware")
-            raise ValueError("Internal error: FastMCP context not available")
+        assert context.fastmcp_context
 
         tool = await context.fastmcp_context.fastmcp.get_tool(context.message.name)
-        if tool is None:
-            logger.error(f"Tool not found: {context.message.name}")
-            raise ValueError(f"Tool not found: {context.message.name}")
+        if tool is None or not ComponentFilter.get(context.fastmcp_context).includes(tool):
+            logger.error(f"Tool not found: '{context.message.name}'")
+            raise NotFoundError(f"Tool not found: '{context.message.name}'")
 
         # For stdio without policy configured, allow everything
         if CONFIG.transport == Transport.stdio and CONFIG.policy_path is None:
@@ -298,12 +360,26 @@ class AuthorizationMiddleware(Middleware):
         if action == PolicyAction.SSH_KEY:
             if not ssh_key_config:
                 raise RuntimeError("Policy validation error: SSH_KEY action requires ssh_key configuration.")
-            logger.debug(f"SSH key override: p`ath={ssh_key_config.path}, user={ssh_key_config.user}")
+            logger.debug(f"SSH key override: path={ssh_key_config.path}, user={ssh_key_config.user}")
 
         return await call_next(context)
 
 
 class DynamicDiscoveryMiddleware(Middleware):
+    """
+    Implement a dynamic server that presents the right instructions, tools, and resources
+    depending on the client and the current configuration.
+
+    Our configuration is logically static, but treating it dynamic makes it much
+    easier to write the appropriate tests.
+
+    The dynamic behavior is done *per call*, not per session, since that's more future-proof.
+    (Future MCP protocol versions will remove sessions entirely:
+    https://modelcontextprotocol.io/seps/2575-stateless-mcp). This means doing it ourselves
+    rather than using FastMCP's system for session-level enabling and disabling components,
+    but it doesn't come out much worse.
+    """
+
     async def on_initialize(
         self,
         context: MiddlewareContext[InitializeRequest],
@@ -315,51 +391,47 @@ class DynamicDiscoveryMiddleware(Middleware):
         # the client are fetched from the InitializationOptions object tucked
         # away in the ServerSession object, so we need to modify that based
         # on whether we'll use mcp-apps with the client making the InitializeRequest.
+        #
+        # For consistency and simplicity of testing, we always set the
+        # instructions this way
 
         assert context.fastmcp_context
         session = context.fastmcp_context.session
 
-        if _use_mcp_app_for_client(context.message.params):
-            instructions = session._init_options.instructions
-            if instructions:
-                session._init_options.instructions = instructions.replace(
-                    "run_script_with_confirmation", "run_script_interactive"
-                )
+        instructions = _get_instructions()
+
+        toolset = _current_toolset()
+        if "run_script" in toolset.tags and _use_mcp_app_for_client(context.message.params):
+            instructions = instructions.replace("run_script_with_confirmation", "run_script_interactive")
+
+        session._init_options.instructions = instructions
 
         return await call_next(context)
 
     async def on_list_tools(self, context: MiddlewareContext, call_next):
         tools = await call_next(context)
 
-        # Eventually, the tagging of the tools via _meta.ui.visiblity as "app" or "model" will
-        # hide this tool but Goose doesn't support this yet. On the other hand, goose is happy
-        # if the app calls tools we don't list at all, so we just filter out the "app" tools
-        filtered_tools = [t for t in tools if "hidden_from_model" not in (t.tags)]
+        assert context.fastmcp_context
+        filter = ComponentFilter.get(context.fastmcp_context, is_list_tools=True)
+        return [t for t in tools if filter.includes(t)]
 
-        fastmcp_context = context.fastmcp_context
-        assert fastmcp_context is not None, (
-            "FastMCP framework error: context.fastmcp_context should not be None inside on_list_tools"
-        )
+    async def on_list_resources(self, context: MiddlewareContext, call_next):
+        resources = await call_next(context)
 
-        request_ctx = fastmcp_context.request_context
-        assert request_ctx is not None, (
-            "FastMCP framework error: request context should not be None inside on_list_tools"
-        )
+        assert context.fastmcp_context
+        filter = ComponentFilter.get(context.fastmcp_context)
+        return [r for r in resources if filter.includes(r)]
 
-        client_params = request_ctx.session.client_params
-        assert client_params is not None, (
-            "FastMCP framework error: client_params should not be None inside on_list_tools"
-        )
+    # on_call_tool: the filtering for this is handled in AuthorizationMiddleware
+    #    (the two middlewares could be combined)
+    #
+    # on_read_resource: we consider it harmless if any app reads the static and
+    #    public mcp-app HTML, so we don't provide a on_read_resource() handler.
 
-        if _use_mcp_app_for_client(client_params):
-            filtered_tools = [t for t in filtered_tools if "mcp_apps_exclude" not in t.tags]
-        else:
-            filtered_tools = [t for t in filtered_tools if "mcp_apps_only" not in t.tags]
 
-        return filtered_tools
+mcp.add_middleware(AuthorizationMiddleware())
+mcp.add_middleware(DynamicDiscoveryMiddleware())
 
 
 def main():
-    mcp.add_middleware(AuthorizationMiddleware())
-    mcp.add_middleware(DynamicDiscoveryMiddleware())
     mcp.run(show_banner=False, transport=CONFIG.transport.value, **CONFIG.transport_kwargs)

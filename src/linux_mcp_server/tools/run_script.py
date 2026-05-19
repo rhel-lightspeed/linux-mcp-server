@@ -233,7 +233,7 @@ class ExecuteScriptResult:
 
 
 @mcp.tool(
-    tags={"run_script", "hidden_from_model"},
+    tags={"run_script", "mcp_apps_only", "hidden_from_model"},
     description="Execute a script; this is only available to the our mcp-app",
     app=AppConfig(visibility=["app"]),
 )
@@ -270,7 +270,7 @@ async def execute_script(
 
 
 @mcp.tool(
-    tags={"run_script", "hidden_from_model"},
+    tags={"run_script", "mcp_apps_only", "hidden_from_model"},
     description="Reject a script; this is only available to the our mcp-app",
     app=AppConfig(visibility=["app"]),
 )
@@ -357,7 +357,7 @@ async def run_script_interactive(
 
 
 @mcp.tool(
-    tags={"run_script", "hidden_from_model"},
+    tags={"run_script", "mcp_apps_only", "hidden_from_model"},
     title="Get the execution state with request ID",
     description="Get the execution state with request ID",
     app=AppConfig(visibility=["app"]),

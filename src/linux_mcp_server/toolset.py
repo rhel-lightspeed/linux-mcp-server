@@ -7,37 +7,29 @@ from dataclasses import dataclass
 @dataclass
 class Toolset:
     name: str
-    include_tags: set[str]  # Tool must have all of these tags
-    exclude_tags: set[str]  # Tool must have none of these tags
+    tags: set[str]  # Tool must have one of these tags
 
     def includes_tool(self, tool_tags: set[str]) -> bool:
-        # Tool must have all required tags
-        if self.include_tags and not self.include_tags.issubset(tool_tags):
-            return False
-
-        # Tool must not have any excluded tags
-        if self.exclude_tags and self.exclude_tags.intersection(tool_tags):
-            return False
-
-        return True
+        # Tool must have one of the required tags
+        return not self.tags.isdisjoint(tool_tags)
 
 
 # Registry of available toolsets for policy matching
 _TOOLSETS = {
     "fixed": Toolset(
         name="fixed",
-        include_tags=set(),
-        exclude_tags={"run_script"},
+        tags={"fixed"},
     ),
     "run_script": Toolset(
         name="run_script",
-        include_tags={"run_script"},
-        exclude_tags=set(),
+        tags={"run_script"},
     ),
     "both": Toolset(
         name="both",
-        include_tags=set(),
-        exclude_tags=set(),
+        tags={
+            "fixed",
+            "run_script",
+        },
     ),
 }
 
