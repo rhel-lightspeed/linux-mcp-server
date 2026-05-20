@@ -13,6 +13,14 @@ These are configured in **Settings > CI/CD > Variables** on the GitLab project.
 - **Type:** Personal or Project Access Token with `write_repository` scope.
 - **How to create:** GitLab > Settings > Access Tokens > create a token with `write_repository`. Then add it as a CI/CD variable (Protected + Masked).
 
+### `GITHUB_STATUS_TOKEN`
+
+- **Used by:** `mirror.yml` (PR mirroring workflow)
+- **Purpose:** Posts a commit status back to the GitHub PR after a successful mirror, so the PR checks tab shows the mirroring result with a link to the GitLab MR.
+- **Type:** GitHub Personal Access Token — classic PAT with `repo:status` scope, or fine-grained PAT with "Commit statuses: Write" permission on the target repository.
+- **How to create:** GitHub > Settings > Developer settings > Personal access tokens > create a token with the appropriate scope. Then add it as a CI/CD variable in GitLab (Protected + Masked).
+- **Optional:** If not configured, the mirror script still functions but skips posting the GitHub commit status.
+
 ### `MODELS_CORP_*_API_KEY`
 
 - **Used by:** `eval-gatekeeper.yml` (models.corp eval jobs)
