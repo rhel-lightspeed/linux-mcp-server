@@ -19,6 +19,11 @@ jobs:
   check-authorization:
     name: Check Authorization
     runs-on: ubuntu-latest
+    if: >-
+      github.event_name != 'issue_comment' ||
+      (github.event.issue.pull_request &&
+       (startsWith(github.event.comment.body, '/test-functional') ||
+        startsWith(github.event.comment.body, '/retest')))
     outputs:
       authorized: ${{ steps.check.outputs.authorized }}
     steps:
@@ -34,6 +39,18 @@ jobs:
             if (eventName === 'push' || eventName === 'workflow_dispatch') {
               authorized = true;
             } else {
+              if (eventName === 'issue_comment') {
+                if (!context.payload.issue.pull_request) {
+                  core.setFailed('issue_comment event on a non-PR issue should have been filtered by job condition');
+                  return;
+                }
+                const body = context.payload.comment.body;
+                if (!/^\/(test-functional|retest)/.test(body)) {
+                  core.setFailed('issue_comment without trigger command should have been filtered by job condition');
+                  return;
+                }
+              }
+
               try {
                 const { data: permission } = await github.rest.repos.getCollaboratorPermissionLevel({
                   owner: context.repo.owner,
@@ -43,14 +60,7 @@ jobs:
 
                 const role = permission.permission; // admin, write, maintain, read, none
                 if (['admin', 'write', 'maintain'].includes(role)) {
-                  if (eventName === 'pull_request_target') {
-                    authorized = true;
-                  } else if (eventName === 'issue_comment' && context.payload.issue.pull_request) {
-                    const body = context.payload.comment.body;
-                    if (/^\/(test-functional|retest)/.test(body)) {
-                      authorized = true;
-                    }
-                  }
+                  authorized = true;
                 }
               } catch (error) {
                 core.error(`Failed to check permissions for ${user}: ${error.message}`);
