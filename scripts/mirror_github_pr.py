@@ -23,8 +23,12 @@ import os
 import subprocess
 import sys
 import urllib.error
-import urllib.parse
 import urllib.request
+
+from pipeline_utils import get_mr_info
+from pipeline_utils import GitHubAPI
+from pipeline_utils import GitLabAPI
+from pipeline_utils import post_github_status
 
 
 def run_git(*args, cwd=None):
@@ -32,7 +36,7 @@ def run_git(*args, cwd=None):
     subprocess.run(["git", *args], check=True, cwd=cwd)
 
 
-def branch_exists(branch_name, cwd):
+def branch_exists(branch_name, *, cwd):
     """Check if a branch exists on the GitLab remote."""
     result = subprocess.run(
         ["git", "ls-remote", "--exit-code", "origin", f"refs/heads/{branch_name}"],
@@ -42,9 +46,9 @@ def branch_exists(branch_name, cwd):
     return result.returncode == 0
 
 
-def fetch_pr_info(github_repo, pr_number):
+def fetch_pr_info(pr_number, *, github: GitHubAPI):
     """Fetch PR metadata from the GitHub API."""
-    url = f"https://api.github.com/repos/{github_repo}/pulls/{pr_number}"
+    url = f"https://api.github.com/repos/{github.repo}/pulls/{pr_number}"
     try:
         with urllib.request.urlopen(url) as response:
             return json.loads(response.read().decode())
@@ -54,65 +58,24 @@ def fetch_pr_info(github_repo, pr_number):
         sys.exit(f"ERROR: Could not connect to GitHub API: {e.reason}")
 
 
-def get_mr_url(gitlab_host, gitlab_project, branch_name):
-    """Look up the URL of the GitLab MR for the given branch."""
-    encoded_project = urllib.parse.quote(gitlab_project, safe="")
-    url = (
-        f"https://{gitlab_host}/api/v4/projects/{encoded_project}"
-        f"/merge_requests?source_branch={branch_name}&state=opened"
-    )
-    with urllib.request.urlopen(url) as response:
-        mrs = json.loads(response.read().decode())
-
-    if not mrs:
-        raise RuntimeError(f"No open MR found for branch {branch_name}")
-    return mrs[0]["web_url"]
-
-
-def post_github_status(github_repo, commit_sha, state, target_url, description, github_token):
-    """Post a commit status to GitHub."""
-    url = f"https://api.github.com/repos/{github_repo}/statuses/{commit_sha}"
-    payload = json.dumps({
-        "state": state,
-        "target_url": target_url,
-        "description": description,
-        "context": "gitlab / mirror",
-    }).encode()
-    req = urllib.request.Request(
-        url,
-        data=payload,
-        headers={
-            "Authorization": f"token {github_token}",
-            "Content-Type": "application/json",
-            "Accept": "application/vnd.github+json",
-        },
-        method="POST",
-    )
-    with urllib.request.urlopen(req) as response:
-        print(f"Posted GitHub status: {state}")
-
-
 def main():
-    github_repo = os.environ.get("GITHUB_REPO", "rhel-lightspeed/linux-mcp-server")
-    gitlab_project = os.environ.get("GITLAB_PROJECT", "rhel-lightspeed/mcp/linux-mcp-server")
-    gitlab_host = os.environ.get("GITLAB_HOST", "gitlab.cee.redhat.com")
+    # optional: GITHUB_REPO / GITHUB_STATUS_TOKEN
+    github = GitHubAPI.from_environment()
+
+    # requires: GITLAB_TOKEN, optional: GITLAB_PROJECT / GITLAB_HOST
+    gitlab = GitLabAPI.from_environment()
+
     pr_number = os.environ.get("GITHUB_PR_NUMBER", "")
     commit_sha = os.environ.get("GITHUB_COMMIT_SHA", "")
-    gitlab_token = os.environ.get("GITLAB_TOKEN", "")
-    github_status_token = os.environ.get("GITHUB_STATUS_TOKEN", "")
-
     if not pr_number or not commit_sha:
         sys.exit("ERROR: GITHUB_PR_NUMBER and GITHUB_COMMIT_SHA are required")
 
-    if not gitlab_token:
-        sys.exit("ERROR: GITLAB_TOKEN is required")
-
     branch_name = f"github-pr-{pr_number}"
-    gitlab_remote = f"https://oauth2:{gitlab_token}@{gitlab_host}/{gitlab_project}.git"
+    gitlab_remote = f"https://oauth2:{gitlab.token}@{gitlab.host}/{gitlab.project}.git"
 
     # Fetch PR information from GitHub
     print(f"Fetching PR #{pr_number} from GitHub...")
-    pr_info = fetch_pr_info(github_repo, pr_number)
+    pr_info = fetch_pr_info(pr_number, github=github)
 
     pr_title = pr_info.get("title")
     pr_url = pr_info.get("html_url")
@@ -128,7 +91,7 @@ def main():
     run_git("clone", gitlab_remote, "repo")
 
     print(f"Fetching commit {commit_sha[:7]} from GitHub...")
-    run_git("remote", "add", "github", f"https://github.com/{github_repo}.git", cwd="repo")
+    run_git("remote", "add", "github", f"https://github.com/{github.repo}.git", cwd="repo")
     run_git("fetch", "github", commit_sha, cwd="repo")
     run_git("checkout", "-b", branch_name, commit_sha, cwd="repo")
 
@@ -167,15 +130,15 @@ def main():
         print(f"Created MR for branch {branch_name}")
 
     # Post success status back to GitHub
-    if github_status_token:
-        mr_url = get_mr_url(gitlab_host, gitlab_project, branch_name)
+    if github.token:
+        _, mr_url = get_mr_info(branch_name, gitlab=gitlab)
         post_github_status(
-            github_repo,
-            commit_sha,
+            commit_sha=commit_sha,
             state="success",
-            target_url=mr_url,
+            context="gitlab / mirror",
             description="Mirrored to internal GitLab",
-            github_token=github_status_token,
+            target_url=mr_url,
+            github=github,
         )
     else:
         print("GITHUB_STATUS_TOKEN not set, skipping GitHub status update")
