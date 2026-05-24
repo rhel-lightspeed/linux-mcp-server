@@ -56,10 +56,15 @@ See [Guarded Command Execution](guarded-command-execution.md) for details on the
 These are used when `LINUX_MCP_TOOLSET` is set to `run_script` or `both`.
 
 | Option / Env Var | Default | Description |
-|------------------|---------|-------------|
-| `--gatekeeper-model`<br>`LINUX_MCP_GATEKEEPER_MODEL` | *(none)* | Required: [LiteLLM model name](https://docs.litellm.ai/docs/providers) to use |
+| ---------------- | ------- | ----------- |
 | `--always-confirm-scripts` / `--no-always-confirm-scripts`<br>`LINUX_MCP_ALWAYS_CONFIRM_SCRIPTS` | `False` | All scripts must be confirmed by the user |
-| Other environment variables | *(none)* | As required by the LiteLLM provider, e.g. `OPENAI_API_KEY` |
+| `--gatekeeper.model`<br>`LINUX_MCP_GATEKEEPER__MODEL` | _(none)_ | Required: [LiteLLM model name](https://docs.litellm.ai/docs/providers) to use |
+| `--gatekeeper.quantization`<br>`LINUX_MCP_GATEKEEPER__QUANTIZATION` | _(model specific)_ | _Not usually needed_ - Particular model quantization to use (openrouter only) |
+| `--gatekeeper.reasoning_effort`<br>`LINUX_MCP_GATEKEEPER__REASONING_EFFORT` | _(model specific)_ | Reasoning effort to use for gatekeeper model (`none`, `minimal`, `low`, `medium`, `high`, `xhigh`). Not all values are supported for all models. |
+| `--gatekeeper.structured_output`<br>`LINUX_MCP_GATEKEEPER__STRUCTURED_OUTPUT` | _(autodetected)_ | _Not usually needed_ - Whether to use structured output generation for the model. Default is to use if detected as available. |
+| `--gatekeeper.temperature`<br>`LINUX_MCP_GATEKEEPER__TEMPERATURE` | 0.0 | _Not usually needed_ - Temperature to use for model - for some models, a non-zero value may be necessary when enabling reasoning. |
+| `--gatekeeper.template_kwargs`<br>`LINUX_MCP_GATEKEEPER__TEMPLATE_KWARGS` | _(none)_ | _Not usually needed_ - Extra arguments for the model's chat template, formatted as a JSON string. Example: `{ "enable_thinking": false }` |
+| Other environment variables | _(none)_ | As required by the LiteLLM provider, e.g. `OPENAI_API_KEY` |
 
 ## Logging Configuration
 

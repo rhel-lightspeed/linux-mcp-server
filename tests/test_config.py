@@ -1,5 +1,7 @@
 """Unit tests for linux_mcp_server.config module"""
 
+import logging
+
 from pathlib import Path
 
 import pytest
@@ -261,3 +263,64 @@ class TestConfigEdgeCases:
         # Enforce that we have the prefix to maintain compatibility.
         # Ignoring the error here is fine, as this will always exist for the config class.
         assert config.model_config["env_prefix"] == "LINUX_MCP_"  # pyright: ignore[reportTypedDictNotRequiredAccess]
+
+
+class TestHandleDeprecatedAliases:
+    """Tests for the LINUX_MCP_GATEKEEPER_MODEL → LINUX_MCP_GATEKEEPER__MODEL deprecation."""
+
+    def test_migrates_deprecated_env_var(self, mock_getuser, monkeypatch, caplog):
+        """The old single-underscore env var is migrated to gatekeeper.model."""
+        monkeypatch.setenv("LINUX_MCP_GATEKEEPER_MODEL", "openai/gpt-4")
+        monkeypatch.delenv("LINUX_MCP_GATEKEEPER__MODEL", raising=False)
+
+        with caplog.at_level(logging.WARNING, logger="linux_mcp_server.config"):
+            config = Config()
+
+        assert config.gatekeeper.model == "openai/gpt-4"
+        assert "LINUX_MCP_GATEKEEPER_MODEL is deprecated" in caplog.text
+
+    def test_new_env_var_takes_precedence(self, mock_getuser, monkeypatch):
+        """When both old and new env vars are set, the new one wins."""
+        monkeypatch.setenv("LINUX_MCP_GATEKEEPER_MODEL", "old-model")
+        monkeypatch.setenv("LINUX_MCP_GATEKEEPER__MODEL", "new-model")
+
+        config = Config()
+
+        assert config.gatekeeper.model == "new-model"
+
+    def test_new_env_var_works_without_old(self, mock_getuser, monkeypatch):
+        """The new double-underscore env var works on its own."""
+        monkeypatch.delenv("LINUX_MCP_GATEKEEPER_MODEL", raising=False)
+        monkeypatch.setenv("LINUX_MCP_GATEKEEPER__MODEL", "openai/gpt-4")
+
+        config = Config()
+
+        assert config.gatekeeper.model == "openai/gpt-4"
+
+
+class TestGatekeeperConfig:
+    def test_template_kwargs(self, mock_getuser, monkeypatch):
+        """Test setting template_kwargs with a JSON object."""
+        monkeypatch.setenv(
+            "LINUX_MCP_GATEKEEPER__TEMPLATE_KWARGS", '{ "enable_thinking": true, "reasoning_effort": "low" }'
+        )
+
+        config = Config()
+        assert config.gatekeeper.template_kwargs == {"enable_thinking": True, "reasoning_effort": "low"}
+
+    def test_template_kwargs_one_by_one(self, mock_getuser, monkeypatch):
+        """Test setting template_kwargs, key-by-key"""
+
+        # This ends up with strings, which is not what we want, so we'll just document
+        # setting it as a JSON object
+        monkeypatch.setenv("LINUX_MCP_GATEKEEPER__TEMPLATE_KWARGS__ENABLE_THINKING", "true")
+        monkeypatch.setenv("LINUX_MCP_GATEKEEPER__TEMPLATE_KWARGS__REASONING_EFFORT", "low")
+        monkeypatch.setenv("LINUX_MCP_GATEKEEPER__TEMPLATE_KWARGS__UNSET", "")
+
+        config = Config()
+        assert config.gatekeeper.template_kwargs == {"enable_thinking": "true", "reasoning_effort": "low"}
+
+    def test_template_kwargs_unset(self, mock_getuser, monkeypatch):
+        """Test default value for template_kwargs"""
+        config = Config()
+        assert config.gatekeeper.template_kwargs == {}

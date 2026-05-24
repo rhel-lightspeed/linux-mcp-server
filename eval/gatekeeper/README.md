@@ -64,7 +64,7 @@ Runs test cases through the gatekeeper and reports results.
 
 ```bash
 # Set the gatekeeper model
-export LINUX_MCP_GATEKEEPER_MODEL="openrouter/anthropic/claude-3.5-sonnet"
+export LINUX_MCP_GATEKEEPER__MODEL="openrouter/anthropic/claude-3.5-sonnet"
 
 # Run evaluation on a single file
 uv run eval/gatekeeper/run-eval.py testcases/selinux-port-denial.yaml -o results.yaml

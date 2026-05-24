@@ -8,7 +8,7 @@ from unittest.mock import patch
 # Register script tools on the in-process MCP instance used by ``mcp_client``.
 # Default CLI/config is FIXED-only; tests need validate_script / run_script / etc.
 os.environ.setdefault("LINUX_MCP_TOOLSET", "both")
-os.environ.setdefault("LINUX_MCP_GATEKEEPER_MODEL", "test/gatekeeper-placeholder")
+os.environ.setdefault("LINUX_MCP_GATEKEEPER__MODEL", "test/gatekeeper-placeholder")
 
 import pytest
 

@@ -36,7 +36,6 @@ download-secure-files:
     paths:
       - securefiles/
 
-
 # ==========================================
 # EVAL WORKFLOW - TEMPLATES
 # ==========================================
@@ -68,7 +67,7 @@ download-secure-files:
     - export VERTEXAI_PROJECT="rhel-lightspeed-650189"
     - export VERTEXAI_LOCATION="global"
   artifacts:
-    paths: 
+    paths:
       - data/
     expire_in: 1 hour
 
@@ -77,22 +76,21 @@ download-secure-files:
 # ==========================================
 
 # Vertex AI
-gatekeeper-eval-gpt-oss-120b: 
+gatekeeper-eval-gpt-oss-120b:
   extends: .eval-base
   variables:
     MODEL_NAME: "gpt-oss-120b"
   script:
-    - export LINUX_MCP_GATEKEEPER_MODEL="vertex_ai/openai/$MODEL_NAME-maas"
+    - export LINUX_MCP_GATEKEEPER__MODEL="vertex_ai/openai/$MODEL_NAME-maas"
     - uv run --extra gcp eval/gatekeeper/run-eval.py --all -f json --output-all -o "$CI_PROJECT_DIR/data/$MODEL_NAME.json"
 
-gatekeeper-eval-gemini-3.1-pro-preview: 
+gatekeeper-eval-gemini-3.1-pro-preview:
   extends: .eval-base
   variables:
     MODEL_NAME: "gemini-3.1-pro-preview"
   script:
-    - export LINUX_MCP_GATEKEEPER_MODEL="vertex_ai/$MODEL_NAME"
+    - export LINUX_MCP_GATEKEEPER__MODEL="vertex_ai/$MODEL_NAME"
     - uv run --extra gcp eval/gatekeeper/run-eval.py --all -f json --output-all -o "$CI_PROJECT_DIR/data/$MODEL_NAME.json"
-
 
 # Models.corp
 gatekeeper-eval-models-corp-granite-4.0-h-small:
