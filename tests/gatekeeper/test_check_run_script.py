@@ -267,3 +267,31 @@ class TestCheckRunScript:
         )
 
         assert stats.cost == 1001 * 1e-6 + 201 * 4e-6
+
+    @pytest.mark.parametrize(
+        "description,script_type,script,readonly",
+        [("test", "bash", "echo hi", True), ("test", "python", "import os; os.makedirs('test', exist_ok=True)", False)],
+    )
+    async def test_message_passed_to_acompletion_contains_both_system_prompt_and_user_prompt(
+        self, mock_litellm, mocker, description, script_type, script, readonly
+    ):
+        mock_acompletion, mock_get_params = mock_litellm
+        mock_get_params.return_value = ["response_format"]
+        mock_acompletion.return_value = self._make_response('{"status": "OK", "detail": ""}')
+        await check_run_script_with_stats(description, script_type, script, readonly=readonly)
+        args, kwargs = mock_acompletion.call_args
+
+        messages = kwargs.get("messages")
+        assert isinstance(messages, list)
+
+        system_prompt = messages[0]
+        assert system_prompt.get("role") == "system"
+        system_content = system_prompt.get("content")
+        assert "You are a gatekeeper" in system_content
+
+        user_prompt = messages[1]
+        assert user_prompt.get("role") == "user"
+        user_content = user_prompt.get("content")
+        assert "Evaluate the script against each item in the verification checklist" in user_content
+        assert f"<START_OF_SCRIPT>\n{script}\n<END_OF_SCRIPT>" in user_content
+        assert f"<START_OF_DESCRIPTION>\n{description}\n<END_OF_DESCRIPTION>" in user_content
