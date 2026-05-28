@@ -159,6 +159,7 @@ tag-only = [
 
 [tool.pyright]
 include = [
+    "scripts",
     "src",
     "tests",
 ]

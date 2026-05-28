@@ -12,9 +12,10 @@ Required environment variables:
   GITLAB_TOKEN      - GitLab access token with 'write_repository' scope
 
 Optional environment variables:
-  GITHUB_REPO    - GitHub repository (default: rhel-lightspeed/linux-mcp-server)
-  GITLAB_PROJECT - GitLab project path (default: rhel-lightspeed/mcp/linux-mcp-server)
-  GITLAB_HOST    - GitLab hostname (default: gitlab.cee.redhat.com)
+  GITHUB_REPO          - GitHub repository (default: rhel-lightspeed/linux-mcp-server)
+  GITLAB_PROJECT       - GitLab project path (default: rhel-lightspeed/mcp/linux-mcp-server)
+  GITLAB_HOST          - GitLab hostname (default: gitlab.cee.redhat.com)
+  GITHUB_STATUS_TOKEN  - GitHub PAT for posting commit statuses (if unset, status posting is skipped)
 """
 
 import json
@@ -24,13 +25,18 @@ import sys
 import urllib.error
 import urllib.request
 
+from pipeline_utils import get_mr_info
+from pipeline_utils import GitHubAPI
+from pipeline_utils import GitLabAPI
+from pipeline_utils import post_github_status
+
 
 def run_git(*args, cwd=None):
     """Run a git command, raising on failure."""
     subprocess.run(["git", *args], check=True, cwd=cwd)
 
 
-def branch_exists(branch_name, cwd):
+def branch_exists(branch_name, *, cwd):
     """Check if a branch exists on the GitLab remote."""
     result = subprocess.run(
         ["git", "ls-remote", "--exit-code", "origin", f"refs/heads/{branch_name}"],
@@ -40,9 +46,9 @@ def branch_exists(branch_name, cwd):
     return result.returncode == 0
 
 
-def fetch_pr_info(github_repo, pr_number):
+def fetch_pr_info(pr_number, *, github: GitHubAPI):
     """Fetch PR metadata from the GitHub API."""
-    url = f"https://api.github.com/repos/{github_repo}/pulls/{pr_number}"
+    url = f"https://api.github.com/repos/{github.repo}/pulls/{pr_number}"
     try:
         with urllib.request.urlopen(url) as response:
             return json.loads(response.read().decode())
@@ -53,25 +59,23 @@ def fetch_pr_info(github_repo, pr_number):
 
 
 def main():
-    github_repo = os.environ.get("GITHUB_REPO", "rhel-lightspeed/linux-mcp-server")
-    gitlab_project = os.environ.get("GITLAB_PROJECT", "rhel-lightspeed/mcp/linux-mcp-server")
-    gitlab_host = os.environ.get("GITLAB_HOST", "gitlab.cee.redhat.com")
+    # optional: GITHUB_REPO / GITHUB_STATUS_TOKEN
+    github = GitHubAPI.from_environment()
+
+    # requires: GITLAB_TOKEN, optional: GITLAB_PROJECT / GITLAB_HOST
+    gitlab = GitLabAPI.from_environment()
+
     pr_number = os.environ.get("GITHUB_PR_NUMBER", "")
     commit_sha = os.environ.get("GITHUB_COMMIT_SHA", "")
-    gitlab_token = os.environ.get("GITLAB_TOKEN", "")
-
     if not pr_number or not commit_sha:
         sys.exit("ERROR: GITHUB_PR_NUMBER and GITHUB_COMMIT_SHA are required")
 
-    if not gitlab_token:
-        sys.exit("ERROR: GITLAB_TOKEN is required")
-
     branch_name = f"github-pr-{pr_number}"
-    gitlab_remote = f"https://oauth2:{gitlab_token}@{gitlab_host}/{gitlab_project}.git"
+    gitlab_remote = f"https://oauth2:{gitlab.token}@{gitlab.host}/{gitlab.project}.git"
 
     # Fetch PR information from GitHub
     print(f"Fetching PR #{pr_number} from GitHub...")
-    pr_info = fetch_pr_info(github_repo, pr_number)
+    pr_info = fetch_pr_info(pr_number, github=github)
 
     pr_title = pr_info.get("title")
     pr_url = pr_info.get("html_url")
@@ -87,7 +91,7 @@ def main():
     run_git("clone", gitlab_remote, "repo")
 
     print(f"Fetching commit {commit_sha[:7]} from GitHub...")
-    run_git("remote", "add", "github", f"https://github.com/{github_repo}.git", cwd="repo")
+    run_git("remote", "add", "github", f"https://github.com/{github.repo}.git", cwd="repo")
     run_git("fetch", "github", commit_sha, cwd="repo")
     run_git("checkout", "-b", branch_name, commit_sha, cwd="repo")
 
@@ -124,6 +128,20 @@ def main():
             cwd="repo",
         )
         print(f"Created MR for branch {branch_name}")
+
+    # Post success status back to GitHub
+    if github.token:
+        _, mr_url = get_mr_info(branch_name, gitlab=gitlab)
+        post_github_status(
+            commit_sha=commit_sha,
+            state="success",
+            context="gitlab / mirror",
+            description="Mirrored to internal GitLab",
+            target_url=mr_url,
+            github=github,
+        )
+    else:
+        print("GITHUB_STATUS_TOKEN not set, skipping GitHub status update")
 
 
 if __name__ == "__main__":

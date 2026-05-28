@@ -17,6 +17,8 @@ import textwrap
 from collections import defaultdict
 from pathlib import Path
 
+from fastmcp.tools import FunctionTool
+
 
 # Module name → (display order, heading, filename slug, description)
 MODULE_CATEGORIES: dict[str, tuple[int, str, str, str]] = {
@@ -388,7 +390,9 @@ async def main():
         if tool.tags & HIDDEN_TAGS:
             continue
 
-        module = getattr(tool.fn, "__module__", "unknown")
+        module = "unknown"
+        if isinstance(tool, FunctionTool):
+            module = getattr(tool.fn, "__module__", "unknown")
         groups[module].append(tool)
 
     # Sort groups by defined order
