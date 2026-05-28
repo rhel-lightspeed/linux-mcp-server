@@ -24,6 +24,7 @@ from linux_mcp_server.audit import log_ssh_command
 from linux_mcp_server.audit import log_ssh_connect
 from linux_mcp_server.audit import Status
 from linux_mcp_server.config import CONFIG
+from linux_mcp_server.execution_context import get_execution_context
 from linux_mcp_server.utils.types import Host
 
 
@@ -376,11 +377,24 @@ async def execute_command(
         ...     username="admin"
         ... )
     """
+    # Get execution context, fail-closed if not set
+    context = get_execution_context()
+    if context is None:
+        raise RuntimeError("No execution context set cannot execute commands")
+
     cmd_str = " ".join(command)
 
     if host:
+        # Remote execution, check permissions
+        if not context.allow_ssh_default and context.ssh_key_path is None:
+            raise RuntimeError("Remote execution not allowed")
+
         logger.debug(f"Routing to remote execution: {host} | command={cmd_str}")
         return await _connection_manager.execute_remote(command, host, encoding=encoding)
+
+    # Local execution,check permissions
+    if not context.allow_local:
+        raise RuntimeError("Local execution not allowed")
 
     logger.debug(f"LOCAL_EXEC: {cmd_str}")
     return await _execute_local(command, encoding=encoding)

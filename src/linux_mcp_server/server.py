@@ -28,6 +28,8 @@ from linux_mcp_server.auth_policy import PolicyAction
 from linux_mcp_server.config import CONFIG
 from linux_mcp_server.config import Toolset
 from linux_mcp_server.config import Transport
+from linux_mcp_server.execution_context import ExecutionContext
+from linux_mcp_server.execution_context import use_execution_context
 from linux_mcp_server.mcp_app import hide_app_tools_for_client
 from linux_mcp_server.mcp_app import MCP_APP_MIME_TYPE
 from linux_mcp_server.mcp_app import RUN_SCRIPT_APP_URI
@@ -282,7 +284,9 @@ class AuthorizationMiddleware(Middleware):
 
         # For stdio without policy configured, allow everything
         if CONFIG.transport == Transport.stdio and CONFIG.policy_path is None:
-            return await call_next(context)
+            exec_context = ExecutionContext(allow_local=True, allow_ssh_default=True)
+            with use_execution_context(exec_context):
+                return await call_next(context)
 
         # For http transports log auth at INFO for audit trail info
         # For stdio use DEBUG to avoid noise
@@ -319,13 +323,26 @@ class AuthorizationMiddleware(Middleware):
         # Log the authorized action
         log_level(f"Authorized: tool={tool.name}, host={target_host or 'local'}, action={action.value}, user={email}")
 
-        # For SSH_KEY action, validate ssh_key_config (should be prevented by policy validation)
-        if action == PolicyAction.SSH_KEY:
-            if not ssh_key_config:
-                raise RuntimeError("Policy validation error: SSH_KEY action requires ssh_key configuration.")
-            logger.debug(f"SSH key override: path={ssh_key_config.path}, user={ssh_key_config.user}")
+        # Build ExecutionContext based on policy action
+        match action:
+            case PolicyAction.LOCAL:
+                exec_context = ExecutionContext(allow_local=True)
+            case PolicyAction.SSH_DEFAULT:
+                exec_context = ExecutionContext(allow_ssh_default=True)
+            case PolicyAction.SSH_KEY:
+                if not ssh_key_config:
+                    raise RuntimeError("Policy validation error: SSH_KEY action requires ssh_key configuration.")
+                logger.debug(f"SSH key override: path={ssh_key_config.path}, user={ssh_key_config.user}")
+                exec_context = ExecutionContext(
+                    ssh_key_path=Path(ssh_key_config.path),
+                    ssh_key_user=ssh_key_config.user,
+                )
+            case _:  # pragma: no cover
+                raise RuntimeError(f"Unexpected policy action: {action}")
 
-        return await call_next(context)
+        # Execute with the appropriate ExecutionContext
+        with use_execution_context(exec_context):
+            return await call_next(context)
 
 
 class DynamicDiscoveryMiddleware(Middleware):
