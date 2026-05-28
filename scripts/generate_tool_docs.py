@@ -370,19 +370,21 @@ def generate_page(heading: str, description: str, tools: list) -> str:
     return "\n".join(lines)
 
 
-async def get_tools():
+async def list_tools():
     """Import the server and retrieve all registered tools."""
     from linux_mcp_server.server import mcp
 
-    return await mcp.get_tools()
+    # This avoids our filtering middleware, which doesn't like
+    # it when we call list_tools without a current session.
+    return await mcp._list_tools()
 
 
 async def main():
-    tools = await get_tools()
+    tools = await list_tools()
 
     # Group tools by module, filtering out hidden ones
     groups: dict[str, list] = defaultdict(list)
-    for tool in tools.values():
+    for tool in tools:
         if tool.tags & HIDDEN_TAGS:
             continue
 
