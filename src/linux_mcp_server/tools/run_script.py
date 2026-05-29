@@ -332,7 +332,7 @@ async def run_script_interactive(
     result_id = token
     if new_details != script_details:
         # Parameters don't match - revalidate and create a new script store entry
-        gatekeeper_result = check_run_script(
+        gatekeeper_result = await check_run_script(
             description,
             script_type,
             (BASH_STRICT_PREAMBLE + script) if script_type == SCRIPT_TYPE_BASH else script,
@@ -406,7 +406,7 @@ async def validate_script(
     host: Host = None,
     readonly: t.Annotated[bool, Field(description="Should be true if the script does not modify the system.")] = True,
 ) -> ToolResult:
-    gatekeeper_result = check_run_script(
+    gatekeeper_result = await check_run_script(
         description,
         script_type,
         (BASH_STRICT_PREAMBLE + script) if script_type == SCRIPT_TYPE_BASH else script,
@@ -521,7 +521,7 @@ async def run_script_with_confirmation(
     if details_changed:
         # Revalidate the script again; this is a convenience for the user to avoid
         # potentially having to double-approve the same script.
-        gatekeeper_result = check_run_script(
+        gatekeeper_result = await check_run_script(
             description,
             script_type,
             (BASH_STRICT_PREAMBLE + script) if script_type == SCRIPT_TYPE_BASH else script,

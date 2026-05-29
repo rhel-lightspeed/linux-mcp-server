@@ -5,8 +5,10 @@ import os
 import sys
 
 from pathlib import Path
+from typing import Annotated
 from typing import Any
 
+from pydantic import BeforeValidator
 from pydantic import Field
 from pydantic import model_validator
 from pydantic import SecretStr
@@ -97,6 +99,20 @@ class AuthConfig(BaseSettings):
     introspection: IntrospectionAuthConfig | None = None
 
 
+def parse_cost(v: Any) -> Any:
+    if isinstance(v, str):
+        try:
+            parts = v.split(":")
+            return (float(parts[0]), float(parts[1]))
+        except ValueError:
+            raise ValueError("Cost must be formatted as '<float>:<float>'")
+    elif not (v is None or (isinstance(v, tuple) and len(v) == 2 and all(isinstance(vv, (int, float)) for vv in v))):
+        # This produces clearer errors if the input is just a single float, compared
+        # to using the default Pydantic validation
+        raise ValueError("Cost must be formatted as '<float>:<float>'")
+    return v
+
+
 class GatekeeperConfig(BaseSettings):
     """Gatekeeper Model configuration"""
 
@@ -116,6 +132,9 @@ class GatekeeperConfig(BaseSettings):
 
     # Temperature for gatekeeper model
     temperature: float = 0.0
+
+    # Gatekeeper cost for accounting (input $/token, output $/token)
+    cost: Annotated[tuple[float, float] | None, BeforeValidator(parse_cost)] = None
 
 
 class Config(BaseSettings):

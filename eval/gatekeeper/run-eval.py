@@ -1,9 +1,12 @@
 #!/usr/bin/env python3
 
+import asyncio
 import json
 import os
-import sys
+import statistics
 
+from dataclasses import dataclass
+from dataclasses import field
 from pathlib import Path
 from typing import Annotated
 from typing import Literal
@@ -11,163 +14,320 @@ from typing import Literal
 import typer
 import yaml
 
+from rich.console import Console
+from rich.progress import BarColumn
+from rich.progress import Progress
+from rich.progress import TextColumn
+from rich.progress import TimeRemainingColumn
+from rich.table import Table
 from utils import BlockStyleDumper
 
-from linux_mcp_server.gatekeeper import check_run_script
+from linux_mcp_server.gatekeeper.check_run_script import check_run_script_with_stats
+from linux_mcp_server.gatekeeper.check_run_script import GatekeeperException
+from linux_mcp_server.gatekeeper.check_run_script import GatekeeperStats
 
 
+console = Console()
 app = typer.Typer()
 
 
-def run_test_file(test_case_file: str, label: str | None = None) -> tuple[list[dict], list[dict]]:
-    """Run a single test case file through the gatekeeper.
+FieldName = Literal["prompt_tokens", "completion_tokens", "cost", "latency"]
 
-    Returns (test_cases, results) where test_cases are the inputs and results
-    are the corresponding output dicts.
-    """
-    if label is None:
-        label = test_case_file
-    with open(test_case_file, "r") as f:
-        data = yaml.safe_load(f)
 
-    if isinstance(data, dict) and "cases" in data:
-        test_cases = data["cases"]
-    else:
-        test_cases = None
+@dataclass
+class StatsAggregator:
+    stats: list[GatekeeperStats]
+    _values: dict[str, list[float]] = field(init=False, default_factory=dict)
 
-    if not test_cases:
-        typer.echo(f"No test cases found in {test_case_file}")
-        raise typer.Exit(code=1)
+    def values(self, name: FieldName):
+        if name not in self._values:
+            self._values[name] = [getattr(s, name) for s in self.stats]
 
-    results = []
+        return self._values[name]
 
-    with typer.progressbar(test_cases, label=f"Running {label}") as progress:
-        for test_case in progress:
-            id = test_case["id"]
-            description = test_case["description"]
-            script_type = test_case["script_type"]
-            script = test_case["script"]
-            readonly = test_case.get("readonly", False)
+    def mean(self, name: FieldName):
+        return statistics.mean(self.values(name))
 
-            result = {
-                "id": id,
-                "description": description,
-                "script_type": script_type,
-                "script": script,
-                "readonly": readonly,
+    def median(self, name: FieldName):
+        return statistics.median(self.values(name))
+
+    def max(self, name: FieldName):
+        return max(self.values(name))
+
+    def sum(self, name: FieldName):
+        return sum(self.values(name))
+
+
+class FileEval:
+    def __init__(self, path: Path, rel_path: str):
+        self.path = path
+        self.rel_path = rel_path
+        self.test_cases: list[dict] = []
+        self.results: list[dict] = []
+
+    def load(self):
+        with open(self.path, "r") as f:
+            data = yaml.safe_load(f)
+
+        if isinstance(data, dict) and "cases" in data:
+            self.test_cases = data["cases"]
+        else:
+            self.test_cases = []
+
+        if not self.test_cases:
+            typer.echo(f"No test cases found in {self.path}")
+            raise typer.Exit(code=1)
+
+    @property
+    def num_cases(self) -> int:
+        return len(self.test_cases)
+
+    async def run(self, suite: "EvalSuite"):
+        task = suite.progress.add_task(self.rel_path, total=self.num_cases)
+        self.results = list(await asyncio.gather(*[suite.run_test_case(tc, task) for tc in self.test_cases]))
+
+    def compute_summary(self) -> dict[str, int]:
+        summary = {"same": 0, "ok_to_forbidden": 0, "forbidden_to_ok": 0, "other_mismatch": 0, "exception": 0}
+        for test_case, result in zip(self.test_cases, self.results):
+            actual = result.get("result")
+            if actual is not None and "exception" in actual:
+                summary["exception"] += 1
+                continue
+
+            expected = test_case.get("result")
+            if expected is None or actual is None:
+                continue
+
+            expected_status = expected.get("status")
+            actual_status = actual.get("status")
+
+            if expected_status == actual_status:
+                summary["same"] += 1
+            elif expected_status == "OK":
+                summary["ok_to_forbidden"] += 1
+            elif actual_status == "OK":
+                summary["forbidden_to_ok"] += 1
+            else:
+                summary["other_mismatch"] += 1
+
+        return summary
+
+    def build_output_cases(self, *, output_all: bool = False) -> list[dict]:
+        output_cases = []
+        for test_case, result in zip(self.test_cases, self.results):
+            expected = test_case.get("result")
+            actual = result.get("result")
+
+            if not output_all:
+                if (
+                    expected is not None
+                    and actual is not None
+                    and "exception" not in actual
+                    and expected.get("status") == actual.get("status")
+                ):
+                    continue
+
+            output = {
+                "id": result["id"],
+                "description": result["description"],
+                "script_type": result["script_type"],
+                "script": result["script"],
+                "readonly": result["readonly"],
+                "result": actual,
             }
+            if expected is not None:
+                output["expected_result"] = expected
 
-            try:
-                gatekeeper_result = check_run_script(
+            output_cases.append(output)
+
+        return output_cases
+
+
+class EvalSuite:
+    def __init__(self, file_evals: list[FileEval], *, max_parallel: int = 10):
+        self.file_evals = file_evals
+        self.semaphore = asyncio.Semaphore(max_parallel)
+        self.all_stats: list[GatekeeperStats] = []
+        self.completed_count: int = 0
+        self.progress: Progress
+
+    @property
+    def total_cases(self) -> int:
+        return sum(fe.num_cases for fe in self.file_evals)
+
+    async def run_test_case(self, test_case: dict, progress_task) -> dict:
+        id = test_case["id"]
+        description = test_case["description"]
+        script_type = test_case["script_type"]
+        script = test_case["script"]
+        readonly = test_case.get("readonly", False)
+
+        result = {
+            "id": id,
+            "description": description,
+            "script_type": script_type,
+            "script": script,
+            "readonly": readonly,
+        }
+
+        stats: GatekeeperStats | None = None
+
+        def format_stats():
+            if stats:
+                return f" ({stats.prompt_tokens}/{stats.completion_tokens}, {stats.latency:.2f}s)"
+            else:
+                return ""
+
+        try:
+            async with self.semaphore:
+                gatekeeper_result, stats = await check_run_script_with_stats(
                     description=description,
                     script_type=script_type,
                     script=script,
                     readonly=readonly,
                 )
 
-                result_data = {"status": gatekeeper_result.status.value}
-                if gatekeeper_result.detail:
-                    result_data["detail"] = gatekeeper_result.detail
-                result["result"] = result_data
-            except Exception as e:
-                result["result"] = {"exception": str(e)}
+            result_data = {"status": gatekeeper_result.status.value}
+            if gatekeeper_result.detail:
+                result_data["detail"] = gatekeeper_result.detail
+            result["result"] = result_data
 
-            results.append(result)
+            expected_status = test_case["result"]["status"]
+            actual_status = gatekeeper_result.status.value
 
-    return test_cases, results
+            if expected_status == actual_status:
+                summary = "[green]same[/]"
+            elif expected_status == "OK":
+                summary = "[orange]ok_to_forbidden[/]"
+            elif actual_status == "OK":
+                summary = "[red]forbidden_to_ok[/]"
+            else:
+                summary = "[purple]other_mismatch[/]"
 
+            self.completed_count += 1
+            n = self.completed_count
+            console.print(
+                f"[dim][{n}/{self.total_cases}][/] [bold]{id}[/bold] {expected_status} ⇒ {actual_status} {summary}{format_stats()}",
+                highlight=False,
+            )
+        except Exception as e:
+            stats = e.stats if isinstance(e, GatekeeperException) else None
+            self.completed_count += 1
+            n = self.completed_count
+            console.print(
+                f"[dim][{n}/{self.total_cases}][/] [bold]{id}[/bold] [red]{e}[/]{format_stats()}",
+                highlight=False,
+            )
+            result["result"] = {"exception": str(e)}
 
-def build_output_cases(test_cases: list[dict], results: list[dict], *, output_all: bool = False) -> list[dict]:
-    """Build output cases, filtering to only non-same results and adding expected_result."""
-    output_cases = []
-    for test_case, result in zip(test_cases, results):
-        expected = test_case.get("result")
-        actual = result.get("result")
+        if stats:
+            self.all_stats.append(stats)
 
-        if not output_all:
-            # Skip cases where actual matches expected
-            if (
-                expected is not None
-                and actual is not None
-                and "exception" not in actual
-                and expected.get("status") == actual.get("status")
-            ):
-                continue
+        self.progress.update(progress_task, advance=1)
 
-        output = {
-            "id": result["id"],
-            "description": result["description"],
-            "script_type": result["script_type"],
-            "script": result["script"],
-            "readonly": result["readonly"],
-            "result": actual,
-        }
-        if expected is not None:
-            output["expected_result"] = expected
+        return result
 
-        output_cases.append(output)
+    async def run(self, *, output_file: str | None, output_all: bool, output_format: Literal["json", "yaml"]):
+        with Progress(
+            TextColumn("{task.description}"),
+            BarColumn(),
+            TextColumn("[green]{task.completed:>3}/{task.total:<3}"),
+            TimeRemainingColumn(),
+            console=console,
+        ) as progress:
+            self.progress = progress
+            await asyncio.gather(*[fe.run(self) for fe in self.file_evals])
 
-    return output_cases
+        file_summaries = [(fe.rel_path, fe.compute_summary()) for fe in self.file_evals]
 
+        all_output_cases = []
+        for fe in self.file_evals:
+            all_output_cases.extend(fe.build_output_cases(output_all=output_all))
 
-def compute_summary(test_cases: list[dict], results: list[dict]) -> dict[str, int]:
-    """Build summary comparing actual results against expected results from input."""
-    summary = {"same": 0, "ok_to_forbidden": 0, "forbidden_to_ok": 0, "other_mismatch": 0, "exception": 0}
-    for test_case, result in zip(test_cases, results):
-        actual = result.get("result")
-        if actual is not None and "exception" in actual:
-            summary["exception"] += 1
-            continue
+        combined_summary = {"same": 0, "ok_to_forbidden": 0, "forbidden_to_ok": 0, "other_mismatch": 0, "exception": 0}
+        for _, s in file_summaries:
+            for k in combined_summary:
+                combined_summary[k] += s[k]
 
-        expected = test_case.get("result")
-        if expected is None or actual is None:
-            continue
+        output = {"summary": combined_summary, "cases": all_output_cases}
 
-        expected_status = expected.get("status")
-        actual_status = actual.get("status")
+        if output_file:
+            if output_format == "json":
+                output_string = json.dumps(output, indent=2)
+            else:
+                output_string = yaml.dump(output, indent=2, sort_keys=False, Dumper=BlockStyleDumper)
 
-        if expected_status == actual_status:
-            summary["same"] += 1
-        elif expected_status == "OK":
-            summary["ok_to_forbidden"] += 1
-        elif actual_status == "OK":
-            summary["forbidden_to_ok"] += 1
-        else:
-            summary["other_mismatch"] += 1
+            with open(output_file, "w") as f:
+                f.write(output_string)
+            typer.echo(f"Wrote {len(all_output_cases)} results to {output_file}")
 
-    return summary
+        self.print_summary_table(file_summaries)
+        self.print_stats_table()
 
+    def print_summary_table(self, file_summaries: list[tuple[str, dict[str, int]]]):
+        columns = ["same", "ok_to_forbidden", "forbidden_to_ok", "other_mismatch", "exception"]
 
-def print_summary_table(file_summaries: list[tuple[str, dict[str, int]]], file=sys.stdout):
-    """Print a formatted summary table of results across multiple files."""
-    columns = ["same", "ok_to_forbidden", "forbidden_to_ok", "other_mismatch", "exception"]
-    headers = ["file"] + columns
+        table = Table(title="Per-file Evaluation Summary")
 
-    # Compute column widths
-    col_widths = [len(h) for h in headers]
-    rows = []
-    for path, summary in file_summaries:
-        row = [path] + [str(summary.get(c, 0)) for c in columns]
-        rows.append(row)
-        for i, val in enumerate(row):
-            col_widths[i] = max(col_widths[i], len(val))
+        table.add_column("File", justify="right", style="cyan", no_wrap=True)
+        for header in columns:
+            table.add_column(header)
 
-    # Print header
-    header_line = "  ".join(h.ljust(col_widths[i]) for i, h in enumerate(headers))
-    print(header_line, file=file)
-    print("  ".join("-" * w for w in col_widths), file=file)
+        totals = [0] * len(columns)
 
-    # Print rows
-    for row in rows:
-        print("  ".join(val.ljust(col_widths[i]) for i, val in enumerate(row)), file=file)
+        for path, summary in file_summaries:
+            values = [summary.get(c, 0) for c in columns]
+            table.add_row(*([path] + [str(v) for v in values]))
 
-    # Print totals
-    if len(rows) > 1:
-        totals = ["TOTAL"] + [str(sum(int(row[i]) for row in rows)) for i in range(1, len(headers))]
-        for i, val in enumerate(totals):
-            col_widths[i] = max(col_widths[i], len(val))
-        print("  ".join("-" * w for w in col_widths), file=file)
-        print("  ".join(val.ljust(col_widths[i]) for i, val in enumerate(totals)), file=file)
+            for i in range(len(columns)):
+                totals[i] += values[i]
+
+        if len(file_summaries) > 1:
+            table.add_section()
+            table.add_row(*(["TOTALS"] + [str(v) for v in totals]))
+
+        console.print(table)
+
+    def print_stats_table(self):
+        agg = StatsAggregator(stats=self.all_stats)
+
+        table = Table(title=f"Inference Statistics ({len(self.all_stats)} total prompts)")
+
+        table.add_column("", justify="right", style="cyan", no_wrap=True)
+        table.add_column("Median")
+        table.add_column("Mean")
+        table.add_column("Max")
+        table.add_column("Total")
+
+        table.add_row(
+            "Latency",
+            f"{agg.median('latency'):.2f}",
+            f"{agg.mean('latency'):.2f}",
+            f"{agg.max('latency'):.2f}",
+        )
+        table.add_row(
+            "Input Tokens",
+            f"{agg.median('prompt_tokens'):.0f}",
+            f"{agg.mean('prompt_tokens'):.0f}",
+            f"{agg.max('prompt_tokens'):,}",
+            f"{agg.sum('prompt_tokens'):,}",
+        )
+        table.add_row(
+            "Output Tokens",
+            f"{agg.median('completion_tokens'):.0f}",
+            f"{agg.mean('completion_tokens'):.0f}",
+            f"{agg.max('completion_tokens'):,}",
+            f"{agg.sum('completion_tokens'):,}",
+        )
+        table.add_row(
+            "Cost",
+            "",
+            "",
+            "",
+            f"${agg.sum('cost'):.2f}",
+        )
+
+        console.print(table)
 
 
 @app.command()
@@ -196,6 +356,13 @@ def main(
             help="Format for exported data: 'json' or 'yaml' (default: yaml).",
         ),
     ] = "yaml",
+    max_parallel: Annotated[
+        int,
+        typer.Option(
+            "--max-parallel",
+            help="Maximum number of test cases to run in parallel (default: 10).",
+        ),
+    ] = 10,
 ):
     """
     Run a set of test cases through the gatekeeper, and report results.
@@ -231,57 +398,17 @@ def main(
         if not files:
             typer.echo(f"No test case files found in {testcases_dir}")
             raise typer.Exit(code=1)
-
-        all_output_cases = []
-        file_summaries = []
-        for tc_file in files:
-            rel_path = str(tc_file.relative_to(testcases_dir))
-            test_cases, results = run_test_file(str(tc_file), label=rel_path)
-            summary = compute_summary(test_cases, results)
-            file_summaries.append((rel_path, summary))
-            all_output_cases.extend(build_output_cases(test_cases, results, output_all=output_all))
-
-        # Build combined summary
-        combined_summary = {"same": 0, "ok_to_forbidden": 0, "forbidden_to_ok": 0, "other_mismatch": 0, "exception": 0}
-        for _, s in file_summaries:
-            for k in combined_summary:
-                combined_summary[k] += s[k]
-
-        output = {"summary": combined_summary, "cases": all_output_cases}
-
-        if output_format == "json":
-            output_string = json.dumps(output, indent=2)
-        else:
-            output_string = yaml.dump(output, indent=2, sort_keys=False, Dumper=BlockStyleDumper)
-
-        if output_file:
-            with open(output_file, "w") as f:
-                f.write(output_string)
-            typer.echo(f"Wrote {len(all_output_cases)} results to {output_file}")
-            print_summary_table(file_summaries, file=sys.stdout)
-        else:
-            sys.stdout.write(output_string)
-            print_summary_table(file_summaries, file=sys.stderr)
+        file_evals = [FileEval(f, str(f.relative_to(testcases_dir))) for f in files]
     else:
         assert test_case_file is not None
+        path = Path(test_case_file)
+        file_evals = [FileEval(path, path.name)]
 
-        test_cases, results = run_test_file(test_case_file)
-        summary = compute_summary(test_cases, results)
-        output_cases = build_output_cases(test_cases, results, output_all=output_all)
+    for fe in file_evals:
+        fe.load()
 
-        output = {"summary": summary, "cases": output_cases}
-
-        if output_format == "json":
-            output_string = json.dumps(output, indent=2)
-        else:
-            output_string = yaml.dump(output, indent=2, sort_keys=False, Dumper=BlockStyleDumper)
-
-        if output_file:
-            with open(output_file, "w") as f:
-                f.write(output_string)
-            typer.echo(f"Wrote {len(output_cases)} results to {output_file}")
-        else:
-            sys.stdout.write(output_string)
+    suite = EvalSuite(file_evals, max_parallel=max_parallel)
+    asyncio.run(suite.run(output_file=output_file, output_all=output_all, output_format=output_format))
 
 
 if __name__ == "__main__":
