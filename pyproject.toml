@@ -211,3 +211,6 @@ order-by-type = false
 artifacts = [
     "mcp-app/dist",
 ]
+
+[tool.uv]
+exclude-newer = "7 days"
