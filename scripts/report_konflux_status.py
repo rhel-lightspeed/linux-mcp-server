@@ -14,9 +14,10 @@ Required environment variables:
   MIRROR_START_TIME   - ISO 8601 UTC timestamp recorded before the mirror push
 
 Optional environment variables:
-  GITHUB_REPO    - GitHub repository (default: rhel-lightspeed/linux-mcp-server)
-  GITLAB_PROJECT - GitLab project path (default: rhel-lightspeed/mcp/linux-mcp-server)
-  GITLAB_HOST    - GitLab hostname (default: gitlab.cee.redhat.com)
+  GITHUB_REPO           - GitHub repository (default: rhel-lightspeed/linux-mcp-server)
+  CI_PROJECT_PATH       - GitLab project path (default: rhel-lightspeed/mcp/linux-mcp-server)
+  CI_SERVER_FQDN        - GitLab hostname (default: gitlab.cee.redhat.com)
+  CI_SERVER_TLS_CA_FILE - Path to CA certificate for the GitLab server
 """
 
 import os
@@ -130,7 +131,7 @@ def main():
     # optional: GITHUB_REPO / GITHUB_STATUS_TOKEN
     github = GitHubAPI.from_environment()
 
-    # requires: GITLAB_TOKEN, optional: GITLAB_PROJECT / GITLAB_HOST
+    # requires: GITLAB_TOKEN, optional: CI_PROJECT_PATH / CI_SERVER_FQDN
     gitlab = GitLabAPI.from_environment()
 
     pr_number = os.environ.get("GITHUB_PR_NUMBER", "")

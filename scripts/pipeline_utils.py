@@ -2,6 +2,7 @@
 
 import json
 import os
+import ssl
 import sys
 import urllib.error
 import urllib.parse
@@ -10,21 +11,31 @@ import urllib.request
 from dataclasses import dataclass
 
 
+def _gitlab_ssl_context():
+    """Build an SSL context that trusts CI_SERVER_TLS_CA_FILE when set."""
+    ca_file = os.environ.get("CI_SERVER_TLS_CA_FILE")
+    if ca_file:
+        ctx = ssl.create_default_context(cafile=ca_file)
+        return ctx
+    return None
+
+
 @dataclass
 class GitLabAPI:
     project: str
     host: str
     token: str
+    ssl_context: ssl.SSLContext | None = None
 
     @staticmethod
     def from_environment():
-        project = os.environ.get("GITLAB_PROJECT", "rhel-lightspeed/mcp/linux-mcp-server")
-        host = os.environ.get("GITLAB_HOST", "gitlab.cee.redhat.com")
+        project = os.environ.get("CI_PROJECT_PATH", "rhel-lightspeed/mcp/linux-mcp-server")
+        host = os.environ.get("CI_SERVER_FQDN", "gitlab.cee.redhat.com")
         token = os.environ.get("GITLAB_TOKEN", "")
         if not token:
             sys.exit("ERROR: GITLAB_TOKEN is required")
 
-        return GitLabAPI(project=project, host=host, token=token)
+        return GitLabAPI(project=project, host=host, token=token, ssl_context=_gitlab_ssl_context())
 
     def get(self, path):
         """Make an GET request to the GitLab API"""
@@ -33,7 +44,7 @@ class GitLabAPI:
         headers = {}
         headers["PRIVATE-TOKEN"] = self.token
         req = urllib.request.Request(url, headers=headers)
-        with urllib.request.urlopen(req) as response:
+        with urllib.request.urlopen(req, context=self.ssl_context) as response:
             res = json.loads(response.read().decode())
             return res
 

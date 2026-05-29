@@ -29,6 +29,7 @@ download-secure-files:
   image: registry.gitlab.com/gitlab-org/cli:latest
   script:
     - mkdir -p securefiles
+    - '[ -z "$CI_SERVER_TLS_CA_FILE" ] || glab config set ca_cert "$CI_SERVER_TLS_CA_FILE" --host "$CI_SERVER_FQDN"'
     - glab auth login --job-token $CI_JOB_TOKEN --hostname $CI_SERVER_FQDN --api-protocol $CI_SERVER_PROTOCOL
     - glab -R $CI_PROJECT_PATH securefile download --all --output-dir="./securefiles"
     - cd securefiles && ls
