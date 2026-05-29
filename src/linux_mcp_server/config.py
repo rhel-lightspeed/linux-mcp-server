@@ -126,6 +126,14 @@ class Config(BaseSettings):
     verify_host_keys: bool = True
     known_hosts_path: Path | None = None  # Custom path to known_hosts file
 
+    # OBO/GSSAPI configuration (IPA OAuth2 delegation)
+    obo_enabled: bool = False
+    obo_exchange_url: str = ""
+    obo_agent_token_path: Path | None = None
+    obo_target_user: str = ""
+    obo_target_service: str = ""
+    obo_scope: str = "openid"
+
     # What tools are available
     toolset: Toolset = Toolset.FIXED
 

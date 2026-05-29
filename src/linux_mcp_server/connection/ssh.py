@@ -8,12 +8,17 @@ either local or remote execution based on the provided parameters.
 """
 
 import asyncio
+import base64
+import json
 import logging
 import os
 import shlex
 import shutil
 import subprocess
+import tempfile
 import time
+import urllib.parse
+import urllib.request
 
 from collections.abc import Sequence
 from pathlib import Path
@@ -98,6 +103,55 @@ class SSHConnectionManager:
             cls._instance._ssh_key = discover_ssh_key()
         return cls._instance
 
+    def _acquire_obo_ccache(self, target_host: str = "") -> str:
+        """Call OBO /kerberos endpoint and return local ccache file path.
+
+        Reads agent JWT from CONFIG.obo_agent_token_path, POSTs to the
+        OBO exchange, decodes the base64 ccache contents, writes to a
+        temp file, and sets KRB5CCNAME.
+        """
+        token = CONFIG.obo_agent_token_path.read_text().strip()
+        form_data = {
+            'subject_token': token,
+            'requested_subject': CONFIG.obo_target_user,
+            'scope': CONFIG.obo_scope,
+            'return_contents': 'true',
+        }
+        if CONFIG.obo_target_service:
+            form_data['target_service'] = CONFIG.obo_target_service
+        elif target_host:
+            form_data['target_service'] = f"host/{target_host}"
+
+        encoded = urllib.parse.urlencode(form_data).encode('utf-8')
+        url = f"{CONFIG.obo_exchange_url.rstrip('/')}/kerberos"
+        req = urllib.request.Request(url, data=encoded,
+                                    method='POST')
+        req.add_header('Content-Type',
+                       'application/x-www-form-urlencoded')
+
+        try:
+            with urllib.request.urlopen(req, timeout=15) as resp:
+                result = json.loads(resp.read().decode('utf-8'))
+        except Exception as e:
+            raise ConnectionError(
+                f"OBO exchange failed: {e}") from e
+
+        if 'ccache_contents' not in result:
+            raise ConnectionError(
+                "OBO exchange did not return ccache_contents")
+
+        ccache_bytes = base64.b64decode(result['ccache_contents'])
+        fd, ccache_path = tempfile.mkstemp(prefix='krb5cc_mcp_obo_')
+        os.write(fd, ccache_bytes)
+        os.close(fd)
+        os.environ['KRB5CCNAME'] = f'FILE:{ccache_path}'
+
+        logger.info(
+            "OBO: acquired ccache for %s via rule %s",
+            result.get('principal', '?'),
+            result.get('delegation_rule', '?'))
+        return ccache_path
+
     async def get_connection(self, host: str) -> asyncssh.SSHClientConnection:
         """
         Get or create an SSH connection to a host.
@@ -146,17 +200,29 @@ class SSHConnectionManager:
                 logger.warning("SSH host key verification disabled - vulnerable to MITM attacks")
                 known_hosts = None
 
-            connect_kwargs = {
-                "host": host,
-                "known_hosts": known_hosts,
-                "passphrase": CONFIG.key_passphrase.get_secret_value() or None,
-            }
+            if CONFIG.obo_enabled:
+                # OBO/GSSAPI path: acquire Kerberos ticket, connect via GSSAPI
+                self._acquire_obo_ccache(target_host=host)
+                connect_kwargs = {
+                    "host": host,
+                    "known_hosts": known_hosts,
+                    "username": CONFIG.obo_target_user,
+                    "gss_auth": True,
+                    "gss_kex": True,
+                }
+            else:
+                # Standard SSH key path (upstream behavior)
+                connect_kwargs = {
+                    "host": host,
+                    "known_hosts": known_hosts,
+                    "passphrase": CONFIG.key_passphrase.get_secret_value() or None,
+                }
 
-            if self._ssh_key:
-                connect_kwargs["client_keys"] = [self._ssh_key]
+                if self._ssh_key:
+                    connect_kwargs["client_keys"] = [self._ssh_key]
 
-            if CONFIG.user:
-                connect_kwargs["username"] = CONFIG.user
+                if CONFIG.user:
+                    connect_kwargs["username"] = CONFIG.user
 
             conn = await asyncssh.connect(**connect_kwargs)
             self._connections[key] = conn
@@ -167,7 +233,7 @@ class SSHConnectionManager:
                 username=conn.get_extra_info("username"),
                 status=Status.success,
                 reused=False,
-                key_path=self._ssh_key,
+                key_path=self._ssh_key if not CONFIG.obo_enabled else None,
             )
 
             # DEBUG level: Log pool state
