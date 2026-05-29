@@ -15,6 +15,11 @@
     {
       "matchDepNames": ["python"],
       "enabled": false
+    },
+    {
+      "matchManagers": ["npm"],
+      "groupName": "mcp-app npm dependencies",
+      "schedule": ["before 9am on monday"]
     }
   ]
 }
