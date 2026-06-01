@@ -171,19 +171,19 @@
         }
       }
 
-      function computeScore(summary) {
-        let totalNumOfTests = 0;
-        let curScore = 0;
+      function computeScore(jsonObject) {
+        if (!jsonObject.score) return null;
+        return jsonObject.score.total;
+      }
 
-        curScore += summary.same * 3;
-        totalNumOfTests += summary.same;
-
-        curScore += summary.other_mismatch * 2;
-        totalNumOfTests += summary.other_mismatch;
-
-        totalNumOfTests += summary.ok_to_forbidden + summary.forbidden_to_ok;
-
-        return (curScore / (totalNumOfTests * 3)) * 100;
+      function scoreTooltip(jsonObject) {
+        if (!jsonObject.score || !jsonObject.score.groups) return "";
+        return Object.entries(jsonObject.score.groups)
+          .map(
+            ([status, g]) =>
+              `${status}: ${g.score.toFixed(1)}% (weight ${g.weight.toFixed(2)})`,
+          )
+          .join("\n");
       }
 
       function compareResult(expectedResult, actualResult) {
@@ -253,7 +253,10 @@
 
           combinedResult[model] = lookup;
           models.push(model);
-          scores.push(computeScore(jsonObject.summary));
+          scores.push({
+            value: computeScore(jsonObject),
+            tooltip: scoreTooltip(jsonObject),
+          });
 
           curTestCases = Object.keys(lookup);
           if (curTestCases.length > testCases.length) {
@@ -276,13 +279,18 @@
 
         models.forEach((model, index) => {
           const modelCol = document.createElement("td");
-          const score = scores[index];
-          modelCol.append(model + " (");
-          const scoreSpan = document.createElement("span");
-          scoreSpan.style.color = setScoreColor(score);
-          scoreSpan.textContent = score.toFixed(1);
-          modelCol.appendChild(scoreSpan);
-          modelCol.append(")");
+          const { value: score, tooltip } = scores[index];
+          if (score !== null) {
+            modelCol.append(model + " (");
+            const scoreSpan = document.createElement("span");
+            scoreSpan.style.color = setScoreColor(score);
+            scoreSpan.textContent = score.toFixed(1);
+            if (tooltip) scoreSpan.title = tooltip;
+            modelCol.appendChild(scoreSpan);
+            modelCol.append(")");
+          } else {
+            modelCol.textContent = model;
+          }
           modelCol.style.whiteSpace = "nowrap";
           firstRow.appendChild(modelCol);
         });
