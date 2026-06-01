@@ -55,9 +55,6 @@ download-secure-files:
     - export PATH="$CI_PROJECT_DIR/.local/bin:$PATH"
     - uv sync --locked
 
-    # Create data/ to store the evaluation result
-    - mkdir -p "$CI_PROJECT_DIR/data"
-
     # Download Red Hat CA certifacate and combine it with root CA
     - export SSL_CERT_FILE="$CI_PROJECT_DIR/cert.pem"
     - cp /etc/ssl/certs/ca-certificates.crt $SSL_CERT_FILE
@@ -79,40 +76,28 @@ download-secure-files:
 # Vertex AI
 gatekeeper-eval-gpt-oss-120b:
   extends: .eval-base
-  variables:
-    MODEL_NAME: "gpt-oss-120b"
   script:
-    - export LINUX_MCP_GATEKEEPER__MODEL="vertex_ai/openai/$MODEL_NAME-maas"
-    - uv run --extra gcp eval/gatekeeper/run-eval.py --all -f json --output-all -o "$CI_PROJECT_DIR/data/$MODEL_NAME.json"
+    - ./eval/gatekeeper/standard-evals.sh --output-dir=data gpt-oss-120b@vertex_ai
 
 gatekeeper-eval-gemini-3.1-pro-preview:
   extends: .eval-base
-  variables:
-    MODEL_NAME: "gemini-3.1-pro-preview"
   script:
-    - export LINUX_MCP_GATEKEEPER__MODEL="vertex_ai/$MODEL_NAME"
-    - uv run --extra gcp eval/gatekeeper/run-eval.py --all -f json --output-all -o "$CI_PROJECT_DIR/data/$MODEL_NAME.json"
+    - ./eval/gatekeeper/standard-evals.sh --output-dir=data gemini-3.1-pro-preview:low@vertex_ai
 
 # Models.corp
 gatekeeper-eval-models-corp-granite-4.0-h-small:
   extends: .eval-base
-  variables:
-    MODEL_NAME: "granite-4.0-h-small"
   script:
     - export OPENAI_API_KEY="$MODELS_CORP_GRANITE_4_0_H_SMALL_API_KEY"
-    - export MODEL="ibm-granite/$MODEL_NAME"
-    - ./eval/gatekeeper/run-eval-models-corp.sh --all -f json --output-all -o "$CI_PROJECT_DIR/data/$MODEL_NAME.json"
+    - ./eval/gatekeeper/standard-evals.sh --output-dir=data granite-4.0-h-small@models_corp
   rules:
     - if: $MODELS_CORP_GRANITE_4_0_H_SMALL_API_KEY
 
 gatekeeper-eval-models-corp-gpt-oss-20b:
   extends: .eval-base
-  variables:
-    MODEL_NAME: "gpt-oss-20b"
   script:
     - export OPENAI_API_KEY="$MODELS_CORP_GPT_OSS_20B_API_KEY"
-    - export MODEL="openai/$MODEL_NAME"
-    - ./eval/gatekeeper/run-eval-models-corp.sh --all -f json --output-all -o "$CI_PROJECT_DIR/data/$MODEL_NAME.json"
+    - ./eval/gatekeeper/standard-evals.sh --output-dir=data gpt-oss-20b@models_corp
   rules:
     - if: $MODELS_CORP_GPT_OSS_20B_API_KEY
 
