@@ -334,3 +334,112 @@ class TestAuthorizationMiddleware:
 
         with pytest.raises(ToolError, match=r"Policy validation error: SSH_KEY action requires ssh_key configuration."):
             await client.call_tool("get_memory_information", {"host": "server1.example.com"})
+
+
+class CaptureContext:
+    def __init__(self):
+        self._context = None
+
+    async def _execute_with_fallback(self, *_args, **_kwargs):
+        from linux_mcp_server.execution_context import get_execution_context
+
+        self._context = get_execution_context()
+        return (0, FREE_OUTPUT, "")
+
+    def get_context(self):
+        return self._context
+
+
+class TestExecutionContextMiddlewareIntegration:
+    @pytest.fixture
+    def capture_context(self, mocker):
+        capture = CaptureContext()
+        mocker.patch("linux_mcp_server.commands.execute_with_fallback", side_effect=capture._execute_with_fallback)
+        return capture
+
+    async def test_stdio_without_policy_allows_all(self, mcp_client, mocker, capture_context):
+        """Verify stdio without policy sets ExecutionContext with allow_local=True, allow_ssh_default=True."""
+        mocker.patch("linux_mcp_server.server.CONFIG.transport", "stdio")
+        mocker.patch("linux_mcp_server.server.CONFIG.policy_path", None)
+
+        await mcp_client.call_tool("get_memory_information")
+
+        captured_context = capture_context.get_context()
+        assert captured_context is not None
+        assert captured_context.allow_local is True
+        assert captured_context.allow_ssh_default is True
+
+    async def test_local_policy_sets_local_context(self, mcp_client, mocker, capture_context):
+        """Verify LOCAL policy action sets ExecutionContext with allow_local=True only."""
+        mocker.patch("linux_mcp_server.server.CONFIG.transport", "streamable-http")
+        mocker.patch("linux_mcp_server.server.CONFIG.policy_path", "/etc/policy.json")
+        mocker.patch(
+            "linux_mcp_server.auth_policy.get_policy",
+            return_value=AuthPolicy(
+                rules=[PolicyRule(host="localhost", tools=["@fixed"], all_users=True, action=PolicyAction.LOCAL)]
+            ),
+        )
+
+        await mcp_client.call_tool("get_memory_information")
+
+        captured_context = capture_context.get_context()
+        assert captured_context is not None
+        assert captured_context.allow_local is True
+        assert captured_context.allow_ssh_default is False
+        assert captured_context.ssh_key_path is None
+
+    async def test_ssh_default_policy_sets_ssh_context(self, mcp_client, mocker, capture_context):
+        """Verify SSH_DEFAULT policy action sets ExecutionContext with allow_ssh_default=True."""
+        mocker.patch("linux_mcp_server.server.CONFIG.transport", "streamable-http")
+        mocker.patch("linux_mcp_server.server.CONFIG.policy_path", "/etc/policy.json")
+        mocker.patch(
+            "linux_mcp_server.auth_policy.get_policy",
+            return_value=AuthPolicy(
+                rules=[
+                    PolicyRule(
+                        host="server1.example.com",
+                        tools=["@fixed"],
+                        all_users=True,
+                        action=PolicyAction.SSH_DEFAULT,
+                    )
+                ]
+            ),
+        )
+
+        await mcp_client.call_tool("get_memory_information", {"host": "server1.example.com"})
+
+        captured_context = capture_context.get_context()
+        assert captured_context is not None
+        assert captured_context.allow_local is False
+        assert captured_context.allow_ssh_default is True
+        assert captured_context.ssh_key_path is None
+
+    async def test_ssh_key_policy_sets_key_context(self, mcp_client, mocker, capture_context):
+        """Verify SSH_KEY policy action sets ExecutionContext with ssh_key_path and ssh_key_user."""
+        from pathlib import Path
+
+        mocker.patch("linux_mcp_server.server.CONFIG.transport", "streamable-http")
+        mocker.patch("linux_mcp_server.server.CONFIG.policy_path", "/etc/policy.json")
+        mocker.patch(
+            "linux_mcp_server.auth_policy.get_policy",
+            return_value=AuthPolicy(
+                rules=[
+                    PolicyRule(
+                        host="server1.example.com",
+                        tools=["@fixed"],
+                        all_users=True,
+                        action=PolicyAction.SSH_KEY,
+                        ssh_key=SSHKeyConfig(path="/keys/server1.key", user="serviceaccount"),
+                    )
+                ]
+            ),
+        )
+
+        await mcp_client.call_tool("get_memory_information", {"host": "server1.example.com"})
+
+        captured_context = capture_context.get_context()
+        assert captured_context is not None
+        assert captured_context.allow_local is False
+        assert captured_context.allow_ssh_default is False
+        assert captured_context.ssh_key_path == Path("/keys/server1.key")
+        assert captured_context.ssh_key_user == "serviceaccount"
