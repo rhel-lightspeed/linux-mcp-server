@@ -111,7 +111,18 @@ class SSHConnectionManager:
         Raises:
             ConnectionError: If connection fails
         """
-        key = f"{host}"
+        # Get SSH credentials from ExecutionContext if available
+        context = get_execution_context()
+        if context is not None:
+            ssh_key = str(context.ssh_key_path) if context.ssh_key_path else self._ssh_key
+            username = context.ssh_key_user or CONFIG.user
+        else:
+            # No context set - use defaults
+            ssh_key = self._ssh_key
+            username = CONFIG.user
+
+        # Build pool key including SSH key and username to avoid connection reuse conflicts
+        key = f"{host}:{ssh_key or 'default'}:{username or 'default'}"
 
         # Return existing connection if available
         if key in self._connections:
@@ -125,7 +136,7 @@ class SSHConnectionManager:
                     username=conn.get_extra_info("username"),
                     status=Status.success,
                     reused=True,
-                    key_path=self._ssh_key,
+                    key_path=ssh_key,
                 )
                 return conn
             else:
@@ -135,7 +146,7 @@ class SSHConnectionManager:
 
         # Create new connection
         # DEBUG level: Log connection attempt before it completes
-        logger.debug(f"{Event.SSH_CONNECTING}: {key} | key={self._ssh_key or 'none'}")
+        logger.debug(f"{Event.SSH_CONNECTING}: {key} | key={ssh_key or 'none'}")
 
         try:
             # Determine host key verification settings
@@ -151,11 +162,13 @@ class SSHConnectionManager:
                 "passphrase": CONFIG.key_passphrase.get_secret_value() or None,
             }
 
-            if self._ssh_key:
-                connect_kwargs["client_keys"] = [self._ssh_key]
+            # Use custom SSH key if provided, otherwise use default
+            if ssh_key:
+                connect_kwargs["client_keys"] = [ssh_key]
 
-            if CONFIG.user:
-                connect_kwargs["username"] = CONFIG.user
+            # Use custom username if provided, otherwise use CONFIG.user
+            if username:
+                connect_kwargs["username"] = username
 
             conn = await asyncssh.connect(**connect_kwargs)
             self._connections[key] = conn
@@ -166,7 +179,7 @@ class SSHConnectionManager:
                 username=conn.get_extra_info("username"),
                 status=Status.success,
                 reused=False,
-                key_path=self._ssh_key,
+                key_path=ssh_key,
             )
 
             # DEBUG level: Log pool state

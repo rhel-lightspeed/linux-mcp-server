@@ -1,7 +1,11 @@
+from pathlib import Path
+
 import asyncssh
 import pytest
 
 from linux_mcp_server.connection.ssh import SSHConnectionManager
+from linux_mcp_server.execution_context import ExecutionContext
+from linux_mcp_server.execution_context import use_execution_context
 
 
 @pytest.fixture
@@ -155,3 +159,36 @@ async def test_close_connections(mocker, mock_asyncssh_connect):
     assert mock_conn1.close.call_count == 1
     assert mock_conn2.close.call_count == 1
     assert len(manager._connections) == 0
+
+
+async def test_get_connection_uses_custom_ssh_key_from_context(mocker, mock_asyncssh_connect):
+    """Test get_connection reads ssh_key_path from ExecutionContext."""
+    mocker.patch("linux_mcp_server.connection.ssh.CONFIG.user", "defaultuser")
+
+    manager = SSHConnectionManager()
+    manager._connections.clear()
+    manager._ssh_key = "/default/.ssh/id_rsa"
+
+    context = ExecutionContext(ssh_key_path=Path("/custom/.ssh/custom_key"))
+
+    with use_execution_context(context):
+        await manager.get_connection("testhost")
+
+    call_kwargs = mock_asyncssh_connect.call_args.kwargs
+    assert call_kwargs.get("client_keys") == ["/custom/.ssh/custom_key"]
+
+
+async def test_get_connection_uses_custom_username_from_context(mocker, mock_asyncssh_connect):
+    """Test get_connection reads ssh_key_user from ExecutionContext."""
+    mocker.patch("linux_mcp_server.connection.ssh.CONFIG.user", "defaultuser")
+
+    manager = SSHConnectionManager()
+    manager._connections.clear()
+
+    context = ExecutionContext(ssh_key_user="customuser")
+
+    with use_execution_context(context):
+        await manager.get_connection("testhost")
+
+    call_kwargs = mock_asyncssh_connect.call_args.kwargs
+    assert call_kwargs.get("username") == "customuser"
