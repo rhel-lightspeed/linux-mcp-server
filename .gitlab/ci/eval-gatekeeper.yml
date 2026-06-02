@@ -53,7 +53,7 @@ download-secure-files:
   before_script:
     # Add path of UV executable to PATH & Install dependencies
     - export PATH="$CI_PROJECT_DIR/.local/bin:$PATH"
-    - uv sync --locked
+    - uv sync --locked --extra gcp
 
     # Download Red Hat CA certifacate and combine it with root CA
     - export SSL_CERT_FILE="$CI_PROJECT_DIR/cert.pem"

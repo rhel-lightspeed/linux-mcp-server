@@ -2,9 +2,8 @@
 #
 # Run the gatekeeper eval suite against a specific model/provider combination.
 #
-# Configures provider-specific authentication, model routing (via LiteLLM
-# model strings), reasoning effort, and cost overrides, then delegates to
-# run-eval.py.
+# Configures provider-specific authentication, gatekeeper env vars, reasoning
+# effort, and cost overrides, then delegates to run-eval.py.
 #
 # Usage:
 #   standard-evals.sh [--no-save] [--variant=NAME] <MODEL>[:<REASONING_EFFORT>,<QUANTIZATION>][@PROVIDER]
@@ -237,7 +236,6 @@ LINUX_MCP_GATEKEEPER__COST=""
 case "$model" in
     claude-*)
         if [[ $reasoning == "none" ]] ; then
-            # LiteLLM doesn't support reasoning_effort=none for Anthropic models
             LINUX_MCP_GATEKEEPER__REASONING_EFFORT=
         else
             echo "Setting T=1, as required for thinking with Claude models"
@@ -264,13 +262,16 @@ esac
 case "$provider" in
     anthropic)
         : "${ANTHROPIC_API_KEY:?'api key must be set'}"
-        LINUX_MCP_GATEKEEPER__MODEL="anthropic/$model"
+        LINUX_MCP_GATEKEEPER__PROVIDER=anthropic
+        LINUX_MCP_GATEKEEPER__BACKEND=direct
+        LINUX_MCP_GATEKEEPER__MODEL="$model"
         ;;
     llama_cpp)
         OPENAI_API_KEY=tasty
-        OPENAI_API_BASE=http://localhost:8080/v1
-        # gemma-4 and qwen3.5 support a boolean enable_thinking tenplate parameter
-        # granite-4 doesn't have any explict reasoning control
+        LINUX_MCP_GATEKEEPER__PROVIDER=openai
+        LINUX_MCP_GATEKEEPER__BACKEND=direct
+        LINUX_MCP_GATEKEEPER__BASE_URL=http://localhost:8080/v1
+        # gemma-4 and qwen3.5 support enable_thinking via chat_template_kwargs; granite-4 has no control
         case "$reasoning" in
             none)
                 LINUX_MCP_GATEKEEPER__TEMPLATE_KWARGS='{ "enable_thinking": false }'
@@ -280,28 +281,28 @@ case "$provider" in
                 ;;
         esac
         export OPENAI_API_KEY
-        export OPENAI_API_BASE
+        export LINUX_MCP_GATEKEEPER__BASE_URL
         max_parallel=1
         quant_tag="${quantization^^}"
         case "$model" in
             gemma-4-26b-a4b-it)
-                LINUX_MCP_GATEKEEPER__MODEL=openai/google/gemma-4-26b-a4b
+                LINUX_MCP_GATEKEEPER__MODEL=google/gemma-4-26b-a4b
                 hf_repo=ggml-org/gemma-4-26B-A4B-it-GGUF
                 ;;
             granite-4.0-h-small)
-                LINUX_MCP_GATEKEEPER__MODEL=openai/ibm-granite/granite-4.0-h-small
+                LINUX_MCP_GATEKEEPER__MODEL=ibm-granite/granite-4.0-h-small
                 hf_repo=ibm-granite/granite-4.0-h-small-GGUF
                 ;;
             granite-4.1-8b)
-                LINUX_MCP_GATEKEEPER__MODEL=openai/ibm-granite/granite-4.1-8b
+                LINUX_MCP_GATEKEEPER__MODEL=ibm-granite/granite-4.1-8b
                 hf_repo=ibm-granite/granite-4.1-8b-GGUF
                 ;;
             qwen3.5-35b-a3b)
-                LINUX_MCP_GATEKEEPER__MODEL=openai/qwen/qwen3.5-35b-a3b
+                LINUX_MCP_GATEKEEPER__MODEL=qwen/qwen3.5-35b-a3b
                 hf_repo=unsloth/Qwen3.5-35B-A3B-GGUF
                 ;;
             qwen3.5-9b)
-                LINUX_MCP_GATEKEEPER__MODEL=openai/qwen/qwen3.5-9b
+                LINUX_MCP_GATEKEEPER__MODEL=qwen/qwen3.5-9b
                 hf_repo=unsloth/Qwen3.5-9B-GGUF
                 ;;
             *)
@@ -316,30 +317,37 @@ case "$provider" in
         : "${VERTEXAI_PROJECT:?'project must be set'}"
         uv_args+=("--extra" "gcp")
         max_parallel=50
+        LINUX_MCP_GATEKEEPER__BACKEND=vertex
+        vertex_location="${VERTEXAI_LOCATION:-global}"
+        vertex_openapi_base="https://aiplatform.googleapis.com/v1/projects/${VERTEXAI_PROJECT}/locations/${vertex_location}/endpoints/openapi"
         case $model in
             claude-*)
-                LINUX_MCP_GATEKEEPER__MODEL="vertex_ai/$model"
+                LINUX_MCP_GATEKEEPER__PROVIDER=anthropic
+                LINUX_MCP_GATEKEEPER__MODEL="$model"
                 ;;
             gemini-*)
-                LINUX_MCP_GATEKEEPER__MODEL="vertex_ai/$model"
+                LINUX_MCP_GATEKEEPER__PROVIDER=gemini
+                LINUX_MCP_GATEKEEPER__MODEL="$model"
                 ;;
             gemma-4-26b-a4b-it)
                 if [[ $reasoning == "none" ]] ; then
-                    # LiteLLM doesn't know about this model, so doesn't support reasoning_effort
                     LINUX_MCP_GATEKEEPER__REASONING_EFFORT=
                 fi
-                LINUX_MCP_GATEKEEPER__MODEL=openai/google/$model-maas
+                LINUX_MCP_GATEKEEPER__PROVIDER=openai
+                LINUX_MCP_GATEKEEPER__MODEL="${model}-maas"
+                LINUX_MCP_GATEKEEPER__BASE_URL="${vertex_openapi_base}"
                 LINUX_MCP_GATEKEEPER__COST=0.15e-6:0.60e-6
-                OPENAI_API_BASE=https://aiplatform.googleapis.com/v1/projects/${VERTEXAI_PROJECT}/locations/global/endpoints/openapi
-                OPENAI_API_KEY=$(gcloud auth print-access-token)
-                export OPENAI_API_BASE OPENAI_API_KEY
                 ;;
             gpt-oss-20b)
-                LINUX_MCP_GATEKEEPER__MODEL="vertex_ai/openai/$model-maas"
+                LINUX_MCP_GATEKEEPER__PROVIDER=openai
+                LINUX_MCP_GATEKEEPER__MODEL="${model}-maas"
+                LINUX_MCP_GATEKEEPER__BASE_URL="${vertex_openapi_base}"
                 LINUX_MCP_GATEKEEPER__COST="0.07e-6:0.25e-6"
                 ;;
             gpt-oss-120b)
-                LINUX_MCP_GATEKEEPER__MODEL="vertex_ai/openai/$model-maas"
+                LINUX_MCP_GATEKEEPER__PROVIDER=openai
+                LINUX_MCP_GATEKEEPER__MODEL="${model}-maas"
+                LINUX_MCP_GATEKEEPER__BASE_URL="${vertex_openapi_base}"
                 LINUX_MCP_GATEKEEPER__COST="0.09e-6:0.36e-6"
                 ;;
         esac
@@ -348,49 +356,54 @@ case "$provider" in
         : "${OPENAI_API_KEY:?'api key must be set'}"
         SSL_CERT_FILE=${SSL_CERT_FILE:-/etc/pki/ca-trust/extracted/pem/tls-ca-bundle.pem}
         export SSL_CERT_FILE
+        LINUX_MCP_GATEKEEPER__PROVIDER=openai
+        LINUX_MCP_GATEKEEPER__BACKEND=direct
         case $model in
             granite-*)
-                LINUX_MCP_GATEKEEPER__MODEL="openai/ibm-granite/$model"
+                LINUX_MCP_GATEKEEPER__MODEL="ibm-granite/$model"
                 ;;
             gpt-oss*)
-                LINUX_MCP_GATEKEEPER__MODEL="openai/openai/$model"
-                echo "$LINUX_MCP_GATEKEEPER__MODEL"
+                LINUX_MCP_GATEKEEPER__MODEL="openai/$model"
                 ;;
         esac
-        OPENAI_API_BASE="$(get_MC_base_url "$model")"
-        export OPENAI_API_BASE
+        LINUX_MCP_GATEKEEPER__BASE_URL="$(get_MC_base_url "$model")"
         max_parallel=5
         ;;
     openrouter)
         : "${OPENROUTER_API_KEY:?'api key must be set'}"
+        LINUX_MCP_GATEKEEPER__PROVIDER=openrouter
+        LINUX_MCP_GATEKEEPER__BACKEND=direct
         if [[ -n $quantization ]] ; then
             LINUX_MCP_GATEKEEPER__QUANTIZATION=$quantization
-            export LINUX_MCP_GATEKEEPER__QUANTIZATION
         fi
         case $model in
             claude-*)
-                LINUX_MCP_GATEKEEPER__MODEL="openrouter/anthropic/$model"
+                LINUX_MCP_GATEKEEPER__MODEL="anthropic/$model"
                 ;;
             gemma-*)
-                LINUX_MCP_GATEKEEPER__MODEL="openrouter/google/$model"
+                LINUX_MCP_GATEKEEPER__MODEL="google/$model"
                 ;;
             gpt-oss-*)
-                LINUX_MCP_GATEKEEPER__MODEL="openrouter/openai/$model"
+                LINUX_MCP_GATEKEEPER__MODEL="openai/$model"
                 ;;
             gpt-*)
-                LINUX_MCP_GATEKEEPER__MODEL="openrouter/openai/$model"
+                LINUX_MCP_GATEKEEPER__MODEL="openai/$model"
                 ;;
             granite-*)
-                LINUX_MCP_GATEKEEPER__MODEL="openrouter/ibm-granite/$model"
+                LINUX_MCP_GATEKEEPER__MODEL="ibm-granite/$model"
                 ;;
             qwen*)
-                LINUX_MCP_GATEKEEPER__MODEL="openrouter/qwen/$model"
+                LINUX_MCP_GATEKEEPER__MODEL="qwen/$model"
                 ;;
         esac
         ;;
 esac
 
-export LINUX_MCP_GATEKEEPER__MODEL LINUX_MCP_GATEKEEPER__COST LINUX_MCP_GATEKEEPER__REASONING_EFFORT
+export LINUX_MCP_GATEKEEPER__PROVIDER LINUX_MCP_GATEKEEPER__BACKEND LINUX_MCP_GATEKEEPER__MODEL
+export LINUX_MCP_GATEKEEPER__COST LINUX_MCP_GATEKEEPER__REASONING_EFFORT
+[[ -n "${LINUX_MCP_GATEKEEPER__QUANTIZATION:-}" ]] && export LINUX_MCP_GATEKEEPER__QUANTIZATION
+[[ -n "${LINUX_MCP_GATEKEEPER__BASE_URL:-}" ]] && export LINUX_MCP_GATEKEEPER__BASE_URL
+[[ -n "${LINUX_MCP_GATEKEEPER__TEMPLATE_KWARGS:-}" ]] && export LINUX_MCP_GATEKEEPER__TEMPLATE_KWARGS
 
 variant_suffix=""
 if [[ -n "$variant" ]] ; then

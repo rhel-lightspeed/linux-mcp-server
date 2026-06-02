@@ -64,7 +64,7 @@ def patch_execute_command(mocker) -> Any:
 
 @pytest.fixture
 def patch_check_run_script(mocker) -> Any:
-    """Mock the LLM gatekeeper so tests do not call litellm."""
+    """Mock the LLM gatekeeper so tests do not call the provider HTTP APIs."""
     return mocker.patch.object(run_script_mod, "check_run_script", autospec=True)
 
 
