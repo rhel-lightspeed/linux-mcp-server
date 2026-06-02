@@ -64,10 +64,16 @@ Runs test cases through the gatekeeper and reports results.
 
 ```bash
 # Set the gatekeeper model
-export LINUX_MCP_GATEKEEPER__MODEL="openrouter/anthropic/claude-3.5-sonnet"
+export LINUX_MCP_GATEKEEPER__PROVIDER="anthropic"
+export LINUX_MCP_GATEKEEPER__MODEL="claude-sonnet-4-6"
+export ANTHROPIC_API_KEY="..."
 
 # Run evaluation on a single file
 uv run eval/gatekeeper/run-eval.py testcases/selinux-port-denial.yaml -o results.yaml
+
+# Run via standard-evals.sh (OpenRouter example)
+export OPENROUTER_API_KEY="..."
+./eval/gatekeeper/standard-evals.sh --no-save gpt-oss-120b:low,fp4@openrouter
 
 # Run all test case files in testcases/
 uv run eval/gatekeeper/run-eval.py --all -o results.yaml

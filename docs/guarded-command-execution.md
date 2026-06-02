@@ -106,15 +106,34 @@ LINUX_MCP_TOOLSET=run_script
 
 **Configure a Gatekeeper Model**
 
-Set `LINUX_MCP_GATEKEEPER__MODEL` to the name of the model you want to use. Additional environment
-variables may be needed to configure credentials. See the
-[LiteLLM documentation](https://docs.litellm.ai/docs/providers) for details on how to configure your provider.
+Set `LINUX_MCP_GATEKEEPER__PROVIDER` and `LINUX_MCP_GATEKEEPER__MODEL` to configure the gatekeeper.
+Set the matching API credentials for your provider (`OPENAI_API_KEY`, `ANTHROPIC_API_KEY`,
+`GOOGLE_API_KEY`, or `OPENROUTER_API_KEY`). For Vertex AI backends, install the `gcp` extra and configure
+`GOOGLE_APPLICATION_CREDENTIALS`, `VERTEXAI_PROJECT`, and `VERTEXAI_LOCATION`.
 
-Example:
+Example (OpenAI):
 
 ```sh
-LINUX_MCP_GATEKEEPER__MODEL=openai/chatgpt-5.2
+LINUX_MCP_GATEKEEPER__PROVIDER=openai
+LINUX_MCP_GATEKEEPER__MODEL=gpt-5.4
 OPENAI_API_KEY=<....>
+```
+
+Example (Anthropic):
+
+```sh
+LINUX_MCP_GATEKEEPER__PROVIDER=anthropic
+LINUX_MCP_GATEKEEPER__MODEL=claude-sonnet-4-6
+ANTHROPIC_API_KEY=<....>
+```
+
+Example (OpenRouter):
+
+```sh
+LINUX_MCP_GATEKEEPER__PROVIDER=openrouter
+LINUX_MCP_GATEKEEPER__MODEL=openai/gpt-oss-120b
+LINUX_MCP_GATEKEEPER__QUANTIZATION=fp4
+OPENROUTER_API_KEY=<....>
 ```
 
 
