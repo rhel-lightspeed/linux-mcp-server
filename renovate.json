@@ -1,20 +1,10 @@
 {
   "$schema": "https://docs.renovatebot.com/renovate-schema.json",
-  "extends": ["config:recommended"],
-  "labels": ["dependencies"],
-  "minimumReleaseAge": "7 days",
-  "vulnerabilityAlerts": {
-    "labels": ["security"],
-    "minimumReleaseAge": "0 days"
-  },
+  "extends": ["github>rhel-lightspeed/renovate-config"],
   "packageRules": [
     {
       "matchManagers": ["pep621", "pip_requirements", "pip-compile", "poetry", "pipenv"],
       "rangeStrategy": "in-range-only"
-    },
-    {
-      "matchDepNames": ["python"],
-      "enabled": false
     },
     {
       "matchManagers": ["npm"],
