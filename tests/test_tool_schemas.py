@@ -31,3 +31,17 @@ class TestToolSchemaExamples:
         assert param_name in props, f"Parameter '{param_name}' not found in {tool_name}"
         assert "examples" in props[param_name], f"Parameter '{param_name}' in {tool_name} missing examples"
         assert len(props[param_name]["examples"]) > 0, f"Parameter '{param_name}' in {tool_name} has empty examples"
+
+
+def test_log_entries_serialization_schema_no_path_format() -> None:
+    """Verify that LogEntries serialization schema does not contain 'format': 'path' for unit or path."""
+    from linux_mcp_server.models import LogEntries
+
+    schema = LogEntries.model_json_schema(mode="serialization")
+    for field_name in ("unit", "path"):
+        field_schema = schema.get("properties", {}).get(field_name, {})
+        # Verify it is not a direct 'format': 'path'
+        assert field_schema.get("format") != "path", f"Field '{field_name}' has format: 'path'"
+        # Verify it is not inside anyOf
+        for subschema in field_schema.get("anyOf", []):
+            assert subschema.get("format") != "path", f"Field '{field_name}' has subschema with format: 'path'"

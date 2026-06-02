@@ -196,5 +196,7 @@ class LogEntries(BaseModel):
     lines_count: int = Field(default_factory=field_length("entries"))
 
     @field_serializer("unit", "path")
-    def serialize_empty_as_null(self, value: str | Path | None) -> str | Path | None:
-        return value or None
+    def serialize_empty_as_null(self, value: str | Path | None) -> str | None:
+        if value:
+            return str(value)
+        return None
