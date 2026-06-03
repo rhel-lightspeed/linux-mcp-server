@@ -546,14 +546,9 @@
       function buildLeaderboard() {
         leaderboardList.replaceChildren();
 
-        const sorted = [...allModelData].sort(
-          (a, b) => (b.score ?? -Infinity) - (a.score ?? -Infinity),
-        );
+        const modelRenderer = new ModelRenderer(allModelData);
 
-        const modelRenderer = new ModelRenderer(sorted);
-
-        for (const md of sorted) {
-          const idx = allModelData.indexOf(md);
+        allModelData.forEach((md, idx) => {
           const card = document.createElement("div");
           card.className =
             "leaderboard-card" + (selectedModels.has(idx) ? " selected" : "");
@@ -622,7 +617,7 @@
 
           card.addEventListener("click", () => toggleModel(idx));
           leaderboardList.appendChild(card);
-        }
+        });
 
         updateSelectionUI();
       }
@@ -631,13 +626,12 @@
         if (selectedModels.has(idx)) selectedModels.delete(idx);
         else selectedModels.add(idx);
 
-        const cards = leaderboardList.querySelectorAll(".leaderboard-card");
-        for (const card of cards) {
-          const i = parseInt(card.dataset.index);
-          const cb = card.querySelector("input[type=checkbox]");
-          card.classList.toggle("selected", selectedModels.has(i));
-          cb.checked = selectedModels.has(i);
-        }
+        const card = leaderboardList.querySelector(
+          `.leaderboard-card[data-index="${idx}"]`,
+        );
+        const checked = selectedModels.has(idx);
+        card.classList.toggle("selected", checked);
+        card.querySelector("input[type=checkbox]").checked = checked;
 
         updateSelectionUI();
       }
@@ -1044,15 +1038,26 @@
         }
       });
 
+      function enterComparison() {
+        leaderboardView.style.display = "none";
+        comparisonView.style.display = "block";
+        leaderboardControls.style.display = "none";
+        comparisonControls.style.display = "";
+      }
+
+      function enterLeaderboard() {
+        comparisonView.style.display = "none";
+        leaderboardView.style.display = "";
+        comparisonControls.style.display = "none";
+        leaderboardControls.style.display = "";
+      }
+
       function showModelDetail(idx) {
         showComparison([allModelData[idx]]);
       }
 
       function showComparison(models) {
-        leaderboardView.style.display = "none";
-        comparisonView.style.display = "block";
-        leaderboardControls.style.display = "none";
-        comparisonControls.style.display = "";
+        enterComparison();
         buildComparisonTable(models);
 
         const url = new URL(window.location);
@@ -1062,10 +1067,7 @@
       }
 
       function showLeaderboard() {
-        comparisonView.style.display = "none";
-        leaderboardView.style.display = "";
-        comparisonControls.style.display = "none";
-        leaderboardControls.style.display = "";
+        enterLeaderboard();
         gridBody.replaceChildren();
 
         const url = new URL(window.location);
@@ -1077,10 +1079,7 @@
         const params = new URLSearchParams(window.location.search);
         const modelNames = params.getAll("model");
         if (modelNames.length === 0) {
-          comparisonView.style.display = "none";
-          leaderboardView.style.display = "";
-          comparisonControls.style.display = "none";
-          leaderboardControls.style.display = "";
+          enterLeaderboard();
           gridHead.replaceChildren();
           gridBody.replaceChildren();
           return;
@@ -1093,19 +1092,13 @@
         }
 
         if (models.length === 0) {
-          comparisonView.style.display = "none";
-          leaderboardView.style.display = "";
-          comparisonControls.style.display = "none";
-          leaderboardControls.style.display = "";
+          enterLeaderboard();
           gridHead.replaceChildren();
           gridBody.replaceChildren();
           return;
         }
 
-        leaderboardView.style.display = "none";
-        comparisonView.style.display = "block";
-        leaderboardControls.style.display = "none";
-        comparisonControls.style.display = "";
+        enterComparison();
         buildComparisonTable(models);
       }
 
@@ -1125,7 +1118,9 @@
       async function init() {
         try {
           const result = await loadAllTestResults();
-          allModelData = result.modelData;
+          allModelData = [...result.modelData].sort(
+            (a, b) => (b.score ?? -Infinity) - (a.score ?? -Infinity),
+          );
           allTestCases = result.testCases;
           buildLeaderboard();
 
