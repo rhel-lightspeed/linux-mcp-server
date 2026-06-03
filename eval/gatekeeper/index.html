@@ -8,53 +8,216 @@
       body {
         font-family: system-ui, sans-serif;
         margin: 0;
+      }
+      #sticky-header {
+        position: sticky;
+        top: 0;
+        z-index: 100;
+        background: #fff;
+        border-bottom: 1px solid #ddd;
+        padding: 12px 20px;
+        height: 30px;
         display: flex;
-        height: 100vh;
+        align-items: center;
+        justify-content: space-between;
       }
       main {
-        flex: 1;
         padding: 20px;
-        overflow: auto;
+      }
+
+      /* --- Leaderboard --- */
+      .leaderboard-controls {
+        display: flex;
+        gap: 12px;
+        align-items: center;
+      }
+      .leaderboard-controls button {
+        padding: 8px 18px;
+        border: 1px solid #aaa;
+        border-radius: 6px;
+        background: #fff;
+        cursor: pointer;
+        font-size: 14px;
+      }
+      .leaderboard-controls button:disabled {
+        opacity: 0.4;
+        cursor: default;
+      }
+      .leaderboard-controls button:not(:disabled):hover {
+        background: #e9ecef;
+      }
+      .leaderboard-list {
+        display: flex;
+        flex-direction: column;
+        gap: 6px;
+        max-width: 700px;
+      }
+      .leaderboard-card {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        padding: 10px 14px;
+        border: 1px solid #ddd;
+        border-radius: 6px;
+        cursor: pointer;
+        transition: background 0.15s;
+        user-select: none;
+      }
+      .leaderboard-card:hover {
+        background: #f5f5f5;
+      }
+      .leaderboard-card.selected {
+        background: #e8f0fe;
+        border-color: #4a90d9;
+      }
+      .leaderboard-card input[type="checkbox"] {
+        width: 18px;
+        height: 18px;
+        flex-shrink: 0;
+      }
+      .model-info {
+        flex: 1;
+        min-width: 0;
+      }
+      .model-name a {
+        color: inherit;
+        text-decoration: none;
+      }
+      .model-name a:hover {
+        text-decoration: underline;
+      }
+      .model-name {
+        font-weight: 600;
+        font-size: 15px;
+      }
+      .model-meta {
+        font-size: 12px;
+        color: #666;
+      }
+      .model-detail-highlight {
+        font-weight: 600;
+        color: black;
+      }
+      .score-bar-container {
+        width: 220px;
+        height: 22px;
+        background: #e9ecef;
+        border-radius: 4px;
+        position: relative;
+        flex-shrink: 0;
+      }
+      .score-bar {
+        height: 100%;
+        border-radius: 4px;
+      }
+      .score-bar-label {
+        position: absolute;
+        right: 6px;
+        top: 50%;
+        transform: translateY(-50%);
+        font-size: 12px;
+        font-weight: 600;
+        color: #333;
+      }
+
+      /* --- Comparison grid --- */
+      #comparison-view {
+        display: none;
+      }
+      .comparison-controls button {
+        padding: 8px 18px;
+        border: 1px solid #aaa;
+        border-radius: 6px;
+        background: #fff;
+        cursor: pointer;
+        font-size: 14px;
+      }
+      .comparison-controls button:hover {
+        background: #e9ecef;
       }
       table {
-        width: 100%;
         border-collapse: collapse;
       }
-      td {
+      td,
+      th {
         border: 1px solid #ccc;
-        padding: 10px;
+        padding: 8px 10px;
         text-align: center;
+      }
+      th {
+        background: #f8f8f8;
+        font-weight: 600;
+      }
+      #grid thead th {
+        position: sticky;
+        top: 55px;
+        z-index: 10;
+      }
+
+      /* Header cells */
+      .header-model {
+        font-weight: 700;
+        font-size: 14px;
+      }
+      .header-effort,
+      .header-provider {
+        font-size: 12px;
+        color: #666;
+      }
+
+      /* Meta rows (score, stats) */
+      tr.meta-row td {
+        background: #fafafa;
+        font-size: 13px;
+      }
+      tr.meta-row td:first-child {
+        text-align: right;
+        font-weight: 600;
+        color: #555;
+        white-space: nowrap;
+      }
+      tr.score-total td {
+        font-weight: 700;
+        font-size: 14px;
+      }
+      tr.separator-row td {
+        border-bottom: 2px solid #ccc;
+        padding: 0;
+        height: 0;
+      }
+
+      /* Stats cells that are clickable */
+      td.clickable-stat {
+        cursor: pointer;
+        text-decoration: underline dotted;
+      }
+      td.clickable-stat:hover {
+        background: #e9ecef;
+      }
+
+      /* Test case cells */
+      td.result-cell {
         cursor: pointer;
         transition: background 0.2s;
       }
-      td:hover {
-        background-color: #e9ecef;
+      td.result-cell:hover {
+        filter: brightness(1.1);
       }
 
       .success {
         background-color: oklch(79.2% 0.209 151.711);
       }
-
-      .success:hover {
-        background-color: oklch(87.1% 0.15 154.449);
-      }
-
       .danger {
         background-color: oklch(70.4% 0.191 22.216);
       }
-
-      .danger:hover {
-        background-color: oklch(80.8% 0.114 19.571);
+      .warning {
+        background-color: oklch(79.5% 0.184 86.047);
       }
-
       .missing {
         background-color: oklch(70.7% 0.022 261.325);
       }
 
-      .missing:hover {
-        background-color: oklch(87.2% 0.01 258.338);
-      }
-
+      /* --- Popup --- */
       #popup {
         display: none;
         position: fixed;
@@ -113,15 +276,42 @@
       #error-display {
         display: none;
         color: oklch(63.7% 0.237 25.331);
+        padding: 20px;
       }
     </style>
   </head>
   <body>
+    <header id="sticky-header">
+      <h2 style="margin: 0; font-size: 18px">
+        <a href="https://rhel-lightspeed.github.io/linux-mcp-server/" style="text-decoration: none;"
+          >Linux MCP Server</a
+        >
+        <span style="font-weight: normal"">&nbsp;|&nbsp;</span>
+        <span>Gatekeeper Model Benchmark</span>
+      </h2>
+      <div class="leaderboard-controls" id="leaderboard-controls">
+        <span id="select-count" style="font-size: 13px; color: #666"></span>
+        <button id="compare-btn" disabled>Compare Selected</button>
+      </div>
+      <div
+        class="comparison-controls"
+        id="comparison-controls"
+        style="display: none"
+      >
+        <button id="back-btn">Back to Leaderboard</button>
+      </div>
+    </header>
     <main>
-      <h2>Gatekeeper Model Benchmark</h2>
-      <table id="grid">
-        <tbody id="grid-body"></tbody>
-      </table>
+      <div id="leaderboard-view">
+        <div class="leaderboard-list" id="leaderboard-list"></div>
+      </div>
+
+      <div id="comparison-view">
+        <table id="grid">
+          <thead id="grid-head"></thead>
+          <tbody id="grid-body"></tbody>
+        </table>
+      </div>
 
       <div id="error-display"></div>
     </main>
@@ -129,81 +319,76 @@
     <div id="popup"></div>
 
     <script>
+      const GROUP_ORDER = [
+        "OK",
+        "BAD_DESCRIPTION",
+        "DANGEROUS",
+        "MALICIOUS",
+        "MODIFIES_SYSTEM",
+        "POLICY",
+        "UNCLEAR",
+      ];
+
+      const leaderboardView = document.getElementById("leaderboard-view");
+      const comparisonView = document.getElementById("comparison-view");
+      const gridHead = document.getElementById("grid-head");
       const gridBody = document.getElementById("grid-body");
       const errorDisplay = document.getElementById("error-display");
+      const popup = document.getElementById("popup");
+      const compareBtn = document.getElementById("compare-btn");
+      const selectCount = document.getElementById("select-count");
+      const backBtn = document.getElementById("back-btn");
+      const leaderboardList = document.getElementById("leaderboard-list");
+      const leaderboardControls = document.getElementById(
+        "leaderboard-controls",
+      );
+      const comparisonControls = document.getElementById("comparison-controls");
+
+      let allModelData = [];
+      let allTestCases = [];
+      let selectedModels = new Set();
+
+      // --- Data loading ---
 
       async function fetchJsonFile(url) {
         const response = await fetch(url);
         return response.json();
       }
 
-      function createResultLookup(testResult) {
-        const cases = testResult.cases;
+      function parseFilename(filename) {
+        const match = filename.match(/^(.+):([^@]+)@([^+]+)(?:\+(.+))?$/);
+        if (!match) return null;
 
-        lookup = {};
-        for (const eachCase of cases) {
+        let effort = "";
+        let quantization = null;
+        for (const flag of match[2].split(",")) {
+          if (/\d/.test(flag)) {
+            quantization = flag;
+          } else {
+            effort = flag;
+          }
+        }
+
+        return {
+          model: match[1],
+          effort,
+          quantization,
+          provider: match[3],
+          variant: match[4] || null,
+        };
+      }
+
+      function createResultLookup(jsonObject) {
+        const lookup = {};
+        for (const eachCase of jsonObject.cases) {
           lookup[eachCase.id] = { ...eachCase };
         }
-
         return lookup;
-      }
-
-      function setClassForComparison(comparison) {
-        switch (comparison) {
-          case "same":
-          case "other_mismatch":
-            return "success";
-          case "ok_to_forbidden":
-          case "forbidden_to_ok":
-            return "danger";
-          default:
-            return "missing";
-        }
-      }
-
-      function setScoreColor(score) {
-        if (score >= 85) {
-          return "oklch(72.3% 0.219 149.579)";
-        } else if (score >= 60) {
-          return "oklch(79.5% 0.184 86.047)";
-        } else {
-          return "oklch(63.7% 0.237 25.331)";
-        }
-      }
-
-      function computeScore(jsonObject) {
-        if (!jsonObject.score) return null;
-        return jsonObject.score.total;
-      }
-
-      function scoreTooltip(jsonObject) {
-        if (!jsonObject.score || !jsonObject.score.groups) return "";
-        return Object.entries(jsonObject.score.groups)
-          .map(
-            ([status, g]) =>
-              `${status}: ${g.score.toFixed(1)}% (weight ${g.weight.toFixed(2)})`,
-          )
-          .join("\n");
-      }
-
-      function compareResult(expectedResult, actualResult) {
-        if ("exception" in actualResult) return "exception";
-
-        if (expectedResult.status === actualResult.status) {
-          return "same";
-        } else if (expectedResult.status === "OK") {
-          return "ok_to_forbidden";
-        } else if (actualResult.status === "OK") {
-          return "forbidden_to_ok";
-        } else {
-          return "other_mismatch";
-        }
       }
 
       async function loadAllTestResults() {
         let jsonUrls;
 
-        // Try manifest file first (for GitLab artifacts / environments without directory listing)
         try {
           const manifestResponse = await fetch("./data/manifest.txt");
           if (manifestResponse.ok) {
@@ -219,7 +404,6 @@
           }
         } catch (e) {}
 
-        // Fall back to directory listing (local dev with http-server)
         if (!jsonUrls) {
           const dirResponse = await fetch("./data/");
           if (!dirResponse.ok) throw new Error("Could not find /data folder");
@@ -232,33 +416,35 @@
           jsonUrls = links
             .map((link) => link.href)
             .filter((href) => href.endsWith(".json"))
-            .map((filename) => {
-              const parts = filename.split("/");
-              const model = parts[parts.length - 1].replace(/\.json$/, "");
-              parts.splice(parts.length - 1, 0, "data");
-              return [model, parts.join("/")];
+            .map((href) => {
+              const parts = href.split("/");
+              const rawFilename = decodeURIComponent(parts[parts.length - 1]);
+              const model = rawFilename.replace(/\.json$/, "");
+              return [model, `./data/${rawFilename}`];
             });
         }
 
         if (jsonUrls.length === 0) throw new Error("No json files found");
 
-        const combinedResult = {};
-        const models = [];
+        const modelData = [];
         let testCases = [];
-        const scores = [];
 
-        for (const [model, url] of jsonUrls) {
+        for (const [filename, url] of jsonUrls) {
           const jsonObject = await fetchJsonFile(url);
           const lookup = createResultLookup(jsonObject);
+          const parsed = parseFilename(filename);
 
-          combinedResult[model] = lookup;
-          models.push(model);
-          scores.push({
-            value: computeScore(jsonObject),
-            tooltip: scoreTooltip(jsonObject),
+          modelData.push({
+            filename,
+            parsed,
+            lookup,
+            score: jsonObject.score?.total ?? null,
+            scoreGroups: jsonObject.score?.groups ?? null,
+            stats: jsonObject.stats ?? null,
+            summary: jsonObject.summary ?? null,
           });
 
-          curTestCases = Object.keys(lookup);
+          const curTestCases = Object.keys(lookup);
           if (curTestCases.length > testCases.length) {
             testCases = curTestCases;
           }
@@ -268,90 +454,379 @@
           a.localeCompare(b, undefined, { numeric: true }),
         );
 
-        return [models, testCases, combinedResult, scores];
+        return { modelData, testCases };
       }
 
-      function createFirstRow(models, scores) {
-        const firstRow = document.createElement("tr");
-        const testCase = document.createElement("td");
-        testCase.textContent = "Test Case";
-        firstRow.appendChild(testCase);
+      // --- Utilities ---
 
-        models.forEach((model, index) => {
-          const modelCol = document.createElement("td");
-          const { value: score, tooltip } = scores[index];
-          if (score !== null) {
-            modelCol.append(model + " (");
-            const scoreSpan = document.createElement("span");
-            scoreSpan.style.color = setScoreColor(score);
-            scoreSpan.textContent = score.toFixed(1);
-            if (tooltip) scoreSpan.title = tooltip;
-            modelCol.appendChild(scoreSpan);
-            modelCol.append(")");
-          } else {
-            modelCol.textContent = model;
-          }
-          modelCol.style.whiteSpace = "nowrap";
-          firstRow.appendChild(modelCol);
-        });
-
-        return firstRow;
+      function setScoreColor(score) {
+        if (score >= 85) return "oklch(72.3% 0.219 149.579)";
+        if (score >= 60) return "oklch(79.5% 0.184 86.047)";
+        return "oklch(63.7% 0.237 25.331)";
       }
 
-      async function constructTable() {
-        try {
-          const [models, testCases, combinedResult, scores] =
-            await loadAllTestResults();
+      function compareResult(expectedResult, actualResult) {
+        if ("exception" in actualResult) return "exception";
+        if (expectedResult.status === actualResult.status) return "same";
+        if (expectedResult.status === "OK") return "ok_to_forbidden";
+        if (actualResult.status === "OK") return "forbidden_to_ok";
+        return "other_mismatch";
+      }
 
-          const firstRow = createFirstRow(models, scores);
-          gridBody.appendChild(firstRow);
-
-          for (const testCase of testCases) {
-            const thisRow = document.createElement("tr");
-            const firstCol = document.createElement("td");
-            firstCol.textContent = testCase;
-            thisRow.appendChild(firstCol);
-
-            for (const model of models) {
-              const entry = combinedResult[model][testCase];
-              const thisCell = document.createElement("td");
-
-              if (!entry) {
-                thisCell.textContent = "missing";
-                thisCell.classList.add("missing");
-                thisRow.appendChild(thisCell);
-                continue;
-              }
-
-              const comparison = compareResult(
-                entry.expected_result,
-                entry.result,
-              );
-              thisCell.textContent = comparison;
-              thisCell.classList.add(setClassForComparison(comparison));
-              thisCell._popupData = {
-                id: testCase,
-                model: model,
-                description: entry.description ?? "",
-                script_type: entry.script_type ?? "",
-                script: entry.script ?? "",
-                readonly: entry.readonly ?? "",
-                result: entry.result ?? {},
-                expectedResult: entry.expected_result ?? {},
-              };
-
-              thisRow.appendChild(thisCell);
-            }
-
-            gridBody.appendChild(thisRow);
-          }
-        } catch (e) {
-          errorDisplay.textContent = e.message;
-          errorDisplay.style.display = "block";
+      function classForComparison(comparison) {
+        switch (comparison) {
+          case "same":
+            return "success";
+          case "other_mismatch":
+            return "warning";
+          case "ok_to_forbidden":
+          case "forbidden_to_ok":
+            return "danger";
+          default:
+            return "missing";
         }
       }
 
-      const popup = document.getElementById("popup");
+      function modelDisplayName(md) {
+        if (md.parsed) return md.parsed.model;
+        return md.filename;
+      }
+
+      class ModelRenderer {
+        // Render detail fields for models, highlighting what's different
+        constructor(models) {
+          const allParsed = models.map((md) => md.parsed).filter(Boolean);
+          this.parsedByName = Map.groupBy(allParsed, (item) => item.model);
+        }
+
+        _append(parent, parsed, which, label) {
+          const value = parsed[which];
+          if (value === null || value === "") {
+            return;
+          }
+
+          if (parent.childNodes.length > 0) {
+            parent.append(" | ");
+          }
+          if (label) {
+            parent.append(label + ": ");
+          }
+
+          // Do the models with the same model name have different values for md.which?
+          const parsedWithName = this.parsedByName.get(parsed.model);
+          if (new Set(parsedWithName.map((m) => m[which])).size > 1) {
+            const highlight = document.createElement("span");
+            highlight.className = "model-detail-highlight";
+            highlight.textContent = value;
+            parent.append(highlight);
+          } else {
+            parent.append(value);
+          }
+        }
+
+        appendReasoning(parent, parsed) {
+          this._append(parent, parsed, "effort", "reasoning");
+        }
+
+        appendQuantization(parent, parsed) {
+          this._append(parent, parsed, "quantization", "quant");
+        }
+
+        appendProvider(parent, parsed) {
+          this._append(parent, parsed, "provider", null);
+        }
+
+        appendVariant(parent, parsed) {
+          this._append(parent, parsed, "variant", "variant");
+        }
+      }
+
+      // --- Leaderboard ---
+
+      function buildLeaderboard() {
+        leaderboardList.replaceChildren();
+
+        const modelRenderer = new ModelRenderer(allModelData);
+
+        allModelData.forEach((md, idx) => {
+          const card = document.createElement("div");
+          card.className =
+            "leaderboard-card" + (selectedModels.has(idx) ? " selected" : "");
+          card.dataset.index = idx;
+
+          const cb = document.createElement("input");
+          cb.type = "checkbox";
+          cb.checked = selectedModels.has(idx);
+          cb.addEventListener("click", (e) => e.stopPropagation());
+          cb.addEventListener("change", () => toggleModel(idx));
+          card.appendChild(cb);
+
+          const info = document.createElement("div");
+          info.className = "model-info";
+          const name = document.createElement("div");
+          name.className = "model-name";
+          const nameLink = document.createElement("a");
+          nameLink.href = "#";
+          nameLink.textContent = modelDisplayName(md);
+          nameLink.addEventListener("click", (e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            showModelDetail(idx);
+          });
+          name.appendChild(nameLink);
+          info.appendChild(name);
+
+          if (md.parsed) {
+            const meta = document.createElement("div");
+            meta.className = "model-meta";
+
+            modelRenderer.appendReasoning(meta, md.parsed);
+            modelRenderer.appendQuantization(meta, md.parsed);
+            modelRenderer.appendProvider(meta, md.parsed);
+            modelRenderer.appendVariant(meta, md.parsed);
+
+            info.appendChild(meta);
+          }
+
+          if (md.stats) {
+            const statsMeta = document.createElement("div");
+            statsMeta.className = "model-meta";
+            const parts = [];
+            parts.push(`latency: ${md.stats.latency.mean.toFixed(2)}s`);
+            parts.push(`cost: $${md.stats.cost.total.toFixed(2)}`);
+            statsMeta.textContent = parts.join(" | ");
+            info.appendChild(statsMeta);
+          }
+
+          card.appendChild(info);
+
+          if (md.score !== null) {
+            const barContainer = document.createElement("div");
+            barContainer.className = "score-bar-container";
+            const bar = document.createElement("div");
+            bar.className = "score-bar";
+            bar.style.width = Math.max(0, Math.min(100, md.score)) + "%";
+            bar.style.backgroundColor = setScoreColor(md.score);
+            barContainer.appendChild(bar);
+            const label = document.createElement("span");
+            label.className = "score-bar-label";
+            label.textContent = md.score.toFixed(1) + "%";
+            barContainer.appendChild(label);
+            card.appendChild(barContainer);
+          }
+
+          card.addEventListener("click", () => toggleModel(idx));
+          leaderboardList.appendChild(card);
+        });
+
+        updateSelectionUI();
+      }
+
+      function toggleModel(idx) {
+        if (selectedModels.has(idx)) selectedModels.delete(idx);
+        else selectedModels.add(idx);
+
+        const card = leaderboardList.querySelector(
+          `.leaderboard-card[data-index="${idx}"]`,
+        );
+        const checked = selectedModels.has(idx);
+        card.classList.toggle("selected", checked);
+        card.querySelector("input[type=checkbox]").checked = checked;
+
+        updateSelectionUI();
+      }
+
+      function updateSelectionUI() {
+        const n = selectedModels.size;
+        compareBtn.disabled = n < 2;
+        selectCount.textContent =
+          n > 0 ? `${n} model${n !== 1 ? "s" : ""} selected` : "";
+      }
+
+      // --- Comparison table ---
+
+      function createSeparatorRow(colSpan) {
+        const row = document.createElement("tr");
+        row.className = "separator-row";
+        const td = document.createElement("td");
+        td.colSpan = colSpan;
+        row.appendChild(td);
+        return row;
+      }
+
+      function buildComparisonTable(models) {
+        gridHead.replaceChildren();
+        gridBody.replaceChildren();
+
+        // Header row
+        const headerRow = document.createElement("tr");
+        const cornerCell = document.createElement("th");
+        cornerCell.textContent = "Test Case";
+        headerRow.appendChild(cornerCell);
+
+        const modelRenderer = new ModelRenderer(models);
+
+        for (const md of models) {
+          const th = document.createElement("th");
+          if (md.parsed) {
+            const mDiv = document.createElement("div");
+            mDiv.className = "header-model";
+            mDiv.textContent = md.parsed.model;
+            th.appendChild(mDiv);
+            const eDiv = document.createElement("div");
+            eDiv.className = "header-effort";
+            modelRenderer.appendReasoning(eDiv, md.parsed);
+            modelRenderer.appendQuantization(eDiv, md.parsed);
+            th.appendChild(eDiv);
+            const pDiv = document.createElement("div");
+            pDiv.className = "header-provider";
+            modelRenderer.appendProvider(pDiv, md.parsed);
+            th.appendChild(pDiv);
+            if (md.parsed.variant) {
+              const vDiv = document.createElement("div");
+              vDiv.className = "header-effort";
+              modelRenderer.appendVariant(vDiv, md.parsed);
+              th.appendChild(vDiv);
+            }
+          } else {
+            th.textContent = md.filename;
+          }
+          headerRow.appendChild(th);
+        }
+        gridHead.appendChild(headerRow);
+
+        // Score row
+        const scoreRow = document.createElement("tr");
+        scoreRow.className = "meta-row score-total";
+        const scoreLabel = document.createElement("td");
+        scoreLabel.textContent = "Score";
+        scoreRow.appendChild(scoreLabel);
+        for (const md of models) {
+          const td = document.createElement("td");
+          if (md.score !== null) {
+            td.textContent = md.score.toFixed(1) + "%";
+            td.style.color = setScoreColor(md.score);
+          } else {
+            td.textContent = "—";
+          }
+          scoreRow.appendChild(td);
+        }
+        gridBody.appendChild(scoreRow);
+        gridBody.appendChild(createSeparatorRow(models.length + 1));
+
+        // Group score breakdown rows
+        const allGroups = new Set();
+        for (const md of models) {
+          if (md.scoreGroups) {
+            for (const g of Object.keys(md.scoreGroups)) allGroups.add(g);
+          }
+        }
+
+        for (const group of GROUP_ORDER) {
+          if (!allGroups.has(group)) continue;
+          const row = document.createElement("tr");
+          row.className = "meta-row";
+          const label = document.createElement("td");
+          label.textContent = group;
+          label.style.fontSize = "12px";
+          row.appendChild(label);
+          for (const md of models) {
+            const td = document.createElement("td");
+            const g = md.scoreGroups?.[group];
+            if (g) {
+              td.textContent = g.score.toFixed(1) + "%";
+              td.style.color = setScoreColor(g.score);
+              td.style.fontSize = "12px";
+            } else {
+              td.textContent = "—";
+            }
+            row.appendChild(td);
+          }
+          gridBody.appendChild(row);
+        }
+
+        // Stats rows (avg latency, total cost)
+        gridBody.appendChild(createSeparatorRow(models.length + 1));
+        addStatsRow(models, "Avg Latency", (s) =>
+          s ? s.latency.mean.toFixed(2) + "s" : null,
+        );
+        addStatsRow(models, "Total Cost", (s) =>
+          s ? "$" + s.cost.total.toFixed(2) : null,
+        );
+
+        gridBody.appendChild(createSeparatorRow(models.length + 1));
+
+        // Test case rows
+        for (const testCase of allTestCases) {
+          const row = document.createElement("tr");
+          const firstCol = document.createElement("td");
+          firstCol.textContent = testCase;
+          firstCol.style.textAlign = "left";
+          row.appendChild(firstCol);
+
+          for (const md of models) {
+            const entry = md.lookup[testCase];
+            const td = document.createElement("td");
+            td.className = "result-cell";
+
+            if (!entry) {
+              td.textContent = "missing";
+              td.classList.add("missing");
+              row.appendChild(td);
+              continue;
+            }
+
+            const comparison = compareResult(
+              entry.expected_result,
+              entry.result,
+            );
+            td.textContent = comparison;
+            td.classList.add(classForComparison(comparison));
+            td._popupData = {
+              id: testCase,
+              model: modelDisplayName(md),
+              description: entry.description ?? "",
+              script_type: entry.script_type ?? "",
+              script: entry.script ?? "",
+              readonly: entry.readonly ?? "",
+              result: entry.result ?? {},
+              expectedResult: entry.expected_result ?? {},
+              stats: entry.stats ?? null,
+            };
+
+            row.appendChild(td);
+          }
+
+          gridBody.appendChild(row);
+        }
+      }
+
+      function addStatsRow(models, label, formatter) {
+        const row = document.createElement("tr");
+        row.className = "meta-row";
+        const labelTd = document.createElement("td");
+        labelTd.textContent = label;
+        row.appendChild(labelTd);
+
+        for (const md of models) {
+          const td = document.createElement("td");
+          const val = formatter(md.stats);
+          if (val !== null) {
+            td.textContent = val;
+            if (md.stats) {
+              td.className = "clickable-stat";
+              td._statsData = md.stats;
+              td._statsModel = md.filename;
+            }
+          } else {
+            td.textContent = "—";
+          }
+          row.appendChild(td);
+        }
+        gridBody.appendChild(row);
+      }
+
+      // --- Popup ---
 
       function createPopupField(label, value) {
         const div = document.createElement("div");
@@ -380,20 +855,12 @@
         parent.appendChild(div);
       }
 
-      function showPopup(td, event) {
+      function showCasePopup(td, event) {
         const data = td._popupData;
         if (!data) return;
 
         const fragment = document.createDocumentFragment();
-
-        const closeBtn = document.createElement("button");
-        closeBtn.className = "popup-close";
-        closeBtn.textContent = "×";
-        closeBtn.addEventListener(
-          "click",
-          () => (popup.style.display = "none"),
-        );
-        fragment.appendChild(closeBtn);
+        appendCloseButton(fragment);
 
         fragment.appendChild(createPopupField("Id", data.id));
         fragment.appendChild(createPopupField("Model", data.model));
@@ -413,9 +880,126 @@
         fragment.appendChild(createPopupField("Actual Result"));
         appendObjectFields(fragment, data.result);
 
+        if (data.stats) {
+          fragment.appendChild(createPopupField("Per-call Stats"));
+          const statsDiv = document.createElement("div");
+          statsDiv.style.paddingLeft = "12px";
+          statsDiv.appendChild(
+            createPopupField("Latency", data.stats.latency.toFixed(2) + "s"),
+          );
+          statsDiv.appendChild(
+            createPopupField("Input Tokens", data.stats.prompt_tokens),
+          );
+          statsDiv.appendChild(
+            createPopupField("Output Tokens", data.stats.completion_tokens),
+          );
+          statsDiv.appendChild(
+            createPopupField("Cost", "$" + data.stats.cost.toFixed(6)),
+          );
+          fragment.appendChild(statsDiv);
+        }
+
         popup.replaceChildren(fragment);
         popup.style.display = "block";
         positionPopup(event);
+      }
+
+      function showStatsPopup(td, event) {
+        const stats = td._statsData;
+        const model = td._statsModel;
+        if (!stats) return;
+
+        const fragment = document.createDocumentFragment();
+        appendCloseButton(fragment);
+
+        const tbl = document.createElement("table");
+        tbl.style.cssText =
+          "border-collapse:collapse;width:100%;font-size:13px;font-variant-numeric:tabular-nums lining-nums";
+
+        const titleRow = document.createElement("tr");
+        const titleTd = document.createElement("td");
+        titleTd.colSpan = 5;
+        titleTd.style.cssText =
+          "padding:6px 8px;font-weight:600;text-align:center;border-bottom:1px solid #ccc";
+        titleTd.textContent = model;
+        titleRow.appendChild(titleTd);
+        tbl.appendChild(titleRow);
+
+        const subtitleRow = document.createElement("tr");
+        const subtitleTd = document.createElement("td");
+        subtitleTd.colSpan = 5;
+        subtitleTd.style.cssText =
+          "padding:4px 8px;text-align:center;color:#666;font-size:12px;border-bottom:1px solid #ccc";
+        subtitleTd.textContent = `${stats.count} total prompts`;
+        subtitleRow.appendChild(subtitleTd);
+        tbl.appendChild(subtitleRow);
+
+        const thead = document.createElement("tr");
+        for (const h of ["", "Median", "Mean", "Max", "Total"]) {
+          const th = document.createElement("th");
+          th.textContent = h;
+          th.style.cssText =
+            "padding:4px 8px;border-bottom:1px solid #ccc;text-align:right;font-size:12px;color:#666";
+          if (h === "") th.style.textAlign = "right";
+          thead.appendChild(th);
+        }
+        tbl.appendChild(thead);
+
+        const rows = [
+          [
+            "Latency",
+            stats.latency.median.toFixed(2) + "s",
+            stats.latency.mean.toFixed(2) + "s",
+            stats.latency.max.toFixed(2) + "s",
+            "",
+          ],
+          [
+            "Input Tokens",
+            stats.prompt_tokens.median.toLocaleString(),
+            stats.prompt_tokens.mean.toLocaleString(),
+            stats.prompt_tokens.max.toLocaleString(),
+            stats.prompt_tokens.total.toLocaleString(),
+          ],
+          [
+            "Output Tokens",
+            stats.completion_tokens.median.toLocaleString(),
+            stats.completion_tokens.mean.toLocaleString(),
+            stats.completion_tokens.max.toLocaleString(),
+            stats.completion_tokens.total.toLocaleString(),
+          ],
+          ["Cost", "", "", "", "$" + stats.cost.total.toFixed(2)],
+        ];
+
+        for (const cells of rows) {
+          const tr = document.createElement("tr");
+          cells.forEach((text, i) => {
+            const td = document.createElement("td");
+            td.textContent = text;
+            td.style.cssText = "padding:3px 8px;text-align:right";
+            if (i === 0) {
+              td.style.fontWeight = "600";
+              td.style.color = "#555";
+            }
+            tr.appendChild(td);
+          });
+          tbl.appendChild(tr);
+        }
+
+        fragment.appendChild(tbl);
+        popup.replaceChildren(fragment);
+        popup.style.display = "block";
+        positionPopup(event);
+      }
+
+      function appendCloseButton(fragment) {
+        const closeBtn = document.createElement("button");
+        closeBtn.className = "popup-close";
+        closeBtn.textContent = "×";
+        closeBtn.addEventListener(
+          "click",
+          () => (popup.style.display = "none"),
+        );
+        fragment.appendChild(closeBtn);
       }
 
       function positionPopup(event) {
@@ -435,13 +1019,122 @@
         popup.style.top = y + "px";
       }
 
+      // --- Event handlers ---
+
       document.getElementById("grid").addEventListener("click", (event) => {
-        if (event.target.tagName === "TD" && event.target._popupData) {
-          showPopup(event.target, event);
+        const td = event.target.closest("td");
+        if (!td) return;
+        if (td._popupData) showCasePopup(td, event);
+        else if (td._statsData) showStatsPopup(td, event);
+      });
+
+      document.addEventListener("click", (event) => {
+        if (
+          popup.style.display === "block" &&
+          !popup.contains(event.target) &&
+          !event.target.closest("td")
+        ) {
+          popup.style.display = "none";
         }
       });
 
-      constructTable();
+      function enterComparison() {
+        leaderboardView.style.display = "none";
+        comparisonView.style.display = "block";
+        leaderboardControls.style.display = "none";
+        comparisonControls.style.display = "";
+      }
+
+      function enterLeaderboard() {
+        comparisonView.style.display = "none";
+        leaderboardView.style.display = "";
+        comparisonControls.style.display = "none";
+        leaderboardControls.style.display = "";
+      }
+
+      function showModelDetail(idx) {
+        showComparison([allModelData[idx]]);
+      }
+
+      function showComparison(models) {
+        enterComparison();
+        buildComparisonTable(models);
+
+        const url = new URL(window.location);
+        url.searchParams.delete("model");
+        for (const md of models) url.searchParams.append("model", md.filename);
+        history.pushState(null, "", url);
+      }
+
+      function showLeaderboard() {
+        enterLeaderboard();
+        gridBody.replaceChildren();
+
+        const url = new URL(window.location);
+        url.searchParams.delete("model");
+        history.pushState(null, "", url);
+      }
+
+      function applyUrlState() {
+        const params = new URLSearchParams(window.location.search);
+        const modelNames = params.getAll("model");
+        if (modelNames.length === 0) {
+          enterLeaderboard();
+          gridHead.replaceChildren();
+          gridBody.replaceChildren();
+          return;
+        }
+
+        const models = [];
+        for (const name of modelNames) {
+          const md = allModelData.find((m) => m.filename === name);
+          if (md) models.push(md);
+        }
+
+        if (models.length === 0) {
+          enterLeaderboard();
+          gridHead.replaceChildren();
+          gridBody.replaceChildren();
+          return;
+        }
+
+        enterComparison();
+        buildComparisonTable(models);
+      }
+
+      compareBtn.addEventListener("click", () => {
+        const models = [...selectedModels].map((i) => allModelData[i]);
+        showComparison(models);
+      });
+
+      backBtn.addEventListener("click", showLeaderboard);
+
+      window.addEventListener("popstate", () => {
+        if (allModelData.length > 0) applyUrlState();
+      });
+
+      // --- Init ---
+
+      async function init() {
+        try {
+          const result = await loadAllTestResults();
+          allModelData = [...result.modelData].sort(
+            (a, b) => (b.score ?? -Infinity) - (a.score ?? -Infinity),
+          );
+          allTestCases = result.testCases;
+          buildLeaderboard();
+
+          const params = new URLSearchParams(window.location.search);
+          if (params.has("model")) {
+            applyUrlState();
+          }
+        } catch (e) {
+          errorDisplay.textContent = e.message;
+          errorDisplay.style.display = "block";
+        }
+      }
+
+      init();
     </script>
   </body>
 </html>

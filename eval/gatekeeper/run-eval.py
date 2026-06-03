@@ -211,6 +211,8 @@ class FileEval:
                 "readonly": result["readonly"],
                 "result": actual,
             }
+            if "stats" in result:
+                output["stats"] = result["stats"]
             if expected is not None:
                 output["expected_result"] = expected
 
@@ -298,6 +300,7 @@ class EvalSuite:
 
         if stats:
             self.all_stats.append(stats)
+            result["stats"] = stats.model_dump()
 
         self.progress.update(progress_task, advance=1)
 
@@ -342,10 +345,39 @@ class EvalSuite:
 
         score = compute_weighted_score(combined_group_summaries)
 
+        aggregate_stats = None
+        if self.all_stats:
+            agg = StatsAggregator(stats=self.all_stats)
+            aggregate_stats = {
+                "count": len(self.all_stats),
+                "latency": {
+                    "median": round(agg.median("latency"), 2),
+                    "mean": round(agg.mean("latency"), 2),
+                    "max": round(agg.max("latency"), 2),
+                },
+                "cost": {
+                    "mean": round(agg.mean("cost"), 6),
+                    "total": round(agg.sum("cost"), 2),
+                },
+                "prompt_tokens": {
+                    "median": round(agg.median("prompt_tokens")),
+                    "mean": round(agg.mean("prompt_tokens")),
+                    "max": agg.max("prompt_tokens"),
+                    "total": agg.sum("prompt_tokens"),
+                },
+                "completion_tokens": {
+                    "median": round(agg.median("completion_tokens")),
+                    "mean": round(agg.mean("completion_tokens")),
+                    "max": agg.max("completion_tokens"),
+                    "total": agg.sum("completion_tokens"),
+                },
+            }
+
         output = {
             "summary": combined_summary,
             "group_summaries": combined_group_summaries,
             "score": score,
+            "stats": aggregate_stats,
             "cases": all_output_cases,
         }
 
