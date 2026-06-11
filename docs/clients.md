@@ -43,7 +43,7 @@ Edit `~/.claude.json`:
     }
     ```
 
-=== "Container (stdio transport)"
+=== "Container (Podman)"
 
     ```json
     {
@@ -58,6 +58,33 @@ Edit `~/.claude.json`:
             "-v", "/home/YOUR_USER/.ssh/id_ed25519:/var/lib/mcp/.ssh/id_ed25519:ro,Z",
             "-v", "/home/YOUR_USER/.ssh/config:/var/lib/mcp/.ssh/config:ro,Z",
             "-v", "/home/YOUR_USER/.local/share/linux-mcp-server/logs:/var/lib/mcp/.local/share/linux-mcp-server/logs:rw,Z",
+            "quay.io/redhat-services-prod/rhel-lightspeed-tenant/linux-mcp-server:latest"
+          ],
+          "env": {
+            "LINUX_MCP_KEY_PASSPHRASE": "<secret>",
+            "LINUX_MCP_USER": "YOUR_USER"
+          }
+        }
+      }
+    }
+    ```
+
+    !!! warning "Replace Paths"
+        Replace `YOUR_USER` with your actual username.
+
+=== "Container (Docker)"
+
+    ```json
+    {
+      "mcpServers": {
+        "linux-mcp-server": {
+          "command": "docker",
+          "args": [
+            "run", "--rm", "--interactive",
+            "-e", "LINUX_MCP_KEY_PASSPHRASE",
+            "-e", "LINUX_MCP_USER",
+            "-v", "/home/YOUR_USER/.local/share/linux-mcp-server/ssh/:/var/lib/mcp/.ssh:ro",
+            "-v", "/home/YOUR_USER/.local/share/linux-mcp-server/logs:/var/lib/mcp/.local/share/linux-mcp-server/logs:rw",
             "quay.io/redhat-services-prod/rhel-lightspeed-tenant/linux-mcp-server:latest"
           ],
           "env": {
@@ -104,7 +131,7 @@ The value for `command` will vary depending on how `linux-mcp-server` was instal
     }
     ```
 
-=== "Container (stdio transport)"
+=== "Container (Podman)"
 
     ```json
     {
@@ -121,6 +148,35 @@ The value for `command` will vary depending on how `linux-mcp-server` was instal
             "-v", "/home/YOUR_USER/.ssh/id_ed25519:/var/lib/mcp/.ssh/id_ed25519:ro,Z",
             "-v", "/home/YOUR_USER/.ssh/config:/var/lib/mcp/.ssh/config:ro,Z",
             "-v", "/home/YOUR_USER/.local/share/linux-mcp-server/logs:/var/lib/mcp/.local/share/linux-mcp-server/logs:rw,Z",
+            "quay.io/redhat-services-prod/rhel-lightspeed-tenant/linux-mcp-server:latest"
+          ],
+          "env": {
+            "LINUX_MCP_KEY_PASSPHRASE": "<secret>",
+            "LINUX_MCP_USER": "YOUR_USER"
+          }
+        }
+      }
+    }
+    ```
+
+    !!! warning "Replace Paths"
+        Replace `YOUR_USER` with your actual username and adjust paths as needed.
+
+=== "Container (Docker)"
+
+    ```json
+    {
+      "mcpServers": {
+        "Linux Tools": {
+          "command": "docker",
+          "args": [
+            "run",
+            "--rm",
+            "--interactive",
+            "-e", "LINUX_MCP_KEY_PASSPHRASE",
+            "-e", "LINUX_MCP_USER",
+            "-v", "/home/YOUR_USER/.local/share/linux-mcp-server/ssh/:/var/lib/mcp/.ssh:ro",
+            "-v", "/home/YOUR_USER/.local/share/linux-mcp-server/logs:/var/lib/mcp/.local/share/linux-mcp-server/logs:rw",
             "quay.io/redhat-services-prod/rhel-lightspeed-tenant/linux-mcp-server:latest"
           ],
           "env": {
@@ -164,7 +220,7 @@ Edit `~/.codex/config.toml`:
     LINUX_MCP_USER = "your-ssh-username"
     ```
 
-=== "Container (stdio transport)"
+=== "Container (Podman)"
 
     ```toml
     [mcp_servers.linux-mcp-server]
@@ -177,6 +233,28 @@ Edit `~/.codex/config.toml`:
       "-v", "/home/YOUR_USER/.ssh/id_ed25519:/var/lib/mcp/.ssh/id_ed25519:ro,Z",
       "-v", "/home/YOUR_USER/.ssh/config:/var/lib/mcp/.ssh/config:ro,Z",
       "-v", "/home/YOUR_USER/.local/share/linux-mcp-server/logs:/var/lib/mcp/.local/share/linux-mcp-server/logs:rw,Z",
+      "quay.io/redhat-services-prod/rhel-lightspeed-tenant/linux-mcp-server:latest"
+    ]
+
+    [mcp_servers.linux-mcp-server.env]
+    LINUX_MCP_KEY_PASSPHRASE = "<secret>"
+    LINUX_MCP_USER = "YOUR_USER"
+    ```
+
+    !!! warning "Replace Paths"
+        Replace `YOUR_USER` with your actual username.
+
+=== "Container (Docker)"
+
+    ```toml
+    [mcp_servers.linux-mcp-server]
+    command = "docker"
+    args = [
+      "run", "--rm", "--interactive",
+      "-e", "LINUX_MCP_KEY_PASSPHRASE",
+      "-e", "LINUX_MCP_USER",
+      "-v", "/home/YOUR_USER/.local/share/linux-mcp-server/ssh/:/var/lib/mcp/.ssh:ro",
+      "-v", "/home/YOUR_USER/.local/share/linux-mcp-server/logs:/var/lib/mcp/.local/share/linux-mcp-server/logs:rw",
       "quay.io/redhat-services-prod/rhel-lightspeed-tenant/linux-mcp-server:latest"
     ]
 
@@ -214,7 +292,7 @@ Edit `~/.cursor/mcp.json`:
     }
     ```
 
-=== "Container (stdio transport)"
+=== "Container (Podman)"
 
     ```json
     {
@@ -229,6 +307,33 @@ Edit `~/.cursor/mcp.json`:
             "-v", "/home/YOUR_USER/.ssh/id_ed25519:/var/lib/mcp/.ssh/id_ed25519:ro,Z",
             "-v", "/home/YOUR_USER/.ssh/config:/var/lib/mcp/.ssh/config:ro,Z",
             "-v", "/home/YOUR_USER/.local/share/linux-mcp-server/logs:/var/lib/mcp/.local/share/linux-mcp-server/logs:rw,Z",
+            "quay.io/redhat-services-prod/rhel-lightspeed-tenant/linux-mcp-server:latest"
+          ],
+          "env": {
+            "LINUX_MCP_KEY_PASSPHRASE": "<secret>",
+            "LINUX_MCP_USER": "YOUR_USER"
+          }
+        }
+      }
+    }
+    ```
+
+    !!! warning "Replace Paths"
+        Replace `YOUR_USER` with your actual username.
+
+=== "Container (Docker)"
+
+    ```json
+    {
+      "mcpServers": {
+        "linux-mcp-server": {
+          "command": "docker",
+          "args": [
+            "run", "--rm", "--interactive",
+            "-e", "LINUX_MCP_KEY_PASSPHRASE",
+            "-e", "LINUX_MCP_USER",
+            "-v", "/home/YOUR_USER/.local/share/linux-mcp-server/ssh/:/var/lib/mcp/.ssh:ro",
+            "-v", "/home/YOUR_USER/.local/share/linux-mcp-server/logs:/var/lib/mcp/.local/share/linux-mcp-server/logs:rw",
             "quay.io/redhat-services-prod/rhel-lightspeed-tenant/linux-mcp-server:latest"
           ],
           "env": {
@@ -272,7 +377,7 @@ Edit `~/.gemini/settings.json`:
     !!! note "Merging with Existing Settings"
         If you have other settings in your `settings.json`, add the `mcpServers` object alongside them.
 
-=== "Container (stdio transport)"
+=== "Container (Podman)"
 
     ```json
     {
@@ -287,6 +392,33 @@ Edit `~/.gemini/settings.json`:
             "-v", "/home/YOUR_USER/.ssh/id_ed25519:/var/lib/mcp/.ssh/id_ed25519:ro,Z",
             "-v", "/home/YOUR_USER/.ssh/config:/var/lib/mcp/.ssh/config:ro,Z",
             "-v", "/home/YOUR_USER/.local/share/linux-mcp-server/logs:/var/lib/mcp/.local/share/linux-mcp-server/logs:rw,Z",
+            "quay.io/redhat-services-prod/rhel-lightspeed-tenant/linux-mcp-server:latest"
+          ],
+          "env": {
+            "LINUX_MCP_KEY_PASSPHRASE": "<secret>",
+            "LINUX_MCP_USER": "YOUR_USER"
+          }
+        }
+      }
+    }
+    ```
+
+    !!! warning "Replace Paths"
+        Replace `YOUR_USER` with your actual username.
+
+=== "Container (Docker)"
+
+    ```json
+    {
+      "mcpServers": {
+        "linux-mcp-server": {
+          "command": "docker",
+          "args": [
+            "run", "--rm", "--interactive",
+            "-e", "LINUX_MCP_KEY_PASSPHRASE",
+            "-e", "LINUX_MCP_USER",
+            "-v", "/home/YOUR_USER/.local/share/linux-mcp-server/ssh/:/var/lib/mcp/.ssh:ro",
+            "-v", "/home/YOUR_USER/.local/share/linux-mcp-server/logs:/var/lib/mcp/.local/share/linux-mcp-server/logs:rw",
             "quay.io/redhat-services-prod/rhel-lightspeed-tenant/linux-mcp-server:latest"
           ],
           "env": {
@@ -331,7 +463,7 @@ The Goose desktop app provides a wizard for adding extensions:
 5. Click **Add** to save the extension
 
 !!! tip "Container Installation"
-    For container-based installs, set **Command** to `podman` and add the container arguments in the **Arguments** field (one per line).
+    For container-based installs, set **Command** to `podman` or `docker` and add the container arguments in the **Arguments** field (one per line).
 
 ### YAML Configuration (CLI)
 
@@ -357,7 +489,7 @@ If you prefer editing config files directly, add to `~/.config/goose/config.yaml
         args: []
     ```
 
-=== "Container (stdio transport)"
+=== "Container (Podman)"
 
     ```yaml
     extensions:
@@ -392,6 +524,39 @@ If you prefer editing config files directly, add to `~/.config/goose/config.yaml
         bundled: null
         available_tools: []
     ```
+
+=== "Container (Docker)"
+
+    ```yaml
+    extensions:
+      linux-tools:
+        enabled: true
+        type: stdio
+        name: linux-tools
+        description: Linux tools
+        cmd: docker
+        args:
+          - run
+          - --rm
+          - --interactive
+          - -e
+          - LINUX_MCP_KEY_PASSPHRASE
+          - -e
+          - LINUX_MCP_USER
+          - -v
+          - /home/YOUR_USER/.local/share/linux-mcp-server/ssh/:/var/lib/mcp/.ssh:ro
+          - -v
+          - /home/YOUR_USER/.local/share/linux-mcp-server/logs:/var/lib/mcp/.local/share/linux-mcp-server/logs:rw
+          - quay.io/redhat-services-prod/rhel-lightspeed-tenant/linux-mcp-server:latest
+        envs: {}
+        env_keys:
+          - LINUX_MCP_KEY_PASSPHRASE
+          - LINUX_MCP_USER
+        timeout: 30
+        bundled: null
+        available_tools: []
+    ```
+
 === "HTTP transport"
 
     !!! warning "HTTP Transport Security"
@@ -447,7 +612,7 @@ Edit `~/.config/opencode/opencode.json`:
     }
     ```
 
-=== "Container (stdio transport)"
+=== "Container (Podman)"
 
     ```json
     {
@@ -463,6 +628,35 @@ Edit `~/.config/opencode/opencode.json`:
             "-v", "/home/YOUR_USER/.ssh/id_ed25519:/var/lib/mcp/.ssh/id_ed25519:ro,Z",
             "-v", "/home/YOUR_USER/.ssh/config:/var/lib/mcp/.ssh/config:ro,Z",
             "-v", "/home/YOUR_USER/.local/share/linux-mcp-server/logs:/var/lib/mcp/.local/share/linux-mcp-server/logs:rw,Z",
+            "quay.io/redhat-services-prod/rhel-lightspeed-tenant/linux-mcp-server:latest"
+          ],
+          "enabled": true,
+          "env": {
+            "LINUX_MCP_KEY_PASSPHRASE": "<secret>",
+            "LINUX_MCP_USER": "YOUR_USER"
+          }
+        }
+      }
+    }
+    ```
+
+    !!! warning "Replace Paths"
+        Replace `YOUR_USER` with your actual username.
+
+=== "Container (Docker)"
+
+    ```json
+    {
+      "$schema": "https://opencode.ai/config.json",
+      "mcp": {
+        "linux-mcp-server": {
+          "type": "local",
+          "command": [
+            "docker", "run", "--rm", "--interactive",
+            "-e", "LINUX_MCP_KEY_PASSPHRASE",
+            "-e", "LINUX_MCP_USER",
+            "-v", "/home/YOUR_USER/.local/share/linux-mcp-server/ssh/:/var/lib/mcp/.ssh:ro",
+            "-v", "/home/YOUR_USER/.local/share/linux-mcp-server/logs:/var/lib/mcp/.local/share/linux-mcp-server/logs:rw",
             "quay.io/redhat-services-prod/rhel-lightspeed-tenant/linux-mcp-server:latest"
           ],
           "enabled": true,
@@ -504,7 +698,7 @@ Add to your VS Code `mcp.json`:
     }
     ```
 
-=== "Container (stdio transport)"
+=== "Container (Podman)"
 
     ```json
     {
@@ -519,6 +713,33 @@ Add to your VS Code `mcp.json`:
             "-v", "/home/YOUR_USER/.ssh/id_ed25519:/var/lib/mcp/.ssh/id_ed25519:ro,Z",
             "-v", "/home/YOUR_USER/.ssh/config:/var/lib/mcp/.ssh/config:ro,Z",
             "-v", "/home/YOUR_USER/.local/share/linux-mcp-server/logs:/var/lib/mcp/.local/share/linux-mcp-server/logs:rw,Z",
+            "quay.io/redhat-services-prod/rhel-lightspeed-tenant/linux-mcp-server:latest"
+          ],
+          "env": {
+            "LINUX_MCP_KEY_PASSPHRASE": "<secret>",
+            "LINUX_MCP_USER": "YOUR_USER"
+          }
+        }
+      }
+    }
+    ```
+
+    !!! warning "Replace Paths"
+        Replace `YOUR_USER` with your actual username.
+
+=== "Container (Docker)"
+
+    ```json
+    {
+      "servers": {
+        "linux-mcp-server": {
+          "command": "docker",
+          "args": [
+            "run", "--rm", "--interactive",
+            "-e", "LINUX_MCP_KEY_PASSPHRASE",
+            "-e", "LINUX_MCP_USER",
+            "-v", "/home/YOUR_USER/.local/share/linux-mcp-server/ssh/:/var/lib/mcp/.ssh:ro",
+            "-v", "/home/YOUR_USER/.local/share/linux-mcp-server/logs:/var/lib/mcp/.local/share/linux-mcp-server/logs:rw",
             "quay.io/redhat-services-prod/rhel-lightspeed-tenant/linux-mcp-server:latest"
           ],
           "env": {
@@ -562,7 +783,7 @@ Edit `~/.codeium/windsurf/mcp_config.json`:
     }
     ```
 
-=== "Container (stdio transport)"
+=== "Container (Podman)"
 
     ```json
     {
@@ -577,6 +798,33 @@ Edit `~/.codeium/windsurf/mcp_config.json`:
             "-v", "/home/YOUR_USER/.ssh/id_ed25519:/var/lib/mcp/.ssh/id_ed25519:ro,Z",
             "-v", "/home/YOUR_USER/.ssh/config:/var/lib/mcp/.ssh/config:ro,Z",
             "-v", "/home/YOUR_USER/.local/share/linux-mcp-server/logs:/var/lib/mcp/.local/share/linux-mcp-server/logs:rw,Z",
+            "quay.io/redhat-services-prod/rhel-lightspeed-tenant/linux-mcp-server:latest"
+          ],
+          "env": {
+            "LINUX_MCP_KEY_PASSPHRASE": "<secret>",
+            "LINUX_MCP_USER": "YOUR_USER"
+          }
+        }
+      }
+    }
+    ```
+
+    !!! warning "Replace Paths"
+        Replace `YOUR_USER` with your actual username.
+
+=== "Container (Docker)"
+
+    ```json
+    {
+      "mcpServers": {
+        "linux-mcp-server": {
+          "command": "docker",
+          "args": [
+            "run", "--rm", "--interactive",
+            "-e", "LINUX_MCP_KEY_PASSPHRASE",
+            "-e", "LINUX_MCP_USER",
+            "-v", "/home/YOUR_USER/.local/share/linux-mcp-server/ssh/:/var/lib/mcp/.ssh:ro",
+            "-v", "/home/YOUR_USER/.local/share/linux-mcp-server/logs:/var/lib/mcp/.local/share/linux-mcp-server/logs:rw",
             "quay.io/redhat-services-prod/rhel-lightspeed-tenant/linux-mcp-server:latest"
           ],
           "env": {
