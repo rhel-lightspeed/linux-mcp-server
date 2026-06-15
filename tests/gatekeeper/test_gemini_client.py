@@ -5,6 +5,11 @@ from linux_mcp_server.config import GatekeeperConfig
 from linux_mcp_server.config import GatekeeperProvider
 from linux_mcp_server.config import ReasoningEffort
 from linux_mcp_server.gatekeeper import gemini_client
+from linux_mcp_server.gatekeeper.gemini_client import _gemini_thinking_level
+
+
+def test_gemini_thinking_level_medium():
+    assert _gemini_thinking_level(ReasoningEffort.MEDIUM) == "MEDIUM"
 
 
 class TestGeminiClient:

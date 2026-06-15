@@ -3,7 +3,14 @@ import pytest
 from linux_mcp_server.config import CONFIG
 from linux_mcp_server.config import GatekeeperConfig
 from linux_mcp_server.config import GatekeeperProvider
+from linux_mcp_server.config import ReasoningEffort
 from linux_mcp_server.gatekeeper import anthropic_client
+from linux_mcp_server.gatekeeper.anthropic_client import _anthropic_thinking_block
+
+
+def test_anthropic_thinking_block_low():
+    block = _anthropic_thinking_block(ReasoningEffort.LOW)
+    assert block == {"type": "enabled", "budget_tokens": 4096}
 
 
 class TestAnthropicClient:
