@@ -1,18 +1,44 @@
 """Anthropic Messages API client for the gatekeeper."""
 
+import os
+
 from typing import Any
 
 from linux_mcp_server.config import CONFIG
-from linux_mcp_server.gatekeeper.http_utils import ANTHROPIC_API_URL
-from linux_mcp_server.gatekeeper.http_utils import ANTHROPIC_API_VERSION
-from linux_mcp_server.gatekeeper.http_utils import ANTHROPIC_DEFAULT_MAX_TOKENS
-from linux_mcp_server.gatekeeper.http_utils import anthropic_thinking_block
+from linux_mcp_server.config import ReasoningEffort
 from linux_mcp_server.gatekeeper.http_utils import DEFAULT_TIMEOUT_SECONDS
-from linux_mcp_server.gatekeeper.http_utils import get_anthropic_api_key
 from linux_mcp_server.gatekeeper.http_utils import normalize_model_id
 from linux_mcp_server.gatekeeper.http_utils import post_json
-from linux_mcp_server.gatekeeper.llm import GatekeeperCompletion
 from linux_mcp_server.gatekeeper.schema import anthropic_output_config
+from linux_mcp_server.models import GatekeeperCompletion
+
+
+ANTHROPIC_API_URL = "https://api.anthropic.com/v1/messages"
+ANTHROPIC_API_VERSION = "2023-06-01"
+ANTHROPIC_DEFAULT_MAX_TOKENS = 4096
+
+
+def _get_anthropic_api_key() -> str:
+    api_key = os.environ.get("ANTHROPIC_API_KEY")
+    if not api_key:
+        raise ValueError("ANTHROPIC_API_KEY is required for Anthropic gatekeeper provider.")
+    return api_key
+
+
+def _anthropic_thinking_block(reasoning_effort: ReasoningEffort | None) -> dict[str, Any] | None:
+    if reasoning_effort is None or reasoning_effort in {ReasoningEffort.NONE, ReasoningEffort.DEFAULT}:
+        return None
+    budget_by_effort = {
+        ReasoningEffort.MINIMAL: 1024,
+        ReasoningEffort.LOW: 4096,
+        ReasoningEffort.MEDIUM: 8192,
+        ReasoningEffort.HIGH: 16384,
+        ReasoningEffort.XHIGH: 32768,
+    }
+    budget = budget_by_effort.get(reasoning_effort)
+    if budget is None:
+        return None
+    return {"type": "enabled", "budget_tokens": budget}
 
 
 def build_messages_body(prompt: str, *, include_model: bool) -> dict[str, Any]:
@@ -25,7 +51,7 @@ def build_messages_body(prompt: str, *, include_model: bool) -> dict[str, Any]:
         body["model"] = normalize_model_id(CONFIG.gatekeeper.model or "")
     if CONFIG.gatekeeper.structured_output:
         body["output_config"] = anthropic_output_config()
-    thinking = anthropic_thinking_block(CONFIG.gatekeeper.reasoning_effort)
+    thinking = _anthropic_thinking_block(CONFIG.gatekeeper.reasoning_effort)
     if thinking is not None:
         body["thinking"] = thinking
     return body
@@ -42,7 +68,7 @@ def extract_messages_text(response: dict[str, Any]) -> str:
 
 def complete_anthropic(prompt: str, *, timeout: int = DEFAULT_TIMEOUT_SECONDS) -> GatekeeperCompletion:
     headers = {
-        "x-api-key": get_anthropic_api_key(),
+        "x-api-key": _get_anthropic_api_key(),
         "anthropic-version": ANTHROPIC_API_VERSION,
         "Content-Type": "application/json",
     }

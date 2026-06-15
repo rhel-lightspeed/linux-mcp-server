@@ -6,6 +6,36 @@ from linux_mcp_server.config import GatekeeperProvider
 from linux_mcp_server.config import OpenRouterGatekeeperConfig
 from linux_mcp_server.config import ReasoningEffort
 from linux_mcp_server.gatekeeper import openrouter_client
+from linux_mcp_server.gatekeeper.openrouter_client import _normalize_openrouter_model_id
+from linux_mcp_server.gatekeeper.openrouter_client import _openrouter_reasoning_block
+
+
+@pytest.mark.parametrize(
+    "effort,expected",
+    [
+        (ReasoningEffort.NONE, {"enabled": False}),
+        (ReasoningEffort.LOW, {"enabled": True, "effort": "low"}),
+        (ReasoningEffort.HIGH, {"enabled": True, "effort": "high"}),
+    ],
+)
+def test_openrouter_reasoning_block(effort, expected):
+    assert _openrouter_reasoning_block(effort) == expected
+
+
+def test_openrouter_reasoning_block_default():
+    assert _openrouter_reasoning_block(None) is None
+    assert _openrouter_reasoning_block(ReasoningEffort.DEFAULT) is None
+
+
+@pytest.mark.parametrize(
+    "model,expected",
+    [
+        ("openrouter/google/gemma-4-26b-a4b-it", "google/gemma-4-26b-a4b-it"),
+        ("openai/gpt-oss-120b", "openai/gpt-oss-120b"),
+    ],
+)
+def test_normalize_openrouter_model_id(model, expected):
+    assert _normalize_openrouter_model_id(model) == expected
 
 
 class TestOpenRouterClient:

@@ -2,8 +2,6 @@
 
 import logging
 
-from pydantic import BaseModel
-
 from linux_mcp_server.config import CONFIG
 from linux_mcp_server.config import GatekeeperProvider
 from linux_mcp_server.gatekeeper.anthropic_client import complete_anthropic
@@ -11,16 +9,10 @@ from linux_mcp_server.gatekeeper.gemini_client import complete_gemini
 from linux_mcp_server.gatekeeper.openai_client import complete_openai
 from linux_mcp_server.gatekeeper.openrouter_client import complete_openrouter
 from linux_mcp_server.gatekeeper.vertex_ai_client import complete_vertex_ai
+from linux_mcp_server.models import GatekeeperCompletion
 
 
 logger = logging.getLogger("linux-mcp-server")
-
-
-class GatekeeperCompletion(BaseModel):
-    text: str
-    prompt_tokens: int = 0
-    completion_tokens: int = 0
-    usage_cost: float | None = None
 
 
 def _infer_provider_from_model(model: str) -> GatekeeperProvider:

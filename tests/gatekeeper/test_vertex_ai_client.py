@@ -5,6 +5,37 @@ from linux_mcp_server.config import GatekeeperConfig
 from linux_mcp_server.config import GatekeeperProvider
 from linux_mcp_server.config import VertexAIGatekeeperConfig
 from linux_mcp_server.gatekeeper import vertex_ai_client
+from linux_mcp_server.gatekeeper.vertex_ai_client import _get_vertex_openapi_base_url
+from linux_mcp_server.gatekeeper.vertex_ai_client import _vertex_api_style
+
+
+@pytest.mark.parametrize(
+    "model,expected",
+    [
+        ("claude-sonnet-4-6", "anthropic"),
+        ("vertex_ai/gemini-3.1-pro-preview", "gemini"),
+        ("gpt-oss-120b-maas", "openai_compatible"),
+    ],
+)
+def test_vertex_api_style(model, expected):
+    assert _vertex_api_style(model) == expected
+
+
+def test_get_vertex_openapi_base_url_from_config(mocker):
+    mocker.patch.object(
+        CONFIG.gatekeeper,
+        "vertex_ai",
+        VertexAIGatekeeperConfig(base_url="https://custom.example.com/openapi"),
+    )
+    assert _get_vertex_openapi_base_url() == "https://custom.example.com/openapi"
+
+
+def test_get_vertex_openapi_base_url_computed(mocker):
+    mocker.patch.object(CONFIG.gatekeeper, "vertex_ai", VertexAIGatekeeperConfig(project="my-project"))
+    mocker.patch("linux_mcp_server.gatekeeper.gcp_auth.get_gcp_project", return_value="my-project")
+    mocker.patch("linux_mcp_server.gatekeeper.gcp_auth.get_gcp_location", return_value="global")
+    url = _get_vertex_openapi_base_url()
+    assert url == "https://aiplatform.googleapis.com/v1/projects/my-project/locations/global/endpoints/openapi"
 
 
 class TestVertexAIClient:
