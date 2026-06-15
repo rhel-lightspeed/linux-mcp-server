@@ -7,6 +7,33 @@ from linux_mcp_server.config import OpenAIGatekeeperConfig
 from linux_mcp_server.config import ReasoningEffort
 from linux_mcp_server.gatekeeper import openai_client
 from linux_mcp_server.gatekeeper.http_utils import GatekeeperHTTPError
+from linux_mcp_server.gatekeeper.openai_client import _openai_reasoning_block
+from linux_mcp_server.gatekeeper.openai_client import _prefers_openai_chat_completions
+
+
+@pytest.mark.parametrize(
+    "base_url,expected",
+    [
+        ("https://api.openai.com/v1", False),
+        ("http://localhost:11434/v1", False),
+        ("https://example.com/v1", False),
+        (
+            "https://aiplatform.googleapis.com/v1/projects/p/locations/global/endpoints/openapi",
+            True,
+        ),
+    ],
+)
+def test_prefers_openai_chat_completions(base_url, expected):
+    assert _prefers_openai_chat_completions(base_url) is expected
+
+
+def test_openai_reasoning_block_none():
+    assert _openai_reasoning_block(None) is None
+    assert _openai_reasoning_block(ReasoningEffort.DEFAULT) is None
+
+
+def test_openai_reasoning_block_low():
+    assert _openai_reasoning_block(ReasoningEffort.LOW) == {"effort": "low"}
 
 
 class TestOpenAIClient:

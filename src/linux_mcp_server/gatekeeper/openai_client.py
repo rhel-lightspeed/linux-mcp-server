@@ -1,19 +1,50 @@
 """OpenAI Responses and Chat Completions clients for the gatekeeper."""
 
+import os
+
 from typing import Any
+from urllib.parse import urlparse
 
 from linux_mcp_server.config import CONFIG
+from linux_mcp_server.config import ReasoningEffort
 from linux_mcp_server.gatekeeper.http_utils import DEFAULT_TIMEOUT_SECONDS
 from linux_mcp_server.gatekeeper.http_utils import GatekeeperHTTPError
-from linux_mcp_server.gatekeeper.http_utils import get_openai_base_url
 from linux_mcp_server.gatekeeper.http_utils import normalize_model_id
-from linux_mcp_server.gatekeeper.http_utils import openai_auth_headers
-from linux_mcp_server.gatekeeper.http_utils import openai_reasoning_block
 from linux_mcp_server.gatekeeper.http_utils import post_json
-from linux_mcp_server.gatekeeper.http_utils import prefers_openai_chat_completions
-from linux_mcp_server.gatekeeper.llm import GatekeeperCompletion
 from linux_mcp_server.gatekeeper.schema import openai_response_format
 from linux_mcp_server.gatekeeper.schema import openai_text_format
+from linux_mcp_server.models import GatekeeperCompletion
+
+
+OPENAI_DEFAULT_BASE_URL = "https://api.openai.com/v1"
+
+
+def _openai_reasoning_block(reasoning_effort: ReasoningEffort | None) -> dict[str, Any] | None:
+    if reasoning_effort is None or reasoning_effort == ReasoningEffort.DEFAULT:
+        return None
+    return {"effort": reasoning_effort.value}
+
+
+def _get_openai_api_key() -> str:
+    api_key = os.environ.get("OPENAI_API_KEY")
+    if not api_key:
+        raise ValueError("OPENAI_API_KEY is required for OpenAI gatekeeper provider.")
+    return api_key
+
+
+def _openai_auth_headers() -> dict[str, str]:
+    return {"Authorization": f"Bearer {_get_openai_api_key()}"}
+
+
+def _get_openai_base_url() -> str:
+    configured = CONFIG.gatekeeper.openai.base_url if CONFIG.gatekeeper.openai else None
+    return (configured or os.environ.get("OPENAI_API_BASE") or OPENAI_DEFAULT_BASE_URL).rstrip("/")
+
+
+def _prefers_openai_chat_completions(base_url: str) -> bool:
+    """Hosts known to expose only Chat Completions, not the Responses API."""
+    path = urlparse(base_url).path or ""
+    return "/endpoints/openapi" in path
 
 
 def _openai_template_kwargs() -> dict[str, Any]:
@@ -39,7 +70,7 @@ def _build_responses_body(prompt: str) -> dict[str, Any]:
     }
     if CONFIG.gatekeeper.structured_output:
         body["text"] = openai_text_format()
-    reasoning = openai_reasoning_block(CONFIG.gatekeeper.reasoning_effort)
+    reasoning = _openai_reasoning_block(CONFIG.gatekeeper.reasoning_effort)
     if reasoning is not None:
         body["reasoning"] = reasoning
     return body
@@ -89,14 +120,14 @@ def extract_chat_completions_text(response: dict[str, Any]) -> str:
 
 
 def complete_openai(prompt: str, *, timeout: int = DEFAULT_TIMEOUT_SECONDS) -> GatekeeperCompletion:
-    base_url = get_openai_base_url()
+    base_url = _get_openai_base_url()
     headers = {
-        **openai_auth_headers(),
+        **_openai_auth_headers(),
         "Content-Type": "application/json",
     }
 
     # Try the Responses API first, falling back to Chat Completions if it's not available.
-    if not prefers_openai_chat_completions(base_url):
+    if not _prefers_openai_chat_completions(base_url):
         try:
             response = post_json(
                 provider="openai",
