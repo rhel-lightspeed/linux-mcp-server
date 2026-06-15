@@ -36,31 +36,24 @@ class TestCompleteGatekeeper:
     def test_routes_to_openai(self, mocker):
         mocker.patch.object(llm_module, "resolve_provider", return_value=GatekeeperProvider.OPENAI)
         expected = GatekeeperCompletion(text='{"status": "OK"}')
-        mock_complete = mocker.patch(
-            "linux_mcp_server.gatekeeper.openai_client.complete_openai",
-            return_value=expected,
-        )
-        result = complete_gatekeeper("prompt")
+        mock_complete = mocker.patch.object(llm_module, "complete_openai", return_value=expected)
+        result = complete_gatekeeper("prompt", max_tokens=8000)
         assert result == expected
-        mock_complete.assert_called_once_with("prompt")
+        mock_complete.assert_called_once_with("prompt", max_tokens=8000)
 
     def test_routes_to_openrouter(self, mocker):
         mocker.patch.object(llm_module, "resolve_provider", return_value=GatekeeperProvider.OPENROUTER)
         expected = GatekeeperCompletion(text='{"status": "OK"}', prompt_tokens=1, completion_tokens=2, usage_cost=0.5)
-        mock_complete = mocker.patch(
-            "linux_mcp_server.gatekeeper.openrouter_client.complete_openrouter",
-            return_value=expected,
-        )
-        result = complete_gatekeeper("prompt")
+        mock_complete = mocker.patch.object(llm_module, "complete_openrouter", return_value=expected)
+        result = complete_gatekeeper("prompt", max_tokens=8000)
         assert result == expected
-        mock_complete.assert_called_once_with("prompt")
+        mock_complete.assert_called_once_with("prompt", max_tokens=8000)
 
     def test_routes_to_vertex_ai(self, mocker):
         mocker.patch.object(llm_module, "resolve_provider", return_value=GatekeeperProvider.VERTEX_AI)
-        mock_complete = mocker.patch(
-            "linux_mcp_server.gatekeeper.vertex_ai_client.complete_vertex_ai",
-            return_value=GatekeeperCompletion(text='{"status": "OK"}'),
+        mock_complete = mocker.patch.object(
+            llm_module, "complete_vertex_ai", return_value=GatekeeperCompletion(text='{"status": "OK"}')
         )
-        result = complete_gatekeeper("prompt")
+        result = complete_gatekeeper("prompt", max_tokens=8000)
         assert result.text == '{"status": "OK"}'
-        mock_complete.assert_called_once_with("prompt")
+        mock_complete.assert_called_once_with("prompt", max_tokens=8000)

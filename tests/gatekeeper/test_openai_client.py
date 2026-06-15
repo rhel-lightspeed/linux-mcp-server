@@ -56,7 +56,7 @@ class TestOpenAIClient:
             return_value={"output_text": '{"status": "OK", "detail": ""}'},
         )
 
-        result = openai_client.complete_openai("prompt")
+        result = openai_client.complete_openai("prompt", max_tokens=8000)
 
         assert result.text == '{"status": "OK", "detail": ""}'
         assert mock_post.call_args.kwargs["url"] == "https://api.openai.com/v1/responses"
@@ -72,7 +72,7 @@ class TestOpenAIClient:
             return_value={"output_text": '{"status": "OK", "detail": ""}'},
         )
 
-        result = openai_client.complete_openai("prompt")
+        result = openai_client.complete_openai("prompt", max_tokens=8000)
 
         assert result.text == '{"status": "OK", "detail": ""}'
         assert mock_post.call_args.kwargs["url"] == "http://localhost:11434/v1/responses"
@@ -87,7 +87,7 @@ class TestOpenAIClient:
             ],
         )
 
-        result = openai_client.complete_openai("prompt")
+        result = openai_client.complete_openai("prompt", max_tokens=8000)
 
         assert result.text == '{"status": "OK", "detail": ""}'
         assert mock_post.call_args_list[0].kwargs["url"] == "https://models.example.com/v1/responses"
@@ -103,7 +103,7 @@ class TestOpenAIClient:
             return_value={"output_text": '{"status": "OK"}'},
         )
 
-        openai_client.complete_openai("prompt")
+        openai_client.complete_openai("prompt", max_tokens=8000)
 
         body = mock_post.call_args.kwargs["body"]
         assert "text" not in body
@@ -121,7 +121,7 @@ class TestOpenAIClient:
             ],
         )
 
-        openai_client.complete_openai("prompt")
+        openai_client.complete_openai("prompt", max_tokens=8000)
 
         body = mock_post.call_args_list[1].kwargs["body"]
         assert body["chat_template_kwargs"] == {"enable_thinking": False}

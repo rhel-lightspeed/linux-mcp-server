@@ -99,8 +99,8 @@ def anthropic_output_config() -> dict[str, Any]:
     }
 
 
-def gemini_generation_config(*, temperature: float, structured_output: bool) -> dict[str, Any]:
-    config: dict[str, Any] = {"temperature": temperature}
+def gemini_generation_config(*, temperature: float, structured_output: bool, max_tokens: int) -> dict[str, Any]:
+    config: dict[str, Any] = {"temperature": temperature, "maxOutputTokens": max_tokens}
     if structured_output:
         config["responseMimeType"] = "application/json"
         config["responseSchema"] = gemini_json_schema()

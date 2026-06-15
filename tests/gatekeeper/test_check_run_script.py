@@ -85,7 +85,7 @@ class TestCheckRunScript:
         return mocker.patch.object(
             check_run_script_module,
             "complete_gatekeeper",
-            side_effect=lambda prompt: _completion('{"status": "OK", "detail": ""}'),
+            side_effect=lambda prompt, **kwargs: _completion('{"status": "OK", "detail": ""}'),
         )
 
     async def test_rejects_script_with_prompt_injection_attempts(self):
@@ -128,7 +128,7 @@ class TestCheckRunScript:
             await check_run_script(description="test", script_type="bash", script="echo hi", readonly=True)
 
     async def test_timeout(self, mocker):
-        def slow_complete(_prompt: str) -> GatekeeperCompletion:
+        def slow_complete(_prompt: str, **kwargs: object) -> GatekeeperCompletion:
             time.sleep(10)
             return GatekeeperCompletion(text='{"status": "OK"}')
 

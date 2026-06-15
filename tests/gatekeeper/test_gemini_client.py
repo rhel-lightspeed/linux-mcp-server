@@ -32,7 +32,7 @@ class TestGeminiClient:
             return_value={"candidates": [{"content": {"parts": [{"text": '{"status": "OK"}'}]}}]},
         )
 
-        result = gemini_client.complete_gemini("prompt")
+        result = gemini_client.complete_gemini("prompt", max_tokens=8000)
 
         assert result.text == '{"status": "OK"}'
         url = mock_post.call_args.kwargs["url"]
