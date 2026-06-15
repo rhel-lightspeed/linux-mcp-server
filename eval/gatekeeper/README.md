@@ -75,6 +75,10 @@ uv run eval/gatekeeper/run-eval.py testcases/selinux-port-denial.yaml -o results
 export OPENROUTER_API_KEY="..."
 ./eval/gatekeeper/standard-evals.sh --no-save gpt-oss-120b:low,fp4@openrouter
 
+# Run via standard-evals.sh (Vertex AI example)
+export VERTEXAI_PROJECT="my-gcp-project"
+./eval/gatekeeper/standard-evals.sh --no-save gemini-3.1-pro-preview:low@vertex_ai
+
 # Run all test case files in testcases/
 uv run eval/gatekeeper/run-eval.py --all -o results.yaml
 

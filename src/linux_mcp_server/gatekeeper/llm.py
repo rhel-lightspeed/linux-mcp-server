@@ -10,6 +10,7 @@ from linux_mcp_server.gatekeeper.anthropic_client import complete_anthropic
 from linux_mcp_server.gatekeeper.gemini_client import complete_gemini
 from linux_mcp_server.gatekeeper.openai_client import complete_openai
 from linux_mcp_server.gatekeeper.openrouter_client import complete_openrouter
+from linux_mcp_server.gatekeeper.vertex_ai_client import complete_vertex_ai
 
 
 logger = logging.getLogger("linux-mcp-server")
@@ -27,10 +28,8 @@ def _infer_provider_from_model(model: str) -> GatekeeperProvider:
         return GatekeeperProvider.OPENROUTER
     if model.startswith("anthropic/") or model.startswith("claude"):
         return GatekeeperProvider.ANTHROPIC
-    if model.startswith("vertex_ai/gemini") or model.startswith("gemini"):
+    if model.startswith("gemini"):
         return GatekeeperProvider.GEMINI
-    if model.startswith("vertex_ai/anthropic"):
-        return GatekeeperProvider.ANTHROPIC
     return GatekeeperProvider.OPENAI
 
 
@@ -53,6 +52,8 @@ def complete_gatekeeper(prompt: str) -> GatekeeperCompletion:
             completion = complete_gemini(prompt)
         case GatekeeperProvider.OPENROUTER:
             completion = complete_openrouter(prompt)
+        case GatekeeperProvider.VERTEX_AI:
+            completion = complete_vertex_ai(prompt)
         case _:  # pragma: no cover
             raise ValueError(f"Unsupported gatekeeper provider: {provider}")
 
