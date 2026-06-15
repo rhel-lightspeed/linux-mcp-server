@@ -16,10 +16,17 @@ from linux_mcp_server.gatekeeper.schema import openai_response_format
 from linux_mcp_server.gatekeeper.schema import openai_text_format
 
 
+def _openai_template_kwargs() -> dict[str, Any]:
+    if CONFIG.gatekeeper.openai is None:
+        return {}
+    return CONFIG.gatekeeper.openai.template_kwargs
+
+
 def _apply_chat_completions_extras(body: dict[str, Any]) -> dict[str, Any]:
     """Merge template_kwargs into Chat Completions bodies (llama.cpp, etc.)."""
-    if CONFIG.gatekeeper.template_kwargs:
-        body["chat_template_kwargs"] = CONFIG.gatekeeper.template_kwargs
+    template_kwargs = _openai_template_kwargs()
+    if template_kwargs:
+        body["chat_template_kwargs"] = template_kwargs
     return body
 
 
@@ -38,7 +45,7 @@ def _build_responses_body(prompt: str) -> dict[str, Any]:
     return body
 
 
-def _build_chat_completions_body(prompt: str) -> dict[str, Any]:
+def build_chat_completions_body(prompt: str) -> dict[str, Any]:
     body: dict[str, Any] = {
         "model": normalize_model_id(CONFIG.gatekeeper.model or ""),
         "messages": [{"role": "user", "content": prompt}],
@@ -72,7 +79,7 @@ def _extract_responses_text(response: dict[str, Any]) -> str:
     return "".join(chunks).strip()
 
 
-def _extract_chat_completions_text(response: dict[str, Any]) -> str:
+def extract_chat_completions_text(response: dict[str, Any]) -> str:
     choices = response.get("choices", [])
     if not choices:
         return ""
@@ -107,7 +114,7 @@ def complete_openai(prompt: str, *, timeout: int = DEFAULT_TIMEOUT_SECONDS) -> G
         provider="openai",
         url=f"{base_url}/chat/completions",
         headers=headers,
-        body=_build_chat_completions_body(prompt),
+        body=build_chat_completions_body(prompt),
         timeout=timeout,
     )
-    return GatekeeperCompletion(text=_extract_chat_completions_text(response))
+    return GatekeeperCompletion(text=extract_chat_completions_text(response))

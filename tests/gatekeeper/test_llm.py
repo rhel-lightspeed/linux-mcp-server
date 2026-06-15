@@ -35,12 +35,13 @@ class TestResolveProvider:
 class TestCompleteGatekeeper:
     def test_routes_to_openai(self, mocker):
         mocker.patch.object(llm_module, "resolve_provider", return_value=GatekeeperProvider.OPENAI)
+        expected = GatekeeperCompletion(text='{"status": "OK"}')
         mock_complete = mocker.patch(
             "linux_mcp_server.gatekeeper.openai_client.complete_openai",
-            return_value='{"status": "OK"}',
+            return_value=expected,
         )
         result = complete_gatekeeper("prompt")
-        assert result.text == '{"status": "OK"}'
+        assert result == expected
         mock_complete.assert_called_once_with("prompt")
 
     def test_routes_to_openrouter(self, mocker):
@@ -52,4 +53,14 @@ class TestCompleteGatekeeper:
         )
         result = complete_gatekeeper("prompt")
         assert result == expected
+        mock_complete.assert_called_once_with("prompt")
+
+    def test_routes_to_vertex_ai(self, mocker):
+        mocker.patch.object(llm_module, "resolve_provider", return_value=GatekeeperProvider.VERTEX_AI)
+        mock_complete = mocker.patch(
+            "linux_mcp_server.gatekeeper.vertex_ai_client.complete_vertex_ai",
+            return_value=GatekeeperCompletion(text='{"status": "OK"}'),
+        )
+        result = complete_gatekeeper("prompt")
+        assert result.text == '{"status": "OK"}'
         mock_complete.assert_called_once_with("prompt")

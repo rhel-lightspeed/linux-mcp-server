@@ -55,13 +55,7 @@ class GatekeeperProvider(StrEnum):
     ANTHROPIC = "anthropic"
     GEMINI = "gemini"
     OPENROUTER = "openrouter"
-
-
-class GatekeeperBackend(StrEnum):
-    """API backend for the gatekeeper provider."""
-
-    DIRECT = "direct"
-    VERTEX = "vertex"
+    VERTEX_AI = "vertex_ai"
 
 
 class AuthProvider(StrEnum):
@@ -129,38 +123,42 @@ def parse_cost(v: Any) -> Any:
     return v
 
 
+class OpenAIGatekeeperConfig(BaseSettings):
+    """OpenAI gatekeeper provider configuration."""
+
+    base_url: str | None = None
+    template_kwargs: dict[str, Any] = Field(default_factory=dict)
+
+
+class OpenRouterGatekeeperConfig(BaseSettings):
+    """OpenRouter gatekeeper provider configuration."""
+
+    base_url: str | None = None
+    quantization: str | None = None
+    template_kwargs: dict[str, Any] = Field(default_factory=dict)
+
+
+class VertexAIGatekeeperConfig(BaseSettings):
+    """Vertex AI gatekeeper provider configuration."""
+
+    project: str | None = None
+    location: str | None = None
+    base_url: str | None = None
+
+
 class GatekeeperConfig(BaseSettings):
     """Gatekeeper Model configuration"""
 
     provider: GatekeeperProvider | None = None
-    backend: GatekeeperBackend = GatekeeperBackend.DIRECT
     model: str | None = None
-
-    # Model quantization for OpenRouter provider routing (e.g. fp8, bf16)
-    quantization: str | None = None
-
-    # OpenAI-compatible API base URL (OpenAI provider only)
-    base_url: str | None = None
-
-    # GCP project and region for Vertex backends
-    project: str | None = None
-    location: str | None = None
-
-    # reasoning effort
     reasoning_effort: ReasoningEffort | None = None
-
-    # Whether we should use structured output
     structured_output: bool = True
-
-    # Extra chat-template arguments for OpenAI-compatible servers (e.g. llama.cpp enable_thinking).
-    # Passed as chat_template_kwargs on Chat Completions requests.
-    template_kwargs: dict[str, Any] = Field(default_factory=dict)
-
-    # Temperature for gatekeeper model
     temperature: float = 0.0
-
-    # Gatekeeper cost for accounting (input $/token, output $/token)
     cost: Annotated[tuple[float, float] | None, BeforeValidator(parse_cost)] = None
+
+    openai: OpenAIGatekeeperConfig | None = None
+    openrouter: OpenRouterGatekeeperConfig | None = None
+    vertex_ai: VertexAIGatekeeperConfig | None = None
 
 
 class Config(BaseSettings):
