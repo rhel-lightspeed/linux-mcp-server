@@ -36,10 +36,11 @@ def _gemini_thinking_level(reasoning_effort: ReasoningEffort | None) -> str | No
     return mapping.get(reasoning_effort)
 
 
-def build_gemini_body(prompt: str) -> dict[str, Any]:
+def build_gemini_body(prompt: str, *, max_tokens: int) -> dict[str, Any]:
     generation_config = gemini_generation_config(
         temperature=CONFIG.gatekeeper.temperature,
         structured_output=CONFIG.gatekeeper.structured_output,
+        max_tokens=max_tokens,
     )
     thinking_level = _gemini_thinking_level(CONFIG.gatekeeper.reasoning_effort)
     if thinking_level is not None:
@@ -62,14 +63,14 @@ def extract_gemini_text(response: dict[str, Any]) -> str:
     return text.strip() if isinstance(text, str) else ""
 
 
-def complete_gemini(prompt: str, *, timeout: int = DEFAULT_TIMEOUT_SECONDS) -> GatekeeperCompletion:
+def complete_gemini(prompt: str, *, max_tokens: int, timeout: int = DEFAULT_TIMEOUT_SECONDS) -> GatekeeperCompletion:
     model = normalize_model_id(CONFIG.gatekeeper.model or "")
     api_key = _get_google_api_key()
     response = post_json(
         provider="gemini",
         url=f"{GOOGLE_AI_BASE_URL}/models/{model}:generateContent?key={api_key}",
         headers={"Content-Type": "application/json"},
-        body=build_gemini_body(prompt),
+        body=build_gemini_body(prompt, max_tokens=max_tokens),
         timeout=timeout,
     )
     return GatekeeperCompletion(text=extract_gemini_text(response))

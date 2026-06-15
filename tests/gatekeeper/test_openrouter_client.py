@@ -61,7 +61,7 @@ class TestOpenRouterClient:
             },
         )
 
-        completion = openrouter_client.complete_openrouter("prompt")
+        completion = openrouter_client.complete_openrouter("prompt", max_tokens=8000)
 
         assert completion.text == '{"status": "OK", "detail": ""}'
         assert completion.prompt_tokens == 10
@@ -83,7 +83,7 @@ class TestOpenRouterClient:
             return_value={"choices": [{"message": {"content": '{"status": "OK"}'}}]},
         )
 
-        openrouter_client.complete_openrouter("prompt")
+        openrouter_client.complete_openrouter("prompt", max_tokens=8000)
 
         body = mock_post.call_args.kwargs["body"]
         assert body["provider"] == {"require_parameters": True, "quantizations": ["fp4"]}
@@ -95,7 +95,7 @@ class TestOpenRouterClient:
             return_value={"choices": [{"message": {"content": '{"status": "OK"}'}}]},
         )
 
-        openrouter_client.complete_openrouter("prompt")
+        openrouter_client.complete_openrouter("prompt", max_tokens=8000)
 
         body = mock_post.call_args.kwargs["body"]
         assert body["reasoning"] == {"enabled": False}
@@ -107,7 +107,7 @@ class TestOpenRouterClient:
             return_value={"choices": [{"message": {"content": '{"status": "OK"}'}}]},
         )
 
-        openrouter_client.complete_openrouter("prompt")
+        openrouter_client.complete_openrouter("prompt", max_tokens=8000)
 
         body = mock_post.call_args.kwargs["body"]
         assert body["model"] == "google/gemma-4-26b-a4b-it"
@@ -119,7 +119,7 @@ class TestOpenRouterClient:
             return_value={"choices": [{"message": {"content": '{"status": "OK"}'}}]},
         )
 
-        openrouter_client.complete_openrouter("prompt")
+        openrouter_client.complete_openrouter("prompt", max_tokens=8000)
 
         assert mock_post.call_args.kwargs["url"] == "https://openrouter.example.com/api/v1/chat/completions"
 
@@ -130,7 +130,7 @@ class TestOpenRouterClient:
             return_value={"choices": [{"message": {"content": '{"status": "OK"}'}}]},
         )
 
-        openrouter_client.complete_openrouter("prompt")
+        openrouter_client.complete_openrouter("prompt", max_tokens=8000)
 
         body = mock_post.call_args.kwargs["body"]
         assert "response_format" not in body
@@ -142,7 +142,7 @@ class TestOpenRouterClient:
             return_value={"choices": [{"message": {"content": '{"status": "OK"}'}}]},
         )
 
-        openrouter_client.complete_openrouter("prompt")
+        openrouter_client.complete_openrouter("prompt", max_tokens=8000)
 
         body = mock_post.call_args.kwargs["body"]
         assert body["chat_template_kwargs"] == {"enable_thinking": False}

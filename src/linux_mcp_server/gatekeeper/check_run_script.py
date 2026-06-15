@@ -103,6 +103,8 @@ Example response (respond with only the JSON object - do not wrap it in a code b
 """
 
 
+# Maximum number of completion tokens (including reasoning)
+GATEKEEPER_MAX_TOKENS = 8000
 # Timeout (s)
 GATEKEEPER_TIMEOUT = 120
 
@@ -226,7 +228,7 @@ async def check_run_script_with_stats(
     time_before = time.perf_counter()
     try:
         completion = await asyncio.wait_for(
-            asyncio.to_thread(complete_gatekeeper, prompt),
+            asyncio.to_thread(complete_gatekeeper, prompt, max_tokens=GATEKEEPER_MAX_TOKENS),
             timeout=GATEKEEPER_TIMEOUT,
         )
     except asyncio.TimeoutError:

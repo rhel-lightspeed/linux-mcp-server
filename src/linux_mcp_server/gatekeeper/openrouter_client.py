@@ -54,7 +54,7 @@ def _openrouter_config() -> dict[str, Any]:
     }
 
 
-def _build_chat_completions_body(prompt: str) -> dict[str, Any]:
+def _build_chat_completions_body(prompt: str, *, max_tokens: int) -> dict[str, Any]:
     openrouter = _openrouter_config()
     provider: dict[str, Any] = {"require_parameters": True}
     if openrouter["quantization"]:
@@ -63,6 +63,7 @@ def _build_chat_completions_body(prompt: str) -> dict[str, Any]:
     body: dict[str, Any] = {
         "model": _normalize_openrouter_model_id(CONFIG.gatekeeper.model or ""),
         "messages": [{"role": "user", "content": prompt}],
+        "max_tokens": max_tokens,
         "temperature": CONFIG.gatekeeper.temperature,
         "provider": provider,
     }
@@ -99,7 +100,9 @@ def _extract_usage(response: dict[str, Any]) -> tuple[int, int, float | None]:
     )
 
 
-def complete_openrouter(prompt: str, *, timeout: int = DEFAULT_TIMEOUT_SECONDS) -> GatekeeperCompletion:
+def complete_openrouter(
+    prompt: str, *, max_tokens: int, timeout: int = DEFAULT_TIMEOUT_SECONDS
+) -> GatekeeperCompletion:
     base_url = _get_openrouter_base_url()
     headers = {
         **_openrouter_auth_headers(),
@@ -109,7 +112,7 @@ def complete_openrouter(prompt: str, *, timeout: int = DEFAULT_TIMEOUT_SECONDS) 
         provider="openrouter",
         url=f"{base_url}/chat/completions",
         headers=headers,
-        body=_build_chat_completions_body(prompt),
+        body=_build_chat_completions_body(prompt, max_tokens=max_tokens),
         timeout=timeout,
     )
     prompt_tokens, completion_tokens, usage_cost = _extract_usage(response)
