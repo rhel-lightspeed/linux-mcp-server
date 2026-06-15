@@ -32,7 +32,7 @@ class TestAnthropicClient:
             return_value={"content": [{"type": "text", "text": '{"status": "OK", "detail": ""}'}]},
         )
 
-        result = anthropic_client.complete_anthropic("prompt")
+        result = anthropic_client.complete_anthropic("prompt", max_tokens=8000)
 
         assert result.text == '{"status": "OK", "detail": ""}'
         assert mock_post.call_args.kwargs["url"] == "https://api.anthropic.com/v1/messages"

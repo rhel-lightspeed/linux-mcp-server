@@ -15,7 +15,6 @@ from linux_mcp_server.models import GatekeeperCompletion
 
 ANTHROPIC_API_URL = "https://api.anthropic.com/v1/messages"
 ANTHROPIC_API_VERSION = "2023-06-01"
-ANTHROPIC_DEFAULT_MAX_TOKENS = 4096
 
 
 def _get_anthropic_api_key() -> str:
@@ -41,9 +40,9 @@ def _anthropic_thinking_block(reasoning_effort: ReasoningEffort | None) -> dict[
     return {"type": "enabled", "budget_tokens": budget}
 
 
-def build_messages_body(prompt: str, *, include_model: bool) -> dict[str, Any]:
+def build_messages_body(prompt: str, *, include_model: bool, max_tokens: int) -> dict[str, Any]:
     body: dict[str, Any] = {
-        "max_tokens": ANTHROPIC_DEFAULT_MAX_TOKENS,
+        "max_tokens": max_tokens,
         "messages": [{"role": "user", "content": prompt}],
         "temperature": CONFIG.gatekeeper.temperature,
     }
@@ -66,7 +65,7 @@ def extract_messages_text(response: dict[str, Any]) -> str:
     return ""
 
 
-def complete_anthropic(prompt: str, *, timeout: int = DEFAULT_TIMEOUT_SECONDS) -> GatekeeperCompletion:
+def complete_anthropic(prompt: str, *, max_tokens: int, timeout: int = DEFAULT_TIMEOUT_SECONDS) -> GatekeeperCompletion:
     headers = {
         "x-api-key": _get_anthropic_api_key(),
         "anthropic-version": ANTHROPIC_API_VERSION,
@@ -76,7 +75,7 @@ def complete_anthropic(prompt: str, *, timeout: int = DEFAULT_TIMEOUT_SECONDS) -
         provider="anthropic",
         url=ANTHROPIC_API_URL,
         headers=headers,
-        body=build_messages_body(prompt, include_model=True),
+        body=build_messages_body(prompt, include_model=True, max_tokens=max_tokens),
         timeout=timeout,
     )
     return GatekeeperCompletion(text=extract_messages_text(response))

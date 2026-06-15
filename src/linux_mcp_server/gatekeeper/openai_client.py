@@ -61,10 +61,11 @@ def _apply_chat_completions_extras(body: dict[str, Any]) -> dict[str, Any]:
     return body
 
 
-def _build_responses_body(prompt: str) -> dict[str, Any]:
+def _build_responses_body(prompt: str, *, max_tokens: int) -> dict[str, Any]:
     body: dict[str, Any] = {
         "model": normalize_model_id(CONFIG.gatekeeper.model or ""),
         "input": prompt,
+        "max_output_tokens": max_tokens,
         "temperature": CONFIG.gatekeeper.temperature,
         "store": False,
     }
@@ -76,10 +77,11 @@ def _build_responses_body(prompt: str) -> dict[str, Any]:
     return body
 
 
-def build_chat_completions_body(prompt: str) -> dict[str, Any]:
+def build_chat_completions_body(prompt: str, *, max_tokens: int) -> dict[str, Any]:
     body: dict[str, Any] = {
         "model": normalize_model_id(CONFIG.gatekeeper.model or ""),
         "messages": [{"role": "user", "content": prompt}],
+        "max_completion_tokens": max_tokens,
         "temperature": CONFIG.gatekeeper.temperature,
     }
     if CONFIG.gatekeeper.structured_output:
@@ -119,7 +121,7 @@ def extract_chat_completions_text(response: dict[str, Any]) -> str:
     return (content or "").strip() if isinstance(content, str) else ""
 
 
-def complete_openai(prompt: str, *, timeout: int = DEFAULT_TIMEOUT_SECONDS) -> GatekeeperCompletion:
+def complete_openai(prompt: str, *, max_tokens: int, timeout: int = DEFAULT_TIMEOUT_SECONDS) -> GatekeeperCompletion:
     base_url = _get_openai_base_url()
     headers = {
         **_openai_auth_headers(),
@@ -133,7 +135,7 @@ def complete_openai(prompt: str, *, timeout: int = DEFAULT_TIMEOUT_SECONDS) -> G
                 provider="openai",
                 url=f"{base_url}/responses",
                 headers=headers,
-                body=_build_responses_body(prompt),
+                body=_build_responses_body(prompt, max_tokens=max_tokens),
                 timeout=timeout,
             )
             return GatekeeperCompletion(text=_extract_responses_text(response))
@@ -145,7 +147,7 @@ def complete_openai(prompt: str, *, timeout: int = DEFAULT_TIMEOUT_SECONDS) -> G
         provider="openai",
         url=f"{base_url}/chat/completions",
         headers=headers,
-        body=build_chat_completions_body(prompt),
+        body=build_chat_completions_body(prompt, max_tokens=max_tokens),
         timeout=timeout,
     )
     return GatekeeperCompletion(text=extract_chat_completions_text(response))

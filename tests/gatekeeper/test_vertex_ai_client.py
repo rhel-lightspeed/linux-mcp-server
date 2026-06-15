@@ -63,7 +63,7 @@ class TestVertexAIClient:
             return_value={"content": [{"type": "text", "text": '{"status": "OK"}'}]},
         )
 
-        result = vertex_ai_client.complete_vertex_ai("prompt")
+        result = vertex_ai_client.complete_vertex_ai("prompt", max_tokens=8000)
 
         assert result.text == '{"status": "OK"}'
         body = mock_post.call_args.kwargs["body"]
@@ -78,7 +78,7 @@ class TestVertexAIClient:
             return_value={"candidates": [{"content": {"parts": [{"text": '{"status": "OK"}'}]}}]},
         )
 
-        result = vertex_ai_client.complete_vertex_ai("prompt")
+        result = vertex_ai_client.complete_vertex_ai("prompt", max_tokens=8000)
 
         assert result.text == '{"status": "OK"}'
         assert ":generateContent" in mock_post.call_args.kwargs["url"]
@@ -91,7 +91,7 @@ class TestVertexAIClient:
             return_value={"choices": [{"message": {"content": '{"status": "OK"}'}}]},
         )
 
-        result = vertex_ai_client.complete_vertex_ai("prompt")
+        result = vertex_ai_client.complete_vertex_ai("prompt", max_tokens=8000)
 
         assert result.text == '{"status": "OK"}'
         assert mock_post.call_args.kwargs["url"].endswith("/chat/completions")
@@ -108,6 +108,6 @@ class TestVertexAIClient:
             return_value={"choices": [{"message": {"content": '{"status": "OK"}'}}]},
         )
 
-        vertex_ai_client.complete_vertex_ai("prompt")
+        vertex_ai_client.complete_vertex_ai("prompt", max_tokens=8000)
 
         assert mock_post.call_args.kwargs["url"].startswith("https://custom.example.com")
