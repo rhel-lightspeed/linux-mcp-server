@@ -4,10 +4,10 @@ import time
 import pytest
 
 from linux_mcp_server.config import CONFIG
-from linux_mcp_server.config import GatekeeperBackend
 from linux_mcp_server.config import GatekeeperConfig
 from linux_mcp_server.config import GatekeeperProvider
 from linux_mcp_server.config import ReasoningEffort
+from linux_mcp_server.config import VertexAIGatekeeperConfig
 from linux_mcp_server.gatekeeper import GatekeeperResult
 from linux_mcp_server.gatekeeper import GatekeeperStatus
 from linux_mcp_server.gatekeeper.check_run_script import check_run_script
@@ -218,24 +218,26 @@ class TestGatekeeperConfigIntegration:
         assert body["temperature"] == 0.0
         assert "text" in body
 
-    async def test_openai_vertex_backend_uses_custom_base_url(self, mocker):
+    async def test_vertex_ai_provider_uses_openapi_base_url(self, mocker):
         mocker.patch.dict("os.environ", {}, clear=False)
         mocker.patch(
             "linux_mcp_server.gatekeeper.gcp_auth.get_gcp_access_token",
             return_value="gcp-token",
         )
         mock_post = mocker.patch(
-            "linux_mcp_server.gatekeeper.openai_client.post_json",
+            "linux_mcp_server.gatekeeper.vertex_ai_client.post_json",
             return_value={"choices": [{"message": {"content": '{"status": "OK"}'}}]},
         )
         mocker.patch.object(
             CONFIG,
             "gatekeeper",
             GatekeeperConfig(
-                provider=GatekeeperProvider.OPENAI,
-                backend=GatekeeperBackend.VERTEX,
+                provider=GatekeeperProvider.VERTEX_AI,
                 model="gpt-oss-120b-maas",
-                base_url="https://aiplatform.googleapis.com/v1/projects/p/locations/global/endpoints/openapi",
+                vertex_ai=VertexAIGatekeeperConfig(
+                    project="p",
+                    base_url="https://aiplatform.googleapis.com/v1/projects/p/locations/global/endpoints/openapi",
+                ),
                 structured_output=False,
                 temperature=0.0,
             ),

@@ -3,6 +3,7 @@ import pytest
 from linux_mcp_server.config import CONFIG
 from linux_mcp_server.config import GatekeeperConfig
 from linux_mcp_server.config import GatekeeperProvider
+from linux_mcp_server.config import OpenRouterGatekeeperConfig
 from linux_mcp_server.config import ReasoningEffort
 from linux_mcp_server.gatekeeper import openrouter_client
 
@@ -46,7 +47,7 @@ class TestOpenRouterClient:
         assert body["response_format"]["type"] == "json_schema"
 
     def test_complete_openrouter_quantization(self, gatekeeper_config, mocker):
-        gatekeeper_config.quantization = "fp4"
+        gatekeeper_config.openrouter = OpenRouterGatekeeperConfig(quantization="fp4")
         mock_post = mocker.patch(
             "linux_mcp_server.gatekeeper.openrouter_client.post_json",
             return_value={"choices": [{"message": {"content": '{"status": "OK"}'}}]},
@@ -82,7 +83,7 @@ class TestOpenRouterClient:
         assert body["model"] == "google/gemma-4-26b-a4b-it"
 
     def test_complete_openrouter_custom_base_url(self, gatekeeper_config, mocker):
-        gatekeeper_config.base_url = "https://openrouter.example.com/api/v1"
+        gatekeeper_config.openrouter = OpenRouterGatekeeperConfig(base_url="https://openrouter.example.com/api/v1")
         mock_post = mocker.patch(
             "linux_mcp_server.gatekeeper.openrouter_client.post_json",
             return_value={"choices": [{"message": {"content": '{"status": "OK"}'}}]},
@@ -105,7 +106,7 @@ class TestOpenRouterClient:
         assert "response_format" not in body
 
     def test_template_kwargs(self, gatekeeper_config, mocker):
-        gatekeeper_config.template_kwargs = {"enable_thinking": False}
+        gatekeeper_config.openrouter = OpenRouterGatekeeperConfig(template_kwargs={"enable_thinking": False})
         mock_post = mocker.patch(
             "linux_mcp_server.gatekeeper.openrouter_client.post_json",
             return_value={"choices": [{"message": {"content": '{"status": "OK"}'}}]},

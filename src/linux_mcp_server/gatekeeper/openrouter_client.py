@@ -13,10 +13,20 @@ from linux_mcp_server.gatekeeper.llm import GatekeeperCompletion
 from linux_mcp_server.gatekeeper.schema import openai_response_format
 
 
+def _openrouter_config() -> dict[str, Any]:
+    if CONFIG.gatekeeper.openrouter is None:
+        return {"quantization": None, "template_kwargs": {}}
+    return {
+        "quantization": CONFIG.gatekeeper.openrouter.quantization,
+        "template_kwargs": CONFIG.gatekeeper.openrouter.template_kwargs,
+    }
+
+
 def _build_chat_completions_body(prompt: str) -> dict[str, Any]:
+    openrouter = _openrouter_config()
     provider: dict[str, Any] = {"require_parameters": True}
-    if CONFIG.gatekeeper.quantization:
-        provider["quantizations"] = [CONFIG.gatekeeper.quantization]
+    if openrouter["quantization"]:
+        provider["quantizations"] = [openrouter["quantization"]]
 
     body: dict[str, Any] = {
         "model": normalize_openrouter_model_id(CONFIG.gatekeeper.model or ""),
@@ -29,8 +39,8 @@ def _build_chat_completions_body(prompt: str) -> dict[str, Any]:
     reasoning = openrouter_reasoning_block(CONFIG.gatekeeper.reasoning_effort)
     if reasoning is not None:
         body["reasoning"] = reasoning
-    if CONFIG.gatekeeper.template_kwargs:
-        body["chat_template_kwargs"] = CONFIG.gatekeeper.template_kwargs
+    if openrouter["template_kwargs"]:
+        body["chat_template_kwargs"] = openrouter["template_kwargs"]
     return body
 
 

@@ -3,12 +3,12 @@
 import os
 
 from typing import Any
+from typing import Literal
 from urllib.parse import urlparse
 
 import requests
 
 from linux_mcp_server.config import CONFIG
-from linux_mcp_server.config import GatekeeperBackend
 from linux_mcp_server.config import ReasoningEffort
 
 
@@ -51,7 +51,8 @@ def post_json(
 
 
 def get_openai_base_url() -> str:
-    return (CONFIG.gatekeeper.base_url or os.environ.get("OPENAI_API_BASE") or OPENAI_DEFAULT_BASE_URL).rstrip("/")
+    configured = CONFIG.gatekeeper.openai.base_url if CONFIG.gatekeeper.openai else None
+    return (configured or os.environ.get("OPENAI_API_BASE") or OPENAI_DEFAULT_BASE_URL).rstrip("/")
 
 
 def prefers_openai_chat_completions(base_url: str) -> bool:
@@ -74,7 +75,35 @@ def normalize_openrouter_model_id(model: str) -> str:
 
 
 def get_openrouter_base_url() -> str:
-    return (CONFIG.gatekeeper.base_url or OPENROUTER_DEFAULT_BASE_URL).rstrip("/")
+    configured = CONFIG.gatekeeper.openrouter.base_url if CONFIG.gatekeeper.openrouter else None
+    return (configured or OPENROUTER_DEFAULT_BASE_URL).rstrip("/")
+
+
+def vertex_api_style(model: str) -> Literal["anthropic", "gemini", "openai_compatible"]:
+    normalized = normalize_model_id(model)
+    if normalized.startswith("claude"):
+        return "anthropic"
+    if normalized.startswith("gemini"):
+        return "gemini"
+    return "openai_compatible"
+
+
+def get_vertex_openapi_base_url() -> str:
+    cfg = CONFIG.gatekeeper.vertex_ai
+    if cfg and cfg.base_url:
+        return cfg.base_url.rstrip("/")
+    from linux_mcp_server.gatekeeper.gcp_auth import get_gcp_location
+    from linux_mcp_server.gatekeeper.gcp_auth import get_gcp_project
+
+    project = get_gcp_project()
+    location = get_gcp_location()
+    return f"https://aiplatform.googleapis.com/v1/projects/{project}/locations/{location}/endpoints/openapi"
+
+
+def vertex_auth_headers() -> dict[str, str]:
+    from linux_mcp_server.gatekeeper.gcp_auth import get_gcp_access_token
+
+    return {"Authorization": f"Bearer {get_gcp_access_token()}"}
 
 
 def openai_reasoning_block(reasoning_effort: ReasoningEffort | None) -> dict[str, Any] | None:
@@ -153,8 +182,4 @@ def get_google_api_key() -> str:
 
 
 def openai_auth_headers() -> dict[str, str]:
-    if CONFIG.gatekeeper.backend == GatekeeperBackend.VERTEX:
-        from linux_mcp_server.gatekeeper.gcp_auth import get_gcp_access_token
-
-        return {"Authorization": f"Bearer {get_gcp_access_token()}"}
     return {"Authorization": f"Bearer {get_openai_api_key()}"}

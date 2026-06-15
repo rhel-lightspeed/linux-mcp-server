@@ -10,17 +10,23 @@ class GCPAuthError(RuntimeError):
 
 
 def get_gcp_project() -> str:
-    project = CONFIG.gatekeeper.project or os.environ.get("VERTEXAI_PROJECT") or os.environ.get("GOOGLE_CLOUD_PROJECT")
+    vertex_ai = CONFIG.gatekeeper.vertex_ai
+    project = (
+        (vertex_ai.project if vertex_ai else None)
+        or os.environ.get("VERTEXAI_PROJECT")
+        or os.environ.get("GOOGLE_CLOUD_PROJECT")
+    )
     if not project:
         raise GCPAuthError(
-            "Vertex backend requires a GCP project. Set VERTEXAI_PROJECT, GOOGLE_CLOUD_PROJECT, "
-            "or LINUX_MCP_GATEKEEPER__PROJECT."
+            "Vertex AI provider requires a GCP project. Set VERTEXAI_PROJECT, GOOGLE_CLOUD_PROJECT, "
+            "or LINUX_MCP_GATEKEEPER__VERTEX_AI__PROJECT."
         )
     return project
 
 
 def get_gcp_location() -> str:
-    return CONFIG.gatekeeper.location or os.environ.get("VERTEXAI_LOCATION") or "global"
+    vertex_ai = CONFIG.gatekeeper.vertex_ai
+    return (vertex_ai.location if vertex_ai else None) or os.environ.get("VERTEXAI_LOCATION") or "global"
 
 
 def get_gcp_access_token() -> str:

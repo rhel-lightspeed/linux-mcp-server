@@ -1,13 +1,17 @@
 import pytest
 
+from linux_mcp_server.config import CONFIG
 from linux_mcp_server.config import ReasoningEffort
+from linux_mcp_server.config import VertexAIGatekeeperConfig
 from linux_mcp_server.gatekeeper.http_utils import anthropic_thinking_block
 from linux_mcp_server.gatekeeper.http_utils import gemini_thinking_level
+from linux_mcp_server.gatekeeper.http_utils import get_vertex_openapi_base_url
 from linux_mcp_server.gatekeeper.http_utils import normalize_model_id
 from linux_mcp_server.gatekeeper.http_utils import normalize_openrouter_model_id
 from linux_mcp_server.gatekeeper.http_utils import openai_reasoning_block
 from linux_mcp_server.gatekeeper.http_utils import openrouter_reasoning_block
 from linux_mcp_server.gatekeeper.http_utils import prefers_openai_chat_completions
+from linux_mcp_server.gatekeeper.http_utils import vertex_api_style
 
 
 @pytest.mark.parametrize(
@@ -83,3 +87,32 @@ def test_anthropic_thinking_block_low():
 
 def test_gemini_thinking_level_medium():
     assert gemini_thinking_level(ReasoningEffort.MEDIUM) == "MEDIUM"
+
+
+@pytest.mark.parametrize(
+    "model,expected",
+    [
+        ("claude-sonnet-4-6", "anthropic"),
+        ("vertex_ai/gemini-3.1-pro-preview", "gemini"),
+        ("gpt-oss-120b-maas", "openai_compatible"),
+    ],
+)
+def test_vertex_api_style(model, expected):
+    assert vertex_api_style(model) == expected
+
+
+def test_get_vertex_openapi_base_url_from_config(mocker):
+    mocker.patch.object(
+        CONFIG.gatekeeper,
+        "vertex_ai",
+        VertexAIGatekeeperConfig(base_url="https://custom.example.com/openapi"),
+    )
+    assert get_vertex_openapi_base_url() == "https://custom.example.com/openapi"
+
+
+def test_get_vertex_openapi_base_url_computed(mocker):
+    mocker.patch.object(CONFIG.gatekeeper, "vertex_ai", VertexAIGatekeeperConfig(project="my-project"))
+    mocker.patch("linux_mcp_server.gatekeeper.gcp_auth.get_gcp_project", return_value="my-project")
+    mocker.patch("linux_mcp_server.gatekeeper.gcp_auth.get_gcp_location", return_value="global")
+    url = get_vertex_openapi_base_url()
+    assert url == "https://aiplatform.googleapis.com/v1/projects/my-project/locations/global/endpoints/openapi"

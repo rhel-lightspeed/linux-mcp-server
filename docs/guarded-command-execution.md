@@ -108,7 +108,7 @@ LINUX_MCP_TOOLSET=run_script
 
 Set `LINUX_MCP_GATEKEEPER__PROVIDER` and `LINUX_MCP_GATEKEEPER__MODEL` to configure the gatekeeper.
 Set the matching API credentials for your provider (`OPENAI_API_KEY`, `ANTHROPIC_API_KEY`,
-`GOOGLE_API_KEY`, or `OPENROUTER_API_KEY`). For Vertex AI backends, install the `gcp` extra and configure
+`GOOGLE_API_KEY`, or `OPENROUTER_API_KEY`). For the `vertex_ai` provider, install the `gcp` extra and configure
 `GOOGLE_APPLICATION_CREDENTIALS`, `VERTEXAI_PROJECT`, and `VERTEXAI_LOCATION`.
 
 Example (OpenAI):
@@ -132,8 +132,17 @@ Example (OpenRouter):
 ```sh
 LINUX_MCP_GATEKEEPER__PROVIDER=openrouter
 LINUX_MCP_GATEKEEPER__MODEL=openai/gpt-oss-120b
-LINUX_MCP_GATEKEEPER__QUANTIZATION=fp4
+LINUX_MCP_GATEKEEPER__OPENROUTER__QUANTIZATION=fp4
 OPENROUTER_API_KEY=<....>
+```
+
+Example (Vertex AI):
+
+```sh
+LINUX_MCP_GATEKEEPER__PROVIDER=vertex_ai
+LINUX_MCP_GATEKEEPER__MODEL=gemini-3.1-pro-preview
+LINUX_MCP_GATEKEEPER__VERTEX_AI__PROJECT=my-gcp-project
+GOOGLE_APPLICATION_CREDENTIALS=<path-to-service-account.json>
 ```
 
 

@@ -263,29 +263,25 @@ case "$provider" in
     anthropic)
         : "${ANTHROPIC_API_KEY:?'api key must be set'}"
         LINUX_MCP_GATEKEEPER__PROVIDER=anthropic
-        LINUX_MCP_GATEKEEPER__BACKEND=direct
         LINUX_MCP_GATEKEEPER__MODEL="$model"
         ;;
     llama_cpp)
         OPENAI_API_KEY=tasty
         LINUX_MCP_GATEKEEPER__PROVIDER=openai
-        LINUX_MCP_GATEKEEPER__BACKEND=direct
-        LINUX_MCP_GATEKEEPER__BASE_URL=http://localhost:8080/v1
-        # Reasoning is controlled via template kwargs for llama_cpp, passing reasoning effort raises API error.
-        # Clear reasoning_effort so it's not included in the request.
+        LINUX_MCP_GATEKEEPER__OPENAI__BASE_URL=http://localhost:8080/v1
+        # Reasoning is controlled via template kwargs for llama_cpp; passing reasoning_effort raises an API error.
         LINUX_MCP_GATEKEEPER__REASONING_EFFORT=
         # gemma-4 and qwen3.5 support enable_thinking via chat_template_kwargs; granite-4 has no control
         case "$reasoning" in
             none)
-                LINUX_MCP_GATEKEEPER__TEMPLATE_KWARGS='{ "enable_thinking": false }'
+                LINUX_MCP_GATEKEEPER__OPENAI__TEMPLATE_KWARGS='{ "enable_thinking": false }'
                 ;;
             default)
-                LINUX_MCP_GATEKEEPER__TEMPLATE_KWARGS='{ "enable_thinking": true }'
+                LINUX_MCP_GATEKEEPER__OPENAI__TEMPLATE_KWARGS='{ "enable_thinking": true }'
                 ;;
         esac
         export OPENAI_API_KEY
-        export LINUX_MCP_GATEKEEPER__BASE_URL
-        export LINUX_MCP_GATEKEEPER__TEMPLATE_KWARGS
+        export LINUX_MCP_GATEKEEPER__OPENAI__BASE_URL
         max_parallel=1
         quant_tag="${quantization^^}"
         case "$model" in
@@ -321,37 +317,25 @@ case "$provider" in
         : "${VERTEXAI_PROJECT:?'project must be set'}"
         uv_args+=("--extra" "gcp")
         max_parallel=50
-        LINUX_MCP_GATEKEEPER__BACKEND=vertex
-        vertex_location="${VERTEXAI_LOCATION:-global}"
-        vertex_openapi_base="https://aiplatform.googleapis.com/v1/projects/${VERTEXAI_PROJECT}/locations/${vertex_location}/endpoints/openapi"
+        LINUX_MCP_GATEKEEPER__PROVIDER=vertex_ai
+        LINUX_MCP_GATEKEEPER__VERTEX_AI__PROJECT="${VERTEXAI_PROJECT}"
         case $model in
-            claude-*)
-                LINUX_MCP_GATEKEEPER__PROVIDER=anthropic
-                LINUX_MCP_GATEKEEPER__MODEL="$model"
-                ;;
-            gemini-*)
-                LINUX_MCP_GATEKEEPER__PROVIDER=gemini
+            claude-*|gemini-*)
                 LINUX_MCP_GATEKEEPER__MODEL="$model"
                 ;;
             gemma-4-26b-a4b-it)
                 if [[ $reasoning == "none" ]] ; then
                     LINUX_MCP_GATEKEEPER__REASONING_EFFORT=
                 fi
-                LINUX_MCP_GATEKEEPER__PROVIDER=openai
                 LINUX_MCP_GATEKEEPER__MODEL="${model}-maas"
-                LINUX_MCP_GATEKEEPER__BASE_URL="${vertex_openapi_base}"
                 LINUX_MCP_GATEKEEPER__COST=0.15e-6:0.60e-6
                 ;;
             gpt-oss-20b)
-                LINUX_MCP_GATEKEEPER__PROVIDER=openai
                 LINUX_MCP_GATEKEEPER__MODEL="${model}-maas"
-                LINUX_MCP_GATEKEEPER__BASE_URL="${vertex_openapi_base}"
                 LINUX_MCP_GATEKEEPER__COST="0.07e-6:0.25e-6"
                 ;;
             gpt-oss-120b)
-                LINUX_MCP_GATEKEEPER__PROVIDER=openai
                 LINUX_MCP_GATEKEEPER__MODEL="${model}-maas"
-                LINUX_MCP_GATEKEEPER__BASE_URL="${vertex_openapi_base}"
                 LINUX_MCP_GATEKEEPER__COST="0.09e-6:0.36e-6"
                 ;;
         esac
@@ -361,7 +345,6 @@ case "$provider" in
         SSL_CERT_FILE=${SSL_CERT_FILE:-/etc/pki/ca-trust/extracted/pem/tls-ca-bundle.pem}
         export SSL_CERT_FILE
         LINUX_MCP_GATEKEEPER__PROVIDER=openai
-        LINUX_MCP_GATEKEEPER__BACKEND=direct
         case $model in
             granite-*)
                 LINUX_MCP_GATEKEEPER__MODEL="ibm-granite/$model"
@@ -370,15 +353,14 @@ case "$provider" in
                 LINUX_MCP_GATEKEEPER__MODEL="openai/$model"
                 ;;
         esac
-        LINUX_MCP_GATEKEEPER__BASE_URL="$(get_MC_base_url "$model")"
+        LINUX_MCP_GATEKEEPER__OPENAI__BASE_URL="$(get_MC_base_url "$model")"
         max_parallel=5
         ;;
     openrouter)
         : "${OPENROUTER_API_KEY:?'api key must be set'}"
         LINUX_MCP_GATEKEEPER__PROVIDER=openrouter
-        LINUX_MCP_GATEKEEPER__BACKEND=direct
         if [[ -n $quantization ]] ; then
-            LINUX_MCP_GATEKEEPER__QUANTIZATION=$quantization
+            LINUX_MCP_GATEKEEPER__OPENROUTER__QUANTIZATION=$quantization
         fi
         case $model in
             claude-*)
@@ -403,11 +385,12 @@ case "$provider" in
         ;;
 esac
 
-export LINUX_MCP_GATEKEEPER__PROVIDER LINUX_MCP_GATEKEEPER__BACKEND LINUX_MCP_GATEKEEPER__MODEL
+export LINUX_MCP_GATEKEEPER__PROVIDER LINUX_MCP_GATEKEEPER__MODEL
 export LINUX_MCP_GATEKEEPER__COST LINUX_MCP_GATEKEEPER__REASONING_EFFORT
-[[ -n "${LINUX_MCP_GATEKEEPER__QUANTIZATION:-}" ]] && export LINUX_MCP_GATEKEEPER__QUANTIZATION
-[[ -n "${LINUX_MCP_GATEKEEPER__BASE_URL:-}" ]] && export LINUX_MCP_GATEKEEPER__BASE_URL
-[[ -n "${LINUX_MCP_GATEKEEPER__TEMPLATE_KWARGS:-}" ]] && export LINUX_MCP_GATEKEEPER__TEMPLATE_KWARGS
+[[ -n "${LINUX_MCP_GATEKEEPER__OPENROUTER__QUANTIZATION:-}" ]] && export LINUX_MCP_GATEKEEPER__OPENROUTER__QUANTIZATION
+[[ -n "${LINUX_MCP_GATEKEEPER__OPENAI__BASE_URL:-}" ]] && export LINUX_MCP_GATEKEEPER__OPENAI__BASE_URL
+[[ -n "${LINUX_MCP_GATEKEEPER__OPENAI__TEMPLATE_KWARGS:-}" ]] && export LINUX_MCP_GATEKEEPER__OPENAI__TEMPLATE_KWARGS
+[[ -n "${LINUX_MCP_GATEKEEPER__VERTEX_AI__PROJECT:-}" ]] && export LINUX_MCP_GATEKEEPER__VERTEX_AI__PROJECT
 
 variant_suffix=""
 if [[ -n "$variant" ]] ; then
