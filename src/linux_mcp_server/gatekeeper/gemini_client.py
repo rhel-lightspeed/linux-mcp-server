@@ -10,6 +10,7 @@ from linux_mcp_server.gatekeeper.http_utils import DEFAULT_TIMEOUT_SECONDS
 from linux_mcp_server.gatekeeper.http_utils import normalize_model_id
 from linux_mcp_server.gatekeeper.http_utils import post_json
 from linux_mcp_server.gatekeeper.schema import gemini_generation_config
+from linux_mcp_server.gatekeeper.usage import extract_gemini_usage
 from linux_mcp_server.models import GatekeeperCompletion
 
 
@@ -73,4 +74,9 @@ def complete_gemini(prompt: str, *, max_tokens: int, timeout: int = DEFAULT_TIME
         body=build_gemini_body(prompt, max_tokens=max_tokens),
         timeout=timeout,
     )
-    return GatekeeperCompletion(text=extract_gemini_text(response))
+    usage = extract_gemini_usage(response)
+    return GatekeeperCompletion(
+        text=extract_gemini_text(response),
+        prompt_tokens=usage.input_tokens,
+        completion_tokens=usage.output_tokens,
+    )

@@ -2,8 +2,10 @@ import typing as t
 
 from datetime import datetime
 from pathlib import Path
+from typing import Literal
 
 from pydantic import BaseModel
+from pydantic import ConfigDict
 from pydantic import Field
 from pydantic import field_serializer
 from pydantic import model_validator
@@ -205,3 +207,21 @@ class GatekeeperCompletion(BaseModel):
     prompt_tokens: int = 0
     completion_tokens: int = 0
     usage_cost: float | None = None
+
+
+### Cost models ###
+CostSource = Literal["api", "config", "models_dev", "fallback", "local"]
+
+
+class Usage(BaseModel):
+    input_tokens: int = 0
+    output_tokens: int = 0
+    cost: float | None = None
+
+
+class TokenRates(BaseModel):
+    model_config = ConfigDict(frozen=True)
+
+    input_per_token: float
+    output_per_token: float
+    source: CostSource

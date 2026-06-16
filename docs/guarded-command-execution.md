@@ -145,6 +145,17 @@ LINUX_MCP_GATEKEEPER__VERTEX_AI__PROJECT=my-gcp-project
 GOOGLE_APPLICATION_CREDENTIALS=<path-to-service-account.json>
 ```
 
+**Gatekeeper cost estimation**
+
+Eval runs and gatekeeper stats report an estimated dollar cost per check. Resolution order:
+
+1. **API-reported cost** — OpenRouter `usage.cost` when present.
+2. **Config override** — `LINUX_MCP_GATEKEEPER__COST` as `input$/token:output$/token` (useful for Vertex MaaS eval models).
+3. **models.dev** — runtime pricing lookup with a vendored snapshot fallback when the network is unavailable.
+4. **Local inference** — OpenAI-compatible providers pointed at `localhost` / `127.0.0.1` (e.g. llama.cpp) report `$0`.
+5. **Fallback** — hardcoded rates for known eval models, then a conservative cloud default.
+
+Totals are **estimates** except when OpenRouter returns API-reported cost. Token counts come from each provider's usage metadata in the completion response.
 
 **Configure your client's tool policy**
 

@@ -13,6 +13,8 @@ from linux_mcp_server.gatekeeper.http_utils import normalize_model_id
 from linux_mcp_server.gatekeeper.http_utils import post_json
 from linux_mcp_server.gatekeeper.schema import openai_response_format
 from linux_mcp_server.gatekeeper.schema import openai_text_format
+from linux_mcp_server.gatekeeper.usage import extract_openai_chat_completions_usage
+from linux_mcp_server.gatekeeper.usage import extract_openai_responses_usage
 from linux_mcp_server.models import GatekeeperCompletion
 
 
@@ -138,7 +140,12 @@ def complete_openai(prompt: str, *, max_tokens: int, timeout: int = DEFAULT_TIME
                 body=_build_responses_body(prompt, max_tokens=max_tokens),
                 timeout=timeout,
             )
-            return GatekeeperCompletion(text=_extract_responses_text(response))
+            usage = extract_openai_responses_usage(response)
+            return GatekeeperCompletion(
+                text=_extract_responses_text(response),
+                prompt_tokens=usage.input_tokens,
+                completion_tokens=usage.output_tokens,
+            )
         except GatekeeperHTTPError as exc:
             if exc.status_code not in {404, 405}:
                 raise
@@ -150,4 +157,9 @@ def complete_openai(prompt: str, *, max_tokens: int, timeout: int = DEFAULT_TIME
         body=build_chat_completions_body(prompt, max_tokens=max_tokens),
         timeout=timeout,
     )
-    return GatekeeperCompletion(text=extract_chat_completions_text(response))
+    usage = extract_openai_chat_completions_usage(response)
+    return GatekeeperCompletion(
+        text=extract_chat_completions_text(response),
+        prompt_tokens=usage.input_tokens,
+        completion_tokens=usage.output_tokens,
+    )
