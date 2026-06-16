@@ -166,6 +166,7 @@ class TestCheckRunScript:
         )
 
         assert stats.cost == pytest.approx(100 * 1e-6 + 50 * 4e-6)
+        assert stats.cost_source == "config"
 
     async def test_openrouter_usage_cost(self, mocker):
         mocker.patch.object(
@@ -186,6 +187,7 @@ class TestCheckRunScript:
         assert stats.prompt_tokens == 10
         assert stats.completion_tokens == 5
         assert stats.cost == 0.42
+        assert stats.cost_source == "api"
 
 
 class TestGatekeeperConfigIntegration:

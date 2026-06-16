@@ -10,6 +10,7 @@ from linux_mcp_server.gatekeeper.http_utils import DEFAULT_TIMEOUT_SECONDS
 from linux_mcp_server.gatekeeper.http_utils import normalize_model_id
 from linux_mcp_server.gatekeeper.http_utils import post_json
 from linux_mcp_server.gatekeeper.schema import anthropic_output_config
+from linux_mcp_server.gatekeeper.usage import extract_anthropic_usage
 from linux_mcp_server.models import GatekeeperCompletion
 
 
@@ -78,4 +79,9 @@ def complete_anthropic(prompt: str, *, max_tokens: int, timeout: int = DEFAULT_T
         body=build_messages_body(prompt, include_model=True, max_tokens=max_tokens),
         timeout=timeout,
     )
-    return GatekeeperCompletion(text=extract_messages_text(response))
+    usage = extract_anthropic_usage(response)
+    return GatekeeperCompletion(
+        text=extract_messages_text(response),
+        prompt_tokens=usage.input_tokens,
+        completion_tokens=usage.output_tokens,
+    )

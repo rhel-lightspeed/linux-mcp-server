@@ -7,6 +7,8 @@ from pydantic import ValidationError
 
 from linux_mcp_server.config import CONFIG
 from linux_mcp_server.gatekeeper.llm import complete_gatekeeper
+from linux_mcp_server.gatekeeper.pricing import compute_cost
+from linux_mcp_server.gatekeeper.pricing import CostSource
 from linux_mcp_server.utils import StrEnum
 
 
@@ -184,6 +186,7 @@ class GatekeeperStats(BaseModel):
     prompt_tokens: int = 0
     completion_tokens: int = 0
     cost: float = 0
+    cost_source: CostSource | None = None
     latency: float = 0
 
 
@@ -191,15 +194,6 @@ class GatekeeperException(Exception):
     def __init__(self, message: str, *, stats: GatekeeperStats | None = None):
         super().__init__(message)
         self.stats = stats
-
-
-def _compute_cost(prompt_tokens: int, completion_tokens: int, *, usage_cost: float | None = None) -> float:
-    if usage_cost is not None:
-        return usage_cost
-    if CONFIG.gatekeeper.cost is None:
-        return 0.0
-    input_cost, output_cost = CONFIG.gatekeeper.cost
-    return prompt_tokens * input_cost + completion_tokens * output_cost
 
 
 async def check_run_script_with_stats(
@@ -234,14 +228,17 @@ async def check_run_script_with_stats(
     except asyncio.TimeoutError:
         raise GatekeeperException("Timeout calling gatekeeper model") from None
 
+    cost, cost_source = compute_cost(
+        completion.prompt_tokens,
+        completion.completion_tokens,
+        usage_cost=completion.usage_cost,
+    )
+
     stats = GatekeeperStats(
         prompt_tokens=completion.prompt_tokens,
         completion_tokens=completion.completion_tokens,
-        cost=_compute_cost(
-            completion.prompt_tokens,
-            completion.completion_tokens,
-            usage_cost=completion.usage_cost,
-        ),
+        cost=cost,
+        cost_source=cost_source,
         latency=time.perf_counter() - time_before,
     )
 

@@ -29,12 +29,17 @@ class TestAnthropicClient:
     def test_complete_anthropic_direct(self, gatekeeper_config, mocker):
         mock_post = mocker.patch(
             "linux_mcp_server.gatekeeper.anthropic_client.post_json",
-            return_value={"content": [{"type": "text", "text": '{"status": "OK", "detail": ""}'}]},
+            return_value={
+                "content": [{"type": "text", "text": '{"status": "OK", "detail": ""}'}],
+                "usage": {"input_tokens": 30, "output_tokens": 10},
+            },
         )
 
         result = anthropic_client.complete_anthropic("prompt", max_tokens=8000)
 
         assert result.text == '{"status": "OK", "detail": ""}'
+        assert result.prompt_tokens == 30
+        assert result.completion_tokens == 10
         assert mock_post.call_args.kwargs["url"] == "https://api.anthropic.com/v1/messages"
         body = mock_post.call_args.kwargs["body"]
         assert body["model"] == "claude-sonnet-4-6"
