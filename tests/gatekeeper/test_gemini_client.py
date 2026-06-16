@@ -29,12 +29,17 @@ class TestGeminiClient:
     def test_complete_gemini_google_ai(self, gatekeeper_config, mocker):
         mock_post = mocker.patch(
             "linux_mcp_server.gatekeeper.gemini_client.post_json",
-            return_value={"candidates": [{"content": {"parts": [{"text": '{"status": "OK"}'}]}}]},
+            return_value={
+                "candidates": [{"content": {"parts": [{"text": '{"status": "OK"}'}]}}],
+                "usageMetadata": {"promptTokenCount": 15, "candidatesTokenCount": 6},
+            },
         )
 
         result = gemini_client.complete_gemini("prompt", max_tokens=8000)
 
         assert result.text == '{"status": "OK"}'
+        assert result.prompt_tokens == 15
+        assert result.completion_tokens == 6
         url = mock_post.call_args.kwargs["url"]
         assert "generativelanguage.googleapis.com" in url
         assert "key=test-key" in url

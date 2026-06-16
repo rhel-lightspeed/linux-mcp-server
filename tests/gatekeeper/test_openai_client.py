@@ -53,12 +53,17 @@ class TestOpenAIClient:
     def test_complete_openai_uses_responses_api(self, gatekeeper_config, mocker):
         mock_post = mocker.patch(
             "linux_mcp_server.gatekeeper.openai_client.post_json",
-            return_value={"output_text": '{"status": "OK", "detail": ""}'},
+            return_value={
+                "output_text": '{"status": "OK", "detail": ""}',
+                "usage": {"input_tokens": 11, "output_tokens": 4},
+            },
         )
 
         result = openai_client.complete_openai("prompt", max_tokens=8000)
 
         assert result.text == '{"status": "OK", "detail": ""}'
+        assert result.prompt_tokens == 11
+        assert result.completion_tokens == 4
         assert mock_post.call_args.kwargs["url"] == "https://api.openai.com/v1/responses"
         body = mock_post.call_args.kwargs["body"]
         assert body["model"] == "gpt-5.4"
@@ -83,13 +88,18 @@ class TestOpenAIClient:
             "linux_mcp_server.gatekeeper.openai_client.post_json",
             side_effect=[
                 GatekeeperHTTPError("openai", 404, "not found"),
-                {"choices": [{"message": {"content": '{"status": "OK", "detail": ""}'}}]},
+                {
+                    "choices": [{"message": {"content": '{"status": "OK", "detail": ""}'}}],
+                    "usage": {"prompt_tokens": 9, "completion_tokens": 2},
+                },
             ],
         )
 
         result = openai_client.complete_openai("prompt", max_tokens=8000)
 
         assert result.text == '{"status": "OK", "detail": ""}'
+        assert result.prompt_tokens == 9
+        assert result.completion_tokens == 2
         assert mock_post.call_args_list[0].kwargs["url"] == "https://models.example.com/v1/responses"
         assert mock_post.call_args_list[1].kwargs["url"] == "https://models.example.com/v1/chat/completions"
         body = mock_post.call_args_list[1].kwargs["body"]

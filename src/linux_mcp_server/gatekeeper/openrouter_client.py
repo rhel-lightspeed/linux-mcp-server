@@ -9,6 +9,7 @@ from linux_mcp_server.config import ReasoningEffort
 from linux_mcp_server.gatekeeper.http_utils import DEFAULT_TIMEOUT_SECONDS
 from linux_mcp_server.gatekeeper.http_utils import post_json
 from linux_mcp_server.gatekeeper.schema import openai_response_format
+from linux_mcp_server.gatekeeper.usage import extract_openrouter_usage
 from linux_mcp_server.models import GatekeeperCompletion
 
 
@@ -86,20 +87,6 @@ def _extract_chat_completions_text(response: dict[str, Any]) -> str:
     return (content or "").strip() if isinstance(content, str) else ""
 
 
-def _extract_usage(response: dict[str, Any]) -> tuple[int, int, float | None]:
-    usage = response.get("usage", {})
-    if not isinstance(usage, dict):
-        return 0, 0, None
-    prompt_tokens = usage.get("prompt_tokens", 0)
-    completion_tokens = usage.get("completion_tokens", 0)
-    cost = usage.get("cost")
-    return (
-        int(prompt_tokens) if isinstance(prompt_tokens, int) else 0,
-        int(completion_tokens) if isinstance(completion_tokens, int) else 0,
-        float(cost) if isinstance(cost, (int, float)) else None,
-    )
-
-
 def complete_openrouter(
     prompt: str, *, max_tokens: int, timeout: int = DEFAULT_TIMEOUT_SECONDS
 ) -> GatekeeperCompletion:
@@ -115,10 +102,10 @@ def complete_openrouter(
         body=_build_chat_completions_body(prompt, max_tokens=max_tokens),
         timeout=timeout,
     )
-    prompt_tokens, completion_tokens, usage_cost = _extract_usage(response)
+    usage = extract_openrouter_usage(response)
     return GatekeeperCompletion(
         text=_extract_chat_completions_text(response),
-        prompt_tokens=prompt_tokens,
-        completion_tokens=completion_tokens,
-        usage_cost=usage_cost,
+        prompt_tokens=usage.input_tokens,
+        completion_tokens=usage.output_tokens,
+        usage_cost=usage.cost,
     )
