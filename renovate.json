@@ -29,9 +29,12 @@
         "pipenv"
       ],
       "matchUpdateTypes": ["minor", "patch", "pin", "digest"],
-      "excludePackageNames": ["fastmcp", "litellm"],
       "groupName": "non-major Python updates",
-      "groupSlug": "python-non-major"
+      "groupSlug": "python-non-major",
+      "matchPackageNames": [
+        "!fastmcp",
+        "!litellm"
+      ]
     },
     {
       "description": "Exclude FastMCP and LiteLLM from grouping",
