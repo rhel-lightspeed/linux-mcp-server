@@ -76,6 +76,96 @@ These are used when `LINUX_MCP_TOOLSET` is set to `run_script` or `both`.
 
 See [Debug Logging](debugging.md) for details on log formats and locations.
 
+## Authorization Configuration
+
+These settings enable OAuth2 authentication for the HTTP transport. See [Shared Server](shared.md) for an overview of authorization concepts and setup.
+
+| Option / Env Var | Default | Description |
+|------------------|---------|-------------|
+| `--auth.provider`<br>`LINUX_MCP_AUTH__PROVIDER` | *(none)* | Authorization provider: `google`, `github`, `jwt`, or `introspection` |
+| `--policy-path`<br>`LINUX_MCP_POLICY_PATH` | *(none)* | Path to [authorization policy](#authorization-policy) YAML file |
+
+The behavior when `--policy-path` is not specified varies by transport:
+
+ - `stdio`: all access is allowed - the default action is `local` for `localhost` and `ssh_default` otherwise.
+ - `http`: all access is denied
+
+*Note*: `--policy-path` can be specified for the `stdio` transport, but is not typically useful. All rules must have `all_users: true` since there are no token claims to match on.
+
+## Authorization Providers
+
+Each provider requires its own set of configuration options, described below. Only the settings for the selected `--auth.provider` need to be configured.
+
+### Google
+
+Uses Google OAuth for authentication. Suitable for testing or environments where users have Google accounts.
+
+| Option / Env Var | Default | Description |
+|------------------|---------|-------------|
+| `--auth.google.client_id`<br>`LINUX_MCP_AUTH__GOOGLE__CLIENT_ID` | *(required)* | Google OAuth client ID |
+| `--auth.google.client_secret`<br>`LINUX_MCP_AUTH__GOOGLE__CLIENT_SECRET` | *(required)* | Google OAuth client secret |
+
+### GitHub
+
+Uses GitHub OAuth for authentication. Suitable for testing or environments where users have GitHub accounts.
+
+| Option / Env Var | Default | Description |
+|------------------|---------|-------------|
+| `--auth.github.client_id`<br>`LINUX_MCP_AUTH__GITHUB__CLIENT_ID` | *(required)* | GitHub OAuth client ID |
+| `--auth.github.client_secret`<br>`LINUX_MCP_AUTH__GITHUB__CLIENT_SECRET` | *(required)* | GitHub OAuth client secret |
+
+### JWT
+
+Validates JWT tokens locally using a JWKS endpoint. Use this when your authorization server issues JWTs and publishes a JWKS endpoint for token verification.
+
+| Option / Env Var | Default | Description |
+|------------------|---------|-------------|
+| `--auth.jwt.jwks_uri`<br>`LINUX_MCP_AUTH__JWT__JWKS_URI` | *(required)* | URL of the JWKS endpoint for token verification |
+| `--auth.jwt.issuer`<br>`LINUX_MCP_AUTH__JWT__ISSUER` | *(required)* | Expected token issuer (`iss` claim) |
+| `--auth.jwt.audience`<br>`LINUX_MCP_AUTH__JWT__AUDIENCE` | *(none)* | Expected token audience (`aud` claim) |
+
+### Introspection
+
+Validates tokens by sending them back to the authorization server's introspection endpoint. Use this when your authorization server supports [RFC 7662](https://datatracker.ietf.org/doc/html/rfc7662) token introspection.
+
+| Option / Env Var | Default | Description |
+|------------------|---------|-------------|
+| `--auth.introspection.introspection_url`<br>`LINUX_MCP_AUTH__INTROSPECTION__INTROSPECTION_URL` | *(required)* | Token introspection endpoint URL |
+| `--auth.introspection.issuer`<br>`LINUX_MCP_AUTH__INTROSPECTION__ISSUER` | *(required)* | Expected token issuer |
+| `--auth.introspection.client_id`<br>`LINUX_MCP_AUTH__INTROSPECTION__CLIENT_ID` | *(required)* | Client ID for authenticating to the introspection endpoint |
+| `--auth.introspection.client_secret`<br>`LINUX_MCP_AUTH__INTROSPECTION__CLIENT_SECRET` | *(required)* | Client secret for authenticating to the introspection endpoint |
+| `--auth.introspection.timeout_seconds`<br>`LINUX_MCP_AUTH__INTROSPECTION__TIMEOUT_SECONDS` | `10` | Timeout in seconds for introspection requests |
+
+## Authorization Policy
+
+See [Configuring the Authorization policy](shared.md#configuring-the-authorization-policy) for an overview and examples.
+
+An authorization policy is a YAML file with a single toplevel property, `rules`,
+which is a list of rules.
+The rules are checked in order,
+and when a matching rule is found, the action from that rule is used, and processing stops.
+
+Each rule has the following properties that are used for matching:
+
+ - **`host`** (required, string): either `localhost` for local execution or a pattern (with * and ? wildcards) that matches a remote host. `localhost` must be specified literally - `host: *` will *not* match `localhost`.
+ - **`tools`** (required, list of strings) - a list of tool names or toolsets to match. Use `*` to match all tools. A toolset (as for `LINUX_MCP_TOOLSET`) is represented by a `@` prefix. If a tool name is preceded by `-`, that excludes the tool. (Exclusions take precedence, order doesn't matter. Toolsets cannot be excluded.)
+ - **`claims`** (object) - claims from the OAuth2 token to match on. Each item in here is of the form `<claim_name>`: `<value>` with the following match rules:
+    - if `<value>` is a string, and the value from the token is a string, they must match exactly
+    - if `<value>` is a string, and the value from the token is a list, `<value>` must be in the list (example: `groups: app-rhel-mcp-server-users`)
+    - for all other types for `<value>` the values must match exactly (example: `email_verified: true`)
+ - **`all_users`** (boolean) - `true` if this rule should match all users. Either `all_users: true` or a non-empty `claims` must be specified; a rule with `all_users: false` (the default) and no `claims` is invalid.
+
+The rule also specifies an action and, if the action is `ssh_key`, additional properties for that action.
+
+ - **`action`** (one of `deny`, `local`, `ssh_default`, `ssh_key`) - what to do for a matching rule
+    - **`deny`** - deny execution of the tool
+    - **`local`** - allow the tool to be executed on the local system
+    - **`ssh_default`** - allow the tool to be executed on a remote system, using default SSH key lookup
+    - **`ssh_key`** - allow the tool to be executed on a remote system using a specific SSH key identified by path
+ - **`ssh_key`**: Required when `action` is `ssh_key`.
+    - **`path`**: (string) - path to an SSH key to use to connect to a remote system
+    - **`user`**: (string) - username to use on the remote system
+
 ## Examples
 
 **Specify SSH settings:**

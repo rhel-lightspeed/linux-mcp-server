@@ -60,6 +60,7 @@ nav:
       - SSH Configuration: ssh.md
       - Client Configuration: clients.md
       - Troubleshooting: troubleshooting.md
+      - Shared Server: shared.md
   - Usage:
       - Configuration Reference: config-reference.md
       - Guarded Command Execution: guarded-command-execution.md
