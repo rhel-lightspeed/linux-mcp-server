@@ -18,6 +18,9 @@ spec:
     - name: version
       description: Version that is also a valid container tag
 
+    - name: release_type
+      description: Floating tag we should use for this release (latest/dev)
+
   volumes:
     - name: workdir
       emptyDir: {}
@@ -57,5 +60,12 @@ spec:
         pseudo_version="$(hatch version)"
         version="${pseudo_version%%+*}"
 
+        if [[ "$pseudo_version" == *dev* ]]; then
+          release_type="dev"
+        else
+          release_type="latest"
+        fi
+
         echo -n "$pseudo_version" | tee "$(results.pseudo_version.path)"
         echo -n "$version" | tee "$(results.version.path)"
+        echo -n "$release_type" | tee "$(results.release_type.path)"
