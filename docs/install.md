@@ -50,77 +50,47 @@ sudo dnf install linux-mcp-server
 
 ---
 
-## Run in a container (Podman)
+## Run in a container
 
-A container runtime such as [Podman](https://podman-desktop.io) is required.
+Instead of installing the Python code for linux-mcp-server directly on your system, you can run
+the MCP server from a prebuilt container instead.  A container runtime such as [Podman](https://podman-desktop.io)
+(recommended) or [Docker](https://docs.docker.com/desktop/) is required.
 
 **Container image:**
 ```
 quay.io/redhat-services-prod/rhel-lightspeed-tenant/linux-mcp-server:latest
 ```
 
-See [Client Configuration](clients.md) for examples of how to run the container using stdio transport.
+### Container Setup (Podman)
 
-When using an HTTP transport, the container must be started before launching the MCP client:
+Before running linux-mcp-server with podman, we need to create the directory where
+the logs will be stored:
 
 ```bash
-podman run --rm --interactive \
-  --userns "keep-id:uid=1001,gid=0" \
-  --port 8000:8000 \
-  -e LINUX_MCP_KEY_PASSPHRASE \
-  -e LINUX_MCP_TRANSPORT=http \
-  -e LINUX_MCP_HOST=0.0.0.0 \
-  -v /home/YOUR_USER/.ssh/id_ed25519:/var/lib/mcp/.ssh/id_ed25519:ro \
-  -v /home/YOUR_USER/.ssh/config:/var/lib/mcp/.ssh/config:ro,Z \
-  -v /home/YOUR_USER/.local/share/linux-mcp-server/logs:/var/lib/mcp/.local/share/linux-mcp-server/logs:rw \
-  quay.io/redhat-services-prod/rhel-lightspeed-tenant/linux-mcp-server:latest
+mkdir -p ~/.local/share/linux-mcp-server/logs
 ```
 
-### Container Setup for SSH Keys
+### Container Setup (Docker)
 
-The container needs access to your SSH keys for remote connections. Set up the required directories and permissions:
+When running linux-mcp-server with docker, the container runs as a non-root user (UID 1001).
+Files mounted from your host must be readable by this user.
+
+The container needs access to your SSH keys for remote connections. You'll need to make a copy that is readable by the container:
 
 ```bash
 # Create directories
-mkdir -p ~/.local/share/linux-mcp-server/logs
+mkdir -p ~/.local/share/linux-mcp-server/{logs,ssh}
 
-# Copy your SSH key and set ownership
-cp ~/.ssh/id_ed25519 ~/.local/share/linux-mcp-server/
+# Copy your SSH keys/configs and set ownership (exact files will vary)
+cp ~/.ssh/config ~/.local/share/linux-mcp-server/ssh/config
+cp ~/.ssh/id_ed25519 ~/.local/share/linux-mcp-server/ssh
 sudo chown -R 1001:1001 ~/.local/share/linux-mcp-server/
 ```
 
-??? info "Why UID 1001? Understanding container permissions"
+## Configuring your client
 
-    **The container runs as a non-root user** (UID 1001) for security. Files mounted from your host must be readable by this user.
+See [Client Configuration](clients.md) for specific examples. Make sure to modify the provided podman or docker command lines to have the correct paths.
 
-    **What's happening:**
-
-    - The container process runs as user ID `1001`, not your host user
-    - Mounted SSH keys must be owned by `1001` to be readable
-    - Log directory must be writable by `1001` to store logs
-
-    **If you see permission errors:**
-
-    ```bash
-    # Check current ownership
-    ls -la ~/.local/share/linux-mcp-server/
-
-    # Fix ownership (should show 1001 as owner)
-    sudo chown -R 1001:1001 ~/.local/share/linux-mcp-server/
-    ```
-
-??? warning "Docker vs Podman differences"
-
-    **Podman** uses `--userns keep-id:uid=1001,gid=0` to map user namespaces.
-
-    **Docker** does NOT support this flag. When using Docker:
-
-    - Remove the `--userns` parameter from the run command
-    - Ensure files are owned by UID 1001 on the host
-    - Create directories beforehand (Docker won't auto-create them)
-
-
-Once the SSH keys are configured, configure your [MCP client](clients.md) to run the container image. It is not necessary to run the container manually since the MCP client will do that.
 
 ---
 
