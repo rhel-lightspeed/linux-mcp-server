@@ -91,13 +91,13 @@ class TestVertexAIClient:
         mock_post = mocker.patch(
             "linux_mcp_server.gatekeeper.vertex_ai_client.post_json",
             new_callable=mocker.AsyncMock,
-            return_value={"choices": [{"message": {"content": '{"status": "OK"}'}}]},
+            return_value={"output_text": '{"status": "OK"}'},
         )
 
         result = await vertex_ai_client.complete_vertex_ai("prompt", max_tokens=8000)
 
         assert result.text == '{"status": "OK"}'
-        assert mock_post.call_args.kwargs["url"].endswith("/chat/completions")
+        assert mock_post.call_args.kwargs["url"].endswith("/responses")
         assert mock_post.call_args.kwargs["headers"]["Authorization"] == "Bearer gcp-token"
 
     async def test_custom_openapi_base_url(self, gatekeeper_config, mocker):
@@ -109,7 +109,7 @@ class TestVertexAIClient:
         mock_post = mocker.patch(
             "linux_mcp_server.gatekeeper.vertex_ai_client.post_json",
             new_callable=mocker.AsyncMock,
-            return_value={"choices": [{"message": {"content": '{"status": "OK"}'}}]},
+            return_value={"output_text": '{"status": "OK"}'},
         )
 
         await vertex_ai_client.complete_vertex_ai("prompt", max_tokens=8000)

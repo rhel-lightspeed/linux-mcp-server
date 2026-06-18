@@ -232,7 +232,7 @@ class TestGatekeeperConfigIntegration:
         mock_post = mocker.patch(
             "linux_mcp_server.gatekeeper.vertex_ai_client.post_json",
             new_callable=mocker.AsyncMock,
-            return_value={"choices": [{"message": {"content": '{"status": "OK"}'}}]},
+            return_value={"output_text": '{"status": "OK", "detail": ""}'},
         )
         mocker.patch.object(
             CONFIG,
@@ -251,5 +251,5 @@ class TestGatekeeperConfigIntegration:
 
         await check_run_script(description="test", script_type="bash", script="echo hi", readonly=True)
 
-        assert mock_post.call_args.kwargs["url"].endswith("/chat/completions")
+        assert mock_post.call_args.kwargs["url"].endswith("/responses")
         assert mock_post.call_args.kwargs["headers"]["Authorization"] == "Bearer gcp-token"
