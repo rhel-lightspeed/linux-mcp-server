@@ -12,11 +12,11 @@ from linux_mcp_server.gatekeeper.gemini_client import extract_gemini_text
 from linux_mcp_server.gatekeeper.http_utils import DEFAULT_TIMEOUT_SECONDS
 from linux_mcp_server.gatekeeper.http_utils import normalize_model_id
 from linux_mcp_server.gatekeeper.http_utils import post_json
-from linux_mcp_server.gatekeeper.openai_client import build_chat_completions_body
-from linux_mcp_server.gatekeeper.openai_client import extract_chat_completions_text
+from linux_mcp_server.gatekeeper.openai_client import _build_responses_body
+from linux_mcp_server.gatekeeper.openai_client import _extract_responses_text
 from linux_mcp_server.gatekeeper.usage import extract_anthropic_usage
 from linux_mcp_server.gatekeeper.usage import extract_gemini_usage
-from linux_mcp_server.gatekeeper.usage import extract_openai_chat_completions_usage
+from linux_mcp_server.gatekeeper.usage import extract_openai_responses_usage
 from linux_mcp_server.models import GatekeeperCompletion
 
 
@@ -104,14 +104,14 @@ async def _complete_openai_compatible_on_vertex(prompt: str, *, max_tokens: int,
     base_url = _get_vertex_openapi_base_url()
     response = await post_json(
         provider="openai",
-        url=f"{base_url}/chat/completions",
+        url=f"{base_url}/responses",
         headers={**_vertex_auth_headers(), "Content-Type": "application/json"},
-        body=build_chat_completions_body(prompt, max_tokens=max_tokens),
+        body=_build_responses_body(prompt, max_tokens=max_tokens),
         timeout=timeout,
     )
-    usage = extract_openai_chat_completions_usage(response)
+    usage = extract_openai_responses_usage(response)
     return GatekeeperCompletion(
-        text=extract_chat_completions_text(response),
+        text=_extract_responses_text(response),
         prompt_tokens=usage.input_tokens,
         completion_tokens=usage.output_tokens,
     )
