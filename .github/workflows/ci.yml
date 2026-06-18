@@ -42,7 +42,7 @@ jobs:
         uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6.0.3
 
       - name: Install Python
-        uses: actions/setup-python@v6.2.0
+        uses: actions/setup-python@a309ff8b426b58ec0e2a45f0f869d46889d02405 # v6.2.0
         with:
           python-version-file: pyproject.toml
 
@@ -53,7 +53,7 @@ jobs:
           prune-cache: false
       
       - name: Install Node.js
-        uses: actions/setup-node@v6.4.0
+        uses: actions/setup-node@48b55a011bda9f5d6aeb4c2d9c7362e8dae4041e # v6.4.0
         with:
           node-version: '24'
 
@@ -97,7 +97,7 @@ jobs:
         uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6.0.3
 
       - name: Install Python
-        uses: actions/setup-python@v6.2.0
+        uses: actions/setup-python@a309ff8b426b58ec0e2a45f0f869d46889d02405 # v6.2.0
         with:
           python-version: ${{ matrix.python-version }}
 
@@ -128,7 +128,7 @@ jobs:
         run: uv run --locked pytest --cov-report=xml
 
       - name: Upload coverage report
-        uses: codecov/codecov-action@v7.0.0
+        uses: codecov/codecov-action@fb8b3582c8e4def4969c97caa2f19720cb33a72f # v7.0.0
         with:
           env_vars: OS,PYTHON
           disable_search: true
