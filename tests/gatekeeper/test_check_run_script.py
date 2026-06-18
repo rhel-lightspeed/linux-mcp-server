@@ -1,5 +1,5 @@
+import asyncio
 import importlib
-import time
 
 import pytest
 
@@ -79,13 +79,11 @@ class TestCheckRunScript:
         mocker.patch.object(CONFIG.gatekeeper, "model", "gpt-5.4")
         mocker.patch.object(CONFIG.gatekeeper, "provider", GatekeeperProvider.OPENAI)
 
-        def _completion(text: str) -> GatekeeperCompletion:
-            return GatekeeperCompletion(text=text)
-
         return mocker.patch.object(
             check_run_script_module,
             "complete_gatekeeper",
-            side_effect=lambda prompt, **kwargs: _completion('{"status": "OK", "detail": ""}'),
+            new_callable=mocker.AsyncMock,
+            return_value=GatekeeperCompletion(text='{"status": "OK", "detail": ""}'),
         )
 
     async def test_rejects_script_with_prompt_injection_attempts(self):
@@ -109,6 +107,7 @@ class TestCheckRunScript:
         mocker.patch.object(
             check_run_script_module,
             "complete_gatekeeper",
+            new_callable=mocker.AsyncMock,
             return_value=GatekeeperCompletion(text='{"status": "OK"}'),
         )
 
@@ -121,6 +120,7 @@ class TestCheckRunScript:
         mocker.patch.object(
             check_run_script_module,
             "complete_gatekeeper",
+            new_callable=mocker.AsyncMock,
             return_value=GatekeeperCompletion(text=response_text),
         )
 
@@ -128,8 +128,8 @@ class TestCheckRunScript:
             await check_run_script(description="test", script_type="bash", script="echo hi", readonly=True)
 
     async def test_timeout(self, mocker):
-        def slow_complete(_prompt: str, **kwargs: object) -> GatekeeperCompletion:
-            time.sleep(10)
+        async def slow_complete(_prompt: str, **kwargs: object) -> GatekeeperCompletion:
+            await asyncio.sleep(10)
             return GatekeeperCompletion(text='{"status": "OK"}')
 
         mocker.patch.object(
@@ -156,6 +156,7 @@ class TestCheckRunScript:
         mocker.patch.object(
             check_run_script_module,
             "complete_gatekeeper",
+            new_callable=mocker.AsyncMock,
             return_value=GatekeeperCompletion(
                 text='{"status": "OK", "detail": ""}', prompt_tokens=100, completion_tokens=50
             ),
@@ -172,6 +173,7 @@ class TestCheckRunScript:
         mocker.patch.object(
             check_run_script_module,
             "complete_gatekeeper",
+            new_callable=mocker.AsyncMock,
             return_value=GatekeeperCompletion(
                 text='{"status": "OK", "detail": ""}',
                 prompt_tokens=10,
@@ -196,6 +198,7 @@ class TestGatekeeperConfigIntegration:
         mocker.patch.dict("os.environ", {"OPENAI_API_KEY": "test-key"}, clear=False)
         return mocker.patch(
             "linux_mcp_server.gatekeeper.openai_client.post_json",
+            new_callable=mocker.AsyncMock,
             return_value={"output_text": '{"status": "OK", "detail": ""}'},
         )
 
@@ -228,6 +231,7 @@ class TestGatekeeperConfigIntegration:
         )
         mock_post = mocker.patch(
             "linux_mcp_server.gatekeeper.vertex_ai_client.post_json",
+            new_callable=mocker.AsyncMock,
             return_value={"choices": [{"message": {"content": '{"status": "OK"}'}}]},
         )
         mocker.patch.object(

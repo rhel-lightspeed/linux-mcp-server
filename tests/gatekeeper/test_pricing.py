@@ -69,7 +69,7 @@ class TestComputeCost:
 
     def test_fetch_failure_uses_vendored_fallback(self, gatekeeper_config, mocker):
         gatekeeper_config.cost = None
-        mocker.patch("linux_mcp_server.gatekeeper.pricing.requests.get", side_effect=OSError("offline"))
+        mocker.patch("linux_mcp_server.gatekeeper.pricing.httpx.Client", side_effect=OSError("offline"))
         cost, source = pricing.compute_cost(1_000_000, 0, usage_cost=None)
         assert cost == pytest.approx(3.0)
         assert source == "models_dev"

@@ -26,16 +26,17 @@ class TestGeminiClient:
         mocker.patch.object(CONFIG, "gatekeeper", config)
         return config
 
-    def test_complete_gemini_google_ai(self, gatekeeper_config, mocker):
+    async def test_complete_gemini_google_ai(self, gatekeeper_config, mocker):
         mock_post = mocker.patch(
             "linux_mcp_server.gatekeeper.gemini_client.post_json",
+            new_callable=mocker.AsyncMock,
             return_value={
                 "candidates": [{"content": {"parts": [{"text": '{"status": "OK"}'}]}}],
                 "usageMetadata": {"promptTokenCount": 15, "candidatesTokenCount": 6},
             },
         )
 
-        result = gemini_client.complete_gemini("prompt", max_tokens=8000)
+        result = await gemini_client.complete_gemini("prompt", max_tokens=8000)
 
         assert result.text == '{"status": "OK"}'
         assert result.prompt_tokens == 15

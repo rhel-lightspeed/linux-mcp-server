@@ -33,27 +33,34 @@ class TestResolveProvider:
 
 
 class TestCompleteGatekeeper:
-    def test_routes_to_openai(self, mocker):
+    async def test_routes_to_openai(self, mocker):
         mocker.patch.object(llm_module, "resolve_provider", return_value=GatekeeperProvider.OPENAI)
         expected = GatekeeperCompletion(text='{"status": "OK"}')
-        mock_complete = mocker.patch.object(llm_module, "complete_openai", return_value=expected)
-        result = complete_gatekeeper("prompt", max_tokens=8000)
+        mock_complete = mocker.patch.object(
+            llm_module, "complete_openai", new_callable=mocker.AsyncMock, return_value=expected
+        )
+        result = await complete_gatekeeper("prompt", max_tokens=8000)
         assert result == expected
         mock_complete.assert_called_once_with("prompt", max_tokens=8000)
 
-    def test_routes_to_openrouter(self, mocker):
+    async def test_routes_to_openrouter(self, mocker):
         mocker.patch.object(llm_module, "resolve_provider", return_value=GatekeeperProvider.OPENROUTER)
         expected = GatekeeperCompletion(text='{"status": "OK"}', prompt_tokens=1, completion_tokens=2, usage_cost=0.5)
-        mock_complete = mocker.patch.object(llm_module, "complete_openrouter", return_value=expected)
-        result = complete_gatekeeper("prompt", max_tokens=8000)
+        mock_complete = mocker.patch.object(
+            llm_module, "complete_openrouter", new_callable=mocker.AsyncMock, return_value=expected
+        )
+        result = await complete_gatekeeper("prompt", max_tokens=8000)
         assert result == expected
         mock_complete.assert_called_once_with("prompt", max_tokens=8000)
 
-    def test_routes_to_vertex_ai(self, mocker):
+    async def test_routes_to_vertex_ai(self, mocker):
         mocker.patch.object(llm_module, "resolve_provider", return_value=GatekeeperProvider.VERTEX_AI)
         mock_complete = mocker.patch.object(
-            llm_module, "complete_vertex_ai", return_value=GatekeeperCompletion(text='{"status": "OK"}')
+            llm_module,
+            "complete_vertex_ai",
+            new_callable=mocker.AsyncMock,
+            return_value=GatekeeperCompletion(text='{"status": "OK"}'),
         )
-        result = complete_gatekeeper("prompt", max_tokens=8000)
+        result = await complete_gatekeeper("prompt", max_tokens=8000)
         assert result.text == '{"status": "OK"}'
         mock_complete.assert_called_once_with("prompt", max_tokens=8000)

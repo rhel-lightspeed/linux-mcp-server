@@ -4,11 +4,12 @@ import json
 import logging
 import os
 
+from functools import cache
 from pathlib import Path
 from typing import Any
 from urllib.parse import urlparse
 
-import requests
+import httpx
 
 from linux_mcp_server.config import CONFIG
 from linux_mcp_server.config import GatekeeperProvider
@@ -84,23 +85,19 @@ def _load_models_dev_fallback() -> dict[str, Any]:
         return json.load(handle)
 
 
+@cache
 def _load_models_dev_pricing() -> dict[str, Any]:
     """Loads the pricing from the models.dev API, falling back to the vendored fallback if the API is not available."""
-    global _models_dev_cache
-    if _models_dev_cache is not None:
-        return _models_dev_cache
-
     try:
-        response = requests.get(MODELS_DEV_API_URL, timeout=10)
-        response.raise_for_status()
-        _models_dev_cache = response.json()
-        logger.debug("Loaded gatekeeper pricing from models.dev API")
+        with httpx.Client(timeout=10) as client:
+            response = client.get(MODELS_DEV_API_URL)
+            response.raise_for_status()
+            pricing = response.json()
+            logger.debug("Loaded gatekeeper pricing from models.dev API", extra={"pricing": pricing})
+            return pricing
     except Exception as exc:
         logger.debug("Failed to fetch models.dev pricing (%s); using vendored fallback", exc)
-        _models_dev_cache = _load_models_dev_fallback()
-
-    assert _models_dev_cache is not None
-    return _models_dev_cache
+        return _load_models_dev_fallback()
 
 
 def _lookup_models_dev_cost(provider_key: str, model: str) -> tuple[float, float] | None:
