@@ -2,10 +2,12 @@
 
 from typing import Any
 
-import requests
+import httpx
 
 
 DEFAULT_TIMEOUT_SECONDS = 120
+
+HTTP_CLIENT = httpx.AsyncClient()
 
 
 class GatekeeperHTTPError(RuntimeError):
@@ -19,7 +21,7 @@ class GatekeeperHTTPError(RuntimeError):
         self.body = body
 
 
-def post_json(
+async def post_json(
     *,
     provider: str,
     url: str,
@@ -27,8 +29,8 @@ def post_json(
     body: dict[str, Any],
     timeout: int = DEFAULT_TIMEOUT_SECONDS,
 ) -> dict[str, Any]:
-    response = requests.post(url, headers=headers, json=body, timeout=timeout)
-    if not response.ok:
+    response = await HTTP_CLIENT.post(url, headers=headers, json=body, timeout=timeout)
+    if not response.is_success:
         raise GatekeeperHTTPError(provider, response.status_code, response.text)
     return response.json()
 

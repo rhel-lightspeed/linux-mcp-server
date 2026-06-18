@@ -64,10 +64,12 @@ def extract_gemini_text(response: dict[str, Any]) -> str:
     return text.strip() if isinstance(text, str) else ""
 
 
-def complete_gemini(prompt: str, *, max_tokens: int, timeout: int = DEFAULT_TIMEOUT_SECONDS) -> GatekeeperCompletion:
+async def complete_gemini(
+    prompt: str, *, max_tokens: int, timeout: int = DEFAULT_TIMEOUT_SECONDS
+) -> GatekeeperCompletion:
     model = normalize_model_id(CONFIG.gatekeeper.model or "")
     api_key = _get_google_api_key()
-    response = post_json(
+    response = await post_json(
         provider="gemini",
         url=f"{GOOGLE_AI_BASE_URL}/models/{model}:generateContent?key={api_key}",
         headers={"Content-Type": "application/json"},

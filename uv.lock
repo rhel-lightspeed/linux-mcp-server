@@ -1157,9 +1157,9 @@ dependencies = [
     { name = "asyncssh", extra = ["bcrypt"] },
     { name = "fakeredis" },
     { name = "fastmcp" },
+    { name = "httpx" },
     { name = "pydantic" },
     { name = "pydantic-settings" },
-    { name = "requests" },
 ]
 
 [package.optional-dependencies]
@@ -1209,9 +1209,9 @@ requires-dist = [
     { name = "fastmcp", specifier = ">=3.2.4" },
     { name = "google-auth", marker = "extra == 'gcp'", specifier = ">=2.40.0" },
     { name = "gssapi", marker = "extra == 'gssapi'", specifier = ">=1.11.1" },
+    { name = "httpx", specifier = ">=0.28.1" },
     { name = "pydantic", specifier = ">=2.12.5" },
     { name = "pydantic-settings", specifier = ">=2.12.0" },
-    { name = "requests", specifier = ">=2.32.0" },
 ]
 provides-extras = ["gcp", "gssapi"]
 

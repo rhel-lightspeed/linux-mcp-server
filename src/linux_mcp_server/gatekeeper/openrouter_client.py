@@ -87,7 +87,7 @@ def _extract_chat_completions_text(response: dict[str, Any]) -> str:
     return (content or "").strip() if isinstance(content, str) else ""
 
 
-def complete_openrouter(
+async def complete_openrouter(
     prompt: str, *, max_tokens: int, timeout: int = DEFAULT_TIMEOUT_SECONDS
 ) -> GatekeeperCompletion:
     base_url = _get_openrouter_base_url()
@@ -95,7 +95,7 @@ def complete_openrouter(
         **_openrouter_auth_headers(),
         "Content-Type": "application/json",
     }
-    response = post_json(
+    response = await post_json(
         provider="openrouter",
         url=f"{base_url}/chat/completions",
         headers=headers,
