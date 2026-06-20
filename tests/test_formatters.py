@@ -8,7 +8,6 @@ from linux_mcp_server.formatters import format_network_interfaces
 from linux_mcp_server.formatters import format_process_detail
 from linux_mcp_server.formatters import format_process_list
 from linux_mcp_server.formatters import format_service_logs
-from linux_mcp_server.formatters import format_service_status
 from linux_mcp_server.formatters import format_services_list
 from linux_mcp_server.models import ListeningPort
 from linux_mcp_server.models import NetworkConnection
@@ -219,17 +218,6 @@ class TestFormatServicesList:
         stdout = "UNIT LOAD\nssh.service loaded"
         result = format_services_list(stdout, running_count=5)
         assert "Summary: 5 services currently running" in result
-
-
-class TestFormatServiceStatus:
-    """Tests for format_service_status function."""
-
-    def test_format_service_status(self):
-        """Test formatting service status."""
-        stdout = "● ssh.service - OpenBSD Secure Shell server\n   Active: active (running)"
-        result = format_service_status(stdout, "ssh.service")
-        assert "=== Status of ssh.service ===" in result
-        assert "Active: active (running)" in result
 
 
 class TestFormatServiceLogs:
