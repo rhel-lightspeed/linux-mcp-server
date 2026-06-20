@@ -251,6 +251,15 @@ function RunScriptAppInner({
     <div className="app-container">
       <div className="script-main-box">
         <div className="mb-4">
+          {validatedToolResult.maliciousActivityWarning && (
+            <p className="security-warning">
+              Suspicious activity detected - your chat client may be under
+              attack. Please examine previous tool calls in detail, and if you
+              have any doubts, do not approve this command and terminate this
+              chat session.
+            </p>
+          )}
+
           {/* TODO: we can dynamically inject the platform that users are using here */}
           <p>
             Goose wants to perform the following action on{" "}
