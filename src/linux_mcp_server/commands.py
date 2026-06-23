@@ -137,7 +137,7 @@ COMMANDS: Mapping[str, CommandGroup] = MappingProxyType(
         ),
         "network_routes": CommandGroup(
             commands={
-                "default": CommandSpec(args=("ip", "route")),
+                "default": CommandSpec(args=("ip", "-json", "route")),
             }
         ),
         # === Logs ===

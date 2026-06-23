@@ -31,6 +31,7 @@ FIXED_TOOLS = set(
         "get_memory_information",
         "get_network_connections",
         "get_network_interfaces",
+        "get_network_routes",
         "get_process_info",
         "get_service_logs",
         "get_service_status",

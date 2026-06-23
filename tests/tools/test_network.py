@@ -1,5 +1,6 @@
 """Tests for network diagnostic tools."""
 
+import json
 import re
 
 import pytest
@@ -221,16 +222,49 @@ class TestGetNetworkRoutes:
         [
             pytest.param(
                 None,
-                "default via 192.168.1.1 dev eth0 proto dhcp src 192.168.1.100 metric 100\n"
-                "192.168.1.0/24 dev eth0 proto kernel scope link src 192.168.1.100\n"
-                "172.17.0.0/16 dev docker0 proto kernel scope link src 172.17.0.1",
-                ["192.168.1.1", "eth0", "Total routes: 3"],
+                json.dumps(
+                    [
+                        {
+                            "dst": "default",
+                            "gateway": "192.168.1.1",
+                            "dev": "eth0",
+                            "protocol": "dhcp",
+                            "prefsrc": "192.168.1.100",
+                            "metric": 100,
+                        },
+                        {
+                            "dst": "192.168.1.0/24",
+                            "dev": "eth0",
+                            "protocol": "kernel",
+                            "scope": "link",
+                            "prefsrc": "192.168.1.100",
+                        },
+                        {
+                            "dst": "172.17.0.0/16",
+                            "dev": "docker0",
+                            "protocol": "kernel",
+                            "scope": "link",
+                            "prefsrc": "172.17.0.1",
+                        },
+                    ]
+                ),
+                ["192.168.1.1", "eth0", "192.168.1.100"],
                 id="local",
             ),
             pytest.param(
                 "remote.host",
-                "default via 10.0.0.1 dev ens5 proto dhcp metric 100\n"
-                "10.0.0.0/24 dev ens5 proto kernel scope link src 10.0.0.5",
+                json.dumps(
+                    [
+                        {"dst": "default", "gateway": "10.0.0.1", "dev": "ens5", "protocol": "dhcp", "metric": 100},
+                        {
+                            "dst": "10.0.0.0/24",
+                            "dev": "ens5",
+                            "protocol": "kernel",
+                            "scope": "link",
+                            "prefsrc": "10.0.0.5",
+                        },
+                    ]
+                ),
                 ["10.0.0.1", "ens5"],
                 id="remote",
             ),
@@ -242,7 +276,6 @@ class TestGetNetworkRoutes:
         result = await mcp_client.call_tool("get_network_routes", arguments={"host": host})
         result_text = result.content[0].text.casefold()
 
-        assert "routing table" in result_text
         assert all(content.casefold() in result_text for content in expected_content), (
             "Did not find all expected values"
         )
@@ -257,10 +290,8 @@ class TestGetNetworkRoutes:
     async def test_get_network_routes_failure(self, mcp_client, mock_execute, return_value):
         """Test getting network routes when command fails or returns empty."""
         mock_execute.return_value = return_value
-        result = await mcp_client.call_tool("get_network_routes")
-        result_text = result.content[0].text.casefold()
-
-        assert "error" in result_text
+        with pytest.raises(ToolError, match="Error getting network routes"):
+            await mcp_client.call_tool("get_network_routes")
 
     async def test_get_network_routes_error(self, mcp_client, mock_execute):
         """Test getting network routes with general error."""
