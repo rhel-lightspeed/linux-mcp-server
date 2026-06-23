@@ -5,7 +5,7 @@ from mcp.types import ToolAnnotations
 
 from linux_mcp_server.audit import log_tool_call
 from linux_mcp_server.commands import get_command
-from linux_mcp_server.formatters import format_listening_ports
+from linux_mcp_server.models import ListeningPort
 from linux_mcp_server.models import NetworkConnection
 from linux_mcp_server.models import NetworkInterface
 from linux_mcp_server.parsers import merge_network_interfaces
@@ -90,7 +90,7 @@ async def get_network_connections(
 @disallow_local_execution_in_containers
 async def get_listening_ports(
     host: Host = None,
-) -> str:
+) -> list[ListeningPort]:
     """Get listening ports.
 
     Retrieves all ports with services actively listening for connections,
@@ -101,6 +101,5 @@ async def get_listening_ports(
     returncode, stdout, stderr = await cmd.run(host=host)
 
     if is_successful_output(returncode, stdout):
-        ports = parse_ss_listening(stdout)
-        return format_listening_ports(ports)
-    return f"Error getting listening ports: return code {returncode}, stderr: {stderr}"
+        return parse_ss_listening(stdout)
+    raise ToolError(f"Error getting listening ports: return code {returncode}, stderr: {stderr}")

@@ -4,33 +4,7 @@ This module provides functions to format parsed data into
 human-readable strings for tool output.
 """
 
-from linux_mcp_server.models import ListeningPort
 from linux_mcp_server.models import ProcessInfo
-
-
-def format_listening_ports(
-    ports: list[ListeningPort],
-    header: str = "=== Listening Ports ===\n",
-) -> str:
-    """Format listening ports into a readable string.
-
-    Args:
-        ports: List of ListeningPort objects.
-        header: Header text for the output.
-
-    Returns:
-        Formatted string representation.
-    """
-    lines = [header]
-    lines.append(f"{'Proto':<8} {'Local Address':<30} {'Status':<15} {'PID/Program'}")
-    lines.append("-" * 80)
-
-    for port in ports:
-        local = f"{port.local_address}:{port.local_port}"
-        lines.append(f"{port.protocol:<8} {local:<30} {'LISTEN':<15} {port.process}")
-
-    lines.append(f"\n\nTotal listening ports: {len(ports)}")
-    return "\n".join(lines)
 
 
 def format_process_list(

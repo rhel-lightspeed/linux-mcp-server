@@ -2,40 +2,12 @@
 
 from linux_mcp_server.formatters import format_disk_usage
 from linux_mcp_server.formatters import format_hardware_info
-from linux_mcp_server.formatters import format_listening_ports
 from linux_mcp_server.formatters import format_process_detail
 from linux_mcp_server.formatters import format_process_list
 from linux_mcp_server.formatters import format_service_logs
 from linux_mcp_server.formatters import format_service_status
 from linux_mcp_server.formatters import format_services_list
-from linux_mcp_server.models import ListeningPort
 from linux_mcp_server.models import ProcessInfo
-
-
-class TestFormatListeningPorts:
-    """Tests for format_listening_ports function."""
-
-    def test_format_empty_list(self):
-        """Test formatting an empty list."""
-        result = format_listening_ports([])
-        assert "=== Listening Ports ===" in result
-        assert "Total listening ports: 0" in result
-
-    def test_format_single_port(self):
-        """Test formatting a single listening port."""
-        ports = [
-            ListeningPort(
-                protocol="TCP",
-                local_address="0.0.0.0",
-                local_port="22",
-                process="sshd",
-            )
-        ]
-        result = format_listening_ports(ports)
-        assert "TCP" in result
-        assert "0.0.0.0:22" in result
-        assert "LISTEN" in result
-        assert "Total listening ports: 1" in result
 
 
 class TestFormatProcessList:

@@ -181,34 +181,39 @@ class TestGetListeningPorts:
     """Test get_listening_ports function."""
 
     @pytest.mark.parametrize(
-        ("host", "mock_output", "expected_content"),
+        ("host", "mock_output", "expected_count", "expected_locals"),
         [
             pytest.param(
                 None,
                 """Netid  State      Recv-Q Send-Q Local Address:Port   Peer Address:Port
 tcp    LISTEN     0      128    0.0.0.0:80           0.0.0.0:*
 udp    UNCONN     0      0      0.0.0.0:53           0.0.0.0:*""",
-                ["0.0.0.0:80", "Total listening ports: 2"],
+                2,
+                ["0.0.0.0:80", "0.0.0.0:53"],
                 id="local",
             ),
             pytest.param(
                 "remote.host",
                 """Netid  State      Recv-Q Send-Q Local Address:Port   Peer Address:Port
 tcp    LISTEN     0      128    0.0.0.0:22           0.0.0.0:*""",
+                1,
                 ["0.0.0.0:22"],
                 id="remote",
             ),
         ],
     )
-    async def test_get_listening_ports_success(self, mcp_client, mock_execute, host, mock_output, expected_content):
+    async def test_get_listening_ports_success(
+        self, mcp_client, mock_execute, host, mock_output, expected_count, expected_locals
+    ):
         """Test getting listening ports with success."""
         mock_execute.return_value = (0, mock_output, "")
         result = await mcp_client.call_tool("get_listening_ports", arguments={"host": host})
-        result_text = result.content[0].text.casefold()
+        content = result.structured_content["result"]
 
-        assert all(content.casefold() in result_text for content in expected_content), (
-            "Did not find all expected values"
-        )
+        assert len(content) == expected_count
+        mcp_locals = {f"{port['local_address']}:{port['local_port']}" for port in content}
+        assert mcp_locals == set(expected_locals)
+        assert all(port["protocol"] in ("TCP", "UDP") for port in content)
 
     @pytest.mark.parametrize(
         ("return_value",),
@@ -220,16 +225,8 @@ tcp    LISTEN     0      128    0.0.0.0:22           0.0.0.0:*""",
     async def test_get_listening_ports_failure(self, mcp_client, mock_execute, return_value):
         """Test getting listening ports when command fails or returns empty."""
         mock_execute.return_value = return_value
-        result = await mcp_client.call_tool("get_listening_ports")
-        result_text = result.content[0].text.casefold()
-        expected_content = (
-            "error",
-            "neither ss nor netstat",
-        )
-
-        assert any(content.casefold() in result_text for content in expected_content), (
-            "Did not find any expected values"
-        )
+        with pytest.raises(ToolError, match="Error getting listening ports"):
+            await mcp_client.call_tool("get_listening_ports")
 
     async def test_get_listening_ports_error(self, mcp_client, mock_execute):
         """Test getting listening ports with general error."""
