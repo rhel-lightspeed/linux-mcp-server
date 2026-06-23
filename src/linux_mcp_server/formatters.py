@@ -5,34 +5,7 @@ human-readable strings for tool output.
 """
 
 from linux_mcp_server.models import ListeningPort
-from linux_mcp_server.models import NetworkConnection
 from linux_mcp_server.models import ProcessInfo
-
-
-def format_network_connections(
-    connections: list[NetworkConnection],
-    header: str = "=== Active Network Connections ===\n",
-) -> str:
-    """Format network connections into a readable string.
-
-    Args:
-        connections: List of NetworkConnection objects.
-        header: Header text for the output.
-
-    Returns:
-        Formatted string representation.
-    """
-    lines = [header]
-    lines.append(f"{'Proto':<8} {'Local Address':<30} {'Remote Address':<30} {'Status':<15} {'PID/Program'}")
-    lines.append("-" * 110)
-
-    for conn in connections:
-        local = f"{conn.local_address}:{conn.local_port}"
-        remote = f"{conn.remote_address}:{conn.remote_port}" if conn.remote_address else "N/A"
-        lines.append(f"{conn.protocol:<8} {local:<30} {remote:<30} {conn.state:<15} {conn.process}")
-
-    lines.append(f"\n\nTotal connections: {len(connections)}")
-    return "\n".join(lines)
 
 
 def format_listening_ports(

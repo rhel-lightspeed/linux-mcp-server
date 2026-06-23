@@ -120,35 +120,41 @@ class TestGetNetworkConnections:
     """Test get_network_connections function."""
 
     @pytest.mark.parametrize(
-        ("host", "mock_output", "expected_content"),
+        ("host", "mock_output", "expected_count", "expected_local"),
         [
             pytest.param(
                 None,
                 """Netid  State      Recv-Q Send-Q Local Address:Port   Peer Address:Port
 tcp    ESTAB      0      0      192.168.1.100:22     192.168.1.1:54321
 tcp    LISTEN     0      128    0.0.0.0:80           0.0.0.0:*""",
-                ["192.168.1.100", "Total connections: 2"],
+                2,
+                "192.168.1.100:22",
                 id="local",
             ),
             pytest.param(
                 "remote.host",
                 """Netid  State      Recv-Q Send-Q Local Address:Port   Peer Address:Port
 tcp    ESTAB      0      0      10.0.0.5:443         10.0.0.1:12345""",
-                ["10.0.0.5"],
+                1,
+                "10.0.0.5:443",
                 id="remote",
             ),
         ],
     )
-    async def test_get_network_connections_success(self, mcp_client, mock_execute, host, mock_output, expected_content):
+    async def test_get_network_connections_success(
+        self, mcp_client, mock_execute, host, mock_output, expected_count, expected_local
+    ):
         """Test getting network connections with success."""
         mock_execute.return_value = (0, mock_output, "")
         result = await mcp_client.call_tool("get_network_connections", arguments={"host": host})
-        result_text = result.content[0].text.casefold()
+        content = result.structured_content["result"]
 
-        assert "active network connections" in result_text
-        assert all(content.casefold() in result_text for content in expected_content), (
-            "Did not find all expected values"
-        )
+        assert len(content) == expected_count
+        estab = next(conn for conn in content if conn["local_address"] == expected_local.split(":")[0])
+        assert estab["protocol"] == "TCP"
+        assert estab["local_port"] == expected_local.split(":")[1]
+        if host is None:
+            assert any(conn["state"] == "LISTEN" for conn in content)
 
     @pytest.mark.parametrize(
         ("return_value",),
@@ -160,13 +166,8 @@ tcp    ESTAB      0      0      10.0.0.5:443         10.0.0.1:12345""",
     async def test_get_network_connections_failure(self, mcp_client, mock_execute, return_value):
         """Test getting network connections when command fails or returns empty."""
         mock_execute.return_value = return_value
-        result = await mcp_client.call_tool("get_network_connections")
-        result_text = result.content[0].text.casefold()
-        expected = (
-            "error",
-            "neither ss nor netstat",
-        )
-        assert any(content.casefold() in result_text for content in expected)
+        with pytest.raises(ToolError, match="Error getting network connections"):
+            await mcp_client.call_tool("get_network_connections")
 
     async def test_get_network_connections_error(self, mcp_client, mock_execute):
         """Test getting network connections with general error."""

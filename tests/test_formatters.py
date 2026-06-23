@@ -3,50 +3,13 @@
 from linux_mcp_server.formatters import format_disk_usage
 from linux_mcp_server.formatters import format_hardware_info
 from linux_mcp_server.formatters import format_listening_ports
-from linux_mcp_server.formatters import format_network_connections
 from linux_mcp_server.formatters import format_process_detail
 from linux_mcp_server.formatters import format_process_list
 from linux_mcp_server.formatters import format_service_logs
 from linux_mcp_server.formatters import format_service_status
 from linux_mcp_server.formatters import format_services_list
 from linux_mcp_server.models import ListeningPort
-from linux_mcp_server.models import NetworkConnection
 from linux_mcp_server.models import ProcessInfo
-
-
-class TestFormatNetworkConnections:
-    """Tests for format_network_connections function."""
-
-    def test_format_empty_list(self):
-        """Test formatting an empty list."""
-        result = format_network_connections([])
-        assert "=== Active Network Connections ===" in result
-        assert "Total connections: 0" in result
-
-    def test_format_single_connection(self):
-        """Test formatting a single connection."""
-        connections = [
-            NetworkConnection(
-                protocol="TCP",
-                state="ESTABLISHED",
-                local_address="192.168.1.100",
-                local_port="22",
-                remote_address="192.168.1.1",
-                remote_port="54321",
-                process="sshd",
-            )
-        ]
-        result = format_network_connections(connections)
-        assert "TCP" in result
-        assert "192.168.1.100:22" in result
-        assert "192.168.1.1:54321" in result
-        assert "ESTABLISHED" in result
-        assert "Total connections: 1" in result
-
-    def test_format_custom_header(self):
-        """Test formatting with custom header."""
-        result = format_network_connections([], header="=== Custom Header ===\n")
-        assert "=== Custom Header ===" in result
 
 
 class TestFormatListeningPorts:
