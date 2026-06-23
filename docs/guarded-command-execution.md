@@ -106,17 +106,56 @@ LINUX_MCP_TOOLSET=run_script
 
 **Configure a Gatekeeper Model**
 
-Set `LINUX_MCP_GATEKEEPER__MODEL` to the name of the model you want to use. Additional environment
-variables may be needed to configure credentials. See the
-[LiteLLM documentation](https://docs.litellm.ai/docs/providers) for details on how to configure your provider.
+Set `LINUX_MCP_GATEKEEPER__PROVIDER` and `LINUX_MCP_GATEKEEPER__MODEL` to configure the gatekeeper.
+Set the matching API credentials for your provider (`OPENAI_API_KEY`, `ANTHROPIC_API_KEY`,
+`GOOGLE_API_KEY`, or `OPENROUTER_API_KEY`). For the `vertex_ai` provider, install the `gcp` extra and configure
+`GOOGLE_APPLICATION_CREDENTIALS`, `VERTEXAI_PROJECT`, and `VERTEXAI_LOCATION`.
 
-Example:
+Example (OpenAI):
 
 ```sh
-LINUX_MCP_GATEKEEPER__MODEL=openai/chatgpt-5.2
+LINUX_MCP_GATEKEEPER__PROVIDER=openai
+LINUX_MCP_GATEKEEPER__MODEL=gpt-5.4
 OPENAI_API_KEY=<....>
 ```
 
+Example (Anthropic):
+
+```sh
+LINUX_MCP_GATEKEEPER__PROVIDER=anthropic
+LINUX_MCP_GATEKEEPER__MODEL=claude-sonnet-4-6
+ANTHROPIC_API_KEY=<....>
+```
+
+Example (OpenRouter):
+
+```sh
+LINUX_MCP_GATEKEEPER__PROVIDER=openrouter
+LINUX_MCP_GATEKEEPER__MODEL=openai/gpt-oss-120b
+LINUX_MCP_GATEKEEPER__OPENROUTER__QUANTIZATION=fp4
+OPENROUTER_API_KEY=<....>
+```
+
+Example (Vertex AI):
+
+```sh
+LINUX_MCP_GATEKEEPER__PROVIDER=vertex_ai
+LINUX_MCP_GATEKEEPER__MODEL=gemini-3.1-pro-preview
+LINUX_MCP_GATEKEEPER__VERTEX_AI__PROJECT=my-gcp-project
+GOOGLE_APPLICATION_CREDENTIALS=<path-to-service-account.json>
+```
+
+**Gatekeeper cost estimation**
+
+Eval runs and gatekeeper stats report an estimated dollar cost per check. Resolution order:
+
+1. **API-reported cost** — OpenRouter `usage.cost` when present.
+2. **Config override** — `LINUX_MCP_GATEKEEPER__COST` as `input$/token:output$/token` (useful for Vertex MaaS eval models).
+3. **models.dev** — runtime pricing lookup with a vendored snapshot fallback when the network is unavailable.
+4. **Local inference** — OpenAI-compatible providers pointed at `localhost` / `127.0.0.1` (e.g. llama.cpp) report `$0`.
+5. **Fallback** — hardcoded rates for known eval models, then a conservative cloud default.
+
+Totals are **estimates** except when OpenRouter returns API-reported cost. Token counts come from each provider's usage metadata in the completion response.
 
 **Configure your client's tool policy**
 

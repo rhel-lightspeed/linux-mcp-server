@@ -58,13 +58,21 @@ These are used when `LINUX_MCP_TOOLSET` is set to `run_script` or `both`.
 | Option / Env Var | Default | Description |
 | ---------------- | ------- | ----------- |
 | `--always-confirm-scripts` / `--no-always-confirm-scripts`<br>`LINUX_MCP_ALWAYS_CONFIRM_SCRIPTS` | `False` | All scripts must be confirmed by the user |
-| `--gatekeeper.model`<br>`LINUX_MCP_GATEKEEPER__MODEL` | _(none)_ | Required: [LiteLLM model name](https://docs.litellm.ai/docs/providers) to use |
-| `--gatekeeper.quantization`<br>`LINUX_MCP_GATEKEEPER__QUANTIZATION` | _(model specific)_ | _Not usually needed_ - Particular model quantization to use (openrouter only) |
-| `--gatekeeper.reasoning_effort`<br>`LINUX_MCP_GATEKEEPER__REASONING_EFFORT` | _(model specific)_ | Reasoning effort to use for gatekeeper model (`none`, `minimal`, `low`, `medium`, `high`, `xhigh`). Not all values are supported for all models. |
-| `--gatekeeper.structured_output`<br>`LINUX_MCP_GATEKEEPER__STRUCTURED_OUTPUT` | _(autodetected)_ | _Not usually needed_ - Whether to use structured output generation for the model. Default is to use if detected as available. |
-| `--gatekeeper.temperature`<br>`LINUX_MCP_GATEKEEPER__TEMPERATURE` | 0.0 | _Not usually needed_ - Temperature to use for model - for some models, a non-zero value may be necessary when enabling reasoning. |
-| `--gatekeeper.template_kwargs`<br>`LINUX_MCP_GATEKEEPER__TEMPLATE_KWARGS` | _(none)_ | _Not usually needed_ - Extra arguments for the model's chat template, formatted as a JSON string. Example: `{ "enable_thinking": false }` |
-| Other environment variables | _(none)_ | As required by the LiteLLM provider, e.g. `OPENAI_API_KEY` |
+| `--gatekeeper.provider`<br>`LINUX_MCP_GATEKEEPER__PROVIDER` | `openai` (inferred from model if unset) | LLM provider: `openai`, `anthropic`, `gemini`, `openrouter`, or `vertex_ai` |
+| `--gatekeeper.model`<br>`LINUX_MCP_GATEKEEPER__MODEL` | _(none)_ | Required: provider-native model ID (e.g. `gpt-5.4`, `claude-sonnet-4-6`, `gemini-2.0-flash`, `openai/gpt-oss-120b` for OpenRouter) |
+| `--gatekeeper.reasoning_effort`<br>`LINUX_MCP_GATEKEEPER__REASONING_EFFORT` | _(model specific)_ | Reasoning effort (`none`, `minimal`, `low`, `medium`, `high`, `xhigh`). Not all values are supported for all models. |
+| `--gatekeeper.structured_output`<br>`LINUX_MCP_GATEKEEPER__STRUCTURED_OUTPUT` | `True` | Whether to use structured JSON output from the model |
+| `--gatekeeper.temperature`<br>`LINUX_MCP_GATEKEEPER__TEMPERATURE` | 0.0 | Temperature to use for the model |
+| `--gatekeeper.cost`<br>`LINUX_MCP_GATEKEEPER__COST` | _(none)_ | Optional per-token cost override for gatekeeper accounting (`input$/token:output$/token`). When unset, cost is estimated from [models.dev](https://models.dev) pricing (with a vendored fallback), except OpenRouter which uses API-reported `usage.cost` when available. Local OpenAI-compatible inference (e.g. llama.cpp on localhost) is reported as `$0`. |
+| `--gatekeeper.openai.base_url`<br>`LINUX_MCP_GATEKEEPER__OPENAI__BASE_URL` / `OPENAI_API_BASE` | `https://api.openai.com/v1` | OpenAI provider: API base URL |
+| `--gatekeeper.openai.template_kwargs`<br>`LINUX_MCP_GATEKEEPER__OPENAI__TEMPLATE_KWARGS` | _(none)_ | OpenAI provider: extra chat-template arguments (e.g. llama.cpp `enable_thinking`), sent as `chat_template_kwargs` |
+| `--gatekeeper.openrouter.base_url`<br>`LINUX_MCP_GATEKEEPER__OPENROUTER__BASE_URL` | `https://openrouter.ai/api/v1` | OpenRouter provider: API base URL |
+| `--gatekeeper.openrouter.quantization`<br>`LINUX_MCP_GATEKEEPER__OPENROUTER__QUANTIZATION` | _(none)_ | OpenRouter provider: filter providers by quantization level (e.g. `fp4`, `bf16`) |
+| `--gatekeeper.openrouter.template_kwargs`<br>`LINUX_MCP_GATEKEEPER__OPENROUTER__TEMPLATE_KWARGS` | _(none)_ | OpenRouter provider: extra chat-template arguments |
+| `--gatekeeper.vertex_ai.project`<br>`LINUX_MCP_GATEKEEPER__VERTEX_AI__PROJECT` / `VERTEXAI_PROJECT` | _(none)_ | Vertex AI provider: GCP project |
+| `--gatekeeper.vertex_ai.location`<br>`LINUX_MCP_GATEKEEPER__VERTEX_AI__LOCATION` / `VERTEXAI_LOCATION` | `global` | Vertex AI provider: GCP region |
+| `--gatekeeper.vertex_ai.base_url`<br>`LINUX_MCP_GATEKEEPER__VERTEX_AI__BASE_URL` | _(computed)_ | Vertex AI provider: override OpenAI-compatible MaaS endpoint URL (default derived from project/location) |
+| Provider credentials | _(none)_ | `OPENAI_API_KEY`, `ANTHROPIC_API_KEY`, `GOOGLE_API_KEY` / `GEMINI_API_KEY`, or `OPENROUTER_API_KEY` for direct providers; `GOOGLE_APPLICATION_CREDENTIALS` for `vertex_ai` |
 
 ## Logging Configuration
 

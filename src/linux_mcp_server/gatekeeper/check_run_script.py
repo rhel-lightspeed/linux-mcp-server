@@ -1,30 +1,15 @@
+import asyncio
 import logging
 import time
 
-from typing import Any
-
-import litellm
-
-from litellm import acompletion
-from litellm import Choices
-from litellm import completion_cost
-from litellm import get_supported_openai_params
-from litellm import ModelResponse
-from litellm import Usage
-from litellm.exceptions import Timeout
 from pydantic import BaseModel
 from pydantic import ValidationError
 
 from linux_mcp_server.config import CONFIG
-from linux_mcp_server.config import ReasoningEffort
+from linux_mcp_server.gatekeeper.llm import complete_gatekeeper
+from linux_mcp_server.gatekeeper.pricing import compute_cost
+from linux_mcp_server.gatekeeper.pricing import CostSource
 from linux_mcp_server.utils import StrEnum
-
-
-# LiteLLM has bugs where the custom_llm_provider is not properly
-# passed back into query functions for things like "model supports reasoning".
-# Without this, each such failure spits out a debug message to the terminal
-# https://github.com/BerriAI/litellm/issues/23879
-litellm.suppress_debug_info = True
 
 
 logger = logging.getLogger("linux-mcp-server")
@@ -33,8 +18,7 @@ logger = logging.getLogger("linux-mcp-server")
 def get_model() -> str:
     if CONFIG.gatekeeper.model:
         return CONFIG.gatekeeper.model
-    else:
-        raise ValueError("To use run_script tools, you must set LINUX_MCP_GATEKEEPER__MODEL")
+    raise ValueError("To use run_script tools, you must set LINUX_MCP_GATEKEEPER__MODEL")
 
 
 READONLY_INSTRUCTION = """
@@ -198,46 +182,11 @@ class GatekeeperResult(BaseModel):
             return cls(status=status, detail=detail)
 
 
-def _build_completion_kwargs():
-    extra_kwargs: dict[str, Any] = {}
-    model = get_model()
-
-    structured_output = CONFIG.gatekeeper.structured_output
-    if structured_output is None:
-        params = get_supported_openai_params(model=model)
-        structured_output = params is not None and "response_format" in params
-
-    if structured_output:
-        extra_kwargs["response_format"] = GatekeeperResult
-
-    reasoning_effort = CONFIG.gatekeeper.reasoning_effort
-    if reasoning_effort is not None:
-        if model.startswith("openrouter/"):
-            if reasoning_effort == ReasoningEffort.NONE:
-                extra_kwargs["reasoning"] = {"enabled": False}
-            else:
-                extra_kwargs["reasoning"] = {"enabled": True, "effort": reasoning_effort.value}
-        else:
-            extra_kwargs["reasoning_effort"] = reasoning_effort.value
-
-    if model.startswith("openrouter/"):
-        provider: dict[str, Any] = {
-            "require_parameters": True,
-        }
-        extra_kwargs["provider"] = provider
-        if CONFIG.gatekeeper.quantization:
-            provider["quantizations"] = [CONFIG.gatekeeper.quantization]
-
-    if CONFIG.gatekeeper.template_kwargs:
-        extra_kwargs["chat_template_kwargs"] = CONFIG.gatekeeper.template_kwargs
-
-    return extra_kwargs
-
-
 class GatekeeperStats(BaseModel):
     prompt_tokens: int = 0
     completion_tokens: int = 0
     cost: float = 0
+    cost_source: CostSource | None = None
     latency: float = 0
 
 
@@ -245,26 +194,6 @@ class GatekeeperException(Exception):
     def __init__(self, message: str, *, stats: GatekeeperStats | None = None):
         super().__init__(message)
         self.stats = stats
-
-
-def _get_cost(response: ModelResponse) -> float:
-    usage: Usage = response.usage  # pyright: ignore[reportAttributeAccessIssue]
-
-    cost: float | None = usage.get("cost")
-    if cost:
-        return cost
-
-    if CONFIG.gatekeeper.cost is not None:
-        custom_cost_per_token = dict(
-            input_cost_per_token=CONFIG.gatekeeper.cost[0], output_cost_per_token=CONFIG.gatekeeper.cost[1]
-        )
-    else:
-        custom_cost_per_token = None
-
-    try:
-        return completion_cost(response, custom_cost_per_token=custom_cost_per_token)
-    except Exception:
-        return 0.0
 
 
 async def check_run_script_with_stats(
@@ -290,44 +219,33 @@ async def check_run_script_with_stats(
         readonly_result=READONLY_RESULT if readonly else "",
     )
 
-    messages = [{"role": "user", "content": prompt}]
-
-    extra_kwargs = _build_completion_kwargs()
-
     time_before = time.perf_counter()
     try:
-        response = await acompletion(
-            model=get_model(),
-            messages=messages,
-            temperature=CONFIG.gatekeeper.temperature,
-            max_tokens=GATEKEEPER_MAX_TOKENS,
+        completion = await asyncio.wait_for(
+            complete_gatekeeper(prompt, max_tokens=GATEKEEPER_MAX_TOKENS),
             timeout=GATEKEEPER_TIMEOUT,
-            **extra_kwargs,
         )
-    except Timeout:
-        raise GatekeeperException("Timeout calling gatekeeper model")
-    assert isinstance(response, ModelResponse)
+    except asyncio.TimeoutError:
+        raise GatekeeperException("Timeout calling gatekeeper model") from None
 
-    usage: Usage = response.usage  # pyright: ignore[reportAttributeAccessIssue]
+    cost, cost_source = compute_cost(
+        completion.prompt_tokens,
+        completion.completion_tokens,
+        usage_cost=completion.usage_cost,
+    )
+
     stats = GatekeeperStats(
-        prompt_tokens=usage.prompt_tokens,
-        completion_tokens=usage.completion_tokens,
-        cost=_get_cost(response),
+        prompt_tokens=completion.prompt_tokens,
+        completion_tokens=completion.completion_tokens,
+        cost=cost,
+        cost_source=cost_source,
         latency=time.perf_counter() - time_before,
     )
 
-    assert isinstance(response.choices[0], Choices)
-    if response.choices[0].finish_reason == "length":
-        raise GatekeeperException("Gatekeeper model output limit reached", stats=stats)
-
-    response_text = (response.choices[0].message.content or "").strip()
-
-    logger.info(f"Gatekeeper response: {response_text}")
-
     try:
-        return GatekeeperResult.model_validate_json(response_text), stats
+        return GatekeeperResult.model_validate_json(completion.text), stats
     except ValidationError as e:
-        logger.warning("Failed to Failed to parse gatekeeper model output: %s", e)
+        logger.warning("Failed to parse gatekeeper model output: %s", e)
         raise GatekeeperException("Failed to parse gatekeeper model output", stats=stats) from e
 
 

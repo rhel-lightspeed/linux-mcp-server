@@ -1,28 +1,22 @@
+import asyncio
 import importlib
 
-from unittest.mock import AsyncMock
-from unittest.mock import Mock
-
-import litellm
 import pytest
-
-from litellm import Choices
-from litellm import ModelResponse
-from litellm import Usage
 
 from linux_mcp_server.config import CONFIG
 from linux_mcp_server.config import GatekeeperConfig
+from linux_mcp_server.config import GatekeeperProvider
 from linux_mcp_server.config import ReasoningEffort
+from linux_mcp_server.config import VertexAIGatekeeperConfig
 from linux_mcp_server.gatekeeper import GatekeeperResult
 from linux_mcp_server.gatekeeper import GatekeeperStatus
 from linux_mcp_server.gatekeeper.check_run_script import check_run_script
 from linux_mcp_server.gatekeeper.check_run_script import check_run_script_with_stats
 from linux_mcp_server.gatekeeper.check_run_script import GatekeeperException
 from linux_mcp_server.gatekeeper.check_run_script import get_model
+from linux_mcp_server.gatekeeper.llm import GatekeeperCompletion
 
 
-# Workaround: with python-3.10, mocker.patch("linux_mcp_server.gatekeeper.check_run_script.X")
-# doesn't work because it finds the imported check_run_script function rather than the module.
 check_run_script_module = importlib.import_module("linux_mcp_server.gatekeeper.check_run_script")
 
 
@@ -54,7 +48,6 @@ class TestGatekeeperResultDescription:
         parsed = GatekeeperResult.parse_from_description(result.description)
 
         assert parsed.status == status
-        # MALICIOUS descriptions hide the original detail
         if status == GatekeeperStatus.MALICIOUS:
             assert parsed.detail == "not allowed"
         else:
@@ -67,35 +60,31 @@ class TestGatekeeperResultDescription:
 
 class TestGetModel:
     def test_returns_configured_model(self, mocker):
-        mocker.patch.object(CONFIG.gatekeeper, "model", "test-model")
-        assert get_model() == "test-model"
+        mocker.patch.object(CONFIG.gatekeeper, "model", "gpt-5.4")
+        assert get_model() == "gpt-5.4"
 
     def test_raises_when_model_not_configured(self, mocker):
         mocker.patch.object(CONFIG.gatekeeper, "model", None)
         with pytest.raises(ValueError, match="To use run_script tools, you must set LINUX_MCP_GATEKEEPER__MODEL"):
             get_model()
 
+    def test_accepts_openrouter_model(self, mocker):
+        mocker.patch.object(CONFIG.gatekeeper, "model", "openrouter/anthropic/claude-3.5-sonnet")
+        assert get_model() == "openrouter/anthropic/claude-3.5-sonnet"
+
 
 class TestCheckRunScript:
     @pytest.fixture
-    def mock_litellm(self, mocker):
-        mocker.patch.object(CONFIG.gatekeeper, "model", "test-model")
-        mock_acompletion = mocker.patch.object(check_run_script_module, "acompletion", new_callable=AsyncMock)
-        mock_get_params = mocker.patch.object(check_run_script_module, "get_supported_openai_params")
-        return mock_acompletion, mock_get_params
+    def mock_llm(self, mocker):
+        mocker.patch.object(CONFIG.gatekeeper, "model", "gpt-5.4")
+        mocker.patch.object(CONFIG.gatekeeper, "provider", GatekeeperProvider.OPENAI)
 
-    def _make_response(self, content: str, usage=None, finish_reason="stop") -> ModelResponse:
-        message = Mock()
-        message.content = content
-        message.annotations = None
-        choice = Mock(spec=Choices)
-        choice.message = message
-        choice.finish_reason = finish_reason
-        response = Mock(spec=ModelResponse)
-        response.model = "openai/custom/model"
-        response.choices = [choice]
-        response.usage = usage or Usage(prompt_tokens=1000, completion_tokens=100)
-        return response
+        return mocker.patch.object(
+            check_run_script_module,
+            "complete_gatekeeper",
+            new_callable=mocker.AsyncMock,
+            return_value=GatekeeperCompletion(text='{"status": "OK", "detail": ""}'),
+        )
 
     async def test_rejects_script_with_prompt_injection_attempts(self):
         tags = ["START_OF_SCRIPT", "END_OF_SCRIPT", "START_OF_DESCRIPTION", "END_OF_DESCRIPTION"]
@@ -105,165 +94,162 @@ class TestCheckRunScript:
             assert result.status == GatekeeperStatus.MALICIOUS
             assert tag.lower() in result.detail
 
-    @pytest.mark.parametrize(
-        "structured_output,supported_params,expect_response_format",
-        [
-            (None, ["response_format"], True),
-            (None, [""], False),
-            (None, None, False),
-            (False, ["response_format"], False),
-            (True, [""], True),
-        ],
-    )
-    async def test_gatekeeper_structured_output(
-        self, mock_litellm, mocker, structured_output, supported_params, expect_response_format
-    ):
-        mock_acompletion, mock_get_params = mock_litellm
-        mock_get_params.return_value = supported_params
-        mock_acompletion.return_value = self._make_response('{"status": "OK", "detail": ""}')
-        mocker.patch.object(CONFIG.gatekeeper, "structured_output", structured_output)
+    async def test_calls_gatekeeper_llm(self, mock_llm):
+        result = await check_run_script(description="test", script_type="bash", script="echo hi", readonly=True)
 
-        await check_run_script(description="test", script_type="bash", script="echo hi", readonly=True)
+        assert result.status == GatekeeperStatus.OK
+        mock_llm.assert_called_once()
+        prompt = mock_llm.call_args.args[0]
+        assert "echo hi" in prompt
+        assert "test" in prompt
 
-        call_kwargs = mock_acompletion.call_args.kwargs
-        if expect_response_format:
-            assert call_kwargs["response_format"] is GatekeeperResult
-        else:
-            assert "response_format" not in call_kwargs
-
-    @pytest.mark.parametrize(
-        "gatekeeper_config,expected_kwargs",
-        [
-            (
-                GatekeeperConfig(model="openai/gpt-5.4", reasoning_effort=ReasoningEffort.LOW),
-                {"model": "openai/gpt-5.4", "reasoning_effort": "low", "temperature": 0.0},
-            ),
-            (
-                GatekeeperConfig(model="openrouter/openai/gpt-5.4", reasoning_effort=ReasoningEffort.NONE),
-                {
-                    "model": "openrouter/openai/gpt-5.4",
-                    "reasoning": {"enabled": False},
-                    "provider": {"require_parameters": True},
-                    "temperature": 0.0,
-                },
-            ),
-            (
-                GatekeeperConfig(model="openrouter/openai/gpt-5.4", reasoning_effort=ReasoningEffort.LOW),
-                {
-                    "model": "openrouter/openai/gpt-5.4",
-                    "reasoning": {"enabled": True, "effort": "low"},
-                    "provider": {"require_parameters": True},
-                    "temperature": 0.0,
-                },
-            ),
-            (
-                GatekeeperConfig(model="openai/gpt-5.4", template_kwargs={"enable_thinking": False}),
-                {"model": "openai/gpt-5.4", "chat_template_kwargs": {"enable_thinking": False}, "temperature": 0.0},
-            ),
-            (
-                GatekeeperConfig(model="openrouter/qwen/qwen3.5-9b", quantization="bf16"),
-                {
-                    "model": "openrouter/qwen/qwen3.5-9b",
-                    "provider": {"require_parameters": True, "quantizations": ["bf16"]},
-                    "temperature": 0.0,
-                },
-            ),
-            (
-                GatekeeperConfig(model="openai/gpt-5.4", temperature=1.0),
-                {
-                    "model": "openai/gpt-5.4",
-                    "temperature": 1.0,
-                },
-            ),
-        ],
-    )
-    async def test_gatekeeper_config_to_completion_parameters(
-        self, mock_litellm, mocker, gatekeeper_config, expected_kwargs
-    ):
-        mock_acompletion, mock_get_params = mock_litellm
-        mock_get_params.return_value = []
-        mock_acompletion.return_value = self._make_response('{"status": "OK", "detail": ""}')
-        mocker.patch.object(CONFIG, "gatekeeper", gatekeeper_config)
-
-        await check_run_script(description="test", script_type="bash", script="echo hi", readonly=True)
-
-        # Add in fixed parameters
-        all_expected_kwargs = expected_kwargs | {
-            "max_tokens": 8000,
-            "timeout": 120,
-        }
-
-        call_kwargs = mock_acompletion.call_args.kwargs
-        del call_kwargs["messages"]
-        assert call_kwargs == all_expected_kwargs
-
-    async def test_missing_detail_defaults_to_empty(self, mock_litellm):
-        mock_acompletion, mock_get_params = mock_litellm
-        mock_get_params.return_value = ["response_format"]
-        mock_acompletion.return_value = self._make_response('{"status": "OK"}')
+    async def test_missing_detail_defaults_to_empty(self, mocker):
+        mocker.patch.object(
+            check_run_script_module,
+            "complete_gatekeeper",
+            new_callable=mocker.AsyncMock,
+            return_value=GatekeeperCompletion(text='{"status": "OK"}'),
+        )
 
         result = await check_run_script(description="test", script_type="bash", script="echo hi", readonly=True)
         assert result.status == GatekeeperStatus.OK
         assert result.detail == ""
 
-    @pytest.mark.parametrize(
-        "response_text",
-        ["not valid json", '"just a string"', '{"status": "INVALID_STATUS"}'],
-    )
-    async def test_parse_errors(self, mock_litellm, response_text):
-        mock_acompletion, mock_get_params = mock_litellm
-        mock_get_params.return_value = None  # No response_format support
-        mock_acompletion.return_value = self._make_response(response_text)
+    @pytest.mark.parametrize("response_text", ["not valid json", '"just a string"', '{"status": "INVALID_STATUS"}'])
+    async def test_parse_errors(self, mocker, response_text):
+        mocker.patch.object(
+            check_run_script_module,
+            "complete_gatekeeper",
+            new_callable=mocker.AsyncMock,
+            return_value=GatekeeperCompletion(text=response_text),
+        )
 
         with pytest.raises(GatekeeperException, match=r"Failed to parse gatekeeper model output"):
             await check_run_script(description="test", script_type="bash", script="echo hi", readonly=True)
 
-    async def test_timeout(self, mock_litellm):
-        mock_acompletion, mock_get_params = mock_litellm
-        mock_get_params.return_value = ["response_format"]
-        mock_acompletion.side_effect = litellm.exceptions.Timeout(
-            "Timed out", model="custom/model", llm_provider="openai"
+    async def test_timeout(self, mocker):
+        async def slow_complete(_prompt: str, **kwargs: object) -> GatekeeperCompletion:
+            await asyncio.sleep(10)
+            return GatekeeperCompletion(text='{"status": "OK"}')
+
+        mocker.patch.object(
+            check_run_script_module,
+            "complete_gatekeeper",
+            new_callable=mocker.AsyncMock,
+            side_effect=slow_complete,
         )
+        mocker.patch.object(check_run_script_module, "GATEKEEPER_TIMEOUT", 0.01)
 
         with pytest.raises(GatekeeperException, match=r"Timeout calling gatekeeper model"):
             await check_run_script(description="test", script_type="bash", script="echo hi", readonly=True)
 
-    async def test_max_tokens(self, mock_litellm):
-        mock_acompletion, mock_get_params = mock_litellm
-        mock_get_params.return_value = ["response_format"]
-        mock_acompletion.return_value = self._make_response('{"status": "OK"', finish_reason="length")
-
-        with pytest.raises(GatekeeperException, match=r"Gatekeeper model output limit reached"):
-            await check_run_script(description="test", script_type="bash", script="echo hi", readonly=True)
-
-    async def test_with_stats(self, mock_litellm):
-
-        usage = Usage(prompt_tokens=1001, completion_tokens=201, cost=0.042)
-
-        mock_acompletion, mock_get_params = mock_litellm
-        mock_get_params.return_value = ["response_format"]
-        mock_acompletion.return_value = self._make_response('{"status": "OK", "detail": ""}', usage)
-
+    async def test_with_stats(self, mock_llm):
         result, stats = await check_run_script_with_stats(
             description="test", script_type="bash", script="echo hi", readonly=True
         )
         assert result.status == GatekeeperStatus.OK
         assert result.detail == ""
+        assert stats.latency > 0
 
-        assert stats.prompt_tokens == 1001
-        assert stats.completion_tokens == 201
-        assert stats.cost == 0.042
-
-    async def test_custom_cost(self, mock_litellm, mocker):
+    async def test_custom_cost(self, mocker):
         mocker.patch.object(CONFIG.gatekeeper, "cost", (1e-6, 4e-6))
-        usage = Usage(prompt_tokens=1001, completion_tokens=201)
-
-        mock_acompletion, mock_get_params = mock_litellm
-        mock_get_params.return_value = ["response_format"]
-        mock_acompletion.return_value = self._make_response('{"status": "OK", "detail": ""}', usage)
+        mocker.patch.object(
+            check_run_script_module,
+            "complete_gatekeeper",
+            new_callable=mocker.AsyncMock,
+            return_value=GatekeeperCompletion(
+                text='{"status": "OK", "detail": ""}', prompt_tokens=100, completion_tokens=50
+            ),
+        )
 
         _, stats = await check_run_script_with_stats(
             description="test", script_type="bash", script="echo hi", readonly=True
         )
 
-        assert stats.cost == 1001 * 1e-6 + 201 * 4e-6
+        assert stats.cost == pytest.approx(100 * 1e-6 + 50 * 4e-6)
+        assert stats.cost_source == "config"
+
+    async def test_openrouter_usage_cost(self, mocker):
+        mocker.patch.object(
+            check_run_script_module,
+            "complete_gatekeeper",
+            new_callable=mocker.AsyncMock,
+            return_value=GatekeeperCompletion(
+                text='{"status": "OK", "detail": ""}',
+                prompt_tokens=10,
+                completion_tokens=5,
+                usage_cost=0.42,
+            ),
+        )
+
+        _, stats = await check_run_script_with_stats(
+            description="test", script_type="bash", script="echo hi", readonly=True
+        )
+
+        assert stats.prompt_tokens == 10
+        assert stats.completion_tokens == 5
+        assert stats.cost == 0.42
+        assert stats.cost_source == "api"
+
+
+class TestGatekeeperConfigIntegration:
+    @pytest.fixture
+    def mock_openai_post(self, mocker):
+        mocker.patch.dict("os.environ", {"OPENAI_API_KEY": "test-key"}, clear=False)
+        return mocker.patch(
+            "linux_mcp_server.gatekeeper.openai_client.post_json",
+            new_callable=mocker.AsyncMock,
+            return_value={"output_text": '{"status": "OK", "detail": ""}'},
+        )
+
+    async def test_openai_provider_config(self, mocker, mock_openai_post):
+        mocker.patch.object(
+            CONFIG,
+            "gatekeeper",
+            GatekeeperConfig(
+                provider=GatekeeperProvider.OPENAI,
+                model="gpt-5.4",
+                reasoning_effort=ReasoningEffort.LOW,
+                structured_output=True,
+                temperature=0.0,
+            ),
+        )
+
+        await check_run_script(description="test", script_type="bash", script="echo hi", readonly=True)
+
+        body = mock_openai_post.call_args.kwargs["body"]
+        assert body["model"] == "gpt-5.4"
+        assert body["reasoning"] == {"effort": "low"}
+        assert body["temperature"] == 0.0
+        assert "text" in body
+
+    async def test_vertex_ai_provider_uses_openapi_base_url(self, mocker):
+        mocker.patch.dict("os.environ", {}, clear=False)
+        mocker.patch(
+            "linux_mcp_server.gatekeeper.gcp_auth.get_gcp_access_token",
+            return_value="gcp-token",
+        )
+        mock_post = mocker.patch(
+            "linux_mcp_server.gatekeeper.vertex_ai_client.post_json",
+            new_callable=mocker.AsyncMock,
+            return_value={"output_text": '{"status": "OK", "detail": ""}'},
+        )
+        mocker.patch.object(
+            CONFIG,
+            "gatekeeper",
+            GatekeeperConfig(
+                provider=GatekeeperProvider.VERTEX_AI,
+                model="gpt-oss-120b-maas",
+                vertex_ai=VertexAIGatekeeperConfig(
+                    project="p",
+                    base_url="https://aiplatform.googleapis.com/v1/projects/p/locations/global/endpoints/openapi",
+                ),
+                structured_output=False,
+                temperature=0.0,
+            ),
+        )
+
+        await check_run_script(description="test", script_type="bash", script="echo hi", readonly=True)
+
+        assert mock_post.call_args.kwargs["url"].endswith("/responses")
+        assert mock_post.call_args.kwargs["headers"]["Authorization"] == "Bearer gcp-token"
