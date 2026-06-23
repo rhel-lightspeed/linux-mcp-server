@@ -197,6 +197,4 @@ class LogEntries(BaseModel):
 
     @field_serializer("unit", "path")
     def serialize_empty_as_null(self, value: str | Path | None) -> str | None:
-        if value:
-            return str(value)
-        return None
+        return str(value) if value else None
