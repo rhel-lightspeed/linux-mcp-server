@@ -40,7 +40,11 @@ class TestGetNetworkInterfaces:
                 "remote.example.com",
                 [
                     (0, "eth0             UP             192.168.1.100/24", ""),
-                    (0, "eth0: 1024 2048 0 0 0 0 0 0 512 1024 0 0 0 0 0 0", ""),
+                    (
+                        0,
+                        "Inter-|   Receive                                                |  Transmit\n face |bytes    packets\n  eth0: 1024 2048 0 0 0 0 0 0 512 1024 0 0 0 0 0 0",
+                        "",
+                    ),
                 ],
                 ["eth0"],
                 id="remote",
@@ -51,10 +55,31 @@ class TestGetNetworkInterfaces:
         """Test getting network interfaces with success."""
         mock_execute.side_effect = responses
         result = await mcp_client.call_tool("get_network_interfaces", arguments={"host": host})
-        result_text = result.content[0].text.casefold()
+        content = result.structured_content["result"]
 
-        assert "network interfaces" in result_text
-        assert all(iface in result_text for iface in expected_interfaces), "Did not find all expected values"
+        assert content is not None
+        assert len(content) == len(expected_interfaces)
+        names = [iface["name"] for iface in content]
+        assert names == sorted(expected_interfaces)
+
+        eth0 = next(iface for iface in content if iface["name"] == "eth0")
+        assert eth0["status"] == "UP"
+        assert "192.168.1.100/24" in eth0["addresses"]
+        if host is None:
+            assert eth0["rx_bytes"] == 9876543
+            assert eth0["tx_bytes"] == 5432100
+            assert eth0["rx_errors"] == 10
+            assert eth0["tx_errors"] == 20
+        else:
+            assert eth0["rx_bytes"] == 1024
+            assert eth0["tx_bytes"] == 512
+
+        if "lo" in expected_interfaces:
+            lo = next(iface for iface in content if iface["name"] == "lo")
+            assert lo["status"] == "UNKNOWN"
+            assert "127.0.0.1/8" in lo["addresses"]
+            assert lo["rx_bytes"] == 1234567
+
         assert mock_execute.call_count == 2
 
     async def test_get_network_interfaces_partial_failure(self, mcp_client, mock_execute):
@@ -65,10 +90,12 @@ class TestGetNetworkInterfaces:
         ]
 
         result = await mcp_client.call_tool("get_network_interfaces")
-        result_text = result.content[0].text.casefold()
+        content = result.structured_content["result"]
 
-        assert "network interfaces" in result_text
-        assert "eth0" in result_text
+        assert len(content) == 1
+        assert content[0]["name"] == "eth0"
+        assert content[0]["status"] == "UP"
+        assert content[0]["rx_bytes"] == 0
 
     async def test_get_network_interfaces_full_failure(self, mcp_client, mock_execute):
         """Test getting network interfaces with full failures."""
@@ -78,9 +105,7 @@ class TestGetNetworkInterfaces:
         ]
 
         result = await mcp_client.call_tool("get_network_interfaces")
-        result_text = result.content[0].text.casefold()
-
-        assert "network interfaces" in result_text
+        assert result.structured_content["result"] == []
 
     async def test_get_network_interfaces_error(self, mcp_client, mock_execute):
         """Test getting network interfaces with error."""

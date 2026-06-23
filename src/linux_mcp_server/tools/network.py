@@ -6,7 +6,8 @@ from linux_mcp_server.audit import log_tool_call
 from linux_mcp_server.commands import get_command
 from linux_mcp_server.formatters import format_listening_ports
 from linux_mcp_server.formatters import format_network_connections
-from linux_mcp_server.formatters import format_network_interfaces
+from linux_mcp_server.models import NetworkInterface
+from linux_mcp_server.parsers import merge_network_interfaces
 from linux_mcp_server.parsers import parse_ip_brief
 from linux_mcp_server.parsers import parse_proc_net_dev
 from linux_mcp_server.parsers import parse_ss_connections
@@ -27,7 +28,7 @@ from linux_mcp_server.utils.validation import is_successful_output
 @disallow_local_execution_in_containers
 async def get_network_interfaces(
     host: Host = None,
-) -> str:
+) -> list[NetworkInterface]:
     """Get network interface information.
 
     Retrieves all network interfaces with their operational state, IP addresses,
@@ -50,7 +51,7 @@ async def get_network_interfaces(
     if is_successful_output(returncode, stdout):
         stats = parse_proc_net_dev(stdout)
 
-    return format_network_interfaces(interfaces, stats)
+    return merge_network_interfaces(interfaces, stats)
 
 
 @mcp.tool(
