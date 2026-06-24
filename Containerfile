@@ -57,6 +57,7 @@ ARG UID=1001
 ARG SOURCE_DATE_EPOCH
 ARG PSEUDO_VERSION=0.1.0a
 ARG VERSION=0.1.0a
+ARG RELEASE_TYPE=dev
 
 # Indicator the application is running in a container
 ENV container=docker
@@ -83,6 +84,7 @@ LABEL summary="Linux MCP Server"
 LABEL url="https://github.com/rhel-lightspeed/linux-mcp-server"
 LABEL vendor="Red Hat, Inc."
 LABEL version=${VERSION}
+LABEL release_type=${RELEASE_TYPE}
 
 ADD licenses/ /licenses/
 ADD LICENSE /licenses/Apache-2.0.txt
