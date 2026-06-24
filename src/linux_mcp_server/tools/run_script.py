@@ -289,7 +289,7 @@ async def reject_script(
     description=RUN_SCRIPT_INTERACTIVE_DESCRIPTION,
     annotations=ToolAnnotations(destructiveHint=True),
     output_schema=RunScriptInteractiveResult.model_json_schema(),
-    app=AppConfig(resourceUri=RUN_SCRIPT_APP_URI),
+    app=AppConfig(resource_uri=RUN_SCRIPT_APP_URI),
 )
 @log_tool_call
 @disallow_local_execution_in_containers
