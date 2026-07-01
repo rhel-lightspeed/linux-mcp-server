@@ -49,6 +49,7 @@ RUN_SCRIPT_TOOLS = set(["run_script", "run_script_with_confirmation", "validate_
 RUN_SCRIPT_APP_TOOLS = set(
     [
         "execute_script",
+        "get_execution_timeout",
         "get_execution_state",
         "reject_script",
         "run_script_interactive",
