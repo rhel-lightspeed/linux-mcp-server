@@ -79,3 +79,11 @@ export const GetExecutionStateResultSchema = z.object({
 export type GetExecutionStateResult = z.infer<
   typeof GetExecutionStateResultSchema
 >;
+
+export const GetExecutionTimeoutResultSchema = z.object({
+  timeout: z.number(),
+});
+
+export type GetExecutionTimeoutResult = z.infer<
+  typeof GetExecutionTimeoutResultSchema
+>;
