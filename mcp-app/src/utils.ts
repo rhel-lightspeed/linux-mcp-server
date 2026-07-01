@@ -69,3 +69,15 @@ export function formatExecutionState(executionState: ExecutionState): string {
       return "Initial";
   }
 }
+
+export function errorToJSON(err: any) {
+  // Get all property names, including the hidden (non-enumerable) ones
+  const propertyNames = Object.getOwnPropertyNames(err);
+  const errorObject: { [key: string]: unknown } = {};
+
+  propertyNames.forEach((key) => {
+    errorObject[key] = err[key];
+  });
+
+  return JSON.stringify(errorObject, null, 2);
+}

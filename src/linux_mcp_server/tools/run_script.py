@@ -284,6 +284,17 @@ async def reject_script(
 
 
 @mcp.tool(
+    tags={"run_script", "mcp_apps_only", "hidden_from_model"},
+    description="Get the execution timeout for mcp-app",
+    app=AppConfig(visibility=["app"]),
+)
+@log_tool_call
+@disallow_local_execution_in_containers
+async def get_execution_timeout():
+    return {"timeout": CONFIG.command_timeout * 1000}
+
+
+@mcp.tool(
     tags={"run_script", "mcp_apps_only"},
     title="Run a script with interactive user confirmation",
     description=RUN_SCRIPT_INTERACTIVE_DESCRIPTION,
