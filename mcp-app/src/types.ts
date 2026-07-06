@@ -72,10 +72,11 @@ const ExecutionStateSchema = z.enum(executionState);
  */
 export type ExecutionState = z.infer<typeof ExecutionStateSchema>;
 
-export const GetExecutionStateResultSchema = z.object({
+export const GetExecutionDetailsResultSchema = z.object({
   state: ExecutionStateSchema,
+  timeout: z.number(), // in seconds
 });
 
-export type GetExecutionStateResult = z.infer<
-  typeof GetExecutionStateResultSchema
+export type GetExecutionDetailsResult = z.infer<
+  typeof GetExecutionDetailsResultSchema
 >;

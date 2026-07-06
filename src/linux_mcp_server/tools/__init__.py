@@ -12,7 +12,7 @@ from linux_mcp_server.tools.network import get_network_interfaces
 from linux_mcp_server.tools.processes import get_process_info
 from linux_mcp_server.tools.processes import list_processes
 from linux_mcp_server.tools.run_script import execute_script
-from linux_mcp_server.tools.run_script import get_execution_state
+from linux_mcp_server.tools.run_script import get_execution_details
 from linux_mcp_server.tools.run_script import reject_script
 from linux_mcp_server.tools.run_script import run_script
 from linux_mcp_server.tools.run_script import run_script_interactive
@@ -42,7 +42,7 @@ __all__ = [
     "execute_script",
     "get_cpu_information",
     "get_disk_usage",
-    "get_execution_state",
+    "get_execution_details",
     "get_hardware_information",
     "get_journal_logs",
     "get_listening_ports",

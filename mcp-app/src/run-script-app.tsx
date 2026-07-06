@@ -6,11 +6,12 @@ import {
   useApp,
 } from "@modelcontextprotocol/ext-apps/react";
 import type { CallToolResult } from "@modelcontextprotocol/sdk/types.js";
+import { DEFAULT_REQUEST_TIMEOUT_MSEC } from "@modelcontextprotocol/sdk/shared/protocol";
 import { StrictMode, useEffect, useMemo, useState } from "react";
 import { createRoot } from "react-dom/client";
 import {
   ExecuteScriptResultSchema,
-  GetExecutionStateResultSchema,
+  GetExecutionDetailsResultSchema,
   McpAppToolParamsSchema,
   McpAppToolResultSchema,
   type ExecutionState,
@@ -119,6 +120,9 @@ function RunScriptAppInner({
   const [executionState, setExecutionState] =
     useState<ExecutionState>("initial");
   const [executionResult, setExecutionResult] = useState<string>("");
+  const [executionTimeout, setExecutionTimeout] = useState<number>(
+    DEFAULT_REQUEST_TIMEOUT_MSEC,
+  );
 
   const validatedToolRequestParams = useMemo(() => {
     if (!toolRequestParams) {
@@ -155,9 +159,9 @@ function RunScriptAppInner({
   useEffect(() => {
     if (!validatedToolResult) return;
 
-    const getExecutionStateFromServer = async () => {
+    const getExecutionDetailsFromServer = async () => {
       const result = await app.callServerTool({
-        name: "get_execution_state",
+        name: "get_execution_details",
         arguments: {
           id: validatedToolResult.id,
         },
@@ -165,16 +169,20 @@ function RunScriptAppInner({
 
       if (result.isError) return;
 
-      const validatedResult = GetExecutionStateResultSchema.safeParse(
+      const validatedResult = GetExecutionDetailsResultSchema.safeParse(
         result.structuredContent,
       );
 
       if (validatedResult.success) {
         setExecutionState(validatedResult.data.state);
+
+        // Add 5 seconds grace period here so the timeout is always coming from
+        // the MCP server which contains more structured details
+        setExecutionTimeout(validatedResult.data.timeout * 1000 + 5000);
       }
     };
 
-    getExecutionStateFromServer();
+    getExecutionDetailsFromServer();
   }, [app, validatedToolResult]);
 
   const handleAccept = async () => {
@@ -187,10 +195,13 @@ function RunScriptAppInner({
     let outputToModel = "";
 
     try {
-      const result = await app.callServerTool({
-        name: "execute_script",
-        arguments: { id: validatedToolResult.id },
-      });
+      const result = await app.callServerTool(
+        {
+          name: "execute_script",
+          arguments: { id: validatedToolResult.id },
+        },
+        { timeout: executionTimeout },
+      );
 
       if (result.isError) {
         throw new Error(extractText(result));
@@ -209,14 +220,16 @@ function RunScriptAppInner({
         executeScriptResult,
       );
     } catch (e) {
+      const errorMessage = e instanceof Error ? e.message : String(e);
+
       outputToModel = formatOutputForToolError(
         validatedToolRequestParams,
         validatedToolResult,
-        JSON.stringify(e),
+        errorMessage,
       );
 
       updatedExecutionState = "failure";
-      updatedExecutionResult = JSON.stringify(e);
+      updatedExecutionResult = errorMessage;
     }
 
     setExecutionState(updatedExecutionState);

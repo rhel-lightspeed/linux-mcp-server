@@ -14,6 +14,7 @@ import pytest
 
 from fastmcp.exceptions import ToolError
 
+from linux_mcp_server.config import CONFIG
 from linux_mcp_server.config import Toolset
 from linux_mcp_server.connection.ssh import execute_command
 from linux_mcp_server.gatekeeper import GatekeeperResult
@@ -694,7 +695,7 @@ class TestExecuteScriptMCP:
 
 
 class TestRejectAndGetExecutionStateMCP:
-    """``reject_script`` and ``get_execution_state`` via ``app_client``."""
+    """``reject_script`` and ``get_execution_details`` via ``app_client``."""
 
     async def test_reject_script(
         self,
@@ -713,8 +714,8 @@ class TestRejectAndGetExecutionStateMCP:
         await app_client.call_tool("reject_script", {"id": "r"})
         assert script_store_fresh.get_script_details("r").state == "rejected-user"
 
-    async def test_get_execution_state(self, app_client: Any, script_store_fresh: ScriptStore) -> None:
-        """Expose the current lifecycle state string for UI polling."""
+    async def test_get_execution_details(self, app_client: Any, script_store_fresh: ScriptStore) -> None:
+        """Expose the current lifecycle state string and execution timeout for UI polling."""
         script_store_fresh._scripts["g"] = ScriptDetails(
             state="executing",
             description="d",
@@ -723,5 +724,21 @@ class TestRejectAndGetExecutionStateMCP:
             host="host",
             readonly=True,
         )
-        result = await app_client.call_tool("get_execution_state", {"id": "g"})
-        assert result.structured_content == {"state": "executing"}
+        result = await app_client.call_tool("get_execution_details", {"id": "g"})
+        assert result.structured_content == {"state": "executing", "timeout": 30}
+
+    async def test_get_execution_details_with_customized_timeout(
+        self, monkeypatch: pytest.MonkeyPatch, app_client: Any, script_store_fresh: ScriptStore
+    ) -> None:
+        """Expose the current lifecycle state string and execution timeout for UI polling."""
+        monkeypatch.setattr(CONFIG, "command_timeout", 60)
+        script_store_fresh._scripts["g"] = ScriptDetails(
+            state="executing",
+            description="d",
+            script="x",
+            script_type=SCRIPT_TYPE_BASH,
+            host="host",
+            readonly=True,
+        )
+        result = await app_client.call_tool("get_execution_details", {"id": "g"})
+        assert result.structured_content == {"state": "executing", "timeout": 60}

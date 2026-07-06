@@ -359,15 +359,15 @@ async def run_script_interactive(
 
 @mcp.tool(
     tags={"run_script", "mcp_apps_only", "hidden_from_model"},
-    title="Get the execution state with request ID",
-    description="Get the execution state with request ID",
+    title="Get the execution details with request ID",
+    description="Get the execution details with request ID",
     app=AppConfig(visibility=["app"]),
 )
 @log_tool_call
 @disallow_local_execution_in_containers
-async def get_execution_state(id: str):
+async def get_execution_details(id: str):
     script_detail = script_store.get_script_details(id)
-    return {"state": script_detail.state}
+    return {"state": script_detail.state, "timeout": CONFIG.command_timeout}
 
 
 def _pick_execution_tool(needs_confirmation: bool):
