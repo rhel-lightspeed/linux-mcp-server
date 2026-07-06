@@ -1,5 +1,6 @@
 import fnmatch
 import logging
+import re
 
 from enum import Enum
 from functools import cache
@@ -63,6 +64,14 @@ class PolicyRule(BaseModel):
                 raise ValueError(f"Rule with host: '{self.host}' cannot be use action 'local'")
         return self
 
+    # Check that tool entries are syntactically valid
+    @model_validator(mode="after")
+    def validate_tools(self):
+        for pattern in self.tools:
+            if not re.match(r"^(?:-?@?[a-z][a-z0-9_]*|\*)$", pattern):
+                raise ValueError("Entry in tools list must be '*', '[-]<tool_name>', or '[-]@<group_name>'")
+        return self
+
     # Validate that SSH_KEY action has ssh_key configuration
     @model_validator(mode="after")
     def validate_ssh_key_config(self):
@@ -77,23 +86,35 @@ class PolicyRule(BaseModel):
         return fnmatch.fnmatch(target_host, self.host)
 
     # Check if the rule matches the policy tool name
-    # Supports exact tool name: "run_script_readonly", prefixes: "@fixed" and wildcard: "*"
+    # Supports exact tool name: "run_script_readonly", prefixes: "@fixed", wildcard: "*",
+    # and exclusions: "-tool_name" (exclusions take precedence over inclusions)
     def matches_tool(self, tool_name: str, tool_tags: set[str]) -> bool:
-        for allowed_tool in self.tools:
-            if allowed_tool == "*":
-                return True
-            elif allowed_tool.startswith("@"):
-                # Toolset prefix check if tool belongs to this toolset
-                toolset_name = allowed_tool[1:]  # Remove @ prefix
-                toolset = get_toolset(toolset_name)
-                if toolset is None:
-                    logger.warning(f"Unknown toolset: {toolset_name}")
-                    return False
-
-                if toolset.includes_tool(tool_tags):
+        def matches(patterns: list[str]):
+            for pattern in patterns:
+                if pattern == "*":
                     return True
-            elif allowed_tool == tool_name:
-                return True
+                elif pattern.startswith("@"):
+                    # Toolset prefix check if tool belongs to this toolset
+                    toolset_name = pattern[1:]  # Remove @ prefix
+                    toolset = get_toolset(toolset_name)
+                    if toolset is None:
+                        logger.warning(f"Unknown toolset: {toolset_name}")
+                        return False
+
+                    if toolset.includes_tool(tool_tags):
+                        return True
+                elif pattern == tool_name:
+                    return True
+            return False
+
+        exclusions = [t[1:] for t in self.tools if t.startswith("-")]
+        if matches(exclusions):
+            return False
+
+        inclusions = [t for t in self.tools if not t.startswith("-")]
+        if matches(inclusions):
+            return True
+
         return False
 
     # Check if the tokens claims satisfy the policy rules claim requirements
