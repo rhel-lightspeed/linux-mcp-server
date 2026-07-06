@@ -26,7 +26,7 @@ setup-uv-and-mcp-apps:
 
 download-secure-files:
   stage: setup
-  image: registry.gitlab.com/gitlab-org/cli:latest@sha256:04b3e3ce00e51044aac6b3c019411b040da7a35ffd8a5e984e521909e77f7b8d
+  image: registry.gitlab.com/gitlab-org/cli:latest@sha256:8d8d8060a6b7fd7a79fb278e610a9f6a20119e612b65d8f7c674542e2fde20f2
   script:
     - mkdir -p securefiles
     - '[ -z "$CI_SERVER_TLS_CA_FILE" ] || glab config set ca_cert "$CI_SERVER_TLS_CA_FILE" --host "$CI_SERVER_FQDN"'
