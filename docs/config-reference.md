@@ -148,7 +148,7 @@ and when a matching rule is found, the action from that rule is used, and proces
 Each rule has the following properties that are used for matching:
 
  - **`host`** (required, string): either `localhost` for local execution or a pattern (with * and ? wildcards) that matches a remote host. `localhost` must be specified literally - `host: *` will *not* match `localhost`.
- - **`tools`** (required, list of strings) - a list of tool names or toolsets to match. Use `*` to match all tools. A toolset (as for `LINUX_MCP_TOOLSET`) is represented by a `@` prefix. If a tool name is preceded by `-`, that excludes the tool. (Exclusions take precedence, order doesn't matter. Toolsets cannot be excluded.)
+ - **`tools`** (required, list of strings) - a list of tool names or toolsets to match. Use `*` to match all tools. A toolset (as for `LINUX_MCP_TOOLSET`) is represented by a `@` prefix. If a tool name or toolset name is preceded by `-`, that excludes the tool or toolset. (Exclusions take precedence, order doesn't matter.)
  - **`claims`** (object) - claims from the OAuth2 token to match on. Each item in here is of the form `<claim_name>`: `<value>` with the following match rules:
     - if `<value>` is a string, and the value from the token is a string, they must match exactly
     - if `<value>` is a string, and the value from the token is a list, `<value>` must be in the list (example: `groups: app-rhel-mcp-server-users`)

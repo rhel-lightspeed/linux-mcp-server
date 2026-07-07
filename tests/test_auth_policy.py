@@ -4,6 +4,8 @@ from pathlib import Path
 
 import pytest
 
+from pydantic import ValidationError
+
 from linux_mcp_server.auth_policy import AuthPolicy
 from linux_mcp_server.auth_policy import evaluate_policy
 from linux_mcp_server.auth_policy import get_policy
@@ -45,6 +47,36 @@ class TestPolicyRuleHostMatching:
         assert rule.matches_host("localhost")
 
 
+class TestPolicyRuleValidation:
+    @pytest.mark.parametrize(
+        "tools,is_error",
+        [
+            [["*"], False],
+            [["get_service_status"], False],
+            [["get_service_status_42"], False],
+            [["-get_service_status"], False],
+            [["@run_script"], False],
+            [["-@run_script"], False],
+            [["get_*"], True],
+            [["_get_service_status"], True],
+            [["42_get_service_status"], True],
+            [["-@run_Script"], True],
+        ],
+    )
+    def test_validate_tools(self, tools: list[str], is_error: bool):
+        def make_rule():
+            return PolicyRule(host="localhost", tools=tools, claims={}, action=PolicyAction.LOCAL, all_users=True)
+
+        if is_error:
+            with pytest.raises(
+                ValidationError, match=r"Entry in tools list must be '\*', '\[-\]<tool_name>', or '\[-\]@<group_name>'"
+            ):
+                make_rule()
+        else:
+            rule = make_rule()
+            assert rule.tools == tools
+
+
 class TestPolicyRuleToolMatching:
     def test_wildcard_match(self):
         rule = PolicyRule(
@@ -79,6 +111,76 @@ class TestPolicyRuleToolMatching:
         # Tool with run_script tag matches @run_script toolset
         assert rule.matches_tool("validate_script", {"run_script"})
         assert not rule.matches_tool("get_service_status", set())
+
+    def test_exclusion_with_wildcard(self):
+        rule = PolicyRule(
+            host="*",
+            tools=["*", "-run_script"],
+            claims={},
+            action=PolicyAction.SSH_DEFAULT,
+            all_users=True,
+        )
+        assert rule.matches_tool("other_tool", set())
+        assert not rule.matches_tool("run_script", set())
+
+    def test_exclusion_with_toolset(self):
+        rule = PolicyRule(
+            host="*",
+            tools=["@run_script", "-validate_script"],
+            claims={},
+            action=PolicyAction.SSH_DEFAULT,
+            all_users=True,
+        )
+        # validate_script is in the toolset but explicitly excluded
+        assert not rule.matches_tool("validate_script", {"run_script"})
+        # run_script tool itself is still included via the toolset
+        assert rule.matches_tool("run_script", {"run_script"})
+
+    def test_exclusion_of_toolset(self):
+        rule = PolicyRule(
+            host="*",
+            tools=["*", "-@run_script"],
+            claims={},
+            action=PolicyAction.SSH_DEFAULT,
+            all_users=True,
+        )
+        # validate_script is in excluded via toolset
+        assert not rule.matches_tool("validate_script", {"run_script"})
+        # get_service_status is not excluded
+        assert rule.matches_tool("get_service_status", set())
+
+    def test_exclusion_takes_precedence_over_explicit_include(self):
+        rule = PolicyRule(
+            host="*",
+            tools=["run_script", "-run_script"],
+            claims={},
+            action=PolicyAction.SSH_DEFAULT,
+            all_users=True,
+        )
+        assert not rule.matches_tool("run_script", set())
+
+    def test_exclusion_order_independent(self):
+        # Exclusion listed before the wildcard — should still exclude
+        rule = PolicyRule(
+            host="*",
+            tools=["-run_script", "*"],
+            claims={},
+            action=PolicyAction.SSH_DEFAULT,
+            all_users=True,
+        )
+        assert not rule.matches_tool("run_script", set())
+        assert rule.matches_tool("other_tool", set())
+
+    def test_exclusion_does_not_match_other_tools(self):
+        rule = PolicyRule(
+            host="*",
+            tools=["*", "-run_script"],
+            claims={},
+            action=PolicyAction.SSH_DEFAULT,
+            all_users=True,
+        )
+        assert rule.matches_tool("run_script_readonly", set())
+        assert rule.matches_tool("validate_script", set())
 
 
 class TestPolicyRuleClaimMatching:
