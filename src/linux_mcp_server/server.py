@@ -46,7 +46,7 @@ def monkeypatch_fastmcp_for_app_visibility():
     import fastmcp.server.server as m
 
     if hasattr(m, "_is_model_visible"):
-        m._is_model_visible = lambda _tool: True
+        setattr(m, "_is_model_visible", lambda _tool: True)
 
 
 monkeypatch_fastmcp_for_app_visibility()
