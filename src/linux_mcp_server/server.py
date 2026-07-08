@@ -198,31 +198,11 @@ mcp = FastMCP("linux-mcp-server", version=linux_mcp_server.__version__, auth=aut
     tags={"run_script", "mcp_apps_only"},
 )
 def run_script_app_html() -> ResourceResult:
-    filename = "run-script-app.html"
-
-    # Try ui_resources first (wheel install)
-    ui_resources_path = resources.files(linux_mcp_server).joinpath("ui_resources")
-    resource_file = ui_resources_path.joinpath(filename)
-    logger.debug(f"Checking for UI resource at: {resource_file}")
-    # Check if we need to fall back to mcp-app/dist (editable install)
-    if not resource_file.is_file():
-        package_path = Path(linux_mcp_server.__file__).parent
-        repo_root = package_path.parent.parent
-        mcp_app_dist = repo_root / "mcp-app" / "dist" / filename
-        logger.debug(f"Checking for UI resource at: {mcp_app_dist}")
-        if mcp_app_dist.exists():
-            resource_file = mcp_app_dist
-        else:
-            logger.error(f"UI resource not found: {filename}")
-            raise FileNotFoundError(f"Resource {filename} not found")
-    # Read the file
-    try:
-        html = resource_file.read_text()
-        logger.info(f"Serving UI resource from: {resource_file}")
-    except Exception as e:
-        logger.error(f"Failed to read UI resource from {resource_file}: {e}")
-        raise
-
+    ui_dir = resources.files(linux_mcp_server).joinpath("ui_resources")
+    html = ui_dir.joinpath("run-script-app.html").read_text()
+    css = ui_dir.joinpath("run-script-app.css").read_text()
+    js = ui_dir.joinpath("run-script-app.js").read_text()
+    html = html.replace("/* __CSS__ */", css).replace("/* __JS__ */", js)
     return ResourceResult(contents=[ResourceContent(html, mime_type=MCP_APP_MIME_TYPE)])
 
 

@@ -1,7 +1,7 @@
 # ==========================================
 # EVAL WORKFLOW - SETUP
 # ==========================================
-setup-uv-and-mcp-apps:
+setup-uv:
   stage: setup
   image: images.paas.redhat.com/it-cloud-ocp-proxy-lib/python:3.14
   variables:
@@ -10,18 +10,9 @@ setup-uv-and-mcp-apps:
     # Install uv
     - export PYTHONUSERBASE=$CI_PROJECT_DIR/.local
     - pip install --user uv
-
-    # Install nvm to set up node and npm
-    - curl -o- https://raw.githubusercontent.com/nvm-sh/nvm/v0.40.4/install.sh | bash
-    - \. "$HOME/.nvm/nvm.sh"
-    - nvm install 24
-
-    # Generate the bundled html file
-    - cd mcp-app && npm install && npm run build:prod
   artifacts:
     paths:
       - .local/
-      - mcp-app/dist/
     expire_in: 1 hour
 
 download-secure-files:
@@ -45,7 +36,7 @@ download-secure-files:
   stage: eval
   image: images.paas.redhat.com/it-cloud-ocp-proxy-lib/python:3.14
   needs:
-    - job: setup-uv-and-mcp-apps
+    - job: setup-uv
       artifacts: true
     - job: download-secure-files
       artifacts: true
