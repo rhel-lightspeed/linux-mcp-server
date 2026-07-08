@@ -33,19 +33,27 @@ export const ExecuteScriptResultSchema = z.object({
 
 export type ExecuteScriptResult = z.infer<typeof ExecuteScriptResultSchema>;
 
-export const McpAppToolResultSchema = z.object({
-  status: z.enum([
-    "OK",
-    "BAD_DESCRIPTION",
-    "POLICY",
-    "MODIFIES_SYSTEM",
-    "UNCLEAR",
-    "DANGEROUS",
-    "MALICIOUS",
-  ]),
-  detail: z.string(),
-  id: z.string(),
-});
+export const McpAppToolResultSchema = z
+  .object({
+    status: z.enum([
+      "OK",
+      "BAD_DESCRIPTION",
+      "POLICY",
+      "MODIFIES_SYSTEM",
+      "UNCLEAR",
+      "DANGEROUS",
+      "MALICIOUS",
+    ]),
+    detail: z.string(),
+    id: z.string(),
+    malicious_activity_warning: z.boolean(),
+  })
+  .transform((data) => ({
+    status: data.status,
+    detail: data.detail,
+    id: data.id,
+    maliciousActivityWarning: data.malicious_activity_warning,
+  }));
 
 export type McpAppToolResult = z.infer<typeof McpAppToolResultSchema>;
 

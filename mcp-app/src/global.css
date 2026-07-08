@@ -111,6 +111,10 @@
   .execution-state-tag {
     @apply border border-app-border-primary rounded-md w-fit px-2 text-sm
   }
+
+  .security-warning {
+    @apply bg-red-200 text-red-600 rounded-lg p-4 mb-4
+  }
 }
 
 * {
