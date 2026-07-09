@@ -76,7 +76,7 @@ def update_server_json(version):
 
 
 def main():
-    mcp_publisher_version = os.environ.get("MCP_PUBLISHER_VERSION", "v1.4.0")
+    mcp_publisher_version = os.environ.get("MCP_PUBLISHER_VERSION", "v1.7.9")
 
     github_ref = os.environ.get("GITHUB_REF", "")
     if not github_ref:
