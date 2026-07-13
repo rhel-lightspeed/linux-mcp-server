@@ -1,0 +1,61 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="color-scheme" content="light dark" />
+    <title>Run Script</title>
+    <style>
+      /* __CSS__ */
+    </style>
+  </head>
+  <body>
+    <div id="connecting">Connecting...</div>
+
+    <div id="error" hidden><strong>ERROR:</strong> <span id="error-message"></span></div>
+
+    <div id="placeholder" class="placeholder" hidden>
+      <span class="ping-dot">
+        <span class="ping-ring"></span>
+        <span class="ping-core"></span>
+      </span>
+      <span>Waiting for the detail information...</span>
+    </div>
+
+    <div id="app" class="app-container" hidden>
+      <div class="script-main-box">
+        <!-- TODO: we can dynamically inject the platform that users are using here -->
+        <p class="action-heading">
+          Goose wants to perform the following action on
+          <strong id="host-name">localhost</strong>
+        </p>
+
+        <div id="description" class="description-box"></div>
+
+        <div class="script-section">
+          <p class="commands-label">Commands to execute:</p>
+          <div class="code-block">
+            <span id="language-label" class="language-label"></span>
+            <pre id="script-content"></pre>
+          </div>
+          <div id="show-more-container" class="show-more-container" hidden>
+            <a id="show-more-link" class="toggle-show-link"></a>
+          </div>
+        </div>
+
+        <div id="action-buttons" class="action-area">
+          <button id="btn-allow" class="btn-primary" disabled>Allow</button>
+          <button id="btn-deny" class="btn-secondary" disabled>Deny</button>
+        </div>
+        <div id="status-allowed" class="status-allowed" hidden>Allowed</div>
+        <div id="status-rejected" class="status-rejected" hidden></div>
+      </div>
+
+      <div id="execution-state" class="execution-state-tag"></div>
+    </div>
+
+    <script type="module">
+      /* __JS__ */
+    </script>
+  </body>
+</html>

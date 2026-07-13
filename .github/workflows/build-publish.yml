@@ -24,17 +24,6 @@ jobs:
           enable-cache: true
           prune-cache: false
 
-      - name: Install Node.js
-        uses: actions/setup-node@48b55a011bda9f5d6aeb4c2d9c7362e8dae4041e # v6.4.0
-        with:
-          node-version: '24'
-
-      - name: Build mcp-apps
-        run: |
-          cd mcp-app
-          npm install
-          npm run build:prod
-
       - name: Run uv sync
         run: uv sync --locked
 
@@ -188,17 +177,6 @@ jobs:
 
       - name: Install uv
         uses: astral-sh/setup-uv@fac544c07dec837d0ccb6301d7b5580bf5edae39 # v8.2.0
-
-      - name: Install Node.js
-        uses: actions/setup-node@48b55a011bda9f5d6aeb4c2d9c7362e8dae4041e # v6.4.0
-        with:
-          node-version: '24'
-
-      - name: Build mcp-apps
-        run: |
-          cd mcp-app
-          npm install
-          npm run build:prod
 
       - name: Pin Python version
         run: uv python pin ${{ matrix.python-version }}

@@ -1,0 +1,291 @@
+/*
+ * Theme variables: reference host-provided CSS custom properties with
+ * light-dark() fallbacks so the app works standalone or embedded.
+ */
+:root {
+  --text-xs: var(--font-text-xs-size, 12px);
+  --text-sm: var(--font-text-sm-size, 14px);
+  --text-md: var(--font-text-md-size, 16px);
+  --text-lg: var(--font-text-lg-size, 20px);
+
+  --text-xs--line-height: var(--font-text-xs-line-height, calc(1 / 0.75));
+  --text-sm--line-height: var(--font-text-sm-line-height, calc(1.25 / 0.875));
+  --text-md--line-height: var(--font-text-md-line-height, calc(1.5 / 1));
+  --text-lg--line-height: var(--font-text-lg-line-height, calc(1.75 / 1.125));
+
+  --color-app-bg-primary: var(--color-background-primary, light-dark(#fff, #22252a));
+  --color-app-fg-primary: var(--color-text-primary, light-dark(#3f434b, #fff));
+
+  --color-app-bg-secondary: var(--color-background-secondary, light-dark(#f4f6f7, #3f434b));
+  --color-app-fg-secondary: var(--color-text-secondary, light-dark(#525b68, #a7b0b9));
+
+  --color-app-bg-tertiary: var(--color-background-tertiary, light-dark(#e3e6ea, #474e57));
+  --color-app-fg-tertiary: var(--color-text-tertiary, light-dark(#606c7a, #878787));
+
+  --color-app-bg-success: var(--color-background-success, light-dark(#a3d795, #91cb80));
+  --color-app-fg-success: var(--color-text-success, light-dark(#91cb80, #a3d795));
+
+  --color-app-bg-danger: var(--color-background-danger, light-dark(#ff6b6b, #f94b4b));
+  --color-app-fg-danger: var(--color-text-danger, light-dark(#f94b4b, #ff6b6b));
+
+  --color-app-bg-warning: var(--color-background-warning, light-dark(#ffd966, #fbcd44));
+  --color-app-fg-warning: var(--color-text-warning, light-dark(#fbcd44, #ffd966));
+
+  --color-app-bg-info: var(--color-background-info, light-dark(#7cacff, #5c98f9));
+  --color-app-fg-info: var(--color-text-info, light-dark(#5c98f9, #7cacff));
+
+  --color-app-border-primary: var(--color-border-primary, light-dark(#e3e6ea, #3f434b));
+}
+
+/* Baseline reset (replaces Tailwind preflight / modern-normalize) */
+
+html {
+  line-height: 1.5;
+  -webkit-text-size-adjust: 100%;
+}
+
+*,
+::before,
+::after {
+  box-sizing: border-box;
+  border-width: 0;
+  border-style: solid;
+}
+
+[hidden] {
+  display: none !important;
+}
+
+body {
+  margin: 0;
+  font-family: var(--font-sans, system-ui, -apple-system, sans-serif);
+}
+
+p {
+  margin: 0;
+}
+
+/* --- Placeholder (loading state) --- */
+
+.placeholder {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  min-height: 200px;
+}
+
+.placeholder > span {
+  display: flex;
+  align-items: center;
+}
+
+.ping-dot {
+  position: relative;
+  display: inline-flex;
+  width: 0.75rem;
+  height: 0.75rem;
+  margin-right: 0.5rem;
+}
+
+.ping-ring {
+  position: absolute;
+  display: inline-flex;
+  width: 100%;
+  height: 100%;
+  border-radius: 9999px;
+  background-color: var(--color-app-fg-warning);
+  opacity: 0.75;
+  animation: ping 1s cubic-bezier(0, 0, 0.2, 1) infinite;
+}
+
+.ping-core {
+  position: relative;
+  display: inline-flex;
+  width: 0.75rem;
+  height: 0.75rem;
+  border-radius: 9999px;
+  background-color: var(--color-app-bg-warning);
+}
+
+/* Replaces Tailwind's animate-ping utility */
+@keyframes ping {
+  75%,
+  100% {
+    transform: scale(2);
+    opacity: 0;
+  }
+}
+
+/* --- App container --- */
+
+.app-container {
+  font-size: var(--text-md);
+  line-height: var(--text-md--line-height);
+  background-color: var(--color-app-bg-primary);
+  color: var(--color-app-fg-primary);
+  border-radius: 0.5rem;
+  padding: 0.5rem;
+}
+
+.script-main-box {
+  padding: 1rem;
+  border: 1px solid var(--color-app-border-primary);
+  border-radius: 1rem;
+  margin-bottom: 0.5rem;
+}
+
+.action-heading {
+  margin-bottom: 1rem;
+}
+
+/* --- Description box --- */
+
+.description-box {
+  background-color: #f9f6e9;
+  border: 1px solid #f2edd3;
+  border-radius: 0.5rem;
+  padding: 1rem;
+  margin-bottom: 1rem;
+  color: #000;
+}
+
+/* --- Code block --- */
+
+.script-section {
+  margin-bottom: 1rem;
+}
+
+.commands-label {
+  font-size: var(--text-sm);
+  line-height: var(--text-sm--line-height);
+  margin-bottom: 0.5rem;
+}
+
+.code-block {
+  font-family: var(--font-mono, ui-monospace, monospace);
+  font-size: var(--text-sm);
+  line-height: var(--text-sm--line-height);
+  position: relative;
+}
+
+.code-block .language-label {
+  position: absolute;
+  top: 0.5rem;
+  right: 0.5rem;
+  color: var(--color-app-fg-tertiary);
+  font-size: var(--text-xs);
+  line-height: var(--text-xs--line-height);
+}
+
+.code-block pre {
+  overflow-x: auto;
+  background-color: var(--color-app-bg-secondary);
+  color: var(--color-app-fg-secondary);
+  border-radius: 0.5rem;
+  padding: 1rem;
+  margin: 0;
+  scrollbar-width: thin;
+  scrollbar-color: var(--color-app-fg-secondary) transparent;
+}
+
+.show-more-container {
+  margin-top: 0.5rem;
+}
+
+.toggle-show-link {
+  color: var(--color-app-fg-info);
+  text-decoration: underline;
+  cursor: pointer;
+  font-size: var(--text-sm);
+  line-height: var(--text-sm--line-height);
+}
+
+.toggle-show-link:hover {
+  filter: brightness(0.9);
+}
+
+:root[style*="color-scheme: dark"] .toggle-show-link:hover {
+  filter: brightness(1.1);
+}
+
+/* --- Action buttons and status --- */
+
+.action-area {
+  display: flex;
+  justify-content: flex-end;
+  gap: 0.5rem;
+}
+
+.btn-primary,
+.btn-secondary {
+  padding-left: 0.5rem;
+  padding-right: 0.5rem;
+  margin: 0.5rem;
+  border-radius: 0.375rem;
+  border: none;
+  transition: all 200ms;
+  min-width: 6rem;
+  height: 2.5rem;
+  cursor: pointer;
+  font-size: inherit;
+  color: inherit;
+}
+
+.btn-primary {
+  background-color: var(--color-app-bg-info);
+}
+
+.btn-secondary {
+  background-color: var(--color-app-bg-secondary);
+}
+
+.btn-primary:hover,
+.btn-secondary:hover {
+  filter: brightness(0.9);
+}
+
+:root[style*="color-scheme: dark"] .btn-primary:hover,
+:root[style*="color-scheme: dark"] .btn-secondary:hover {
+  filter: brightness(1.1);
+}
+
+.btn-primary:disabled,
+.btn-secondary:disabled {
+  background-color: var(--color-app-bg-tertiary);
+  opacity: 0.6;
+  cursor: not-allowed;
+  filter: brightness(1);
+}
+
+.btn-primary:disabled:hover,
+.btn-secondary:disabled:hover {
+  filter: brightness(1);
+}
+
+.status-allowed {
+  display: flex;
+  justify-content: flex-end;
+  color: var(--color-app-fg-success);
+  background-color: transparent;
+  padding-right: 0.5rem;
+}
+
+.status-rejected {
+  display: flex;
+  justify-content: flex-end;
+  color: var(--color-app-fg-danger);
+  background-color: transparent;
+  padding-right: 0.5rem;
+}
+
+/* --- Execution state tag --- */
+
+.execution-state-tag {
+  border: 1px solid var(--color-app-border-primary);
+  border-radius: 0.375rem;
+  width: fit-content;
+  padding-left: 0.5rem;
+  padding-right: 0.5rem;
+  font-size: var(--text-sm);
+  line-height: var(--text-sm--line-height);
+}
