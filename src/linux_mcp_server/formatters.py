@@ -189,21 +189,6 @@ def format_services_list(stdout: str, running_count: int | None = None) -> str:
     return "\n".join(lines)
 
 
-def format_service_status(stdout: str, service_name: str) -> str:
-    """Format service status output.
-
-    Args:
-        stdout: Raw output from systemctl status.
-        service_name: Name of the service.
-
-    Returns:
-        Formatted string representation.
-    """
-    lines = [f"=== Status of {service_name} ===\n"]
-    lines.append(stdout)
-    return "\n".join(lines)
-
-
 def format_service_logs(stdout: str, service_name: str, lines_count: int) -> str:
     """Format service logs output.
 
