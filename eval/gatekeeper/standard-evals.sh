@@ -269,6 +269,9 @@ case "$provider" in
     llama_cpp)
         OPENAI_API_KEY=tasty
         OPENAI_API_BASE=http://localhost:8080/v1
+        # Reasoning is controlled via template kwargs for llama_cpp, passing reasoning effort raises API error.
+        # Clear reasoning_effort so it's not included in the request.
+        LINUX_MCP_GATEKEEPER__REASONING_EFFORT=
         # gemma-4 and qwen3.5 support a boolean enable_thinking tenplate parameter
         # granite-4 doesn't have any explict reasoning control
         case "$reasoning" in
@@ -281,6 +284,7 @@ case "$provider" in
         esac
         export OPENAI_API_KEY
         export OPENAI_API_BASE
+        export LINUX_MCP_GATEKEEPER__TEMPLATE_KWARGS
         max_parallel=1
         quant_tag="${quantization^^}"
         case "$model" in
