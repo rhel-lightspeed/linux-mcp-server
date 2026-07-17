@@ -2,79 +2,12 @@
 
 from linux_mcp_server.formatters import format_disk_usage
 from linux_mcp_server.formatters import format_hardware_info
-from linux_mcp_server.formatters import format_listening_ports
-from linux_mcp_server.formatters import format_network_connections
-from linux_mcp_server.formatters import format_network_interfaces
 from linux_mcp_server.formatters import format_process_detail
 from linux_mcp_server.formatters import format_process_list
 from linux_mcp_server.formatters import format_service_logs
 from linux_mcp_server.formatters import format_service_status
 from linux_mcp_server.formatters import format_services_list
-from linux_mcp_server.models import ListeningPort
-from linux_mcp_server.models import NetworkConnection
-from linux_mcp_server.models import NetworkInterface
 from linux_mcp_server.models import ProcessInfo
-
-
-class TestFormatNetworkConnections:
-    """Tests for format_network_connections function."""
-
-    def test_format_empty_list(self):
-        """Test formatting an empty list."""
-        result = format_network_connections([])
-        assert "=== Active Network Connections ===" in result
-        assert "Total connections: 0" in result
-
-    def test_format_single_connection(self):
-        """Test formatting a single connection."""
-        connections = [
-            NetworkConnection(
-                protocol="TCP",
-                state="ESTABLISHED",
-                local_address="192.168.1.100",
-                local_port="22",
-                remote_address="192.168.1.1",
-                remote_port="54321",
-                process="sshd",
-            )
-        ]
-        result = format_network_connections(connections)
-        assert "TCP" in result
-        assert "192.168.1.100:22" in result
-        assert "192.168.1.1:54321" in result
-        assert "ESTABLISHED" in result
-        assert "Total connections: 1" in result
-
-    def test_format_custom_header(self):
-        """Test formatting with custom header."""
-        result = format_network_connections([], header="=== Custom Header ===\n")
-        assert "=== Custom Header ===" in result
-
-
-class TestFormatListeningPorts:
-    """Tests for format_listening_ports function."""
-
-    def test_format_empty_list(self):
-        """Test formatting an empty list."""
-        result = format_listening_ports([])
-        assert "=== Listening Ports ===" in result
-        assert "Total listening ports: 0" in result
-
-    def test_format_single_port(self):
-        """Test formatting a single listening port."""
-        ports = [
-            ListeningPort(
-                protocol="TCP",
-                local_address="0.0.0.0",
-                local_port="22",
-                process="sshd",
-            )
-        ]
-        result = format_listening_ports(ports)
-        assert "TCP" in result
-        assert "0.0.0.0:22" in result
-        assert "LISTEN" in result
-        assert "Total listening ports: 1" in result
 
 
 class TestFormatProcessList:
@@ -129,52 +62,6 @@ class TestFormatProcessList:
         result = format_process_list(processes, max_display=100)
         assert "Total processes: 150" in result
         assert "Showing: First 100 processes" in result
-
-
-class TestFormatNetworkInterfaces:
-    """Tests for format_network_interfaces function."""
-
-    def test_format_empty_interfaces(self):
-        """Test formatting empty interfaces."""
-        result = format_network_interfaces({})
-        assert "=== Network Interfaces ===" in result
-
-    def test_format_with_interfaces(self):
-        """Test formatting with interfaces."""
-        interfaces = {
-            "eth0": NetworkInterface(
-                name="eth0",
-                status="UP",
-                addresses=["192.168.1.100/24"],
-            ),
-            "lo": NetworkInterface(
-                name="lo",
-                status="UNKNOWN",
-                addresses=["127.0.0.1/8"],
-            ),
-        }
-        result = format_network_interfaces(interfaces)
-        assert "eth0:" in result
-        assert "Status: UP" in result
-        assert "192.168.1.100/24" in result
-
-    def test_format_with_stats(self):
-        """Test formatting with statistics."""
-        interfaces = {
-            "eth0": NetworkInterface(name="eth0", status="UP"),
-        }
-        stats = {
-            "eth0": NetworkInterface(
-                name="eth0",
-                rx_bytes=1000000,
-                tx_bytes=500000,
-                rx_packets=10000,
-                tx_packets=5000,
-            ),
-        }
-        result = format_network_interfaces(interfaces, stats)
-        assert "RX:" in result
-        assert "TX:" in result
 
 
 class TestFormatProcessDetail:
