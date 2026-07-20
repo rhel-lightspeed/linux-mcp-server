@@ -43,7 +43,8 @@ class Transport(StrEnum):
 
 
 async def _get_journal_logs(
-    lines: int,
+    first_lines: int | None = None,
+    last_lines: int | None = None,
     host: Host | None = None,
     unit: str | None = None,
     priority: str | None = None,
@@ -53,7 +54,8 @@ async def _get_journal_logs(
     """Execute journalctl command with optional filters.
 
     Args:
-        lines: Number of log lines to retrieve.
+        first_lines: Number of first log lines to retrieve (using -n +N).
+        last_lines: Number of last log lines to retrieve (using -n N).
         host: Optional remote host address.
         unit: Filter by systemd unit name.
         priority: Filter by priority level.
@@ -70,7 +72,8 @@ async def _get_journal_logs(
     cmd = get_command("journal_logs")
     return await cmd.run(
         host=host,
-        lines=lines,
+        first_lines=first_lines,
+        last_lines=last_lines,
         unit=unit,
         priority=priority,
         since=since,
@@ -112,7 +115,22 @@ async def get_journal_logs(
         Transport | None,
         "Filter by journal transport (e.g., 'audit' for audit logs, 'kernel' for kernel messages, 'syslog' for syslog messages)",
     ] = None,
-    lines: t.Annotated[int, Field(description="Number of log lines to retrieve. Default: 100", ge=1, le=10_000)] = 100,
+    first_lines: t.Annotated[
+        int | None,
+        Field(
+            description="Number of first log lines to retrieve after applying filters (journalctl -n +N). Mutually exclusive with last_lines.",
+            ge=1,
+            le=10_000,
+        ),
+    ] = None,
+    last_lines: t.Annotated[
+        int | None,
+        Field(
+            description="Number of last log lines to retrieve after applying filters (journalctl -n N). Default: 100. Mutually exclusive with first_lines.",
+            ge=1,
+            le=10_000,
+        ),
+    ] = None,
     host: Host = None,
 ) -> LogEntries:
     """Get systemd journal logs.
@@ -120,10 +138,27 @@ async def get_journal_logs(
     Retrieves entries from the systemd journal with optional filtering by unit,
     priority level, time range, and transport. Returns timestamped log messages.
 
+    Use first_lines to get the first N lines (e.g., with --since to get early entries).
+    Use last_lines to get the last N lines (default behavior if neither is specified).
+
     To get audit logs, use transport='audit'.
     """
+    # Validate mutually exclusive parameters
+    if first_lines is not None and last_lines is not None:
+        raise ToolError("Parameters 'first_lines' and 'last_lines' are mutually exclusive.")
+
+    # Default to last_lines=100 if neither is specified
+    if first_lines is None and last_lines is None:
+        last_lines = 100
+
     returncode, stdout, stderr = await _get_journal_logs(
-        lines=lines, host=host, unit=unit, priority=priority, since=since, transport=transport
+        first_lines=first_lines,
+        last_lines=last_lines,
+        host=host,
+        unit=unit,
+        priority=priority,
+        since=since,
+        transport=transport,
     )
 
     if returncode != 0:

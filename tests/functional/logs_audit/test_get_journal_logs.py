@@ -42,12 +42,12 @@ async def test_get_journal_logs(mcp_session):
     # 1. Happy path to show last 5 lines of the systemd-journald journal log
     await _assert_journal_logs_match(
         mcp_session,
-        arguments={"unit": "systemd-journald", "lines": 5},
+        arguments={"unit": "systemd-journald", "last_lines": 5},
         journalctl_cmd="journalctl -u systemd-journald -n 5 --no-pager",
     )
 
-    # 2. Call the tool with the lines=-1 argument. The tool returns an integer error
-    response = await mcp_session.call_tool("get_journal_logs", arguments={"unit": "systemd-journald", "lines": -1})
+    # 2. Call the tool with the last_lines=-1 argument. The tool returns an integer error
+    response = await mcp_session.call_tool("get_journal_logs", arguments={"unit": "systemd-journald", "last_lines": -1})
     assert response is not None
     response_text = response.content[0].text
     assert "1 validation error for call[get_journal_logs]" in response_text
@@ -56,7 +56,7 @@ async def test_get_journal_logs(mcp_session):
     # 3. Happy path to show last 5 lines of the systemd-journald journal log with priority=warning
     await _assert_journal_logs_match(
         mcp_session,
-        arguments={"unit": "systemd-journald", "lines": 5, "priority": "warning"},
+        arguments={"unit": "systemd-journald", "last_lines": 5, "priority": "warning"},
         journalctl_cmd="journalctl -u systemd-journald -n 5 -p warning --no-pager",
     )
 
@@ -65,7 +65,7 @@ async def test_get_journal_logs(mcp_session):
         mcp_session,
         arguments={
             "unit": "systemd-journald",
-            "lines": 5,
+            "last_lines": 5,
             "priority": "warning",
             "since": "1h ago",
         },
@@ -74,7 +74,7 @@ async def test_get_journal_logs(mcp_session):
 
     # 5. Call the tool with the invalid since argument
     response = await mcp_session.call_tool(
-        "get_journal_logs", arguments={"unit": "systemd-journald", "lines": 5, "since": "1h"}
+        "get_journal_logs", arguments={"unit": "systemd-journald", "last_lines": 5, "since": "1h"}
     )
     assert response is not None
     assert "Error reading journal logs: Failed to parse timestamp: 1h" in response.content[0].text
@@ -88,8 +88,21 @@ async def test_get_journal_logs_non_existing_unit(mcp_session):
 
     await _assert_journal_logs_match(
         mcp_session,
-        arguments={"unit": "superamazingunit", "lines": 5},
+        arguments={"unit": "superamazingunit", "last_lines": 5},
         journalctl_cmd="journalctl -n 5 --no-pager --unit superamazingunit",
+    )
+
+
+async def test_get_journal_logs_first_lines(mcp_session):
+    """
+    Verify that first_lines parameter works correctly with -n +N syntax.
+    """
+
+    # Test first_lines with since filter to get first N entries after a time
+    await _assert_journal_logs_match(
+        mcp_session,
+        arguments={"unit": "systemd-journald", "since": "1h ago", "first_lines": 5},
+        journalctl_cmd="journalctl -u systemd-journald --since '1h ago' -n +5 --no-pager",
     )
 
 
@@ -109,6 +122,6 @@ async def test_get_journal_logs_audit(mcp_session):
     # Happy path to show last 5 lines of the auditd journal log
     await _assert_journal_logs_match(
         mcp_session,
-        arguments={"lines": 5, "transport": "audit"},
+        arguments={"last_lines": 5, "transport": "audit"},
         journalctl_cmd="journalctl -n 5 --no-pager _TRANSPORT=audit",
     )

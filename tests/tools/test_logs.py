@@ -23,7 +23,7 @@ class TestGetJournalLogs:
     @pytest.mark.parametrize(
         "params, expected_args, expected_fields",
         [
-            # Default parameters
+            # Default parameters (defaults to last_lines=100)
             (
                 {},
                 ["-n", "100", "--no-pager"],
@@ -47,16 +47,28 @@ class TestGetJournalLogs:
                 ["--since", "today"],
                 {"unit": None},
             ),
-            # Custom line count
+            # Custom last_lines count
             (
-                {"lines": 50},
+                {"last_lines": 50},
                 ["-n", "50"],
                 {"unit": None},
             ),
-            # All filters combined
+            # Custom first_lines count
             (
-                {"unit": "nginx.service", "priority": "err", "since": "today", "lines": 50},
+                {"first_lines": 25},
+                ["-n", "+25"],
+                {"unit": None},
+            ),
+            # All filters combined with last_lines
+            (
+                {"unit": "nginx.service", "priority": "err", "since": "today", "last_lines": 50},
                 ["--unit", "nginx.service", "--priority", "err", "--since", "today", "-n", "50"],
+                {"unit": "nginx.service"},
+            ),
+            # All filters combined with first_lines
+            (
+                {"unit": "nginx.service", "priority": "err", "since": "today", "first_lines": 50},
+                ["--unit", "nginx.service", "--priority", "err", "--since", "today", "-n", "+50"],
                 {"unit": "nginx.service"},
             ),
             # Transport filter (audit)
@@ -71,7 +83,7 @@ class TestGetJournalLogs:
                 {"unit": None},
             ),
             (
-                {"transport": "audit", "priority": "err", "lines": 50},
+                {"transport": "audit", "priority": "err", "last_lines": 50},
                 ["_TRANSPORT=audit", "--priority", "err", "-n", "50"],
                 {"unit": None},
             ),
@@ -168,6 +180,11 @@ class TestGetJournalLogs:
 
         assert content["lines_count"] == 3
         assert len(content["entries"]) == 3
+
+    async def test_get_journal_logs_mutually_exclusive_lines(self, mcp_client, mock_execute_with_fallback):
+        """Test get_journal_logs rejects both first_lines and last_lines."""
+        with pytest.raises(ToolError, match="mutually exclusive"):
+            await mcp_client.call_tool("get_journal_logs", {"first_lines": 10, "last_lines": 20})
 
 
 class TestReadLogFile:
