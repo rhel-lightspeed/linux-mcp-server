@@ -1,11 +1,9 @@
 """Gatekeeper cost estimation from usage tokens and pricing tables."""
 
-import json
 import logging
 import os
 
 from functools import cache
-from pathlib import Path
 from typing import Any
 from urllib.parse import urlparse
 
@@ -23,19 +21,8 @@ logger = logging.getLogger("linux-mcp-server")
 
 
 MODELS_DEV_API_URL = "https://models.dev/api.json"
-FALLBACK_PRICING_PATH = Path(__file__).resolve().parent / "data" / "models_dev_fallback.json"
-
-FALLBACK_COST_PER_MTOK: dict[str, tuple[float, float]] = {
-    "gemma-4-26b-a4b-it-maas": (0.15, 0.60),
-    "gpt-oss-20b-maas": (0.07, 0.25),
-    "gpt-oss-120b-maas": (0.09, 0.36),
-}
-
-DEFAULT_CLOUD_COST_PER_MTOK = (3.0, 15.0)
 
 _LOCAL_HOSTS = frozenset({"localhost", "127.0.0.1", "::1"})
-
-_models_dev_cache: dict[str, Any] | None = None
 
 
 def _rates_from_mtok(input_mtok: float, output_mtok: float, source: CostSource) -> TokenRates:
@@ -79,25 +66,19 @@ def _models_dev_provider_key(provider: GatekeeperProvider, model: str) -> str:
             return provider.value
 
 
-def _load_models_dev_fallback() -> dict[str, Any]:
-    """Loads the fallback pricing from the vendored models.dev pricing snapshot."""
-    with FALLBACK_PRICING_PATH.open(encoding="utf-8") as handle:
-        return json.load(handle)
-
-
 @cache
 def _load_models_dev_pricing() -> dict[str, Any]:
-    """Loads the pricing from the models.dev API, falling back to the vendored fallback if the API is not available."""
+    """Loads pricing from the models.dev API. Returns an empty dict if unavailable."""
     try:
         with httpx.Client(timeout=10) as client:
             response = client.get(MODELS_DEV_API_URL)
             response.raise_for_status()
             pricing = response.json()
-            logger.debug("Loaded gatekeeper pricing from models.dev API", extra={"pricing": pricing})
+            logger.debug("Loaded gatekeeper pricing from models.dev API")
             return pricing
     except Exception as exc:
-        logger.debug("Failed to fetch models.dev pricing (%s); using vendored fallback", exc)
-        return _load_models_dev_fallback()
+        logger.debug("Failed to fetch models.dev pricing (%s); defaulting to $0", exc)
+        return {}
 
 
 def _lookup_models_dev_cost(provider_key: str, model: str) -> tuple[float, float] | None:
@@ -155,15 +136,10 @@ def resolve_token_rates() -> TokenRates:
     if models_dev_cost is not None:
         return _rates_from_mtok(models_dev_cost[0], models_dev_cost[1], "models_dev")
 
-    for candidate in _model_lookup_candidates(model):
-        hardcoded = FALLBACK_COST_PER_MTOK.get(candidate)
-        if hardcoded is not None:
-            return _rates_from_mtok(hardcoded[0], hardcoded[1], "fallback")
-
     if is_local_inference():
         return _rates_from_mtok(0.0, 0.0, "local")
 
-    return _rates_from_mtok(DEFAULT_CLOUD_COST_PER_MTOK[0], DEFAULT_CLOUD_COST_PER_MTOK[1], "fallback")
+    return _rates_from_mtok(0.0, 0.0, "fallback")
 
 
 def compute_cost(
@@ -181,6 +157,5 @@ def compute_cost(
 
 
 def reset_models_dev_cache() -> None:
-    """Clear the in-memory models.dev cache (for tests)."""
-    global _models_dev_cache
-    _models_dev_cache = None
+    """Clear the cached models.dev pricing (for tests)."""
+    _load_models_dev_pricing.cache_clear()
