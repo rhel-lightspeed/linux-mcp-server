@@ -64,7 +64,7 @@ These are used when `LINUX_MCP_TOOLSET` is set to `run_script` or `both`.
 | `--gatekeeper.structured_output`<br>`LINUX_MCP_GATEKEEPER__STRUCTURED_OUTPUT` | `True` | Whether to use structured JSON output from the model |
 | `--gatekeeper.temperature`<br>`LINUX_MCP_GATEKEEPER__TEMPERATURE` | 0.0 | Temperature to use for the model |
 | `--gatekeeper.openai.base_url`<br>`LINUX_MCP_GATEKEEPER__OPENAI__BASE_URL` / `OPENAI_API_BASE` | `https://api.openai.com/v1` | OpenAI provider: API base URL |
-| `--gatekeeper.openai.template_kwargs`<br>`LINUX_MCP_GATEKEEPER__OPENAI__TEMPLATE_KWARGS` | _(none)_ | OpenAI provider: extra chat-template arguments (e.g. llama.cpp `enable_thinking`), sent as `chat_template_kwargs` |
+| `--gatekeeper.openai.template_kwargs`<br>`LINUX_MCP_GATEKEEPER__OPENAI__TEMPLATE_KWARGS` | _(none)_ | OpenAI provider: extra chat-template arguments (e.g. `{ "enable_thinking": false }`), sent as `chat_template_kwargs` |
 | `--gatekeeper.openrouter.base_url`<br>`LINUX_MCP_GATEKEEPER__OPENROUTER__BASE_URL` | `https://openrouter.ai/api/v1` | OpenRouter provider: API base URL |
 | `--gatekeeper.openrouter.quantization`<br>`LINUX_MCP_GATEKEEPER__OPENROUTER__QUANTIZATION` | _(none)_ | OpenRouter provider: filter providers by quantization level (e.g. `fp4`, `bf16`) |
 | `--gatekeeper.openrouter.template_kwargs`<br>`LINUX_MCP_GATEKEEPER__OPENROUTER__TEMPLATE_KWARGS` | _(none)_ | OpenRouter provider: extra chat-template arguments |
