@@ -22,7 +22,7 @@ from rich.progress import TimeRemainingColumn
 from rich.table import Table
 from utils import BlockStyleDumper
 
-from linux_mcp_server.gatekeeper.check_run_script import check_run_script_with_stats
+from linux_mcp_server.gatekeeper.check_run_script import check_run_script
 from linux_mcp_server.gatekeeper.check_run_script import GatekeeperException
 from linux_mcp_server.gatekeeper.check_run_script import GatekeeperStats
 
@@ -258,11 +258,12 @@ class EvalSuite:
 
         try:
             async with self.semaphore:
-                gatekeeper_result, stats = await check_run_script_with_stats(
+                gatekeeper_result, stats = await check_run_script(
                     description=description,
                     script_type=script_type,
                     script=script,
                     readonly=readonly,
+                    include_stats=True,
                 )
 
             result_data = {"status": gatekeeper_result.status.value}

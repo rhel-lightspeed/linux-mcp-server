@@ -2,6 +2,9 @@ import asyncio
 import logging
 import time
 
+from typing import Literal
+from typing import overload
+
 from pydantic import BaseModel
 from pydantic import ValidationError
 
@@ -195,19 +198,41 @@ class GatekeeperException(Exception):
         self.stats = stats
 
 
-async def check_run_script_with_stats(
-    description: str, script_type: str, script: str, *, readonly: bool
-) -> tuple[GatekeeperResult, GatekeeperStats]:
+@overload
+async def check_run_script(
+    description: str, script_type: str, script: str, *, readonly: bool, include_stats: Literal[False] = False
+) -> GatekeeperResult: ...
+
+
+@overload
+async def check_run_script(
+    description: str, script_type: str, script: str, *, readonly: bool, include_stats: Literal[True]
+) -> tuple[GatekeeperResult, GatekeeperStats]: ...
+
+
+async def check_run_script(
+    description: str, script_type: str, script: str, *, readonly: bool, include_stats: bool = False
+) -> GatekeeperResult | tuple[GatekeeperResult, GatekeeperStats]:
+    def _return(result: GatekeeperResult, stats: GatekeeperStats | None = None):
+        if include_stats:
+            return result, stats if stats is not None else GatekeeperStats()
+        return result
+
     # Check that the script does what is described
     if "start_of_script" in script.lower() or "end_of_script" in script.lower():
-        return GatekeeperResult(
-            status=GatekeeperStatus.MALICIOUS, detail="Script contains 'start_of_script' or 'end_of_script'"
-        ), GatekeeperStats()
+        return _return(
+            GatekeeperResult(
+                status=GatekeeperStatus.MALICIOUS, detail="Script contains 'start_of_script' or 'end_of_script'"
+            )
+        )
 
     if "start_of_description" in script.lower() or "end_of_description" in script.lower():
-        return GatekeeperResult(
-            status=GatekeeperStatus.MALICIOUS, detail="Script contains 'start_of_description' or 'end_of_description'"
-        ), GatekeeperStats()
+        return _return(
+            GatekeeperResult(
+                status=GatekeeperStatus.MALICIOUS,
+                detail="Script contains 'start_of_description' or 'end_of_description'",
+            )
+        )
 
     prompt = PROMPT.format(
         script_type=script_type,
@@ -218,7 +243,7 @@ async def check_run_script_with_stats(
         readonly_result=READONLY_RESULT if readonly else "",
     )
 
-    time_before = time.perf_counter()
+    time_before = time.perf_counter() if include_stats else None
     try:
         completion = await asyncio.wait_for(
             complete_gatekeeper(prompt, max_tokens=GATEKEEPER_MAX_TOKENS),
@@ -227,27 +252,26 @@ async def check_run_script_with_stats(
     except asyncio.TimeoutError:
         raise GatekeeperException("Timeout calling gatekeeper model") from None
 
-    cost, cost_source = compute_cost(
-        completion.prompt_tokens,
-        completion.completion_tokens,
-        usage_cost=completion.usage_cost,
-    )
-
-    stats = GatekeeperStats(
-        prompt_tokens=completion.prompt_tokens,
-        completion_tokens=completion.completion_tokens,
-        cost=cost,
-        cost_source=cost_source,
-        latency=time.perf_counter() - time_before,
-    )
+    stats: GatekeeperStats | None = None
+    if include_stats:
+        assert time_before is not None
+        cost, cost_source = compute_cost(
+            completion.prompt_tokens,
+            completion.completion_tokens,
+            usage_cost=completion.usage_cost,
+        )
+        stats = GatekeeperStats(
+            prompt_tokens=completion.prompt_tokens,
+            completion_tokens=completion.completion_tokens,
+            cost=cost,
+            cost_source=cost_source,
+            latency=time.perf_counter() - time_before,
+        )
 
     try:
-        return GatekeeperResult.model_validate_json(completion.text), stats
+        result = GatekeeperResult.model_validate_json(completion.text)
     except ValidationError as e:
         logger.warning("Failed to parse gatekeeper model output: %s", e)
         raise GatekeeperException("Failed to parse gatekeeper model output", stats=stats) from e
 
-
-async def check_run_script(description: str, script_type: str, script: str, *, readonly: bool) -> GatekeeperResult:
-    result, _ = await check_run_script_with_stats(description, script_type, script, readonly=readonly)
-    return result
+    return _return(result, stats)
