@@ -6,11 +6,20 @@ from linux_mcp_server.config import GatekeeperProvider
 from linux_mcp_server.config import ReasoningEffort
 from linux_mcp_server.gatekeeper import anthropic_client
 from linux_mcp_server.gatekeeper.anthropic_client import _anthropic_thinking_block
+from linux_mcp_server.gatekeeper.anthropic_client import build_messages_body
 
 
-def test_anthropic_thinking_block_low():
-    block = _anthropic_thinking_block(ReasoningEffort.LOW)
-    assert block == {"type": "enabled", "budget_tokens": 4096}
+@pytest.mark.parametrize(
+    ("effort", "expected"),
+    [
+        (None, None),
+        (ReasoningEffort.NONE, {"type": "disabled"}),
+        (ReasoningEffort.LOW, {"type": "adaptive"}),
+        (ReasoningEffort.HIGH, {"type": "adaptive"}),
+    ],
+)
+def test_anthropic_thinking_block(effort, expected):
+    assert _anthropic_thinking_block(effort) == expected
 
 
 class TestAnthropicClient:
@@ -25,6 +34,33 @@ class TestAnthropicClient:
         )
         mocker.patch.object(CONFIG, "gatekeeper", config)
         return config
+
+    def test_build_messages_body_adaptive_effort(self, gatekeeper_config):
+        gatekeeper_config.reasoning_effort = ReasoningEffort.LOW
+        body = build_messages_body("prompt", include_model=True, max_tokens=8000)
+        assert body["thinking"] == {"type": "adaptive"}
+        assert body["output_config"]["effort"] == "low"
+        assert body["output_config"]["format"]["type"] == "json_schema"
+
+    def test_build_messages_body_none_disables_thinking(self, gatekeeper_config):
+        gatekeeper_config.reasoning_effort = ReasoningEffort.NONE
+        body = build_messages_body("prompt", include_model=True, max_tokens=8000)
+        assert body["thinking"] == {"type": "disabled"}
+        assert "effort" not in body["output_config"]
+
+    def test_build_messages_body_unset_omits_thinking(self, gatekeeper_config):
+        gatekeeper_config.reasoning_effort = None
+        body = build_messages_body("prompt", include_model=True, max_tokens=8000)
+        assert "thinking" not in body
+        assert "effort" not in body["output_config"]
+
+    def test_build_messages_body_effort_without_structured_output(self, gatekeeper_config):
+        gatekeeper_config.structured_output = False
+        gatekeeper_config.reasoning_effort = ReasoningEffort.HIGH
+        body = build_messages_body("prompt", include_model=False, max_tokens=8000)
+        assert "model" not in body
+        assert body["thinking"] == {"type": "adaptive"}
+        assert body["output_config"] == {"effort": "high"}
 
     async def test_complete_anthropic_direct(self, gatekeeper_config, mocker):
         mock_post = mocker.patch(

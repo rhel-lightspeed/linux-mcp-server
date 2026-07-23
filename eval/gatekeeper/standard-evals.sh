@@ -71,9 +71,9 @@ ALL_MODELS=(
 )
 
 # Reasoning notes:
-# claude: sonnet and opus 4.6 and newer use adaptive thinking -
+# claude: sonnet and opus 4.6+ use adaptive thinking —
 #    https://platform.claude.com/docs/en/build-with-claude/adaptive-thinking
-#    thinking defaults to off.
+#    unset omits thinking (provider default); none → disabled; other → adaptive+effort.
 # gemini-3.1-pro-preview: default is high (https://docs.cloud.google.com/gemini-enterprise-agent-platform/models/thinking)
 # gpt-oss-*: default is medium (https://huggingface.co/openai/gpt-oss-120b/blob/main/chat_template.jinja)
 # qwen3.5/qwen3.6: No reasoning effort control, just on/off. We disable it by
@@ -235,9 +235,11 @@ LINUX_MCP_GATEKEEPER__COST=""
 
 case "$model" in
     claude-*)
-        if [[ $reasoning == "none" ]] ; then
-            LINUX_MCP_GATEKEEPER__REASONING_EFFORT=
-        else
+        # Adaptive thinking: none → thinking.type=disabled; other levels →
+        # thinking.type=adaptive + output_config.effort. Temperature must be 1
+        # when thinking is enabled.
+        # https://platform.claude.com/docs/en/build-with-claude/adaptive-thinking
+        if [[ -n $reasoning && $reasoning != "none" ]] ; then
             echo "Setting T=1, as required for thinking with Claude models"
             LINUX_MCP_GATEKEEPER__TEMPERATURE=1
             export LINUX_MCP_GATEKEEPER__TEMPERATURE

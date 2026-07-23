@@ -45,7 +45,6 @@ class ReasoningEffort(StrEnum):
     MEDIUM = "medium"
     HIGH = "high"
     XHIGH = "xhigh"
-    DEFAULT = "default"
 
 
 class GatekeeperProvider(StrEnum):

@@ -8,8 +8,20 @@ from linux_mcp_server.gatekeeper import gemini_client
 from linux_mcp_server.gatekeeper.gemini_client import _gemini_thinking_level
 
 
-def test_gemini_thinking_level_medium():
-    assert _gemini_thinking_level(ReasoningEffort.MEDIUM) == "MEDIUM"
+@pytest.mark.parametrize(
+    ("effort", "expected"),
+    [
+        (None, None),
+        (ReasoningEffort.NONE, "MINIMAL"),
+        (ReasoningEffort.MINIMAL, "MINIMAL"),
+        (ReasoningEffort.LOW, "LOW"),
+        (ReasoningEffort.MEDIUM, "MEDIUM"),
+        (ReasoningEffort.HIGH, "HIGH"),
+        (ReasoningEffort.XHIGH, "HIGH"),
+    ],
+)
+def test_gemini_thinking_level(effort, expected):
+    assert _gemini_thinking_level(effort) == expected
 
 
 class TestGeminiClient:
@@ -47,3 +59,35 @@ class TestGeminiClient:
         body = mock_post.call_args.kwargs["body"]
         assert body["generationConfig"]["responseMimeType"] == "application/json"
         assert body["generationConfig"]["thinkingConfig"] == {"thinkingLevel": "LOW"}
+
+    async def test_complete_gemini_none_maps_to_minimal(self, gatekeeper_config, mocker):
+        gatekeeper_config.reasoning_effort = ReasoningEffort.NONE
+        mock_post = mocker.patch(
+            "linux_mcp_server.gatekeeper.gemini_client.post_json",
+            new_callable=mocker.AsyncMock,
+            return_value={
+                "candidates": [{"content": {"parts": [{"text": '{"status": "OK"}'}]}}],
+                "usageMetadata": {"promptTokenCount": 1, "candidatesTokenCount": 1},
+            },
+        )
+
+        await gemini_client.complete_gemini("prompt", max_tokens=8000)
+
+        body = mock_post.call_args.kwargs["body"]
+        assert body["generationConfig"]["thinkingConfig"] == {"thinkingLevel": "MINIMAL"}
+
+    async def test_complete_gemini_default_omits_thinking(self, gatekeeper_config, mocker):
+        gatekeeper_config.reasoning_effort = None
+        mock_post = mocker.patch(
+            "linux_mcp_server.gatekeeper.gemini_client.post_json",
+            new_callable=mocker.AsyncMock,
+            return_value={
+                "candidates": [{"content": {"parts": [{"text": '{"status": "OK"}'}]}}],
+                "usageMetadata": {"promptTokenCount": 1, "candidatesTokenCount": 1},
+            },
+        )
+
+        await gemini_client.complete_gemini("prompt", max_tokens=8000)
+
+        body = mock_post.call_args.kwargs["body"]
+        assert "thinkingConfig" not in body["generationConfig"]
