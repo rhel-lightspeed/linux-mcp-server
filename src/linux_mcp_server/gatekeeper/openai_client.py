@@ -57,10 +57,6 @@ def _build_responses_body(prompt: str, *, max_tokens: int) -> dict[str, Any]:
 
 
 def _extract_responses_text(response: dict[str, Any]) -> str:
-    output_text = response.get("output_text")
-    if isinstance(output_text, str) and output_text.strip():
-        return output_text.strip()
-
     chunks: list[str] = []
     for item in response.get("output", []):
         if not isinstance(item, dict) or item.get("type") != "message":
