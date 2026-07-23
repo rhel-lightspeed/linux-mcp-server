@@ -58,7 +58,7 @@ These are used when `LINUX_MCP_TOOLSET` is set to `run_script` or `both`.
 | Option / Env Var | Default | Description |
 | ---------------- | ------- | ----------- |
 | `--always-confirm-scripts` / `--no-always-confirm-scripts`<br>`LINUX_MCP_ALWAYS_CONFIRM_SCRIPTS` | `False` | All scripts must be confirmed by the user |
-| `--gatekeeper.provider`<br>`LINUX_MCP_GATEKEEPER__PROVIDER` | `openai` (inferred from model if unset) | LLM provider: `openai`, `anthropic`, `gemini`, `openrouter`, or `vertex_ai` |
+| `--gatekeeper.provider`<br>`LINUX_MCP_GATEKEEPER__PROVIDER` | _(none)_ | Required: LLM provider (`openai`, `anthropic`, `gemini`, `openrouter`, or `vertex_ai`) |
 | `--gatekeeper.model`<br>`LINUX_MCP_GATEKEEPER__MODEL` | _(none)_ | Required: provider-native model ID (e.g. `gpt-5.4`, `claude-sonnet-4-6`, `gemini-2.0-flash`, `openai/gpt-oss-120b` for OpenRouter) |
 | `--gatekeeper.reasoning_effort`<br>`LINUX_MCP_GATEKEEPER__REASONING_EFFORT` | _(model specific)_ | Reasoning effort (`none`, `minimal`, `low`, `medium`, `high`, `xhigh`). Not all values are supported for all models. |
 | `--gatekeeper.structured_output`<br>`LINUX_MCP_GATEKEEPER__STRUCTURED_OUTPUT` | `True` | Whether to use structured JSON output from the model |

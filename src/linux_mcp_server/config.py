@@ -149,8 +149,8 @@ class VertexAIGatekeeperConfig(BaseSettings):
 class GatekeeperConfig(BaseSettings):
     """Gatekeeper Model configuration"""
 
-    provider: GatekeeperProvider | None = None
-    model: str | None = None
+    provider: GatekeeperProvider
+    model: str
     reasoning_effort: ReasoningEffort | None = None
     structured_output: bool = True
     temperature: float = 0.0
@@ -210,7 +210,8 @@ class Config(BaseSettings):
     # What tools are available
     toolset: Toolset = Toolset.FIXED
 
-    gatekeeper: GatekeeperConfig = Field(default_factory=GatekeeperConfig)
+    # Required when toolset is run_script or both (provider and model are mandatory on GatekeeperConfig)
+    gatekeeper: GatekeeperConfig | None = None
 
     # Command execution timeout (applies to both local and remote commands)
     command_timeout: int = 30  # Timeout in seconds; prevents hung commands
@@ -242,14 +243,15 @@ class Config(BaseSettings):
 
         return result
 
-    # Experimentally, having the tool fail with an informative error is a lot easier
-    # to debug than a strange Pydantic validation error
-    #
-    # @model_validator(mode="after")
-    # def validate_gatekeeper_model(self):
-    #     if self.toolset != Toolset.FIXED and self.gatekeeper.model is None:
-    #         raise ValueError('gatekeeper.model must be set unless the toolset is "fixed"')
-    #     return self
+    @model_validator(mode="after")
+    def validate_gatekeeper_config(self):
+        if self.toolset != Toolset.FIXED and self.gatekeeper is None:
+            raise ValueError(
+                "gatekeeper.provider (LINUX_MCP_GATEKEEPER__PROVIDER) and "
+                "gatekeeper.model (LINUX_MCP_GATEKEEPER__MODEL) must be set when "
+                f"toolset is {self.toolset.value!r}"
+            )
+        return self
 
     @model_validator(mode="before")
     @staticmethod

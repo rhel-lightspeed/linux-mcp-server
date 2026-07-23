@@ -7,7 +7,6 @@ from typing import Any
 from linux_mcp_server.config import CONFIG
 from linux_mcp_server.config import ReasoningEffort
 from linux_mcp_server.gatekeeper.http_utils import DEFAULT_TIMEOUT_SECONDS
-from linux_mcp_server.gatekeeper.http_utils import normalize_model_id
 from linux_mcp_server.gatekeeper.http_utils import post_json
 from linux_mcp_server.gatekeeper.schema import openai_text_format
 from linux_mcp_server.gatekeeper.usage import extract_openai_responses_usage
@@ -35,13 +34,15 @@ def _openai_auth_headers() -> dict[str, str]:
 
 
 def _get_openai_base_url() -> str:
+    assert CONFIG.gatekeeper is not None
     configured = CONFIG.gatekeeper.openai.base_url if CONFIG.gatekeeper.openai else None
     return (configured or os.environ.get("OPENAI_API_BASE") or OPENAI_DEFAULT_BASE_URL).rstrip("/")
 
 
 def _build_responses_body(prompt: str, *, max_tokens: int) -> dict[str, Any]:
+    assert CONFIG.gatekeeper is not None
     body: dict[str, Any] = {
-        "model": normalize_model_id(CONFIG.gatekeeper.model or ""),
+        "model": CONFIG.gatekeeper.model,
         "input": prompt,
         "max_output_tokens": max_tokens,
         "temperature": CONFIG.gatekeeper.temperature,

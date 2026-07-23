@@ -7,7 +7,6 @@ from typing import Any
 from linux_mcp_server.config import CONFIG
 from linux_mcp_server.config import ReasoningEffort
 from linux_mcp_server.gatekeeper.http_utils import DEFAULT_TIMEOUT_SECONDS
-from linux_mcp_server.gatekeeper.http_utils import normalize_model_id
 from linux_mcp_server.gatekeeper.http_utils import post_json
 from linux_mcp_server.gatekeeper.schema import gemini_generation_config
 from linux_mcp_server.gatekeeper.usage import extract_gemini_usage
@@ -38,6 +37,7 @@ def _gemini_thinking_level(reasoning_effort: ReasoningEffort | None) -> str | No
 
 
 def build_gemini_body(prompt: str, *, max_tokens: int) -> dict[str, Any]:
+    assert CONFIG.gatekeeper is not None
     generation_config = gemini_generation_config(
         temperature=CONFIG.gatekeeper.temperature,
         structured_output=CONFIG.gatekeeper.structured_output,
@@ -67,7 +67,8 @@ def extract_gemini_text(response: dict[str, Any]) -> str:
 async def complete_gemini(
     prompt: str, *, max_tokens: int, timeout: int = DEFAULT_TIMEOUT_SECONDS
 ) -> GatekeeperCompletion:
-    model = normalize_model_id(CONFIG.gatekeeper.model or "")
+    assert CONFIG.gatekeeper is not None
+    model = CONFIG.gatekeeper.model
     api_key = _get_google_api_key()
     response = await post_json(
         provider="gemini",

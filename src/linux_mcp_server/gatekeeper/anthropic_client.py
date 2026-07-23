@@ -7,7 +7,6 @@ from typing import Any
 from linux_mcp_server.config import CONFIG
 from linux_mcp_server.config import ReasoningEffort
 from linux_mcp_server.gatekeeper.http_utils import DEFAULT_TIMEOUT_SECONDS
-from linux_mcp_server.gatekeeper.http_utils import normalize_model_id
 from linux_mcp_server.gatekeeper.http_utils import post_json
 from linux_mcp_server.gatekeeper.schema import anthropic_output_config
 from linux_mcp_server.gatekeeper.usage import extract_anthropic_usage
@@ -42,13 +41,14 @@ def _anthropic_thinking_block(reasoning_effort: ReasoningEffort | None) -> dict[
 
 
 def build_messages_body(prompt: str, *, include_model: bool, max_tokens: int) -> dict[str, Any]:
+    assert CONFIG.gatekeeper is not None
     body: dict[str, Any] = {
         "max_tokens": max_tokens,
         "messages": [{"role": "user", "content": prompt}],
         "temperature": CONFIG.gatekeeper.temperature,
     }
     if include_model:
-        body["model"] = normalize_model_id(CONFIG.gatekeeper.model or "")
+        body["model"] = CONFIG.gatekeeper.model
     if CONFIG.gatekeeper.structured_output:
         body["output_config"] = anthropic_output_config()
     thinking = _anthropic_thinking_block(CONFIG.gatekeeper.reasoning_effort)

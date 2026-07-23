@@ -1,40 +1,22 @@
 import importlib
 
 from linux_mcp_server.config import CONFIG
+from linux_mcp_server.config import GatekeeperConfig
 from linux_mcp_server.config import GatekeeperProvider
 from linux_mcp_server.gatekeeper.llm import complete_gatekeeper
-from linux_mcp_server.gatekeeper.llm import GatekeeperCompletion
-from linux_mcp_server.gatekeeper.llm import resolve_provider
+from linux_mcp_server.models import GatekeeperCompletion
 
 
 llm_module = importlib.import_module("linux_mcp_server.gatekeeper.llm")
 
 
-class TestResolveProvider:
-    def test_explicit_provider(self, mocker):
-        mocker.patch.object(CONFIG.gatekeeper, "provider", GatekeeperProvider.ANTHROPIC)
-        mocker.patch.object(CONFIG.gatekeeper, "model", "claude-sonnet-4-6")
-        assert resolve_provider() == GatekeeperProvider.ANTHROPIC
-
-    def test_infer_openai_from_model_prefix(self, mocker):
-        mocker.patch.object(CONFIG.gatekeeper, "provider", None)
-        mocker.patch.object(CONFIG.gatekeeper, "model", "openai/gpt-5.4")
-        assert resolve_provider() == GatekeeperProvider.OPENAI
-
-    def test_infer_gemini_from_model_prefix(self, mocker):
-        mocker.patch.object(CONFIG.gatekeeper, "provider", None)
-        mocker.patch.object(CONFIG.gatekeeper, "model", "gemini-2.0-flash")
-        assert resolve_provider() == GatekeeperProvider.GEMINI
-
-    def test_infer_openrouter_from_model_prefix(self, mocker):
-        mocker.patch.object(CONFIG.gatekeeper, "provider", None)
-        mocker.patch.object(CONFIG.gatekeeper, "model", "openrouter/anthropic/claude-3.5-sonnet")
-        assert resolve_provider() == GatekeeperProvider.OPENROUTER
-
-
 class TestCompleteGatekeeper:
     async def test_routes_to_openai(self, mocker):
-        mocker.patch.object(llm_module, "resolve_provider", return_value=GatekeeperProvider.OPENAI)
+        mocker.patch.object(
+            CONFIG,
+            "gatekeeper",
+            GatekeeperConfig(provider=GatekeeperProvider.OPENAI, model="gpt-5.4"),
+        )
         expected = GatekeeperCompletion(text='{"status": "OK"}')
         mock_complete = mocker.patch.object(
             llm_module, "complete_openai", new_callable=mocker.AsyncMock, return_value=expected
@@ -44,7 +26,11 @@ class TestCompleteGatekeeper:
         mock_complete.assert_called_once_with("prompt", max_tokens=8000)
 
     async def test_routes_to_openrouter(self, mocker):
-        mocker.patch.object(llm_module, "resolve_provider", return_value=GatekeeperProvider.OPENROUTER)
+        mocker.patch.object(
+            CONFIG,
+            "gatekeeper",
+            GatekeeperConfig(provider=GatekeeperProvider.OPENROUTER, model="openai/gpt-oss-120b"),
+        )
         expected = GatekeeperCompletion(text='{"status": "OK"}', prompt_tokens=1, completion_tokens=2, usage_cost=0.5)
         mock_complete = mocker.patch.object(
             llm_module, "complete_openrouter", new_callable=mocker.AsyncMock, return_value=expected
@@ -54,7 +40,11 @@ class TestCompleteGatekeeper:
         mock_complete.assert_called_once_with("prompt", max_tokens=8000)
 
     async def test_routes_to_vertex_ai(self, mocker):
-        mocker.patch.object(llm_module, "resolve_provider", return_value=GatekeeperProvider.VERTEX_AI)
+        mocker.patch.object(
+            CONFIG,
+            "gatekeeper",
+            GatekeeperConfig(provider=GatekeeperProvider.VERTEX_AI, model="gemini-3.1-pro-preview"),
+        )
         mock_complete = mocker.patch.object(
             llm_module,
             "complete_vertex_ai",

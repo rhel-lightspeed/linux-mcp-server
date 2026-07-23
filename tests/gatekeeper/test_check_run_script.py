@@ -63,14 +63,9 @@ class TestGetModel:
         mocker.patch.object(CONFIG.gatekeeper, "model", "gpt-5.4")
         assert get_model() == "gpt-5.4"
 
-    def test_raises_when_model_not_configured(self, mocker):
-        mocker.patch.object(CONFIG.gatekeeper, "model", None)
-        with pytest.raises(ValueError, match="To use run_script tools, you must set LINUX_MCP_GATEKEEPER__MODEL"):
-            get_model()
-
     def test_accepts_openrouter_model(self, mocker):
-        mocker.patch.object(CONFIG.gatekeeper, "model", "openrouter/anthropic/claude-3.5-sonnet")
-        assert get_model() == "openrouter/anthropic/claude-3.5-sonnet"
+        mocker.patch.object(CONFIG.gatekeeper, "model", "anthropic/claude-3.5-sonnet")
+        assert get_model() == "anthropic/claude-3.5-sonnet"
 
 
 class TestCheckRunScript:

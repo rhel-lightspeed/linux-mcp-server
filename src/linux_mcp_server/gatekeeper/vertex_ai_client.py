@@ -10,7 +10,6 @@ from linux_mcp_server.gatekeeper.gcp_auth import get_gcp_project
 from linux_mcp_server.gatekeeper.gemini_client import build_gemini_body
 from linux_mcp_server.gatekeeper.gemini_client import extract_gemini_text
 from linux_mcp_server.gatekeeper.http_utils import DEFAULT_TIMEOUT_SECONDS
-from linux_mcp_server.gatekeeper.http_utils import normalize_model_id
 from linux_mcp_server.gatekeeper.http_utils import post_json
 from linux_mcp_server.gatekeeper.openai_client import _build_responses_body
 from linux_mcp_server.gatekeeper.openai_client import _extract_responses_text
@@ -24,15 +23,15 @@ ANTHROPIC_VERTEX_VERSION = "vertex-2023-10-16"
 
 
 def _vertex_api_style(model: str) -> Literal["anthropic", "gemini", "openai_compatible"]:
-    normalized = normalize_model_id(model)
-    if normalized.startswith("claude"):
+    if model.startswith("claude"):
         return "anthropic"
-    if normalized.startswith("gemini"):
+    if model.startswith("gemini"):
         return "gemini"
     return "openai_compatible"
 
 
 def _get_vertex_openapi_base_url() -> str:
+    assert CONFIG.gatekeeper is not None
     cfg = CONFIG.gatekeeper.vertex_ai
     if cfg and cfg.base_url:
         return cfg.base_url.rstrip("/")
@@ -65,7 +64,8 @@ def _gemini_vertex_url(model: str) -> str:
 
 
 async def _complete_anthropic_on_vertex(prompt: str, *, max_tokens: int, timeout: int) -> GatekeeperCompletion:
-    model = normalize_model_id(CONFIG.gatekeeper.model or "")
+    assert CONFIG.gatekeeper is not None
+    model = CONFIG.gatekeeper.model
     body = build_messages_body(prompt, include_model=False, max_tokens=max_tokens)
     body["anthropic_version"] = ANTHROPIC_VERTEX_VERSION
     response = await post_json(
@@ -84,7 +84,8 @@ async def _complete_anthropic_on_vertex(prompt: str, *, max_tokens: int, timeout
 
 
 async def _complete_gemini_on_vertex(prompt: str, *, max_tokens: int, timeout: int) -> GatekeeperCompletion:
-    model = normalize_model_id(CONFIG.gatekeeper.model or "")
+    assert CONFIG.gatekeeper is not None
+    model = CONFIG.gatekeeper.model
     response = await post_json(
         provider="gemini",
         url=_gemini_vertex_url(model),
@@ -120,7 +121,8 @@ async def _complete_openai_compatible_on_vertex(prompt: str, *, max_tokens: int,
 async def complete_vertex_ai(
     prompt: str, *, max_tokens: int, timeout: int = DEFAULT_TIMEOUT_SECONDS
 ) -> GatekeeperCompletion:
-    model = CONFIG.gatekeeper.model or ""
+    assert CONFIG.gatekeeper is not None
+    model = CONFIG.gatekeeper.model
     match _vertex_api_style(model):
         case "anthropic":
             return await _complete_anthropic_on_vertex(prompt, max_tokens=max_tokens, timeout=timeout)

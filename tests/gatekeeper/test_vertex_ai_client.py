@@ -13,7 +13,7 @@ from linux_mcp_server.gatekeeper.vertex_ai_client import _vertex_api_style
     "model,expected",
     [
         ("claude-sonnet-4-6", "anthropic"),
-        ("vertex_ai/gemini-3.1-pro-preview", "gemini"),
+        ("gemini-3.1-pro-preview", "gemini"),
         ("gpt-oss-120b-maas", "openai_compatible"),
     ],
 )

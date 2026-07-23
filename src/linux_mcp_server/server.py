@@ -1,7 +1,6 @@
 """Core MCP server for Linux diagnostics using FastMCP."""
 
 import logging
-import sys
 
 from dataclasses import dataclass
 from importlib import resources
@@ -178,14 +177,6 @@ def _current_toolset():
 
     return toolset
 
-
-def _check_gatekeeper_model():
-    if CONFIG.toolset != Toolset.FIXED and CONFIG.gatekeeper.model is None:
-        logger.error("LINUX_MCP_GATEKEEPER__MODEL not set, this is needed for run_script tools")
-        sys.exit(1)
-
-
-_check_gatekeeper_model()
 
 # Create auth provider if configured
 auth_provider = create_auth_provider()

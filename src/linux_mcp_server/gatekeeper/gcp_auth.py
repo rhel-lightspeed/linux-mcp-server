@@ -10,6 +10,7 @@ class GCPAuthError(RuntimeError):
 
 
 def get_gcp_project() -> str:
+    assert CONFIG.gatekeeper is not None
     vertex_ai = CONFIG.gatekeeper.vertex_ai
     project = (
         (vertex_ai.project if vertex_ai else None)
@@ -25,6 +26,7 @@ def get_gcp_project() -> str:
 
 
 def get_gcp_location() -> str:
+    assert CONFIG.gatekeeper is not None
     vertex_ai = CONFIG.gatekeeper.vertex_ai
     return (vertex_ai.location if vertex_ai else None) or os.environ.get("VERTEXAI_LOCATION") or "global"
 
