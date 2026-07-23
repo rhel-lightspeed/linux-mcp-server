@@ -5,14 +5,16 @@ import os
 
 from functools import cache
 from typing import Any
+from typing import Literal
 from urllib.parse import urlparse
 
 import httpx
 
+from pydantic import BaseModel
+from pydantic import ConfigDict
+
 from linux_mcp_server.config import CONFIG
 from linux_mcp_server.config import GatekeeperProvider
-from linux_mcp_server.models import CostSource
-from linux_mcp_server.models import TokenRates
 
 
 logger = logging.getLogger("linux-mcp-server")
@@ -21,6 +23,22 @@ logger = logging.getLogger("linux-mcp-server")
 MODELS_DEV_API_URL = "https://models.dev/api.json"
 
 _LOCAL_HOSTS = frozenset({"localhost", "127.0.0.1", "::1"})
+
+CostSource = Literal["api", "config", "models_dev", "fallback", "local"]
+
+
+class Usage(BaseModel):
+    input_tokens: int = 0
+    output_tokens: int = 0
+    cost: float | None = None
+
+
+class TokenRates(BaseModel):
+    model_config = ConfigDict(frozen=True)
+
+    input_per_token: float
+    output_per_token: float
+    source: CostSource
 
 
 def _rates_from_mtok(input_mtok: float, output_mtok: float, source: CostSource) -> TokenRates:

@@ -2,7 +2,7 @@
 
 from typing import Any
 
-from linux_mcp_server.models import Usage
+from linux_mcp_server.gatekeeper.pricing import Usage
 
 
 def extract_openai_chat_completions_usage(response: dict[str, Any]) -> Usage:
