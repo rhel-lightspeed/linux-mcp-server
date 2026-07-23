@@ -65,17 +65,13 @@ def _model_lookup_candidates(model: str) -> list[str]:
     return ordered
 
 
-def _models_dev_provider_key(provider: GatekeeperProvider, model: str) -> str:
+def _models_dev_provider_key(provider: GatekeeperProvider) -> str:
     """Maps the provider to the corresponding models.dev provider name."""
     match provider:
         case GatekeeperProvider.GEMINI:
             return "google"
         case GatekeeperProvider.VERTEX_AI:
-            if model.startswith("claude"):
-                return "anthropic"
-            if model.startswith("gemini"):
-                return "google"
-            return "openai"
+            return "google-vertex"
         case _:
             return provider.value
 
@@ -146,7 +142,7 @@ def resolve_token_rates() -> TokenRates:
 
     provider = CONFIG.gatekeeper.provider
     model = CONFIG.gatekeeper.model
-    provider_key = _models_dev_provider_key(provider, model)
+    provider_key = _models_dev_provider_key(provider)
     models_dev_cost = _lookup_models_dev_cost(provider_key, model)
     if models_dev_cost is not None:
         return _rates_from_mtok(models_dev_cost[0], models_dev_cost[1], "models_dev")
