@@ -1,13 +1,8 @@
-import importlib
-
 from linux_mcp_server.config import CONFIG
 from linux_mcp_server.config import GatekeeperConfig
 from linux_mcp_server.config import GatekeeperProvider
 from linux_mcp_server.gatekeeper.llm import complete_gatekeeper
-from linux_mcp_server.models import GatekeeperCompletion
-
-
-llm_module = importlib.import_module("linux_mcp_server.gatekeeper.llm")
+from linux_mcp_server.gatekeeper.llm import GatekeeperCompletion
 
 
 class TestCompleteGatekeeper:
@@ -18,8 +13,10 @@ class TestCompleteGatekeeper:
             GatekeeperConfig(provider=GatekeeperProvider.OPENAI, model="gpt-5.4"),
         )
         expected = GatekeeperCompletion(text='{"status": "OK"}')
-        mock_complete = mocker.patch.object(
-            llm_module, "complete_openai", new_callable=mocker.AsyncMock, return_value=expected
+        mock_complete = mocker.patch(
+            "linux_mcp_server.gatekeeper.openai_client.complete_openai",
+            new_callable=mocker.AsyncMock,
+            return_value=expected,
         )
         result = await complete_gatekeeper("prompt", max_tokens=8000)
         assert result == expected
@@ -32,8 +29,10 @@ class TestCompleteGatekeeper:
             GatekeeperConfig(provider=GatekeeperProvider.OPENROUTER, model="openai/gpt-oss-120b"),
         )
         expected = GatekeeperCompletion(text='{"status": "OK"}', prompt_tokens=1, completion_tokens=2, usage_cost=0.5)
-        mock_complete = mocker.patch.object(
-            llm_module, "complete_openrouter", new_callable=mocker.AsyncMock, return_value=expected
+        mock_complete = mocker.patch(
+            "linux_mcp_server.gatekeeper.openrouter_client.complete_openrouter",
+            new_callable=mocker.AsyncMock,
+            return_value=expected,
         )
         result = await complete_gatekeeper("prompt", max_tokens=8000)
         assert result == expected
@@ -45,9 +44,8 @@ class TestCompleteGatekeeper:
             "gatekeeper",
             GatekeeperConfig(provider=GatekeeperProvider.VERTEX_AI, model="gemini-3.1-pro-preview"),
         )
-        mock_complete = mocker.patch.object(
-            llm_module,
-            "complete_vertex_ai",
+        mock_complete = mocker.patch(
+            "linux_mcp_server.gatekeeper.vertex_ai_client.complete_vertex_ai",
             new_callable=mocker.AsyncMock,
             return_value=GatekeeperCompletion(text='{"status": "OK"}'),
         )

@@ -11,12 +11,12 @@ from linux_mcp_server.gatekeeper.gemini_client import build_gemini_body
 from linux_mcp_server.gatekeeper.gemini_client import extract_gemini_text
 from linux_mcp_server.gatekeeper.http_utils import DEFAULT_TIMEOUT_SECONDS
 from linux_mcp_server.gatekeeper.http_utils import post_json
+from linux_mcp_server.gatekeeper.llm import GatekeeperCompletion
 from linux_mcp_server.gatekeeper.openai_client import _build_responses_body
 from linux_mcp_server.gatekeeper.openai_client import _extract_responses_text
 from linux_mcp_server.gatekeeper.usage import extract_anthropic_usage
 from linux_mcp_server.gatekeeper.usage import extract_gemini_usage
 from linux_mcp_server.gatekeeper.usage import extract_openai_responses_usage
-from linux_mcp_server.models import GatekeeperCompletion
 
 
 ANTHROPIC_VERTEX_VERSION = "vertex-2023-10-16"

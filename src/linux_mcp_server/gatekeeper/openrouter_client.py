@@ -8,9 +8,9 @@ from linux_mcp_server.config import CONFIG
 from linux_mcp_server.config import ReasoningEffort
 from linux_mcp_server.gatekeeper.http_utils import DEFAULT_TIMEOUT_SECONDS
 from linux_mcp_server.gatekeeper.http_utils import post_json
+from linux_mcp_server.gatekeeper.llm import GatekeeperCompletion
 from linux_mcp_server.gatekeeper.schema import openai_response_format
 from linux_mcp_server.gatekeeper.usage import extract_openrouter_usage
-from linux_mcp_server.models import GatekeeperCompletion
 
 
 OPENROUTER_DEFAULT_BASE_URL = "https://openrouter.ai/api/v1"
