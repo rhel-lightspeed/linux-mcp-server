@@ -3,16 +3,7 @@
 from copy import deepcopy
 from typing import Any
 
-
-_GATEKEEPER_STATUS_VALUES = [
-    "OK",
-    "BAD_DESCRIPTION",
-    "POLICY",
-    "MODIFIES_SYSTEM",
-    "UNCLEAR",
-    "DANGEROUS",
-    "MALICIOUS",
-]
+from linux_mcp_server.gatekeeper import GatekeeperStatus
 
 
 def _base_object_schema() -> dict[str, Any]:
@@ -21,12 +12,10 @@ def _base_object_schema() -> dict[str, Any]:
         "properties": {
             "status": {
                 "type": "string",
-                "enum": _GATEKEEPER_STATUS_VALUES,
-                "description": "Gatekeeper verdict for the script.",
+                "enum": [m.value for m in GatekeeperStatus],
             },
             "detail": {
                 "type": "string",
-                "description": "Short explanation when status is not OK.",
             },
         },
         "required": ["status"],
