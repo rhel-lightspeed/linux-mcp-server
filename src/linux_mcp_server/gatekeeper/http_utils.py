@@ -33,10 +33,3 @@ async def post_json(
     if not response.is_success:
         raise GatekeeperHTTPError(provider, response.status_code, response.text)
     return response.json()
-
-
-def normalize_model_id(model: str) -> str:
-    for prefix in ("openai/", "anthropic/", "vertex_ai/", "gemini/"):
-        if model.startswith(prefix):
-            return model[len(prefix) :]
-    return model

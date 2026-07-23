@@ -11,8 +11,6 @@ import httpx
 
 from linux_mcp_server.config import CONFIG
 from linux_mcp_server.config import GatekeeperProvider
-from linux_mcp_server.gatekeeper.http_utils import normalize_model_id
-from linux_mcp_server.gatekeeper.llm import resolve_provider
 from linux_mcp_server.models import CostSource
 from linux_mcp_server.models import TokenRates
 
@@ -35,12 +33,11 @@ def _rates_from_mtok(input_mtok: float, output_mtok: float, source: CostSource) 
 
 def _model_lookup_candidates(model: str) -> list[str]:
     """Creates a list of variant model IDs based on the given model ID."""
-    normalized = normalize_model_id(model)
-    candidates = [normalized, model]
-    if normalized.endswith("-maas"):
-        candidates.append(normalized[: -len("-maas")])
-    if "/" in normalized:
-        candidates.append(normalized.split("/", 1)[1])
+    candidates = [model]
+    if model.endswith("-maas"):
+        candidates.append(model[: -len("-maas")])
+    if "/" in model:
+        candidates.append(model.split("/", 1)[1])
     seen: set[str] = set()
     ordered: list[str] = []
     for candidate in candidates:
@@ -56,10 +53,9 @@ def _models_dev_provider_key(provider: GatekeeperProvider, model: str) -> str:
         case GatekeeperProvider.GEMINI:
             return "google"
         case GatekeeperProvider.VERTEX_AI:
-            normalized = normalize_model_id(model)
-            if normalized.startswith("claude"):
+            if model.startswith("claude"):
                 return "anthropic"
-            if normalized.startswith("gemini"):
+            if model.startswith("gemini"):
                 return "google"
             return "openai"
         case _:
@@ -106,8 +102,8 @@ def _lookup_models_dev_cost(provider_key: str, model: str) -> tuple[float, float
 
 
 def is_local_inference() -> bool:
-    provider = resolve_provider()
-    if provider != GatekeeperProvider.OPENAI:
+    assert CONFIG.gatekeeper is not None
+    if CONFIG.gatekeeper.provider != GatekeeperProvider.OPENAI:
         return False
     base_url = None
     if CONFIG.gatekeeper.openai and CONFIG.gatekeeper.openai.base_url:
@@ -121,6 +117,7 @@ def is_local_inference() -> bool:
 
 
 def resolve_token_rates() -> TokenRates:
+    assert CONFIG.gatekeeper is not None
     if CONFIG.gatekeeper.cost is not None:
         input_per_token, output_per_token = CONFIG.gatekeeper.cost
         return TokenRates(
@@ -129,8 +126,8 @@ def resolve_token_rates() -> TokenRates:
             source="config",
         )
 
-    provider = resolve_provider()
-    model = CONFIG.gatekeeper.model or ""
+    provider = CONFIG.gatekeeper.provider
+    model = CONFIG.gatekeeper.model
     provider_key = _models_dev_provider_key(provider, model)
     models_dev_cost = _lookup_models_dev_cost(provider_key, model)
     if models_dev_cost is not None:

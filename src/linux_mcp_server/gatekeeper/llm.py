@@ -15,27 +15,10 @@ from linux_mcp_server.models import GatekeeperCompletion
 logger = logging.getLogger("linux-mcp-server")
 
 
-def _infer_provider_from_model(model: str) -> GatekeeperProvider:
-    if model.startswith("openrouter/"):
-        return GatekeeperProvider.OPENROUTER
-    if model.startswith("anthropic/") or model.startswith("claude"):
-        return GatekeeperProvider.ANTHROPIC
-    if model.startswith("gemini"):
-        return GatekeeperProvider.GEMINI
-    return GatekeeperProvider.OPENAI
-
-
-def resolve_provider() -> GatekeeperProvider:
-    if CONFIG.gatekeeper.provider is not None:
-        return CONFIG.gatekeeper.provider
-    if not CONFIG.gatekeeper.model:
-        raise ValueError("To use run_script tools, you must set LINUX_MCP_GATEKEEPER__MODEL")
-    return _infer_provider_from_model(CONFIG.gatekeeper.model)
-
-
 async def complete_gatekeeper(prompt: str, *, max_tokens: int) -> GatekeeperCompletion:
-    provider = resolve_provider()
-    match provider:
+    assert CONFIG.gatekeeper is not None
+    provider = CONFIG.gatekeeper.provider
+    match CONFIG.gatekeeper.provider:
         case GatekeeperProvider.OPENAI:
             completion = await complete_openai(prompt, max_tokens=max_tokens)
         case GatekeeperProvider.ANTHROPIC:

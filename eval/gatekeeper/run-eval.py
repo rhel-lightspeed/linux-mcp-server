@@ -540,6 +540,12 @@ def main(
         )
         raise typer.Exit(code=1)
 
+    if "LINUX_MCP_GATEKEEPER__PROVIDER" not in os.environ:
+        typer.echo(
+            "Please set the LINUX_MCP_GATEKEEPER__PROVIDER environment variable to specify the Gatekeeper provider."
+        )
+        raise typer.Exit(code=1)
+
     if all_files:
         testcases_dir = Path(__file__).parent / "testcases"
         files = sorted(testcases_dir.glob("**/*.yaml"))

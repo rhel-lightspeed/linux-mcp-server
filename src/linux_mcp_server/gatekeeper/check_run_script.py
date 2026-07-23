@@ -16,9 +16,8 @@ logger = logging.getLogger("linux-mcp-server")
 
 
 def get_model() -> str:
-    if CONFIG.gatekeeper.model:
-        return CONFIG.gatekeeper.model
-    raise ValueError("To use run_script tools, you must set LINUX_MCP_GATEKEEPER__MODEL")
+    assert CONFIG.gatekeeper is not None
+    return CONFIG.gatekeeper.model
 
 
 READONLY_INSTRUCTION = """

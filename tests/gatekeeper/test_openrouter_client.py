@@ -6,7 +6,6 @@ from linux_mcp_server.config import GatekeeperProvider
 from linux_mcp_server.config import OpenRouterGatekeeperConfig
 from linux_mcp_server.config import ReasoningEffort
 from linux_mcp_server.gatekeeper import openrouter_client
-from linux_mcp_server.gatekeeper.openrouter_client import _normalize_openrouter_model_id
 from linux_mcp_server.gatekeeper.openrouter_client import _openrouter_reasoning_block
 
 
@@ -25,17 +24,6 @@ def test_openrouter_reasoning_block(effort, expected):
 def test_openrouter_reasoning_block_default():
     assert _openrouter_reasoning_block(None) is None
     assert _openrouter_reasoning_block(ReasoningEffort.DEFAULT) is None
-
-
-@pytest.mark.parametrize(
-    "model,expected",
-    [
-        ("openrouter/google/gemma-4-26b-a4b-it", "google/gemma-4-26b-a4b-it"),
-        ("openai/gpt-oss-120b", "openai/gpt-oss-120b"),
-    ],
-)
-def test_normalize_openrouter_model_id(model, expected):
-    assert _normalize_openrouter_model_id(model) == expected
 
 
 class TestOpenRouterClient:
@@ -102,19 +90,6 @@ class TestOpenRouterClient:
 
         body = mock_post.call_args.kwargs["body"]
         assert body["reasoning"] == {"enabled": False}
-
-    async def test_complete_openrouter_legacy_model_prefix(self, gatekeeper_config, mocker):
-        gatekeeper_config.model = "openrouter/google/gemma-4-26b-a4b-it"
-        mock_post = mocker.patch(
-            "linux_mcp_server.gatekeeper.openrouter_client.post_json",
-            new_callable=mocker.AsyncMock,
-            return_value={"choices": [{"message": {"content": '{"status": "OK"}'}}]},
-        )
-
-        await openrouter_client.complete_openrouter("prompt", max_tokens=8000)
-
-        body = mock_post.call_args.kwargs["body"]
-        assert body["model"] == "google/gemma-4-26b-a4b-it"
 
     async def test_complete_openrouter_custom_base_url(self, gatekeeper_config, mocker):
         gatekeeper_config.openrouter = OpenRouterGatekeeperConfig(base_url="https://openrouter.example.com/api/v1")

@@ -16,13 +16,8 @@ from linux_mcp_server.models import GatekeeperCompletion
 OPENROUTER_DEFAULT_BASE_URL = "https://openrouter.ai/api/v1"
 
 
-def _normalize_openrouter_model_id(model: str) -> str:
-    if model.startswith("openrouter/"):
-        return model[len("openrouter/") :]
-    return model
-
-
 def _get_openrouter_base_url() -> str:
+    assert CONFIG.gatekeeper is not None
     configured = CONFIG.gatekeeper.openrouter.base_url if CONFIG.gatekeeper.openrouter else None
     return (configured or OPENROUTER_DEFAULT_BASE_URL).rstrip("/")
 
@@ -47,6 +42,7 @@ def _openrouter_reasoning_block(reasoning_effort: ReasoningEffort | None) -> dic
 
 
 def _openrouter_config() -> dict[str, Any]:
+    assert CONFIG.gatekeeper is not None
     if CONFIG.gatekeeper.openrouter is None:
         return {"quantization": None, "template_kwargs": {}}
     return {
@@ -56,13 +52,14 @@ def _openrouter_config() -> dict[str, Any]:
 
 
 def _build_chat_completions_body(prompt: str, *, max_tokens: int) -> dict[str, Any]:
+    assert CONFIG.gatekeeper is not None
     openrouter = _openrouter_config()
     provider: dict[str, Any] = {"require_parameters": True}
     if openrouter["quantization"]:
         provider["quantizations"] = [openrouter["quantization"]]
 
     body: dict[str, Any] = {
-        "model": _normalize_openrouter_model_id(CONFIG.gatekeeper.model or ""),
+        "model": CONFIG.gatekeeper.model,
         "messages": [{"role": "user", "content": prompt}],
         "max_tokens": max_tokens,
         "temperature": CONFIG.gatekeeper.temperature,
