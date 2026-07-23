@@ -8,9 +8,9 @@ from linux_mcp_server.config import CONFIG
 from linux_mcp_server.config import ReasoningEffort
 from linux_mcp_server.gatekeeper.http_utils import DEFAULT_TIMEOUT_SECONDS
 from linux_mcp_server.gatekeeper.http_utils import post_json
+from linux_mcp_server.gatekeeper.llm import GatekeeperCompletion
 from linux_mcp_server.gatekeeper.schema import anthropic_output_config
 from linux_mcp_server.gatekeeper.usage import extract_anthropic_usage
-from linux_mcp_server.models import GatekeeperCompletion
 
 
 ANTHROPIC_API_URL = "https://api.anthropic.com/v1/messages"

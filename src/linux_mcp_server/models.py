@@ -202,13 +202,6 @@ class LogEntries(BaseModel):
         return str(value) if value else None
 
 
-class GatekeeperCompletion(BaseModel):
-    text: str
-    prompt_tokens: int = 0
-    completion_tokens: int = 0
-    usage_cost: float | None = None
-
-
 ### Cost models ###
 CostSource = Literal["api", "config", "models_dev", "fallback", "local"]
 
