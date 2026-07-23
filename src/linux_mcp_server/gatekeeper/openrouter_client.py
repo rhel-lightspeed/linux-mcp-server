@@ -41,19 +41,12 @@ def _openrouter_reasoning_block(reasoning_effort: ReasoningEffort | None) -> dic
     return {"enabled": True, "effort": reasoning_effort.value}
 
 
-def _openrouter_config() -> dict[str, Any]:
-    assert CONFIG.gatekeeper is not None
-    if CONFIG.gatekeeper.openrouter is None:
-        return {"quantization": None, "template_kwargs": {}}
-    return {
-        "quantization": CONFIG.gatekeeper.openrouter.quantization,
-        "template_kwargs": CONFIG.gatekeeper.openrouter.template_kwargs,
-    }
-
-
 def _build_chat_completions_body(prompt: str, *, max_tokens: int) -> dict[str, Any]:
     assert CONFIG.gatekeeper is not None
-    openrouter = _openrouter_config()
+    openrouter = {
+        "quantization": CONFIG.gatekeeper.openrouter.quantization if CONFIG.gatekeeper.openrouter else None,
+        "template_kwargs": CONFIG.gatekeeper.openrouter.template_kwargs if CONFIG.gatekeeper.openrouter else {},
+    }
     provider: dict[str, Any] = {"require_parameters": True}
     if openrouter["quantization"]:
         provider["quantizations"] = [openrouter["quantization"]]
