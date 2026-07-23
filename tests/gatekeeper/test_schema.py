@@ -1,4 +1,4 @@
-from linux_mcp_server.gatekeeper.schema import _GATEKEEPER_STATUS_VALUES
+from linux_mcp_server.gatekeeper import GatekeeperStatus
 from linux_mcp_server.gatekeeper.schema import anthropic_json_schema
 from linux_mcp_server.gatekeeper.schema import gemini_json_schema
 from linux_mcp_server.gatekeeper.schema import openai_json_schema
@@ -11,7 +11,7 @@ class TestGatekeeperSchemas:
         schema = openai_json_schema()
         assert schema["additionalProperties"] is False
         assert set(schema["properties"]) == {"status", "detail"}
-        assert schema["properties"]["status"]["enum"] == _GATEKEEPER_STATUS_VALUES
+        assert schema["properties"]["status"]["enum"] == [m.value for m in GatekeeperStatus]
 
     def test_openai_response_format(self):
         response_format = openai_response_format()
