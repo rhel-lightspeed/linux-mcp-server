@@ -320,7 +320,6 @@ case "$provider" in
         uv_args+=("--extra" "gcp")
         max_parallel=50
         LINUX_MCP_GATEKEEPER__PROVIDER=vertex_ai
-        LINUX_MCP_GATEKEEPER__VERTEX_AI__PROJECT="${VERTEXAI_PROJECT}"
         case $model in
             claude-*|gemini-*)
                 LINUX_MCP_GATEKEEPER__MODEL="$model"
