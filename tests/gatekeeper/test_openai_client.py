@@ -10,6 +10,10 @@ from linux_mcp_server.gatekeeper.http_utils import GatekeeperHTTPError
 from linux_mcp_server.gatekeeper.openai_client import _openai_reasoning_block
 
 
+def _responses_output(text: str) -> dict:
+    return {"output": [{"type": "message", "content": [{"type": "output_text", "text": text}]}]}
+
+
 @pytest.mark.parametrize(
     ("effort", "expected"),
     [
@@ -42,7 +46,7 @@ class TestOpenAIClient:
             "linux_mcp_server.gatekeeper.openai_client.post_json",
             new_callable=mocker.AsyncMock,
             return_value={
-                "output_text": '{"status": "OK", "detail": ""}',
+                **_responses_output('{"status": "OK", "detail": ""}'),
                 "usage": {"input_tokens": 11, "output_tokens": 4},
             },
         )
@@ -63,7 +67,7 @@ class TestOpenAIClient:
         mock_post = mocker.patch(
             "linux_mcp_server.gatekeeper.openai_client.post_json",
             new_callable=mocker.AsyncMock,
-            return_value={"output_text": '{"status": "OK", "detail": ""}'},
+            return_value=_responses_output('{"status": "OK", "detail": ""}'),
         )
 
         result = await openai_client.complete_openai("prompt", max_tokens=8000)
@@ -86,7 +90,7 @@ class TestOpenAIClient:
         mock_post = mocker.patch(
             "linux_mcp_server.gatekeeper.openai_client.post_json",
             new_callable=mocker.AsyncMock,
-            return_value={"output_text": '{"status": "OK"}'},
+            return_value=_responses_output('{"status": "OK"}'),
         )
 
         await openai_client.complete_openai("prompt", max_tokens=8000)

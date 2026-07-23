@@ -17,6 +17,10 @@ from linux_mcp_server.gatekeeper.check_run_script import get_model
 from linux_mcp_server.gatekeeper.llm import GatekeeperCompletion
 
 
+def _responses_output(text: str) -> dict:
+    return {"output": [{"type": "message", "content": [{"type": "output_text", "text": text}]}]}
+
+
 check_run_script_module = importlib.import_module("linux_mcp_server.gatekeeper.check_run_script")
 
 
@@ -194,7 +198,7 @@ class TestGatekeeperConfigIntegration:
         return mocker.patch(
             "linux_mcp_server.gatekeeper.openai_client.post_json",
             new_callable=mocker.AsyncMock,
-            return_value={"output_text": '{"status": "OK", "detail": ""}'},
+            return_value=_responses_output('{"status": "OK", "detail": ""}'),
         )
 
     async def test_openai_provider_config(self, mocker, mock_openai_post):
@@ -227,7 +231,7 @@ class TestGatekeeperConfigIntegration:
         mock_post = mocker.patch(
             "linux_mcp_server.gatekeeper.vertex_ai_client.post_json",
             new_callable=mocker.AsyncMock,
-            return_value={"output_text": '{"status": "OK", "detail": ""}'},
+            return_value=_responses_output('{"status": "OK", "detail": ""}'),
         )
         mocker.patch.object(
             CONFIG,

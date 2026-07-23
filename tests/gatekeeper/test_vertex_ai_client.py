@@ -9,6 +9,10 @@ from linux_mcp_server.gatekeeper.vertex_ai_client import _get_vertex_openapi_bas
 from linux_mcp_server.gatekeeper.vertex_ai_client import _vertex_api_style
 
 
+def _responses_output(text: str) -> dict:
+    return {"output": [{"type": "message", "content": [{"type": "output_text", "text": text}]}]}
+
+
 @pytest.mark.parametrize(
     "model,expected",
     [
@@ -91,7 +95,7 @@ class TestVertexAIClient:
         mock_post = mocker.patch(
             "linux_mcp_server.gatekeeper.vertex_ai_client.post_json",
             new_callable=mocker.AsyncMock,
-            return_value={"output_text": '{"status": "OK"}'},
+            return_value=_responses_output('{"status": "OK"}'),
         )
 
         result = await vertex_ai_client.complete_vertex_ai("prompt", max_tokens=8000)
@@ -109,7 +113,7 @@ class TestVertexAIClient:
         mock_post = mocker.patch(
             "linux_mcp_server.gatekeeper.vertex_ai_client.post_json",
             new_callable=mocker.AsyncMock,
-            return_value={"output_text": '{"status": "OK"}'},
+            return_value=_responses_output('{"status": "OK"}'),
         )
 
         await vertex_ai_client.complete_vertex_ai("prompt", max_tokens=8000)
