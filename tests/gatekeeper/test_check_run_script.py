@@ -11,7 +11,6 @@ from linux_mcp_server.config import VertexAIGatekeeperConfig
 from linux_mcp_server.gatekeeper import GatekeeperResult
 from linux_mcp_server.gatekeeper import GatekeeperStatus
 from linux_mcp_server.gatekeeper.check_run_script import check_run_script
-from linux_mcp_server.gatekeeper.check_run_script import check_run_script_with_stats
 from linux_mcp_server.gatekeeper.check_run_script import GatekeeperException
 from linux_mcp_server.gatekeeper.check_run_script import get_model
 from linux_mcp_server.gatekeeper.llm import GatekeeperCompletion
@@ -143,12 +142,20 @@ class TestCheckRunScript:
             await check_run_script(description="test", script_type="bash", script="echo hi", readonly=True)
 
     async def test_with_stats(self, mock_llm):
-        result, stats = await check_run_script_with_stats(
-            description="test", script_type="bash", script="echo hi", readonly=True
+        result, stats = await check_run_script(
+            description="test", script_type="bash", script="echo hi", readonly=True, include_stats=True
         )
         assert result.status == GatekeeperStatus.OK
         assert result.detail == ""
         assert stats.latency > 0
+
+    async def test_skips_compute_cost_without_stats(self, mock_llm, mocker):
+        mock_compute_cost = mocker.patch.object(check_run_script_module, "compute_cost")
+
+        result = await check_run_script(description="test", script_type="bash", script="echo hi", readonly=True)
+
+        assert result.status == GatekeeperStatus.OK
+        mock_compute_cost.assert_not_called()
 
     async def test_custom_cost(self, mocker):
         mocker.patch.object(CONFIG.gatekeeper, "cost", (1e-6, 4e-6))
@@ -161,8 +168,8 @@ class TestCheckRunScript:
             ),
         )
 
-        _, stats = await check_run_script_with_stats(
-            description="test", script_type="bash", script="echo hi", readonly=True
+        _, stats = await check_run_script(
+            description="test", script_type="bash", script="echo hi", readonly=True, include_stats=True
         )
 
         assert stats.cost == pytest.approx(100 * 1e-6 + 50 * 4e-6)
@@ -181,8 +188,8 @@ class TestCheckRunScript:
             ),
         )
 
-        _, stats = await check_run_script_with_stats(
-            description="test", script_type="bash", script="echo hi", readonly=True
+        _, stats = await check_run_script(
+            description="test", script_type="bash", script="echo hi", readonly=True, include_stats=True
         )
 
         assert stats.prompt_tokens == 10
