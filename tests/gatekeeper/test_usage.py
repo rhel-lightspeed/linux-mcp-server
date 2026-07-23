@@ -1,7 +1,7 @@
 import pytest
 
 from linux_mcp_server.gatekeeper import usage
-from linux_mcp_server.models import Usage
+from linux_mcp_server.gatekeeper.pricing import Usage
 
 
 class TestUsageExtractors:
