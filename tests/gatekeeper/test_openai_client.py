@@ -10,13 +10,17 @@ from linux_mcp_server.gatekeeper.http_utils import GatekeeperHTTPError
 from linux_mcp_server.gatekeeper.openai_client import _openai_reasoning_block
 
 
-def test_openai_reasoning_block_none():
-    assert _openai_reasoning_block(None) is None
-    assert _openai_reasoning_block(ReasoningEffort.DEFAULT) is None
-
-
-def test_openai_reasoning_block_low():
-    assert _openai_reasoning_block(ReasoningEffort.LOW) == {"effort": "low"}
+@pytest.mark.parametrize(
+    ("effort", "expected"),
+    [
+        (None, None),
+        (ReasoningEffort.NONE, {"effort": "none"}),
+        (ReasoningEffort.LOW, {"effort": "low"}),
+        (ReasoningEffort.HIGH, {"effort": "high"}),
+    ],
+)
+def test_openai_reasoning_block(effort, expected):
+    assert _openai_reasoning_block(effort) == expected
 
 
 class TestOpenAIClient:

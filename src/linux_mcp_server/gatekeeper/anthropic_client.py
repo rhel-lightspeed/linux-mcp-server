@@ -25,19 +25,17 @@ def _get_anthropic_api_key() -> str:
 
 
 def _anthropic_thinking_block(reasoning_effort: ReasoningEffort | None) -> dict[str, Any] | None:
-    if reasoning_effort is None or reasoning_effort in {ReasoningEffort.NONE, ReasoningEffort.DEFAULT}:
+    """Map reasoning_effort to Anthropic adaptive thinking.
+
+    - None: omit thinking (provider default)
+    - ReasoningEffort.NONE: explicitly disable thinking
+    - ReasoningEffort.MINIMAL, LOW, MEDIUM, HIGH, XHIGH: adaptive thinking with effort in output_config
+    """
+    if reasoning_effort is None:
         return None
-    budget_by_effort = {
-        ReasoningEffort.MINIMAL: 1024,
-        ReasoningEffort.LOW: 4096,
-        ReasoningEffort.MEDIUM: 8192,
-        ReasoningEffort.HIGH: 16384,
-        ReasoningEffort.XHIGH: 32768,
-    }
-    budget = budget_by_effort.get(reasoning_effort)
-    if budget is None:
-        return None
-    return {"type": "enabled", "budget_tokens": budget}
+    if reasoning_effort == ReasoningEffort.NONE:
+        return {"type": "disabled"}
+    return {"type": "adaptive"}
 
 
 def build_messages_body(prompt: str, *, include_model: bool, max_tokens: int) -> dict[str, Any]:
@@ -49,11 +47,20 @@ def build_messages_body(prompt: str, *, include_model: bool, max_tokens: int) ->
     }
     if include_model:
         body["model"] = CONFIG.gatekeeper.model
+
+    output_config: dict[str, Any] = {}
     if CONFIG.gatekeeper.structured_output:
-        body["output_config"] = anthropic_output_config()
-    thinking = _anthropic_thinking_block(CONFIG.gatekeeper.reasoning_effort)
+        output_config = anthropic_output_config()
+
+    reasoning_effort = CONFIG.gatekeeper.reasoning_effort
+    thinking = _anthropic_thinking_block(reasoning_effort)
     if thinking is not None:
         body["thinking"] = thinking
+    if reasoning_effort is not None and reasoning_effort != ReasoningEffort.NONE:
+        output_config["effort"] = reasoning_effort.value
+
+    if output_config:
+        body["output_config"] = output_config
     return body
 
 

@@ -17,7 +17,7 @@ OPENAI_DEFAULT_BASE_URL = "https://api.openai.com/v1"
 
 
 def _openai_reasoning_block(reasoning_effort: ReasoningEffort | None) -> dict[str, Any] | None:
-    if reasoning_effort is None or reasoning_effort == ReasoningEffort.DEFAULT:
+    if reasoning_effort is None:
         return None
     return {"effort": reasoning_effort.value}
 

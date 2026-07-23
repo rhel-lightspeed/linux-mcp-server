@@ -24,9 +24,16 @@ def _get_google_api_key() -> str:
 
 
 def _gemini_thinking_level(reasoning_effort: ReasoningEffort | None) -> str | None:
-    if reasoning_effort is None or reasoning_effort in {ReasoningEffort.NONE, ReasoningEffort.DEFAULT}:
+    """Map reasoning_effort to Gemini thinkingLevel.
+
+    — None: omit thinkingConfig (provider default)
+    — ReasoningEffort.NONE: set thinkingLevel to MINIMAL (the closest available equivalent to disabling thinking)
+    - ReasoningEffort.MINIMAL, LOW, MEDIUM, HIGH, XHIGH: set thinkingLevel to the matching value (XHIGH → HIGH)
+    """
+    if reasoning_effort is None:
         return None
     mapping = {
+        ReasoningEffort.NONE: "MINIMAL",
         ReasoningEffort.MINIMAL: "MINIMAL",
         ReasoningEffort.LOW: "LOW",
         ReasoningEffort.MEDIUM: "MEDIUM",

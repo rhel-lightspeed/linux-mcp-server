@@ -21,9 +21,8 @@ def test_openrouter_reasoning_block(effort, expected):
     assert _openrouter_reasoning_block(effort) == expected
 
 
-def test_openrouter_reasoning_block_default():
+def test_openrouter_reasoning_block_unset():
     assert _openrouter_reasoning_block(None) is None
-    assert _openrouter_reasoning_block(ReasoningEffort.DEFAULT) is None
 
 
 class TestOpenRouterClient:

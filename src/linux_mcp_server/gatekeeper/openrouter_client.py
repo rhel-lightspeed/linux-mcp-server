@@ -34,7 +34,7 @@ def _openrouter_auth_headers() -> dict[str, str]:
 
 
 def _openrouter_reasoning_block(reasoning_effort: ReasoningEffort | None) -> dict[str, Any] | None:
-    if reasoning_effort is None or reasoning_effort == ReasoningEffort.DEFAULT:
+    if reasoning_effort is None:
         return None
     if reasoning_effort == ReasoningEffort.NONE:
         return {"enabled": False}
