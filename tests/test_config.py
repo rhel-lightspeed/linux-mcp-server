@@ -10,6 +10,8 @@ from pydantic import SecretStr
 from pydantic import ValidationError
 
 from linux_mcp_server.config import Config
+from linux_mcp_server.config import GatekeeperProvider
+from linux_mcp_server.config import Toolset
 
 
 class TestConfig:
@@ -270,13 +272,14 @@ class TestHandleDeprecatedAliases:
 
     def test_migrates_deprecated_env_var(self, mock_getuser, monkeypatch, caplog):
         """The old single-underscore env var is migrated to gatekeeper.model."""
-        monkeypatch.setenv("LINUX_MCP_GATEKEEPER_MODEL", "openai/gpt-4")
+        monkeypatch.setenv("LINUX_MCP_GATEKEEPER_MODEL", "gpt-4")
         monkeypatch.delenv("LINUX_MCP_GATEKEEPER__MODEL", raising=False)
 
         with caplog.at_level(logging.WARNING, logger="linux_mcp_server.config"):
             config = Config()
 
-        assert config.gatekeeper.model == "openai/gpt-4"
+        assert config.gatekeeper is not None
+        assert config.gatekeeper.model == "gpt-4"
         assert "LINUX_MCP_GATEKEEPER_MODEL is deprecated" in caplog.text
 
     def test_new_env_var_takes_precedence(self, mock_getuser, monkeypatch):
@@ -286,49 +289,105 @@ class TestHandleDeprecatedAliases:
 
         config = Config()
 
+        assert config.gatekeeper is not None
         assert config.gatekeeper.model == "new-model"
 
     def test_new_env_var_works_without_old(self, mock_getuser, monkeypatch):
         """The new double-underscore env var works on its own."""
         monkeypatch.delenv("LINUX_MCP_GATEKEEPER_MODEL", raising=False)
-        monkeypatch.setenv("LINUX_MCP_GATEKEEPER__MODEL", "openai/gpt-4")
+        monkeypatch.setenv("LINUX_MCP_GATEKEEPER__MODEL", "gpt-4")
 
         config = Config()
 
-        assert config.gatekeeper.model == "openai/gpt-4"
+        assert config.gatekeeper is not None
+        assert config.gatekeeper.model == "gpt-4"
 
 
 class TestGatekeeperConfig:
+    def test_requires_provider_and_model_for_run_script(self, mock_getuser, monkeypatch):
+        monkeypatch.setenv("LINUX_MCP_TOOLSET", "run_script")
+        monkeypatch.delenv("LINUX_MCP_GATEKEEPER__PROVIDER", raising=False)
+        monkeypatch.delenv("LINUX_MCP_GATEKEEPER__MODEL", raising=False)
+        monkeypatch.delenv("LINUX_MCP_GATEKEEPER_MODEL", raising=False)
+
+        with pytest.raises(ValidationError, match="LINUX_MCP_GATEKEEPER__PROVIDER"):
+            Config()
+
+    def test_requires_model_when_provider_set(self, mock_getuser, monkeypatch):
+        monkeypatch.setenv("LINUX_MCP_TOOLSET", "both")
+        monkeypatch.setenv("LINUX_MCP_GATEKEEPER__PROVIDER", "openai")
+        monkeypatch.delenv("LINUX_MCP_GATEKEEPER__MODEL", raising=False)
+        monkeypatch.delenv("LINUX_MCP_GATEKEEPER_MODEL", raising=False)
+
+        with pytest.raises(ValidationError, match="gatekeeper.model"):
+            Config()
+
+    def test_fixed_toolset_allows_missing_gatekeeper(self, mock_getuser, monkeypatch):
+        monkeypatch.setenv("LINUX_MCP_TOOLSET", "fixed")
+        monkeypatch.delenv("LINUX_MCP_GATEKEEPER__PROVIDER", raising=False)
+        monkeypatch.delenv("LINUX_MCP_GATEKEEPER__MODEL", raising=False)
+        monkeypatch.delenv("LINUX_MCP_GATEKEEPER_MODEL", raising=False)
+
+        config = Config()
+
+        assert config.toolset == Toolset.FIXED
+        assert config.gatekeeper is None
+
+    def test_vertex_ai_provider(self, mock_getuser, monkeypatch):
+        monkeypatch.setenv("LINUX_MCP_GATEKEEPER__PROVIDER", "vertex_ai")
+        monkeypatch.setenv("LINUX_MCP_GATEKEEPER__MODEL", "gemini-3.1-pro-preview")
+        monkeypatch.setenv("LINUX_MCP_GATEKEEPER__VERTEX_AI__PROJECT", "my-project")
+        monkeypatch.setenv("LINUX_MCP_GATEKEEPER__VERTEX_AI__LOCATION", "global")
+
+        config = Config()
+
+        assert config.gatekeeper is not None
+        assert config.gatekeeper.provider == GatekeeperProvider.VERTEX_AI
+        assert config.gatekeeper.model == "gemini-3.1-pro-preview"
+        assert config.gatekeeper.vertex_ai is not None
+        assert config.gatekeeper.vertex_ai.project == "my-project"
+        assert config.gatekeeper.vertex_ai.location == "global"
+
+    def test_structured_output_defaults_true(self, mock_getuser, monkeypatch):
+        config = Config()
+        assert config.gatekeeper is not None
+        assert config.gatekeeper.structured_output is True
+
     def test_template_kwargs(self, mock_getuser, monkeypatch):
-        """Test setting template_kwargs with a JSON object."""
         monkeypatch.setenv(
-            "LINUX_MCP_GATEKEEPER__TEMPLATE_KWARGS", '{ "enable_thinking": true, "reasoning_effort": "low" }'
+            "LINUX_MCP_GATEKEEPER__OPENAI__TEMPLATE_KWARGS",
+            '{ "enable_thinking": true, "reasoning_effort": "low" }',
         )
 
         config = Config()
-        assert config.gatekeeper.template_kwargs == {"enable_thinking": True, "reasoning_effort": "low"}
 
-    def test_template_kwargs_one_by_one(self, mock_getuser, monkeypatch):
-        """Test setting template_kwargs, key-by-key"""
-
-        # This ends up with strings, which is not what we want, so we'll just document
-        # setting it as a JSON object
-        monkeypatch.setenv("LINUX_MCP_GATEKEEPER__TEMPLATE_KWARGS__ENABLE_THINKING", "true")
-        monkeypatch.setenv("LINUX_MCP_GATEKEEPER__TEMPLATE_KWARGS__REASONING_EFFORT", "low")
-        monkeypatch.setenv("LINUX_MCP_GATEKEEPER__TEMPLATE_KWARGS__UNSET", "")
-
-        config = Config()
-        assert config.gatekeeper.template_kwargs == {"enable_thinking": "true", "reasoning_effort": "low"}
+        assert config.gatekeeper is not None
+        assert config.gatekeeper.openai is not None
+        assert config.gatekeeper.openai.template_kwargs == {"enable_thinking": True, "reasoning_effort": "low"}
 
     def test_template_kwargs_unset(self, mock_getuser, monkeypatch):
-        """Test default value for template_kwargs"""
         config = Config()
-        assert config.gatekeeper.template_kwargs == {}
+        assert config.gatekeeper is not None
+        assert config.gatekeeper.openai is None
 
     def test_cost(self, monkeypatch):
         monkeypatch.setenv("LINUX_MCP_GATEKEEPER__COST", "1e-6:4e-6")
         config = Config()
+        assert config.gatekeeper is not None
         assert config.gatekeeper.cost == (1e-6, 4e-6)
+
+    def test_openrouter_provider_and_quantization(self, mock_getuser, monkeypatch):
+        monkeypatch.setenv("LINUX_MCP_GATEKEEPER__PROVIDER", "openrouter")
+        monkeypatch.setenv("LINUX_MCP_GATEKEEPER__MODEL", "openai/gpt-oss-120b")
+        monkeypatch.setenv("LINUX_MCP_GATEKEEPER__OPENROUTER__QUANTIZATION", "fp4")
+
+        config = Config()
+
+        assert config.gatekeeper is not None
+        assert config.gatekeeper.provider == GatekeeperProvider.OPENROUTER
+        assert config.gatekeeper.model == "openai/gpt-oss-120b"
+        assert config.gatekeeper.openrouter is not None
+        assert config.gatekeeper.openrouter.quantization == "fp4"
 
     @pytest.mark.parametrize(
         "value",

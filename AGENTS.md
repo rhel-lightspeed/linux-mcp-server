@@ -29,6 +29,7 @@ make verify                  # All checks (required before commit)
 - Use pytest-mock (`mocker` fixture) for mocking instead of `unittest.mock` imports
 - Use `autospec=True` when patching; `spec=<object>` with Mock
 - 100% patch coverage for new code
+- Do not use `@pytest.mark.asyncio` for tests. It's not necessary because the project uses `asyncio_mode = "auto"`
 
 **Security (Critical):**
 - All tools must be read-only with `readOnlyHint=True`

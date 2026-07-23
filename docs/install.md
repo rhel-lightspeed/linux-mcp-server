@@ -36,7 +36,8 @@ Get the Linux MCP Server running quickly with your favorite MCP client.
 !!! note "Optional dependencies"
     The `gssapi` package is needed for SSH authentication to Kerberos-registered systems. Install with `uv tool install linux-mcp-server[gssapi]`.
 
-    The `gcp` package is needed for Google Cloud Platform integration with the gatekeeper model. Install with `uv tool install linux-mcp-server[gcp]`.
+    The `gcp` optional dependency provides Google Cloud authentication for Vertex AI gatekeeper backends.
+    Install with `uv tool install linux-mcp-server[gcp]`.
 
 ---
 

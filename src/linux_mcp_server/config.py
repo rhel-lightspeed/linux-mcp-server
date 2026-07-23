@@ -45,7 +45,16 @@ class ReasoningEffort(StrEnum):
     MEDIUM = "medium"
     HIGH = "high"
     XHIGH = "xhigh"
-    DEFAULT = "default"
+
+
+class GatekeeperProvider(StrEnum):
+    """LLM provider for the gatekeeper model."""
+
+    OPENAI = "openai"
+    ANTHROPIC = "anthropic"
+    GEMINI = "gemini"
+    OPENROUTER = "openrouter"
+    VERTEX_AI = "vertex_ai"
 
 
 class AuthProvider(StrEnum):
@@ -113,28 +122,42 @@ def parse_cost(v: Any) -> Any:
     return v
 
 
+class OpenAIGatekeeperConfig(BaseSettings):
+    """OpenAI gatekeeper provider configuration."""
+
+    base_url: str | None = None
+    template_kwargs: dict[str, Any] = Field(default_factory=dict)
+
+
+class OpenRouterGatekeeperConfig(BaseSettings):
+    """OpenRouter gatekeeper provider configuration."""
+
+    base_url: str | None = None
+    quantization: str | None = None
+    template_kwargs: dict[str, Any] = Field(default_factory=dict)
+
+
+class VertexAIGatekeeperConfig(BaseSettings):
+    """Vertex AI gatekeeper provider configuration."""
+
+    project: str | None = None
+    location: str | None = None
+    base_url: str | None = None
+
+
 class GatekeeperConfig(BaseSettings):
     """Gatekeeper Model configuration"""
 
-    model: str | None = None
-
-    # model quantization (e.g. fp8, bf16 - only supported for openrouter)
-    quantization: str | None = None
-
-    # reasoning effort
+    provider: GatekeeperProvider
+    model: str
     reasoning_effort: ReasoningEffort | None = None
-
-    # Whether we should use structured output (default, autodetect support)
-    structured_output: bool | None = None
-
-    # dict of extra template keyword arguments
-    template_kwargs: dict[str, Any] = Field(default_factory=dict)
-
-    # Temperature for gatekeeper model
+    structured_output: bool = True
     temperature: float = 0.0
-
-    # Gatekeeper cost for accounting (input $/token, output $/token)
     cost: Annotated[tuple[float, float] | None, BeforeValidator(parse_cost)] = None
+
+    openai: OpenAIGatekeeperConfig | None = None
+    openrouter: OpenRouterGatekeeperConfig | None = None
+    vertex_ai: VertexAIGatekeeperConfig | None = None
 
 
 class Config(BaseSettings):
@@ -186,7 +209,8 @@ class Config(BaseSettings):
     # What tools are available
     toolset: Toolset = Toolset.FIXED
 
-    gatekeeper: GatekeeperConfig = Field(default_factory=GatekeeperConfig)
+    # Required when toolset is run_script or both (provider and model are mandatory on GatekeeperConfig)
+    gatekeeper: GatekeeperConfig | None = None
 
     # Command execution timeout (applies to both local and remote commands)
     command_timeout: int = 30  # Timeout in seconds; prevents hung commands
@@ -218,14 +242,15 @@ class Config(BaseSettings):
 
         return result
 
-    # Experimentally, having the tool fail with an informative error is a lot easier
-    # to debug than a strange Pydantic validation error
-    #
-    # @model_validator(mode="after")
-    # def validate_gatekeeper_model(self):
-    #     if self.toolset != Toolset.FIXED and self.gatekeeper.model is None:
-    #         raise ValueError('gatekeeper.model must be set unless the toolset is "fixed"')
-    #     return self
+    @model_validator(mode="after")
+    def validate_gatekeeper_config(self):
+        if self.toolset != Toolset.FIXED and self.gatekeeper is None:
+            raise ValueError(
+                "gatekeeper.provider (LINUX_MCP_GATEKEEPER__PROVIDER) and "
+                "gatekeeper.model (LINUX_MCP_GATEKEEPER__MODEL) must be set when "
+                f"toolset is {self.toolset.value!r}"
+            )
+        return self
 
     @model_validator(mode="before")
     @staticmethod
