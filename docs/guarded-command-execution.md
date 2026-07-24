@@ -141,7 +141,8 @@ Example (Vertex AI):
 ```sh
 LINUX_MCP_GATEKEEPER__PROVIDER=vertex_ai
 LINUX_MCP_GATEKEEPER__MODEL=gemini-3.1-pro-preview
-LINUX_MCP_GATEKEEPER__VERTEX_AI__PROJECT=my-gcp-project
+VERTEXAI_PROJECT=my-gcp-project
+VERTEXAI_LOCATION=global
 GOOGLE_APPLICATION_CREDENTIALS=<path-to-service-account.json>
 ```
 
