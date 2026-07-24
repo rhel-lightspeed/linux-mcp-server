@@ -5,28 +5,37 @@ on:
     branches:
       - main
   pull_request_target:
+    types: [opened, synchronize, labeled]
     branches:
       - main
-  issue_comment:
-    types: [created]
   workflow_dispatch:
 
 permissions:
   contents: read
-  pull-requests: read
+  pull-requests: write
 
 jobs:
   check-authorization:
     name: Check Authorization
     runs-on: ubuntu-latest
     if: >-
-      github.event_name != 'issue_comment' ||
-      (github.event.issue.pull_request &&
-       (startsWith(github.event.comment.body, '/test-functional') ||
-        startsWith(github.event.comment.body, '/retest')))
+      github.event.action != 'labeled' ||
+      github.event.label.name == 'ok_to_test'
     outputs:
       authorized: ${{ steps.check.outputs.authorized }}
     steps:
+      - name: Remove ok_to_test label
+        if: github.event.action == 'labeled'
+        uses: actions/github-script@v9
+        with:
+          script: |
+            await github.rest.issues.removeLabel({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: context.payload.pull_request.number,
+              name: 'ok_to_test',
+            });
+
       - name: Check if user is authorized
         id: check
         uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9
@@ -39,18 +48,6 @@ jobs:
             if (eventName === 'push' || eventName === 'workflow_dispatch') {
               authorized = true;
             } else {
-              if (eventName === 'issue_comment') {
-                if (!context.payload.issue.pull_request) {
-                  core.setFailed('issue_comment event on a non-PR issue should have been filtered by job condition');
-                  return;
-                }
-                const body = context.payload.comment.body;
-                if (!/^\/(test-functional|retest)/.test(body)) {
-                  core.setFailed('issue_comment without trigger command should have been filtered by job condition');
-                  return;
-                }
-              }
-
               try {
                 const { data: permission } = await github.rest.repos.getCollaboratorPermissionLevel({
                   owner: context.repo.owner,
@@ -93,8 +90,6 @@ jobs:
             let prNumber;
             if (context.eventName === 'pull_request_target') {
               prNumber = context.payload.pull_request.number;
-            } else if (context.eventName === 'issue_comment') {
-              prNumber = context.issue.number;
             }
 
             if (prNumber) {
