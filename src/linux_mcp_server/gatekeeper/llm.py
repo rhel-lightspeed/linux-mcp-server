@@ -20,24 +20,28 @@ class GatekeeperCompletion(BaseModel):
 
 async def complete_gatekeeper(prompt: str, *, max_tokens: int) -> GatekeeperCompletion:
     # Deferred imports avoid circular dependency: clients import GatekeeperCompletion from this module.
-    from linux_mcp_server.gatekeeper.anthropic_client import complete_anthropic
-    from linux_mcp_server.gatekeeper.gemini_client import complete_gemini
-    from linux_mcp_server.gatekeeper.openai_client import complete_openai
-    from linux_mcp_server.gatekeeper.openrouter_client import complete_openrouter
-    from linux_mcp_server.gatekeeper.vertex_ai_client import complete_vertex_ai
-
     assert CONFIG.gatekeeper is not None
     provider = CONFIG.gatekeeper.provider
     match CONFIG.gatekeeper.provider:
         case GatekeeperProvider.OPENAI:
+            from linux_mcp_server.gatekeeper.openai_client import complete_openai
+
             completion = await complete_openai(prompt, max_tokens=max_tokens)
         case GatekeeperProvider.ANTHROPIC:
+            from linux_mcp_server.gatekeeper.anthropic_client import complete_anthropic
+
             completion = await complete_anthropic(prompt, max_tokens=max_tokens)
         case GatekeeperProvider.GEMINI:
+            from linux_mcp_server.gatekeeper.gemini_client import complete_gemini
+
             completion = await complete_gemini(prompt, max_tokens=max_tokens)
         case GatekeeperProvider.OPENROUTER:
+            from linux_mcp_server.gatekeeper.openrouter_client import complete_openrouter
+
             completion = await complete_openrouter(prompt, max_tokens=max_tokens)
         case GatekeeperProvider.VERTEX_AI:
+            from linux_mcp_server.gatekeeper.vertex_ai_client import complete_vertex_ai
+
             completion = await complete_vertex_ai(prompt, max_tokens=max_tokens)
         case _:  # pragma: no cover
             raise ValueError(f"Unsupported gatekeeper provider: {provider}")
