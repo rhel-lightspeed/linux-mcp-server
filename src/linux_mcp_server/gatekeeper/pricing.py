@@ -87,7 +87,7 @@ def _load_models_dev_pricing() -> dict[str, Any]:
             logger.debug("Loaded gatekeeper pricing from models.dev API")
             return pricing
     except Exception as exc:
-        logger.debug("Failed to fetch models.dev pricing (%s); defaulting to $0", exc)
+        logger.warning("Failed to fetch models.dev pricing (%s); defaulting to $0", exc)
         return {}
 
 
