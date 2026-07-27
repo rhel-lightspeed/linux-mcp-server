@@ -12,7 +12,6 @@ from pydantic import ValidationError
 from linux_mcp_server.config import CONFIG
 from linux_mcp_server.gatekeeper.llm import complete_gatekeeper
 from linux_mcp_server.gatekeeper.pricing import compute_cost
-from linux_mcp_server.gatekeeper.pricing import CostSource
 from linux_mcp_server.utils import StrEnum
 
 
@@ -205,7 +204,6 @@ class GatekeeperStats(BaseModel):
     prompt_tokens: int = 0
     completion_tokens: int = 0
     cost: float = 0
-    cost_source: CostSource | None = None
     latency: float = 0
 
 
@@ -272,16 +270,14 @@ async def check_run_script(
     stats: GatekeeperStats | None = None
     if include_stats:
         assert time_before is not None
-        cost, cost_source = compute_cost(
-            completion.prompt_tokens,
-            completion.completion_tokens,
-            usage_cost=completion.usage_cost,
-        )
         stats = GatekeeperStats(
             prompt_tokens=completion.prompt_tokens,
             completion_tokens=completion.completion_tokens,
-            cost=cost,
-            cost_source=cost_source,
+            cost=compute_cost(
+                completion.prompt_tokens,
+                completion.completion_tokens,
+                usage_cost=completion.usage_cost,
+            ),
             latency=time.perf_counter() - time_before,
         )
 

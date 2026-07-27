@@ -1,11 +1,8 @@
 """Gatekeeper cost estimation from usage tokens and pricing tables."""
 
 import logging
-import os
 
 from functools import cache
-from typing import Literal
-from urllib.parse import urlparse
 
 import httpx
 
@@ -23,10 +20,6 @@ logger = logging.getLogger("linux-mcp-server")
 
 MODELS_DEV_API_URL = "https://models.dev/api.json"
 
-_LOCAL_HOSTS = frozenset({"localhost", "127.0.0.1", "::1"})
-
-CostSource = Literal["api", "config", "models_dev", "fallback", "local"]
-
 
 class Usage(BaseModel):
     input_tokens: int = 0
@@ -39,7 +32,6 @@ class TokenRates(BaseModel):
 
     input_per_token: float
     output_per_token: float
-    source: CostSource
 
 
 class ModelsDevCost(BaseModel):
@@ -61,11 +53,10 @@ class ModelsDevProvider(BaseModel):
     models: dict[str, ModelsDevModel] = Field(default_factory=dict)
 
 
-def _rates_from_mtok(input_mtok: float, output_mtok: float, source: CostSource) -> TokenRates:
+def _rates_from_mtok(input_mtok: float, output_mtok: float) -> TokenRates:
     return TokenRates(
         input_per_token=input_mtok / 1_000_000,
         output_per_token=output_mtok / 1_000_000,
-        source=source,
     )
 
 
@@ -134,21 +125,6 @@ def _lookup_models_dev_cost(provider_key: str, model: str) -> tuple[float, float
     return None
 
 
-def is_local_inference() -> bool:
-    assert CONFIG.gatekeeper is not None
-    if CONFIG.gatekeeper.provider != GatekeeperProvider.OPENAI:
-        return False
-    base_url = None
-    if CONFIG.gatekeeper.openai and CONFIG.gatekeeper.openai.base_url:
-        base_url = CONFIG.gatekeeper.openai.base_url
-    else:
-        base_url = os.environ.get("OPENAI_API_BASE")
-    if not base_url:
-        return False
-    host = (urlparse(base_url).hostname or "").lower()
-    return host in _LOCAL_HOSTS
-
-
 def resolve_token_rates() -> TokenRates:
     assert CONFIG.gatekeeper is not None
     if CONFIG.gatekeeper.cost is not None:
@@ -156,7 +132,6 @@ def resolve_token_rates() -> TokenRates:
         return TokenRates(
             input_per_token=input_per_token,
             output_per_token=output_per_token,
-            source="config",
         )
 
     provider = CONFIG.gatekeeper.provider
@@ -164,12 +139,9 @@ def resolve_token_rates() -> TokenRates:
     provider_key = _models_dev_provider_key(provider)
     models_dev_cost = _lookup_models_dev_cost(provider_key, model)
     if models_dev_cost is not None:
-        return _rates_from_mtok(models_dev_cost[0], models_dev_cost[1], "models_dev")
+        return _rates_from_mtok(models_dev_cost[0], models_dev_cost[1])
 
-    if is_local_inference():
-        return _rates_from_mtok(0.0, 0.0, "local")
-
-    return _rates_from_mtok(0.0, 0.0, "fallback")
+    return _rates_from_mtok(0.0, 0.0)
 
 
 def compute_cost(
@@ -177,13 +149,12 @@ def compute_cost(
     completion_tokens: int,
     *,
     usage_cost: float | None,
-) -> tuple[float, CostSource]:
+) -> float:
     if usage_cost is not None:
-        return usage_cost, "api"
+        return usage_cost
 
     rates = resolve_token_rates()
-    cost = prompt_tokens * rates.input_per_token + completion_tokens * rates.output_per_token
-    return cost, rates.source
+    return prompt_tokens * rates.input_per_token + completion_tokens * rates.output_per_token
 
 
 def reset_models_dev_cache() -> None:
