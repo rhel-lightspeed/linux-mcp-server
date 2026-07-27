@@ -19,7 +19,7 @@ jobs:
           fetch-depth: 0
 
       - name: Setup uv
-        uses: astral-sh/setup-uv@f98e06938123ccabd21905ea5d0069192241f9f1 # v8.3.1
+        uses: astral-sh/setup-uv@11f9893b081a58869d3b5fccaea48c9e9e46f990 # v8.3.2
         with:
           enable-cache: true
           prune-cache: false
@@ -76,7 +76,7 @@ jobs:
           whoami
 
       - name: Publish to PyPI
-        uses: pypa/gh-action-pypi-publish@cef221092ed1bacb1cc03d23a2d87d1d172e277b # v1.14.0
+        uses: pypa/gh-action-pypi-publish@ba38be9e461d3875417946c167d0b5f3d385a247 # v1.14.1
 
   publish-mcp:
     name: Publish to MCP registry
@@ -106,7 +106,7 @@ jobs:
 
     steps:
       - name: Create GitHub Release
-        uses: softprops/action-gh-release@718ea10b132b3b2eba29c1007bb80653f286566b # v3.0.1
+        uses: softprops/action-gh-release@3d0d9888cb7fd7b750713d6e236d1fcb99157228 # v3.0.2
         with:
           tag_name: ${{ github.ref_name }}
           generate_release_notes: true
@@ -176,7 +176,7 @@ jobs:
           fetch-depth: 0
 
       - name: Install uv
-        uses: astral-sh/setup-uv@f98e06938123ccabd21905ea5d0069192241f9f1 # v8.3.1
+        uses: astral-sh/setup-uv@11f9893b081a58869d3b5fccaea48c9e9e46f990 # v8.3.2
 
       - name: Pin Python version
         run: uv python pin ${{ matrix.python-version }}
@@ -185,7 +185,7 @@ jobs:
         run: make zipapp ZIPAPP_OUTPUT=linux-mcp-server-py${{ matrix.python-version }}-${{ matrix.image.family }}-${{ matrix.image.arch }}.pyz
 
       - name: Upload to GitHub Release
-        uses: softprops/action-gh-release@718ea10b132b3b2eba29c1007bb80653f286566b # v3.0.1
+        uses: softprops/action-gh-release@3d0d9888cb7fd7b750713d6e236d1fcb99157228 # v3.0.2
         with:
           files: linux-mcp-server-py${{ matrix.python-version }}-${{ matrix.image.family }}-${{ matrix.image.arch }}.pyz
           tag_name: ${{ github.ref_name }}
