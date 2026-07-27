@@ -3,23 +3,84 @@
 import os
 
 from typing import Any
+from typing import Literal
+
+from pydantic import BaseModel
+from pydantic import ConfigDict
+from pydantic import Field
+from pydantic import field_validator
 
 from linux_mcp_server.config import CONFIG
-from linux_mcp_server.config import ReasoningEffort
+from linux_mcp_server.gatekeeper.check_run_script import GatekeeperResult
 from linux_mcp_server.gatekeeper.http_utils import DEFAULT_TIMEOUT_SECONDS
 from linux_mcp_server.gatekeeper.http_utils import post_json
 from linux_mcp_server.gatekeeper.llm import GatekeeperCompletion
-from linux_mcp_server.gatekeeper.schema import openai_text_format
-from linux_mcp_server.gatekeeper.usage import extract_openai_responses_usage
 
 
 OPENAI_DEFAULT_BASE_URL = "https://api.openai.com/v1"
 
 
-def _openai_reasoning_block(reasoning_effort: ReasoningEffort | None) -> dict[str, Any] | None:
-    if reasoning_effort is None:
-        return None
-    return {"effort": reasoning_effort.value}
+class OpenAIResponseOutputText(BaseModel):
+    model_config = ConfigDict(extra="ignore")
+
+    type: Literal["output_text"]
+    text: str
+
+
+class OpenAIResponseOutputMessage(BaseModel):
+    model_config = ConfigDict(extra="ignore")
+
+    type: Literal["message"]
+    content: list[OpenAIResponseOutputText]
+    id: str | None = None
+
+
+class OpenAIResponseUsage(BaseModel):
+    model_config = ConfigDict(extra="ignore")
+
+    input_tokens: int = 0
+    output_tokens: int = 0
+
+
+class OpenAIResponse(BaseModel):
+    model_config = ConfigDict(extra="ignore")
+
+    output: list[OpenAIResponseOutputMessage] = []
+    usage: OpenAIResponseUsage = Field(default_factory=OpenAIResponseUsage)
+
+    @field_validator("output", mode="before")
+    @classmethod
+    def _message_items_only(cls, value: Any) -> list[Any]:
+        if not isinstance(value, list):
+            return []
+        return [item for item in value if isinstance(item, dict) and item.get("type") == "message"]
+
+
+class OpenAIResponseFormatTextConfig(BaseModel):
+    model_config = ConfigDict(populate_by_name=True)
+
+    type: Literal["json_schema"]
+    name: str
+    strict: bool
+    schema_: dict[str, Any] = Field(alias="schema")
+
+
+class OpenAIResponseTextConfig(BaseModel):
+    format: OpenAIResponseFormatTextConfig
+
+
+class OpenAIReasoningConfig(BaseModel):
+    effort: str
+
+
+class OpenAIRequest(BaseModel):
+    model: str
+    input: str
+    max_output_tokens: int
+    temperature: float
+    store: bool
+    reasoning: OpenAIReasoningConfig | None
+    text: OpenAIResponseTextConfig | None
 
 
 def _get_openai_api_key() -> str:
@@ -29,67 +90,53 @@ def _get_openai_api_key() -> str:
     return api_key
 
 
-def _openai_auth_headers() -> dict[str, str]:
-    return {"Authorization": f"Bearer {_get_openai_api_key()}"}
-
-
-def _get_openai_base_url() -> str:
-    assert CONFIG.gatekeeper is not None
-    configured = CONFIG.gatekeeper.openai.base_url if CONFIG.gatekeeper.openai else None
-    return (configured or os.environ.get("OPENAI_API_BASE") or OPENAI_DEFAULT_BASE_URL).rstrip("/")
-
-
-def _build_responses_body(prompt: str, *, max_tokens: int) -> dict[str, Any]:
-    assert CONFIG.gatekeeper is not None
-    body: dict[str, Any] = {
-        "model": CONFIG.gatekeeper.model,
-        "input": prompt,
-        "max_output_tokens": max_tokens,
-        "temperature": CONFIG.gatekeeper.temperature,
-        "store": False,
-    }
-    if CONFIG.gatekeeper.structured_output:
-        body["text"] = openai_text_format()
-    reasoning = _openai_reasoning_block(CONFIG.gatekeeper.reasoning_effort)
-    if reasoning is not None:
-        body["reasoning"] = reasoning
-    return body
-
-
-def _extract_responses_text(response: dict[str, Any]) -> str:
-    chunks: list[str] = []
-    for item in response.get("output", []):
-        if not isinstance(item, dict) or item.get("type") != "message":
-            continue
-        content = item.get("content", [])
-        if not isinstance(content, list):
-            continue
-        for part in content:
-            if isinstance(part, dict) and part.get("type") == "output_text":
-                text = part.get("text")
-                if isinstance(text, str):
-                    chunks.append(text)
-    return "".join(chunks).strip()
-
-
 async def complete_openai(
-    prompt: str, *, max_tokens: int, timeout: int = DEFAULT_TIMEOUT_SECONDS
+    prompt: str,
+    *,
+    max_tokens: int,
+    timeout: int = DEFAULT_TIMEOUT_SECONDS,
+    base_url: str | None = None,
+    headers: dict[str, str] | None = None,
 ) -> GatekeeperCompletion:
-    base_url = _get_openai_base_url()
-    headers = {
-        **_openai_auth_headers(),
-        "Content-Type": "application/json",
-    }
+    assert CONFIG.gatekeeper is not None
+    if base_url is None:
+        configured = CONFIG.gatekeeper.openai.base_url if CONFIG.gatekeeper.openai else None
+        base_url = (configured or os.environ.get("OPENAI_API_BASE") or OPENAI_DEFAULT_BASE_URL).rstrip("/")
+    if headers is None:
+        headers = {
+            "Authorization": f"Bearer {_get_openai_api_key()}",
+            "Content-Type": "application/json",
+        }
+    request_body = OpenAIRequest(
+        model=CONFIG.gatekeeper.model,
+        input=prompt,
+        max_output_tokens=max_tokens,
+        temperature=CONFIG.gatekeeper.temperature,
+        store=False,
+        reasoning=OpenAIReasoningConfig(effort=CONFIG.gatekeeper.reasoning_effort.value)
+        if CONFIG.gatekeeper.reasoning_effort
+        else None,
+        text=OpenAIResponseTextConfig(
+            format=OpenAIResponseFormatTextConfig(
+                type="json_schema",
+                name="gatekeeper_result",
+                strict=True,
+                schema=GatekeeperResult.structured_output_schema(),
+            )
+        )
+        if CONFIG.gatekeeper.structured_output
+        else None,
+    )
     response = await post_json(
         provider="openai",
         url=f"{base_url}/responses",
         headers=headers,
-        body=_build_responses_body(prompt, max_tokens=max_tokens),
+        body=request_body.model_dump(exclude_none=True, by_alias=True),
         timeout=timeout,
     )
-    usage = extract_openai_responses_usage(response)
+    parsed = OpenAIResponse.model_validate(response)
     return GatekeeperCompletion(
-        text=_extract_responses_text(response),
-        prompt_tokens=usage.input_tokens,
-        completion_tokens=usage.output_tokens,
+        text="".join(part.text for msg in parsed.output for part in msg.content).strip(),
+        prompt_tokens=parsed.usage.input_tokens,
+        completion_tokens=parsed.usage.output_tokens,
     )

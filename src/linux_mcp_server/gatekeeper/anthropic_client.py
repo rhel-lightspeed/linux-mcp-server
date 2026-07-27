@@ -3,18 +3,85 @@
 import os
 
 from typing import Any
+from typing import Literal
+
+from pydantic import BaseModel
+from pydantic import ConfigDict
+from pydantic import Field
+from pydantic import field_validator
 
 from linux_mcp_server.config import CONFIG
 from linux_mcp_server.config import ReasoningEffort
+from linux_mcp_server.gatekeeper.check_run_script import GatekeeperResult
 from linux_mcp_server.gatekeeper.http_utils import DEFAULT_TIMEOUT_SECONDS
 from linux_mcp_server.gatekeeper.http_utils import post_json
 from linux_mcp_server.gatekeeper.llm import GatekeeperCompletion
-from linux_mcp_server.gatekeeper.schema import anthropic_output_config
-from linux_mcp_server.gatekeeper.usage import extract_anthropic_usage
 
 
 ANTHROPIC_API_URL = "https://api.anthropic.com/v1/messages"
 ANTHROPIC_API_VERSION = "2023-06-01"
+
+
+class AnthropicMessage(BaseModel):
+    role: Literal["user"]
+    content: str
+
+
+class AnthropicThinking(BaseModel):
+    type: Literal["adaptive", "disabled"]
+
+
+class AnthropicOutputFormat(BaseModel):
+    model_config = ConfigDict(populate_by_name=True)
+
+    type: Literal["json_schema"]
+    schema_: dict[str, Any] = Field(alias="schema")
+
+
+class AnthropicOutputConfig(BaseModel):
+    model_config = ConfigDict(populate_by_name=True)
+
+    format: AnthropicOutputFormat | None = None
+    effort: str | None = None
+
+
+class AnthropicRequest(BaseModel):
+    model_config = ConfigDict(populate_by_name=True)
+
+    max_tokens: int
+    messages: list[AnthropicMessage]
+    temperature: float
+    model: str | None = None
+    thinking: AnthropicThinking | None = None
+    output_config: AnthropicOutputConfig | None = None
+
+
+class AnthropicContentText(BaseModel):
+    model_config = ConfigDict(extra="ignore")
+
+    type: Literal["text"]
+    text: str
+
+
+class AnthropicUsage(BaseModel):
+    model_config = ConfigDict(extra="ignore")
+
+    input_tokens: int = 0
+    output_tokens: int = 0
+
+
+class AnthropicResponse(BaseModel):
+    model_config = ConfigDict(extra="ignore")
+
+    content: list[AnthropicContentText] = []
+    usage: AnthropicUsage = Field(default_factory=AnthropicUsage)
+
+    @field_validator("content", mode="before")
+    @classmethod
+    def _text_items_only(cls, value: Any) -> list[Any]:
+        if not isinstance(value, list):
+            return []
+        return [item for item in value if isinstance(item, dict) and item.get("type") == "text"]
 
 
 def _get_anthropic_api_key() -> str:
@@ -24,73 +91,59 @@ def _get_anthropic_api_key() -> str:
     return api_key
 
 
-def _anthropic_thinking_block(reasoning_effort: ReasoningEffort | None) -> dict[str, Any] | None:
-    """Map reasoning_effort to Anthropic adaptive thinking.
-
-    - None: omit thinking (provider default)
-    - ReasoningEffort.NONE: explicitly disable thinking
-    - ReasoningEffort.MINIMAL, LOW, MEDIUM, HIGH, XHIGH: adaptive thinking with effort in output_config
-    """
-    if reasoning_effort is None:
-        return None
-    if reasoning_effort == ReasoningEffort.NONE:
-        return {"type": "disabled"}
-    return {"type": "adaptive"}
-
-
-def build_messages_body(prompt: str, *, include_model: bool, max_tokens: int) -> dict[str, Any]:
-    assert CONFIG.gatekeeper is not None
-    body: dict[str, Any] = {
-        "max_tokens": max_tokens,
-        "messages": [{"role": "user", "content": prompt}],
-        "temperature": CONFIG.gatekeeper.temperature,
-    }
-    if include_model:
-        body["model"] = CONFIG.gatekeeper.model
-
-    output_config: dict[str, Any] = {}
-    if CONFIG.gatekeeper.structured_output:
-        output_config = anthropic_output_config()
-
-    reasoning_effort = CONFIG.gatekeeper.reasoning_effort
-    thinking = _anthropic_thinking_block(reasoning_effort)
-    if thinking is not None:
-        body["thinking"] = thinking
-    if reasoning_effort is not None and reasoning_effort != ReasoningEffort.NONE:
-        output_config["effort"] = reasoning_effort.value
-
-    if output_config:
-        body["output_config"] = output_config
-    return body
-
-
-def extract_messages_text(response: dict[str, Any]) -> str:
-    for item in response.get("content", []):
-        if isinstance(item, dict) and item.get("type") == "text":
-            text = item.get("text")
-            if isinstance(text, str):
-                return text.strip()
-    return ""
-
-
 async def complete_anthropic(
-    prompt: str, *, max_tokens: int, timeout: int = DEFAULT_TIMEOUT_SECONDS
+    prompt: str,
+    *,
+    max_tokens: int,
+    timeout: int = DEFAULT_TIMEOUT_SECONDS,
+    url: str | None = None,
+    headers: dict[str, str] | None = None,
+    include_model: bool = True,
+    anthropic_version: str | None = None,
 ) -> GatekeeperCompletion:
-    headers = {
-        "x-api-key": _get_anthropic_api_key(),
-        "anthropic-version": ANTHROPIC_API_VERSION,
-        "Content-Type": "application/json",
-    }
+    assert CONFIG.gatekeeper is not None
+    reasoning_effort = CONFIG.gatekeeper.reasoning_effort
+    output_config = AnthropicOutputConfig(
+        format=AnthropicOutputFormat(type="json_schema", schema=GatekeeperResult.structured_output_schema())
+        if CONFIG.gatekeeper.structured_output
+        else None,
+        effort=reasoning_effort.value
+        if reasoning_effort is not None and reasoning_effort != ReasoningEffort.NONE
+        else None,
+    )
+    request_body = AnthropicRequest(
+        max_tokens=max_tokens,
+        messages=[AnthropicMessage(role="user", content=prompt)],
+        temperature=CONFIG.gatekeeper.temperature,
+        model=CONFIG.gatekeeper.model if include_model else None,
+        thinking=(
+            AnthropicThinking(type="disabled")
+            if reasoning_effort == ReasoningEffort.NONE
+            else AnthropicThinking(type="adaptive")
+            if reasoning_effort is not None
+            else None
+        ),
+        output_config=output_config if output_config.format is not None or output_config.effort is not None else None,
+    )
+    body = request_body.model_dump(exclude_none=True, by_alias=True)
+    if anthropic_version is not None:
+        body["anthropic_version"] = anthropic_version
+    if headers is None:
+        headers = {
+            "x-api-key": _get_anthropic_api_key(),
+            "anthropic-version": ANTHROPIC_API_VERSION,
+            "Content-Type": "application/json",
+        }
     response = await post_json(
         provider="anthropic",
-        url=ANTHROPIC_API_URL,
+        url=url or ANTHROPIC_API_URL,
         headers=headers,
-        body=build_messages_body(prompt, include_model=True, max_tokens=max_tokens),
+        body=body,
         timeout=timeout,
     )
-    usage = extract_anthropic_usage(response)
+    parsed = AnthropicResponse.model_validate(response)
     return GatekeeperCompletion(
-        text=extract_messages_text(response),
-        prompt_tokens=usage.input_tokens,
-        completion_tokens=usage.output_tokens,
+        text="".join(part.text for part in parsed.content).strip(),
+        prompt_tokens=parsed.usage.input_tokens,
+        completion_tokens=parsed.usage.output_tokens,
     )

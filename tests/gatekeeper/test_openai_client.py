@@ -7,24 +7,10 @@ from linux_mcp_server.config import OpenAIGatekeeperConfig
 from linux_mcp_server.config import ReasoningEffort
 from linux_mcp_server.gatekeeper import openai_client
 from linux_mcp_server.gatekeeper.http_utils import GatekeeperHTTPError
-from linux_mcp_server.gatekeeper.openai_client import _openai_reasoning_block
 
 
 def _responses_output(text: str) -> dict:
     return {"output": [{"type": "message", "content": [{"type": "output_text", "text": text}]}]}
-
-
-@pytest.mark.parametrize(
-    ("effort", "expected"),
-    [
-        (None, None),
-        (ReasoningEffort.NONE, {"effort": "none"}),
-        (ReasoningEffort.LOW, {"effort": "low"}),
-        (ReasoningEffort.HIGH, {"effort": "high"}),
-    ],
-)
-def test_openai_reasoning_block(effort, expected):
-    assert _openai_reasoning_block(effort) == expected
 
 
 class TestOpenAIClient:
@@ -97,3 +83,20 @@ class TestOpenAIClient:
 
         body = mock_post.call_args.kwargs["body"]
         assert "text" not in body
+
+    async def test_complete_openai_transport_overrides(self, gatekeeper_config, mocker):
+        mock_post = mocker.patch(
+            "linux_mcp_server.gatekeeper.openai_client.post_json",
+            new_callable=mocker.AsyncMock,
+            return_value=_responses_output('{"status": "OK"}'),
+        )
+
+        await openai_client.complete_openai(
+            "prompt",
+            max_tokens=8000,
+            base_url="https://vertex.example.com/openapi",
+            headers={"Authorization": "Bearer gcp-token", "Content-Type": "application/json"},
+        )
+
+        assert mock_post.call_args.kwargs["url"] == "https://vertex.example.com/openapi/responses"
+        assert mock_post.call_args.kwargs["headers"]["Authorization"] == "Bearer gcp-token"

@@ -3,20 +3,13 @@
 from typing import Literal
 
 from linux_mcp_server.config import CONFIG
-from linux_mcp_server.gatekeeper.anthropic_client import build_messages_body
-from linux_mcp_server.gatekeeper.anthropic_client import extract_messages_text
+from linux_mcp_server.gatekeeper.anthropic_client import complete_anthropic
 from linux_mcp_server.gatekeeper.gcp_auth import get_gcp_location
 from linux_mcp_server.gatekeeper.gcp_auth import get_gcp_project
-from linux_mcp_server.gatekeeper.gemini_client import build_gemini_body
-from linux_mcp_server.gatekeeper.gemini_client import extract_gemini_text
+from linux_mcp_server.gatekeeper.gemini_client import complete_gemini
 from linux_mcp_server.gatekeeper.http_utils import DEFAULT_TIMEOUT_SECONDS
-from linux_mcp_server.gatekeeper.http_utils import post_json
 from linux_mcp_server.gatekeeper.llm import GatekeeperCompletion
-from linux_mcp_server.gatekeeper.openai_client import _build_responses_body
-from linux_mcp_server.gatekeeper.openai_client import _extract_responses_text
-from linux_mcp_server.gatekeeper.usage import extract_anthropic_usage
-from linux_mcp_server.gatekeeper.usage import extract_gemini_usage
-from linux_mcp_server.gatekeeper.usage import extract_openai_responses_usage
+from linux_mcp_server.gatekeeper.openai_client import complete_openai
 
 
 ANTHROPIC_VERTEX_VERSION = "vertex-2023-10-16"
@@ -63,70 +56,36 @@ def _gemini_vertex_url(model: str) -> str:
     return f"https://{host}/v1/projects/{project}/locations/{location}/publishers/google/models/{model}:generateContent"
 
 
-async def _complete_anthropic_on_vertex(prompt: str, *, max_tokens: int, timeout: int) -> GatekeeperCompletion:
-    assert CONFIG.gatekeeper is not None
-    model = CONFIG.gatekeeper.model
-    body = build_messages_body(prompt, include_model=False, max_tokens=max_tokens)
-    body["anthropic_version"] = ANTHROPIC_VERTEX_VERSION
-    response = await post_json(
-        provider="anthropic",
-        url=_anthropic_vertex_url(model),
-        headers={**_vertex_auth_headers(), "Content-Type": "application/json"},
-        body=body,
-        timeout=timeout,
-    )
-    usage = extract_anthropic_usage(response)
-    return GatekeeperCompletion(
-        text=extract_messages_text(response),
-        prompt_tokens=usage.input_tokens,
-        completion_tokens=usage.output_tokens,
-    )
-
-
-async def _complete_gemini_on_vertex(prompt: str, *, max_tokens: int, timeout: int) -> GatekeeperCompletion:
-    assert CONFIG.gatekeeper is not None
-    model = CONFIG.gatekeeper.model
-    response = await post_json(
-        provider="gemini",
-        url=_gemini_vertex_url(model),
-        headers={**_vertex_auth_headers(), "Content-Type": "application/json"},
-        body=build_gemini_body(prompt, max_tokens=max_tokens),
-        timeout=timeout,
-    )
-    usage = extract_gemini_usage(response)
-    return GatekeeperCompletion(
-        text=extract_gemini_text(response),
-        prompt_tokens=usage.input_tokens,
-        completion_tokens=usage.output_tokens,
-    )
-
-
-async def _complete_openai_compatible_on_vertex(prompt: str, *, max_tokens: int, timeout: int) -> GatekeeperCompletion:
-    base_url = _get_vertex_openapi_base_url()
-    response = await post_json(
-        provider="openai",
-        url=f"{base_url}/responses",
-        headers={**_vertex_auth_headers(), "Content-Type": "application/json"},
-        body=_build_responses_body(prompt, max_tokens=max_tokens),
-        timeout=timeout,
-    )
-    usage = extract_openai_responses_usage(response)
-    return GatekeeperCompletion(
-        text=_extract_responses_text(response),
-        prompt_tokens=usage.input_tokens,
-        completion_tokens=usage.output_tokens,
-    )
-
-
 async def complete_vertex_ai(
     prompt: str, *, max_tokens: int, timeout: int = DEFAULT_TIMEOUT_SECONDS
 ) -> GatekeeperCompletion:
     assert CONFIG.gatekeeper is not None
     model = CONFIG.gatekeeper.model
+    auth = {**_vertex_auth_headers(), "Content-Type": "application/json"}
     match _vertex_api_style(model):
         case "anthropic":
-            return await _complete_anthropic_on_vertex(prompt, max_tokens=max_tokens, timeout=timeout)
+            return await complete_anthropic(
+                prompt,
+                max_tokens=max_tokens,
+                timeout=timeout,
+                url=_anthropic_vertex_url(model),
+                headers=auth,
+                include_model=False,
+                anthropic_version=ANTHROPIC_VERTEX_VERSION,
+            )
         case "gemini":
-            return await _complete_gemini_on_vertex(prompt, max_tokens=max_tokens, timeout=timeout)
+            return await complete_gemini(
+                prompt,
+                max_tokens=max_tokens,
+                timeout=timeout,
+                url=_gemini_vertex_url(model),
+                headers=auth,
+            )
         case "openai_compatible":
-            return await _complete_openai_compatible_on_vertex(prompt, max_tokens=max_tokens, timeout=timeout)
+            return await complete_openai(
+                prompt,
+                max_tokens=max_tokens,
+                timeout=timeout,
+                base_url=_get_vertex_openapi_base_url(),
+                headers=auth,
+            )

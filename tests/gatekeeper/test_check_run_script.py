@@ -44,6 +44,13 @@ class TestGatekeeperResultDescription:
         result = GatekeeperResult(status=status, detail=detail)
         assert result.description == expected_description
 
+    def test_structured_output_schema_is_strict(self):
+        schema = GatekeeperResult.structured_output_schema()
+        assert schema["additionalProperties"] is False
+        assert set(schema["properties"]) == {"status", "detail"}
+        assert schema["properties"]["status"]["enum"] == [m.value for m in GatekeeperStatus]
+        assert schema["required"] == ["status"]
+
     @pytest.mark.parametrize("status,detail,expected_description", RESULT_CASES)
     def test_round_trip(self, status, detail, expected_description):
         """Test that we can round-trip from result -> description -> parsed result."""
@@ -236,7 +243,7 @@ class TestGatekeeperConfigIntegration:
             return_value="gcp-token",
         )
         mock_post = mocker.patch(
-            "linux_mcp_server.gatekeeper.vertex_ai_client.post_json",
+            "linux_mcp_server.gatekeeper.openai_client.post_json",
             new_callable=mocker.AsyncMock,
             return_value=_responses_output('{"status": "OK", "detail": ""}'),
         )

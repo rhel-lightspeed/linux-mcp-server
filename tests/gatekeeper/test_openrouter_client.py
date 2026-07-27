@@ -6,23 +6,6 @@ from linux_mcp_server.config import GatekeeperProvider
 from linux_mcp_server.config import OpenRouterGatekeeperConfig
 from linux_mcp_server.config import ReasoningEffort
 from linux_mcp_server.gatekeeper import openrouter_client
-from linux_mcp_server.gatekeeper.openrouter_client import _openrouter_reasoning_block
-
-
-@pytest.mark.parametrize(
-    "effort,expected",
-    [
-        (ReasoningEffort.NONE, {"enabled": False}),
-        (ReasoningEffort.LOW, {"enabled": True, "effort": "low"}),
-        (ReasoningEffort.HIGH, {"enabled": True, "effort": "high"}),
-    ],
-)
-def test_openrouter_reasoning_block(effort, expected):
-    assert _openrouter_reasoning_block(effort) == expected
-
-
-def test_openrouter_reasoning_block_unset():
-    assert _openrouter_reasoning_block(None) is None
 
 
 class TestOpenRouterClient:
@@ -89,6 +72,19 @@ class TestOpenRouterClient:
 
         body = mock_post.call_args.kwargs["body"]
         assert body["reasoning"] == {"enabled": False}
+
+    async def test_complete_openrouter_reasoning_unset(self, gatekeeper_config, mocker):
+        gatekeeper_config.reasoning_effort = None
+        mock_post = mocker.patch(
+            "linux_mcp_server.gatekeeper.openrouter_client.post_json",
+            new_callable=mocker.AsyncMock,
+            return_value={"choices": [{"message": {"content": '{"status": "OK"}'}}]},
+        )
+
+        await openrouter_client.complete_openrouter("prompt", max_tokens=8000)
+
+        body = mock_post.call_args.kwargs["body"]
+        assert "reasoning" not in body
 
     async def test_complete_openrouter_custom_base_url(self, gatekeeper_config, mocker):
         gatekeeper_config.openrouter = OpenRouterGatekeeperConfig(base_url="https://openrouter.example.com/api/v1")

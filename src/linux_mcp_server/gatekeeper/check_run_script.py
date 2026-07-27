@@ -2,6 +2,7 @@ import asyncio
 import logging
 import time
 
+from typing import Any
 from typing import Literal
 from typing import overload
 
@@ -126,6 +127,22 @@ class GatekeeperStatus(StrEnum):
 class GatekeeperResult(BaseModel):
     status: GatekeeperStatus
     detail: str = ""
+
+    @classmethod
+    def structured_output_schema(cls) -> dict[str, Any]:
+        """Flat JSON Schema for provider structured-output APIs."""
+        return {
+            "type": "object",
+            "properties": {
+                "status": {
+                    "type": "string",
+                    "enum": [m.value for m in GatekeeperStatus],
+                },
+                "detail": {"type": "string"},
+            },
+            "required": ["status"],
+            "additionalProperties": False,
+        }
 
     @property
     def description(self) -> str:

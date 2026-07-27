@@ -63,7 +63,7 @@ class TestVertexAIClient:
 
     async def test_complete_anthropic_on_vertex(self, gatekeeper_config, mocker):
         mock_post = mocker.patch(
-            "linux_mcp_server.gatekeeper.vertex_ai_client.post_json",
+            "linux_mcp_server.gatekeeper.anthropic_client.post_json",
             new_callable=mocker.AsyncMock,
             return_value={"content": [{"type": "text", "text": '{"status": "OK"}'}]},
         )
@@ -75,11 +75,14 @@ class TestVertexAIClient:
         assert "model" not in body
         assert body["anthropic_version"] == "vertex-2023-10-16"
         assert ":rawPredict" in mock_post.call_args.kwargs["url"]
+        assert mock_post.call_args.kwargs["headers"]["Authorization"] == "Bearer gcp-token"
+        assert "x-api-key" not in mock_post.call_args.kwargs["headers"]
+        assert "anthropic-version" not in mock_post.call_args.kwargs["headers"]
 
     async def test_complete_gemini_on_vertex(self, gatekeeper_config, mocker):
         gatekeeper_config.model = "gemini-3.1-pro-preview"
         mock_post = mocker.patch(
-            "linux_mcp_server.gatekeeper.vertex_ai_client.post_json",
+            "linux_mcp_server.gatekeeper.gemini_client.post_json",
             new_callable=mocker.AsyncMock,
             return_value={"candidates": [{"content": {"parts": [{"text": '{"status": "OK"}'}]}}]},
         )
@@ -88,12 +91,13 @@ class TestVertexAIClient:
 
         assert result.text == '{"status": "OK"}'
         assert ":generateContent" in mock_post.call_args.kwargs["url"]
+        assert "key=" not in mock_post.call_args.kwargs["url"]
         assert mock_post.call_args.kwargs["headers"]["Authorization"] == "Bearer gcp-token"
 
     async def test_complete_openai_compatible_on_vertex(self, gatekeeper_config, mocker):
         gatekeeper_config.model = "gpt-oss-120b-maas"
         mock_post = mocker.patch(
-            "linux_mcp_server.gatekeeper.vertex_ai_client.post_json",
+            "linux_mcp_server.gatekeeper.openai_client.post_json",
             new_callable=mocker.AsyncMock,
             return_value=_responses_output('{"status": "OK"}'),
         )
@@ -111,7 +115,7 @@ class TestVertexAIClient:
             base_url="https://custom.example.com/v1/projects/p/locations/global/endpoints/openapi",
         )
         mock_post = mocker.patch(
-            "linux_mcp_server.gatekeeper.vertex_ai_client.post_json",
+            "linux_mcp_server.gatekeeper.openai_client.post_json",
             new_callable=mocker.AsyncMock,
             return_value=_responses_output('{"status": "OK"}'),
         )

@@ -3,17 +3,88 @@
 import os
 
 from typing import Any
+from typing import Literal
+
+from pydantic import BaseModel
+from pydantic import ConfigDict
+from pydantic import Field
 
 from linux_mcp_server.config import CONFIG
 from linux_mcp_server.config import ReasoningEffort
+from linux_mcp_server.gatekeeper.check_run_script import GatekeeperResult
 from linux_mcp_server.gatekeeper.http_utils import DEFAULT_TIMEOUT_SECONDS
 from linux_mcp_server.gatekeeper.http_utils import post_json
 from linux_mcp_server.gatekeeper.llm import GatekeeperCompletion
-from linux_mcp_server.gatekeeper.schema import gemini_generation_config
-from linux_mcp_server.gatekeeper.usage import extract_gemini_usage
 
 
 GOOGLE_AI_BASE_URL = "https://generativelanguage.googleapis.com/v1beta"
+
+_THINKING_LEVELS = {
+    ReasoningEffort.NONE: "MINIMAL",
+    ReasoningEffort.MINIMAL: "MINIMAL",
+    ReasoningEffort.LOW: "LOW",
+    ReasoningEffort.MEDIUM: "MEDIUM",
+    ReasoningEffort.HIGH: "HIGH",
+    ReasoningEffort.XHIGH: "HIGH",
+}
+
+
+class GeminiPart(BaseModel):
+    text: str
+
+
+class GeminiContent(BaseModel):
+    role: Literal["user"]
+    parts: list[GeminiPart]
+
+
+class GeminiThinkingConfig(BaseModel):
+    thinkingLevel: str
+
+
+class GeminiGenerationConfig(BaseModel):
+    temperature: float
+    maxOutputTokens: int
+    responseMimeType: str | None = None
+    responseSchema: dict[str, Any] | None = None
+    thinkingConfig: GeminiThinkingConfig | None = None
+
+
+class GeminiRequest(BaseModel):
+    contents: list[GeminiContent]
+    generationConfig: GeminiGenerationConfig
+
+
+class GeminiResponsePart(BaseModel):
+    model_config = ConfigDict(extra="ignore")
+
+    text: str = ""
+
+
+class GeminiResponseContent(BaseModel):
+    model_config = ConfigDict(extra="ignore")
+
+    parts: list[GeminiResponsePart] = []
+
+
+class GeminiCandidate(BaseModel):
+    model_config = ConfigDict(extra="ignore")
+
+    content: GeminiResponseContent = Field(default_factory=GeminiResponseContent)
+
+
+class GeminiUsageMetadata(BaseModel):
+    model_config = ConfigDict(extra="ignore")
+
+    promptTokenCount: int = 0
+    candidatesTokenCount: int = 0
+
+
+class GeminiResponse(BaseModel):
+    model_config = ConfigDict(extra="ignore")
+
+    candidates: list[GeminiCandidate] = []
+    usageMetadata: GeminiUsageMetadata = Field(default_factory=GeminiUsageMetadata)
 
 
 def _get_google_api_key() -> str:
@@ -23,70 +94,47 @@ def _get_google_api_key() -> str:
     return api_key
 
 
-def _gemini_thinking_level(reasoning_effort: ReasoningEffort | None) -> str | None:
-    """Map reasoning_effort to Gemini thinkingLevel.
-
-    — None: omit thinkingConfig (provider default)
-    — ReasoningEffort.NONE: set thinkingLevel to MINIMAL (the closest available equivalent to disabling thinking)
-    - ReasoningEffort.MINIMAL, LOW, MEDIUM, HIGH, XHIGH: set thinkingLevel to the matching value (XHIGH → HIGH)
-    """
-    if reasoning_effort is None:
-        return None
-    mapping = {
-        ReasoningEffort.NONE: "MINIMAL",
-        ReasoningEffort.MINIMAL: "MINIMAL",
-        ReasoningEffort.LOW: "LOW",
-        ReasoningEffort.MEDIUM: "MEDIUM",
-        ReasoningEffort.HIGH: "HIGH",
-        ReasoningEffort.XHIGH: "HIGH",
-    }
-    return mapping.get(reasoning_effort)
-
-
-def build_gemini_body(prompt: str, *, max_tokens: int) -> dict[str, Any]:
-    assert CONFIG.gatekeeper is not None
-    generation_config = gemini_generation_config(
-        temperature=CONFIG.gatekeeper.temperature,
-        structured_output=CONFIG.gatekeeper.structured_output,
-        max_tokens=max_tokens,
-    )
-    thinking_level = _gemini_thinking_level(CONFIG.gatekeeper.reasoning_effort)
-    if thinking_level is not None:
-        generation_config["thinkingConfig"] = {"thinkingLevel": thinking_level}
-    return {
-        "contents": [{"role": "user", "parts": [{"text": prompt}]}],
-        "generationConfig": generation_config,
-    }
-
-
-def extract_gemini_text(response: dict[str, Any]) -> str:
-    candidates = response.get("candidates", [])
-    if not candidates:
-        return ""
-    content = candidates[0].get("content", {})
-    parts = content.get("parts", [])
-    if not parts:
-        return ""
-    text = parts[0].get("text")
-    return text.strip() if isinstance(text, str) else ""
-
-
 async def complete_gemini(
-    prompt: str, *, max_tokens: int, timeout: int = DEFAULT_TIMEOUT_SECONDS
+    prompt: str,
+    *,
+    max_tokens: int,
+    timeout: int = DEFAULT_TIMEOUT_SECONDS,
+    url: str | None = None,
+    headers: dict[str, str] | None = None,
 ) -> GatekeeperCompletion:
     assert CONFIG.gatekeeper is not None
     model = CONFIG.gatekeeper.model
-    api_key = _get_google_api_key()
+    reasoning_effort = CONFIG.gatekeeper.reasoning_effort
+    thinking_level = None if reasoning_effort is None else _THINKING_LEVELS.get(reasoning_effort)
+    response_schema = GatekeeperResult.structured_output_schema() if CONFIG.gatekeeper.structured_output else None
+    if response_schema is not None:
+        # Gemini responseSchema does not use additionalProperties the same way; keep it simple.
+        response_schema.pop("additionalProperties", None)
+    request_body = GeminiRequest(
+        contents=[GeminiContent(role="user", parts=[GeminiPart(text=prompt)])],
+        generationConfig=GeminiGenerationConfig(
+            temperature=CONFIG.gatekeeper.temperature,
+            maxOutputTokens=max_tokens,
+            responseMimeType="application/json" if CONFIG.gatekeeper.structured_output else None,
+            responseSchema=response_schema,
+            thinkingConfig=GeminiThinkingConfig(thinkingLevel=thinking_level) if thinking_level is not None else None,
+        ),
+    )
+    if url is None:
+        url = f"{GOOGLE_AI_BASE_URL}/models/{model}:generateContent?key={_get_google_api_key()}"
+    if headers is None:
+        headers = {"Content-Type": "application/json"}
     response = await post_json(
         provider="gemini",
-        url=f"{GOOGLE_AI_BASE_URL}/models/{model}:generateContent?key={api_key}",
-        headers={"Content-Type": "application/json"},
-        body=build_gemini_body(prompt, max_tokens=max_tokens),
+        url=url,
+        headers=headers,
+        body=request_body.model_dump(exclude_none=True),
         timeout=timeout,
     )
-    usage = extract_gemini_usage(response)
+    parsed = GeminiResponse.model_validate(response)
+    parts = parsed.candidates[0].content.parts if parsed.candidates else []
     return GatekeeperCompletion(
-        text=extract_gemini_text(response),
-        prompt_tokens=usage.input_tokens,
-        completion_tokens=usage.output_tokens,
+        text="".join(part.text for part in parts).strip(),
+        prompt_tokens=parsed.usageMetadata.promptTokenCount,
+        completion_tokens=parsed.usageMetadata.candidatesTokenCount,
     )

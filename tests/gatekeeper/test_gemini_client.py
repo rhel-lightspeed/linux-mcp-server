@@ -5,23 +5,6 @@ from linux_mcp_server.config import GatekeeperConfig
 from linux_mcp_server.config import GatekeeperProvider
 from linux_mcp_server.config import ReasoningEffort
 from linux_mcp_server.gatekeeper import gemini_client
-from linux_mcp_server.gatekeeper.gemini_client import _gemini_thinking_level
-
-
-@pytest.mark.parametrize(
-    ("effort", "expected"),
-    [
-        (None, None),
-        (ReasoningEffort.NONE, "MINIMAL"),
-        (ReasoningEffort.MINIMAL, "MINIMAL"),
-        (ReasoningEffort.LOW, "LOW"),
-        (ReasoningEffort.MEDIUM, "MEDIUM"),
-        (ReasoningEffort.HIGH, "HIGH"),
-        (ReasoningEffort.XHIGH, "HIGH"),
-    ],
-)
-def test_gemini_thinking_level(effort, expected):
-    assert _gemini_thinking_level(effort) == expected
 
 
 class TestGeminiClient:
@@ -91,3 +74,49 @@ class TestGeminiClient:
 
         body = mock_post.call_args.kwargs["body"]
         assert "thinkingConfig" not in body["generationConfig"]
+
+    @pytest.mark.parametrize(
+        ("effort", "expected_level"),
+        [
+            (ReasoningEffort.MINIMAL, "MINIMAL"),
+            (ReasoningEffort.MEDIUM, "MEDIUM"),
+            (ReasoningEffort.HIGH, "HIGH"),
+            (ReasoningEffort.XHIGH, "HIGH"),
+        ],
+    )
+    async def test_complete_gemini_thinking_level_mapping(self, gatekeeper_config, mocker, effort, expected_level):
+        gatekeeper_config.reasoning_effort = effort
+        mock_post = mocker.patch(
+            "linux_mcp_server.gatekeeper.gemini_client.post_json",
+            new_callable=mocker.AsyncMock,
+            return_value={
+                "candidates": [{"content": {"parts": [{"text": '{"status": "OK"}'}]}}],
+                "usageMetadata": {"promptTokenCount": 1, "candidatesTokenCount": 1},
+            },
+        )
+
+        await gemini_client.complete_gemini("prompt", max_tokens=8000)
+
+        body = mock_post.call_args.kwargs["body"]
+        assert body["generationConfig"]["thinkingConfig"] == {"thinkingLevel": expected_level}
+
+    async def test_complete_gemini_transport_overrides(self, gatekeeper_config, mocker):
+        mock_post = mocker.patch(
+            "linux_mcp_server.gatekeeper.gemini_client.post_json",
+            new_callable=mocker.AsyncMock,
+            return_value={
+                "candidates": [{"content": {"parts": [{"text": '{"status": "OK"}'}]}}],
+                "usageMetadata": {"promptTokenCount": 1, "candidatesTokenCount": 1},
+            },
+        )
+
+        await gemini_client.complete_gemini(
+            "prompt",
+            max_tokens=8000,
+            url="https://aiplatform.googleapis.com/v1/projects/p/locations/global/publishers/google/models/gemini:generateContent",
+            headers={"Authorization": "Bearer gcp-token", "Content-Type": "application/json"},
+        )
+
+        assert mock_post.call_args.kwargs["url"].endswith(":generateContent")
+        assert "key=" not in mock_post.call_args.kwargs["url"]
+        assert mock_post.call_args.kwargs["headers"]["Authorization"] == "Bearer gcp-token"
