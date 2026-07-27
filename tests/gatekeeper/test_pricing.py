@@ -5,6 +5,9 @@ from linux_mcp_server.config import GatekeeperConfig
 from linux_mcp_server.config import GatekeeperProvider
 from linux_mcp_server.config import OpenAIGatekeeperConfig
 from linux_mcp_server.gatekeeper import pricing
+from linux_mcp_server.gatekeeper.pricing import ModelsDevCost
+from linux_mcp_server.gatekeeper.pricing import ModelsDevModel
+from linux_mcp_server.gatekeeper.pricing import ModelsDevProvider
 
 
 @pytest.fixture(autouse=True)
@@ -39,11 +42,11 @@ class TestComputeCost:
             pricing,
             "_load_models_dev_pricing",
             return_value={
-                "anthropic": {
-                    "models": {
-                        "claude-sonnet-4-6": {"cost": {"input": 3.0, "output": 15.0}},
+                "anthropic": ModelsDevProvider(
+                    models={
+                        "claude-sonnet-4-6": ModelsDevModel(cost=ModelsDevCost(input=3.0, output=15.0)),
                     }
-                }
+                )
             },
         )
         cost, source = pricing.compute_cost(1_000_000, 1_000_000, usage_cost=None)

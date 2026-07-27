@@ -4,7 +4,6 @@ import logging
 import os
 
 from functools import cache
-from typing import Any
 from typing import Literal
 from urllib.parse import urlparse
 
@@ -12,6 +11,8 @@ import httpx
 
 from pydantic import BaseModel
 from pydantic import ConfigDict
+from pydantic import Field
+from pydantic import ValidationError
 
 from linux_mcp_server.config import CONFIG
 from linux_mcp_server.config import GatekeeperProvider
@@ -39,6 +40,25 @@ class TokenRates(BaseModel):
     input_per_token: float
     output_per_token: float
     source: CostSource
+
+
+class ModelsDevCost(BaseModel):
+    model_config = ConfigDict(extra="ignore")
+
+    input: float
+    output: float
+
+
+class ModelsDevModel(BaseModel):
+    model_config = ConfigDict(extra="ignore")
+
+    cost: ModelsDevCost | None = None
+
+
+class ModelsDevProvider(BaseModel):
+    model_config = ConfigDict(extra="ignore")
+
+    models: dict[str, ModelsDevModel] = Field(default_factory=dict)
 
 
 def _rates_from_mtok(input_mtok: float, output_mtok: float, source: CostSource) -> TokenRates:
@@ -77,13 +97,21 @@ def _models_dev_provider_key(provider: GatekeeperProvider) -> str:
 
 
 @cache
-def _load_models_dev_pricing() -> dict[str, Any]:
+def _load_models_dev_pricing() -> dict[str, ModelsDevProvider]:
     """Loads pricing from the models.dev API. Returns an empty dict if unavailable."""
     try:
         with httpx.Client(timeout=10) as client:
             response = client.get(MODELS_DEV_API_URL)
             response.raise_for_status()
-            pricing = response.json()
+            raw = response.json()
+            if not isinstance(raw, dict):
+                return {}
+            pricing: dict[str, ModelsDevProvider] = {}
+            for key, value in raw.items():
+                try:
+                    pricing[key] = ModelsDevProvider.model_validate(value)
+                except ValidationError:
+                    continue
             logger.debug("Loaded gatekeeper pricing from models.dev API")
             return pricing
     except Exception as exc:
@@ -94,24 +122,15 @@ def _load_models_dev_pricing() -> dict[str, Any]:
 def _lookup_models_dev_cost(provider_key: str, model: str) -> tuple[float, float] | None:
     """Looks up the cost per million tokens for a given model and provider in the models.dev pricing."""
     pricing = _load_models_dev_pricing()
-    provider_data = pricing.get(provider_key, {})
-    if not isinstance(provider_data, dict):
-        return None
-    models = provider_data.get("models", {})
-    if not isinstance(models, dict):
+    provider = pricing.get(provider_key)
+    if provider is None:
         return None
 
     for candidate in _model_lookup_candidates(model):
-        entry = models.get(candidate)
-        if not isinstance(entry, dict):
+        entry = provider.models.get(candidate)
+        if entry is None or entry.cost is None:
             continue
-        cost = entry.get("cost")
-        if not isinstance(cost, dict):
-            continue
-        input_mtok = cost.get("input")
-        output_mtok = cost.get("output")
-        if isinstance(input_mtok, (int, float)) and isinstance(output_mtok, (int, float)):
-            return float(input_mtok), float(output_mtok)
+        return entry.cost.input, entry.cost.output
     return None
 
 
