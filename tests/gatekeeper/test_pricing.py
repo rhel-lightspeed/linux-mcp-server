@@ -31,13 +31,26 @@ class TestComputeCost:
         cost = pricing.compute_cost(100, 50, usage_cost=None)
         assert cost == pytest.approx(100 * 1e-6 + 50 * 4e-6)
 
-    def test_models_dev_lookup(self, gatekeeper_config, mocker):
+    @pytest.mark.parametrize(
+        "provider,provider_key,model",
+        [
+            (GatekeeperProvider.ANTHROPIC, "anthropic", "claude-sonnet-4-6"),
+            (GatekeeperProvider.ANTHROPIC, "anthropic", "claude-sonnet-4-6-maas"),  # strips -maas suffix
+            (GatekeeperProvider.ANTHROPIC, "anthropic", "anthropic/claude-sonnet-4-6"),  # strips provider prefix
+            (GatekeeperProvider.GEMINI, "google", "gemini-2.5-pro"),
+            (GatekeeperProvider.VERTEX_AI, "google-vertex", "gemini-2.5-pro"),
+        ],
+    )
+    def test_models_dev_lookup(self, gatekeeper_config, mocker, provider, provider_key, model):
+        gatekeeper_config.provider = provider
+        gatekeeper_config.model = model
         gatekeeper_config.cost = None
+        catalog_model = model.split("/", 1)[-1].removesuffix("-maas")
         response = mocker.Mock()
         response.json.return_value = {
-            "anthropic": {
+            provider_key: {
                 "models": {
-                    "claude-sonnet-4-6": {"cost": {"input": 3.0, "output": 15.0}},
+                    catalog_model: {"cost": {"input": 3.0, "output": 15.0}},
                 }
             }
         }
