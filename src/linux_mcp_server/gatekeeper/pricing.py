@@ -9,7 +9,7 @@ import httpx
 from pydantic import BaseModel
 from pydantic import ConfigDict
 from pydantic import Field
-from pydantic import ValidationError
+from pydantic import TypeAdapter
 
 from linux_mcp_server.config import CONFIG
 from linux_mcp_server.config import GatekeeperProvider
@@ -53,6 +53,9 @@ class ModelsDevProvider(BaseModel):
     models: dict[str, ModelsDevModel] = Field(default_factory=dict)
 
 
+_ModelsDevPayload = TypeAdapter(dict[str, ModelsDevProvider])
+
+
 def _rates_from_mtok(input_mtok: float, output_mtok: float) -> TokenRates:
     return TokenRates(
         input_per_token=input_mtok / 1_000_000,
@@ -94,15 +97,7 @@ def _load_models_dev_payload() -> dict[str, ModelsDevProvider]:
         with httpx.Client(timeout=10) as client:
             response = client.get(MODELS_DEV_API_URL)
             response.raise_for_status()
-            raw = response.json()
-            if not isinstance(raw, dict):
-                return {}
-            pricing: dict[str, ModelsDevProvider] = {}
-            for key, value in raw.items():
-                try:
-                    pricing[key] = ModelsDevProvider.model_validate(value)
-                except ValidationError:
-                    continue
+            pricing = _ModelsDevPayload.validate_python(response.json())
             logger.debug("Loaded gatekeeper pricing from models.dev API")
             return pricing
     except Exception as exc:
