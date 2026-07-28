@@ -36,7 +36,7 @@ class TestComputeCost:
         gatekeeper_config.cost = None
         mocker.patch.object(
             pricing,
-            "_load_models_dev_pricing",
+            "_load_models_dev_payload",
             return_value={
                 "anthropic": ModelsDevProvider(
                     models={
@@ -51,7 +51,7 @@ class TestComputeCost:
     def test_unknown_model_defaults_to_zero(self, gatekeeper_config, mocker):
         gatekeeper_config.model = "unknown-model-xyz"
         gatekeeper_config.cost = None
-        mocker.patch.object(pricing, "_load_models_dev_pricing", return_value={})
+        mocker.patch.object(pricing, "_load_models_dev_payload", return_value={})
         assert pricing.compute_cost(1_000_000, 1_000_000, usage_cost=None) == 0.0
 
     def test_fetch_failure_defaults_to_zero(self, gatekeeper_config, mocker):

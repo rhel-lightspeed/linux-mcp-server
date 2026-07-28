@@ -88,7 +88,7 @@ def _models_dev_provider_key(provider: GatekeeperProvider) -> str:
 
 
 @cache
-def _load_models_dev_pricing() -> dict[str, ModelsDevProvider]:
+def _load_models_dev_payload() -> dict[str, ModelsDevProvider]:
     """Loads pricing from the models.dev API. Returns an empty dict if unavailable."""
     try:
         with httpx.Client(timeout=10) as client:
@@ -112,7 +112,7 @@ def _load_models_dev_pricing() -> dict[str, ModelsDevProvider]:
 
 def _lookup_models_dev_cost(provider_key: str, model: str) -> tuple[float, float] | None:
     """Looks up the cost per million tokens for a given model and provider in the models.dev pricing."""
-    pricing = _load_models_dev_pricing()
+    pricing = _load_models_dev_payload()
     provider = pricing.get(provider_key)
     if provider is None:
         return None
@@ -159,4 +159,4 @@ def compute_cost(
 
 def reset_models_dev_cache() -> None:
     """Clear the cached models.dev pricing (for tests)."""
-    _load_models_dev_pricing.cache_clear()
+    _load_models_dev_payload.cache_clear()
