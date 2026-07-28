@@ -4,6 +4,8 @@ from linux_mcp_server.config import CONFIG
 from linux_mcp_server.config import GatekeeperConfig
 from linux_mcp_server.config import GatekeeperProvider
 from linux_mcp_server.gatekeeper import pricing
+from linux_mcp_server.gatekeeper.pricing import ModelsDevModel
+from linux_mcp_server.gatekeeper.pricing import ModelsDevProvider
 
 
 @pytest.fixture(autouse=True)
@@ -48,10 +50,27 @@ class TestComputeCost:
         assert cost == pytest.approx(3.0 + 15.0)
         mock_client.get.assert_called_once_with(pricing.MODELS_DEV_API_URL)
 
-    def test_unknown_model_defaults_to_zero(self, gatekeeper_config, mocker):
-        gatekeeper_config.model = "unknown-model-xyz"
+    @pytest.mark.parametrize(
+        "model",
+        [
+            "unknown-model-xyz",  # missing from provider catalog
+            "model-without-cost",  # present but cost is null
+        ],
+    )
+    def test_unknown_model_defaults_to_zero(self, gatekeeper_config, mocker, model):
+        gatekeeper_config.model = model
         gatekeeper_config.cost = None
-        mocker.patch.object(pricing, "_load_models_dev_payload", return_value={})
+        mocker.patch.object(
+            pricing,
+            "_load_models_dev_payload",
+            return_value={
+                "anthropic": ModelsDevProvider(
+                    models={
+                        "model-without-cost": ModelsDevModel(cost=None),
+                    }
+                )
+            },
+        )
         assert pricing.compute_cost(1_000_000, 1_000_000, usage_cost=None) == 0.0
 
     def test_fetch_failure_defaults_to_zero(self, gatekeeper_config, mocker):
