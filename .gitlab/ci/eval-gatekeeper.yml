@@ -4,8 +4,6 @@
 setup-uv:
   stage: setup
   image: images.paas.redhat.com/it-cloud-ocp-proxy-lib/python:3.14
-  variables:
-    HOME: "$CI_PROJECT_DIR"
   script:
     # Install uv
     - export PYTHONUSERBASE=$CI_PROJECT_DIR/.local
