@@ -23,7 +23,7 @@ class TestGetJournalLogs:
     @pytest.mark.parametrize(
         "params, expected_args, expected_fields",
         [
-            # Default parameters
+            # Default parameters (defaults to last_lines=100)
             (
                 {},
                 ["-n", "100", "--no-pager"],
@@ -47,16 +47,28 @@ class TestGetJournalLogs:
                 ["--since", "today"],
                 {"unit": None},
             ),
-            # Custom line count
+            # Custom last_lines count
             (
-                {"lines": 50},
+                {"last_lines": 50},
                 ["-n", "50"],
                 {"unit": None},
             ),
-            # All filters combined
+            # Custom first_lines count
             (
-                {"unit": "nginx.service", "priority": "err", "since": "today", "lines": 50},
+                {"first_lines": 25},
+                ["-n", "+25"],
+                {"unit": None},
+            ),
+            # All filters combined with last_lines
+            (
+                {"unit": "nginx.service", "priority": "err", "since": "today", "last_lines": 50},
                 ["--unit", "nginx.service", "--priority", "err", "--since", "today", "-n", "50"],
+                {"unit": "nginx.service"},
+            ),
+            # All filters combined with first_lines
+            (
+                {"unit": "nginx.service", "priority": "err", "since": "today", "first_lines": 50},
+                ["--unit", "nginx.service", "--priority", "err", "--since", "today", "-n", "+50"],
                 {"unit": "nginx.service"},
             ),
             # Transport filter (audit)
@@ -71,7 +83,7 @@ class TestGetJournalLogs:
                 {"unit": None},
             ),
             (
-                {"transport": "audit", "priority": "err", "lines": 50},
+                {"transport": "audit", "priority": "err", "last_lines": 50},
                 ["_TRANSPORT=audit", "--priority", "err", "-n", "50"],
                 {"unit": None},
             ),
@@ -169,6 +181,11 @@ class TestGetJournalLogs:
         assert content["lines_count"] == 3
         assert len(content["entries"]) == 3
 
+    async def test_get_journal_logs_mutually_exclusive_lines(self, mcp_client, mock_execute_with_fallback):
+        """Test get_journal_logs rejects both first_lines and last_lines."""
+        with pytest.raises(ToolError, match="mutually exclusive"):
+            await mcp_client.call_tool("get_journal_logs", {"first_lines": 10, "last_lines": 20})
+
 
 class TestReadLogFile:
     """Tests for read_log_file tool."""
@@ -201,18 +218,40 @@ class TestReadLogFile:
         assert "-n" in cmd_args
         assert "100" in cmd_args
 
-    async def test_read_log_file_custom_lines(self, mcp_client, mock_execute_with_fallback, setup_log_file):
-        """Test read_log_file with custom line count."""
+    async def test_read_log_file_custom_last_lines(self, mcp_client, mock_execute_with_fallback, setup_log_file):
+        """Test read_log_file with custom last_lines count."""
         log_file = setup_log_file()
         mock_execute_with_fallback.return_value = (0, "Test log content\nLine 2", "")
 
-        result = await mcp_client.call_tool("read_log_file", {"log_path": log_file, "lines": 50})
+        result = await mcp_client.call_tool("read_log_file", {"log_path": log_file, "last_lines": 50})
         content = result.structured_content
 
         assert content["lines_count"] == 2
 
         cmd_args = mock_execute_with_fallback.call_args[0][0]
         assert "50" in cmd_args
+        assert "tail" in cmd_args
+
+    async def test_read_log_file_first_lines(self, mcp_client, mock_execute_with_fallback, setup_log_file):
+        """Test read_log_file with first_lines to get beginning of file."""
+        log_file = setup_log_file()
+        mock_execute_with_fallback.return_value = (0, "Test log content\nLine 2", "")
+
+        result = await mcp_client.call_tool("read_log_file", {"log_path": log_file, "first_lines": 25})
+        content = result.structured_content
+
+        assert content["lines_count"] == 2
+
+        cmd_args = mock_execute_with_fallback.call_args[0][0]
+        assert "25" in cmd_args
+        assert "head" in cmd_args
+
+    async def test_read_log_file_mutually_exclusive_lines(self, mcp_client, mock_execute_with_fallback, setup_log_file):
+        """Test read_log_file rejects both first_lines and last_lines."""
+        log_file = setup_log_file()
+
+        with pytest.raises(ToolError, match="mutually exclusive"):
+            await mcp_client.call_tool("read_log_file", {"log_path": log_file, "first_lines": 10, "last_lines": 20})
 
     async def test_read_log_file_no_allowed_paths(self, mcp_client, mock_allowed_log_paths):
         """Test read_log_file when no allowed paths are configured."""

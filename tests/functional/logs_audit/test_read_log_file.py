@@ -21,7 +21,7 @@ async def test_read_existing_log_file(mcp_session):
         f.writelines(file_content)
     try:
         response = await mcp_session.call_tool(
-            "read_log_file", arguments={"log_path": "/tmp/existing_file.txt", "lines": 5}
+            "read_log_file", arguments={"log_path": "/tmp/existing_file.txt", "last_lines": 5}
         )
         assert response is not None
         data = json.loads(response.content[0].text)
@@ -51,7 +51,7 @@ async def test_read_non_existing_log_file(mcp_session):
     The file is present inside the allowed list of paths, but does not exist.
     """
     response = await mcp_session.call_tool(
-        "read_log_file", arguments={"log_path": "/tmp/nonexisting_file.txt", "lines": 5}
+        "read_log_file", arguments={"log_path": "/tmp/nonexisting_file.txt", "last_lines": 5}
     )
     assert response is not None
     assert "Log file not found: /tmp/nonexisting_file.txt" in response.content[0].text
@@ -68,7 +68,7 @@ async def test_read_not_allowed_log_file(mcp_session):
     The file is not present inside the allowed list of paths.
     """
     response = await mcp_session.call_tool(
-        "read_log_file", arguments={"log_path": "/tmp/not_allowed_file.txt", "lines": 5}
+        "read_log_file", arguments={"log_path": "/tmp/not_allowed_file.txt", "last_lines": 5}
     )
     assert response is not None
     assert "Access to log file '/tmp/not_allowed_file.txt' is not allowed." in response.content[0].text
@@ -91,6 +91,38 @@ async def test_read_log_file_empty_argument(mcp_session):
 
 @pytest.mark.parametrize(
     "mcp_session",
+    [{"LINUX_MCP_ALLOWED_LOG_PATHS": "/tmp/test_first_lines.txt"}],
+    indirect=True,
+)
+async def test_read_log_file_first_lines(mcp_session):
+    """
+    Verify that first_lines parameter works correctly with head command.
+    """
+    file_content = "\n".join([f"Line {i}" for i in range(1, 11)])  # 10 lines
+    with open("/tmp/test_first_lines.txt", "w", encoding="utf-8") as f:
+        f.write(file_content)
+    try:
+        response = await mcp_session.call_tool(
+            "read_log_file", arguments={"log_path": "/tmp/test_first_lines.txt", "first_lines": 3}
+        )
+        assert response is not None
+        data = json.loads(response.content[0].text)
+
+        # Should get the first 3 lines
+        entries = data.get("entries", [])
+        assert len(entries) == 3
+        assert entries[0] == "Line 1"
+        assert entries[1] == "Line 2"
+        assert entries[2] == "Line 3"
+    finally:
+        try:
+            os.remove("/tmp/test_first_lines.txt")
+        except FileNotFoundError:
+            pass
+
+
+@pytest.mark.parametrize(
+    "mcp_session",
     [{"LINUX_MCP_ALLOWED_LOG_PATHS": "/var/log/boot.log,/tmp/existing_file.txt,/tmp/nonexisting_file.txt"}],
     indirect=True,
 )
@@ -106,7 +138,9 @@ async def test_read_unauthorized_log_file(mcp_session):
     Verify the response contains the error message when the file is not authorized.
     The file is present inside the allowed list of paths, but the user does not have permission to read it.
     """
-    response = await mcp_session.call_tool("read_log_file", arguments={"log_path": "/var/log/boot.log", "lines": 5})
+    response = await mcp_session.call_tool(
+        "read_log_file", arguments={"log_path": "/var/log/boot.log", "last_lines": 5}
+    )
     assert response is not None
     assert "Permission denied reading log file: /var/log/boot.log" in response.content[0].text
     # TODO Finish the test case, think about multihost testing for the MCP
