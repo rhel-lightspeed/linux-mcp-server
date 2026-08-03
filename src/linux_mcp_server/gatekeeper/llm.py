@@ -33,19 +33,19 @@ def resolve_provider() -> GatekeeperProvider:
     return _infer_provider_from_model(CONFIG.gatekeeper.model)
 
 
-def complete_gatekeeper(prompt: str, *, max_tokens: int) -> GatekeeperCompletion:
+async def complete_gatekeeper(prompt: str, *, max_tokens: int) -> GatekeeperCompletion:
     provider = resolve_provider()
     match provider:
         case GatekeeperProvider.OPENAI:
-            completion = complete_openai(prompt, max_tokens=max_tokens)
+            completion = await complete_openai(prompt, max_tokens=max_tokens)
         case GatekeeperProvider.ANTHROPIC:
-            completion = complete_anthropic(prompt, max_tokens=max_tokens)
+            completion = await complete_anthropic(prompt, max_tokens=max_tokens)
         case GatekeeperProvider.GEMINI:
-            completion = complete_gemini(prompt, max_tokens=max_tokens)
+            completion = await complete_gemini(prompt, max_tokens=max_tokens)
         case GatekeeperProvider.OPENROUTER:
-            completion = complete_openrouter(prompt, max_tokens=max_tokens)
+            completion = await complete_openrouter(prompt, max_tokens=max_tokens)
         case GatekeeperProvider.VERTEX_AI:
-            completion = complete_vertex_ai(prompt, max_tokens=max_tokens)
+            completion = await complete_vertex_ai(prompt, max_tokens=max_tokens)
         case _:  # pragma: no cover
             raise ValueError(f"Unsupported gatekeeper provider: {provider}")
 

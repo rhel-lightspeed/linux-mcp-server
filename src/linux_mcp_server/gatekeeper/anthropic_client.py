@@ -66,13 +66,15 @@ def extract_messages_text(response: dict[str, Any]) -> str:
     return ""
 
 
-def complete_anthropic(prompt: str, *, max_tokens: int, timeout: int = DEFAULT_TIMEOUT_SECONDS) -> GatekeeperCompletion:
+async def complete_anthropic(
+    prompt: str, *, max_tokens: int, timeout: int = DEFAULT_TIMEOUT_SECONDS
+) -> GatekeeperCompletion:
     headers = {
         "x-api-key": _get_anthropic_api_key(),
         "anthropic-version": ANTHROPIC_API_VERSION,
         "Content-Type": "application/json",
     }
-    response = post_json(
+    response = await post_json(
         provider="anthropic",
         url=ANTHROPIC_API_URL,
         headers=headers,

@@ -26,16 +26,17 @@ class TestAnthropicClient:
         mocker.patch.object(CONFIG, "gatekeeper", config)
         return config
 
-    def test_complete_anthropic_direct(self, gatekeeper_config, mocker):
+    async def test_complete_anthropic_direct(self, gatekeeper_config, mocker):
         mock_post = mocker.patch(
             "linux_mcp_server.gatekeeper.anthropic_client.post_json",
+            new_callable=mocker.AsyncMock,
             return_value={
                 "content": [{"type": "text", "text": '{"status": "OK", "detail": ""}'}],
                 "usage": {"input_tokens": 30, "output_tokens": 10},
             },
         )
 
-        result = anthropic_client.complete_anthropic("prompt", max_tokens=8000)
+        result = await anthropic_client.complete_anthropic("prompt", max_tokens=8000)
 
         assert result.text == '{"status": "OK", "detail": ""}'
         assert result.prompt_tokens == 30

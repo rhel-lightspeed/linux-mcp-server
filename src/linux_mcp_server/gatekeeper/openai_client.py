@@ -123,7 +123,9 @@ def extract_chat_completions_text(response: dict[str, Any]) -> str:
     return (content or "").strip() if isinstance(content, str) else ""
 
 
-def complete_openai(prompt: str, *, max_tokens: int, timeout: int = DEFAULT_TIMEOUT_SECONDS) -> GatekeeperCompletion:
+async def complete_openai(
+    prompt: str, *, max_tokens: int, timeout: int = DEFAULT_TIMEOUT_SECONDS
+) -> GatekeeperCompletion:
     base_url = _get_openai_base_url()
     headers = {
         **_openai_auth_headers(),
@@ -133,7 +135,7 @@ def complete_openai(prompt: str, *, max_tokens: int, timeout: int = DEFAULT_TIME
     # Try the Responses API first, falling back to Chat Completions if it's not available.
     if not _prefers_openai_chat_completions(base_url):
         try:
-            response = post_json(
+            response = await post_json(
                 provider="openai",
                 url=f"{base_url}/responses",
                 headers=headers,
@@ -150,7 +152,7 @@ def complete_openai(prompt: str, *, max_tokens: int, timeout: int = DEFAULT_TIME
             if exc.status_code not in {404, 405}:
                 raise
 
-    response = post_json(
+    response = await post_json(
         provider="openai",
         url=f"{base_url}/chat/completions",
         headers=headers,

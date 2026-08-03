@@ -50,16 +50,17 @@ class TestOpenAIClient:
         mocker.patch.object(CONFIG, "gatekeeper", config)
         return config
 
-    def test_complete_openai_uses_responses_api(self, gatekeeper_config, mocker):
+    async def test_complete_openai_uses_responses_api(self, gatekeeper_config, mocker):
         mock_post = mocker.patch(
             "linux_mcp_server.gatekeeper.openai_client.post_json",
+            new_callable=mocker.AsyncMock,
             return_value={
                 "output_text": '{"status": "OK", "detail": ""}',
                 "usage": {"input_tokens": 11, "output_tokens": 4},
             },
         )
 
-        result = openai_client.complete_openai("prompt", max_tokens=8000)
+        result = await openai_client.complete_openai("prompt", max_tokens=8000)
 
         assert result.text == '{"status": "OK", "detail": ""}'
         assert result.prompt_tokens == 11
@@ -70,22 +71,24 @@ class TestOpenAIClient:
         assert body["reasoning"] == {"effort": "low"}
         assert body["text"]["format"]["type"] == "json_schema"
 
-    def test_complete_openai_uses_responses_api_for_ollama(self, gatekeeper_config, mocker):
+    async def test_complete_openai_uses_responses_api_for_ollama(self, gatekeeper_config, mocker):
         gatekeeper_config.openai = OpenAIGatekeeperConfig(base_url="http://localhost:11434/v1")
         mock_post = mocker.patch(
             "linux_mcp_server.gatekeeper.openai_client.post_json",
+            new_callable=mocker.AsyncMock,
             return_value={"output_text": '{"status": "OK", "detail": ""}'},
         )
 
-        result = openai_client.complete_openai("prompt", max_tokens=8000)
+        result = await openai_client.complete_openai("prompt", max_tokens=8000)
 
         assert result.text == '{"status": "OK", "detail": ""}'
         assert mock_post.call_args.kwargs["url"] == "http://localhost:11434/v1/responses"
 
-    def test_complete_openai_falls_back_to_chat_completions_on_404(self, gatekeeper_config, mocker):
+    async def test_complete_openai_falls_back_to_chat_completions_on_404(self, gatekeeper_config, mocker):
         gatekeeper_config.openai = OpenAIGatekeeperConfig(base_url="https://models.example.com/v1")
         mock_post = mocker.patch(
             "linux_mcp_server.gatekeeper.openai_client.post_json",
+            new_callable=mocker.AsyncMock,
             side_effect=[
                 GatekeeperHTTPError("openai", 404, "not found"),
                 {
@@ -95,7 +98,7 @@ class TestOpenAIClient:
             ],
         )
 
-        result = openai_client.complete_openai("prompt", max_tokens=8000)
+        result = await openai_client.complete_openai("prompt", max_tokens=8000)
 
         assert result.text == '{"status": "OK", "detail": ""}'
         assert result.prompt_tokens == 9
@@ -106,32 +109,34 @@ class TestOpenAIClient:
         assert body["response_format"]["type"] == "json_schema"
         assert body["reasoning_effort"] == "low"
 
-    def test_structured_output_disabled(self, gatekeeper_config, mocker):
+    async def test_structured_output_disabled(self, gatekeeper_config, mocker):
         gatekeeper_config.structured_output = False
         mock_post = mocker.patch(
             "linux_mcp_server.gatekeeper.openai_client.post_json",
+            new_callable=mocker.AsyncMock,
             return_value={"output_text": '{"status": "OK"}'},
         )
 
-        openai_client.complete_openai("prompt", max_tokens=8000)
+        await openai_client.complete_openai("prompt", max_tokens=8000)
 
         body = mock_post.call_args.kwargs["body"]
         assert "text" not in body
 
-    def test_template_kwargs_on_chat_completions(self, gatekeeper_config, mocker):
+    async def test_template_kwargs_on_chat_completions(self, gatekeeper_config, mocker):
         gatekeeper_config.openai = OpenAIGatekeeperConfig(
             base_url="https://models.example.com/v1",
             template_kwargs={"enable_thinking": False},
         )
         mock_post = mocker.patch(
             "linux_mcp_server.gatekeeper.openai_client.post_json",
+            new_callable=mocker.AsyncMock,
             side_effect=[
                 GatekeeperHTTPError("openai", 404, "not found"),
                 {"choices": [{"message": {"content": '{"status": "OK"}'}}]},
             ],
         )
 
-        openai_client.complete_openai("prompt", max_tokens=8000)
+        await openai_client.complete_openai("prompt", max_tokens=8000)
 
         body = mock_post.call_args_list[1].kwargs["body"]
         assert body["chat_template_kwargs"] == {"enable_thinking": False}
