@@ -33,9 +33,20 @@ class TestUsageExtractors:
     def test_extractors(self, extractor, response, expected):
         assert extractor(response) == expected
 
-    def test_missing_usage_returns_zeros(self):
-        assert usage.extract_openai_chat_completions_usage({}) == Usage()
-        assert usage.extract_anthropic_usage({"usage": "bad"}) == Usage()
+    @pytest.mark.parametrize(
+        "extractor",
+        [
+            usage.extract_openai_chat_completions_usage,
+            usage.extract_openai_responses_usage,
+            usage.extract_anthropic_usage,
+            usage.extract_gemini_usage,
+            usage.extract_openrouter_usage,
+        ],
+    )
+    def test_non_dict_usage_returns_zeros(self, extractor):
+        key = "usageMetadata" if extractor is usage.extract_gemini_usage else "usage"
+        assert extractor({}) == Usage()
+        assert extractor({key: "bad"}) == Usage()
 
     def test_openrouter_usage_includes_cost(self):
         assert usage.extract_openrouter_usage(
