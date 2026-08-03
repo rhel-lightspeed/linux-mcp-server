@@ -5,6 +5,29 @@ from linux_mcp_server.config import GatekeeperConfig
 from linux_mcp_server.config import GatekeeperProvider
 from linux_mcp_server.config import ReasoningEffort
 from linux_mcp_server.gatekeeper import anthropic_client
+from linux_mcp_server.gatekeeper.anthropic_client import AnthropicResponse
+
+
+class TestAnthropicResponse:
+    @pytest.mark.parametrize("content", [None, "not-a-list", {"type": "text"}, 42])
+    def test_non_list_content_soft_fails_to_empty(self, content):
+        parsed = AnthropicResponse.model_validate({"content": content})
+
+        assert parsed.content == []
+
+    def test_filters_non_text_content_items(self):
+        parsed = AnthropicResponse.model_validate(
+            {
+                "content": [
+                    {"type": "thinking", "thinking": "..."},
+                    {"type": "text", "text": "keep me"},
+                    {"type": "tool_use", "name": "noop"},
+                ]
+            }
+        )
+
+        assert len(parsed.content) == 1
+        assert parsed.content[0].text == "keep me"
 
 
 class TestAnthropicClient:
@@ -109,3 +132,9 @@ class TestAnthropicClient:
         assert body["anthropic_version"] == "vertex-2023-10-16"
         assert mock_post.call_args.kwargs["headers"]["Authorization"] == "Bearer gcp-token"
         assert "x-api-key" not in mock_post.call_args.kwargs["headers"]
+
+    async def test_complete_anthropic_requires_api_key(self, gatekeeper_config, mocker):
+        mocker.patch.dict("os.environ", {"ANTHROPIC_API_KEY": ""}, clear=False)
+
+        with pytest.raises(ValueError, match="ANTHROPIC_API_KEY is required"):
+            await anthropic_client.complete_anthropic("prompt", max_tokens=8000)
