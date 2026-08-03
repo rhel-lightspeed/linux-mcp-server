@@ -120,3 +120,9 @@ class TestGeminiClient:
         assert mock_post.call_args.kwargs["url"].endswith(":generateContent")
         assert "key=" not in mock_post.call_args.kwargs["url"]
         assert mock_post.call_args.kwargs["headers"]["Authorization"] == "Bearer gcp-token"
+
+    async def test_complete_gemini_requires_api_key(self, gatekeeper_config, mocker):
+        mocker.patch.dict("os.environ", {"GOOGLE_API_KEY": "", "GEMINI_API_KEY": ""}, clear=False)
+
+        with pytest.raises(ValueError, match="GOOGLE_API_KEY or GEMINI_API_KEY is required"):
+            await gemini_client.complete_gemini("prompt", max_tokens=8000)
