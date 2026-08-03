@@ -123,3 +123,9 @@ class TestOpenRouterClient:
 
         body = mock_post.call_args.kwargs["body"]
         assert body["chat_template_kwargs"] == {"enable_thinking": False}
+
+    async def test_complete_openrouter_requires_api_key(self, gatekeeper_config, mocker):
+        mocker.patch.dict("os.environ", {"OPENROUTER_API_KEY": ""}, clear=False)
+
+        with pytest.raises(ValueError, match="OPENROUTER_API_KEY is required"):
+            await openrouter_client.complete_openrouter("prompt", max_tokens=8000)
