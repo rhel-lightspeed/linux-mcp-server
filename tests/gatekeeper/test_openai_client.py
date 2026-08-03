@@ -7,10 +7,36 @@ from linux_mcp_server.config import OpenAIGatekeeperConfig
 from linux_mcp_server.config import ReasoningEffort
 from linux_mcp_server.gatekeeper import openai_client
 from linux_mcp_server.gatekeeper.http_utils import GatekeeperHTTPError
+from linux_mcp_server.gatekeeper.openai_client import OpenAIResponse
 
 
 def _responses_output(text: str) -> dict:
     return {"output": [{"type": "message", "content": [{"type": "output_text", "text": text}]}]}
+
+
+class TestOpenAIResponse:
+    @pytest.mark.parametrize("output", [None, "not-a-list", {"type": "message"}, 42])
+    def test_non_list_output_soft_fails_to_empty(self, output):
+        parsed = OpenAIResponse.model_validate({"output": output})
+
+        assert parsed.output == []
+
+    def test_filters_non_message_output_items(self):
+        parsed = OpenAIResponse.model_validate(
+            {
+                "output": [
+                    {"type": "reasoning", "summary": []},
+                    {
+                        "type": "message",
+                        "content": [{"type": "output_text", "text": "keep me"}],
+                    },
+                    {"type": "function_call", "name": "noop"},
+                ]
+            }
+        )
+
+        assert len(parsed.output) == 1
+        assert parsed.output[0].content[0].text == "keep me"
 
 
 class TestOpenAIClient:
@@ -100,3 +126,9 @@ class TestOpenAIClient:
 
         assert mock_post.call_args.kwargs["url"] == "https://vertex.example.com/openapi/responses"
         assert mock_post.call_args.kwargs["headers"]["Authorization"] == "Bearer gcp-token"
+
+    async def test_complete_openai_requires_api_key(self, gatekeeper_config, mocker):
+        mocker.patch.dict("os.environ", {"OPENAI_API_KEY": ""}, clear=False)
+
+        with pytest.raises(ValueError, match="OPENAI_API_KEY is required"):
+            await openai_client.complete_openai("prompt", max_tokens=8000)
