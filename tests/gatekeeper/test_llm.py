@@ -22,6 +22,38 @@ class TestCompleteGatekeeper:
         assert result == expected
         mock_complete.assert_called_once_with("prompt", max_tokens=8000)
 
+    async def test_routes_to_anthropic(self, mocker):
+        mocker.patch.object(
+            CONFIG,
+            "gatekeeper",
+            GatekeeperConfig(provider=GatekeeperProvider.ANTHROPIC, model="claude-sonnet-4-6"),
+        )
+        expected = GatekeeperCompletion(text='{"status": "OK"}')
+        mock_complete = mocker.patch(
+            "linux_mcp_server.gatekeeper.anthropic_client.complete_anthropic",
+            new_callable=mocker.AsyncMock,
+            return_value=expected,
+        )
+        result = await complete_gatekeeper("prompt", max_tokens=8000)
+        assert result == expected
+        mock_complete.assert_called_once_with("prompt", max_tokens=8000)
+
+    async def test_routes_to_gemini(self, mocker):
+        mocker.patch.object(
+            CONFIG,
+            "gatekeeper",
+            GatekeeperConfig(provider=GatekeeperProvider.GEMINI, model="gemini-2.5-pro"),
+        )
+        expected = GatekeeperCompletion(text='{"status": "OK"}')
+        mock_complete = mocker.patch(
+            "linux_mcp_server.gatekeeper.gemini_client.complete_gemini",
+            new_callable=mocker.AsyncMock,
+            return_value=expected,
+        )
+        result = await complete_gatekeeper("prompt", max_tokens=8000)
+        assert result == expected
+        mock_complete.assert_called_once_with("prompt", max_tokens=8000)
+
     async def test_routes_to_openrouter(self, mocker):
         mocker.patch.object(
             CONFIG,
