@@ -17,7 +17,7 @@ requires-python = ">=3.10"
 dependencies = [
     "asyncssh[bcrypt] >= 2.22.0",
     "fastmcp >= 3.2.4",
-    "litellm>=1.80.16",
+    "requests>=2.32.0",
     "pydantic-settings >= 2.12.0",
     "pydantic >= 2.12.5",
     # pydocket is incompatible with newer versions of fakeredis.
@@ -48,7 +48,7 @@ classifiers = [
 
 [project.optional-dependencies]
 gssapi = ["gssapi >=1.11.1"]
-gcp = ["google-cloud-aiplatform>=1.147.0"]
+gcp = ["google-auth>=2.40.0"]
 
 [project.urls]
 "Source code" = "https://github.com/rhel-lightspeed/linux-mcp-server"

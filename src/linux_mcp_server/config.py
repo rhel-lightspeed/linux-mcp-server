@@ -48,6 +48,22 @@ class ReasoningEffort(StrEnum):
     DEFAULT = "default"
 
 
+class GatekeeperProvider(StrEnum):
+    """LLM provider for the gatekeeper model."""
+
+    OPENAI = "openai"
+    ANTHROPIC = "anthropic"
+    GEMINI = "gemini"
+    OPENROUTER = "openrouter"
+
+
+class GatekeeperBackend(StrEnum):
+    """API backend for the gatekeeper provider."""
+
+    DIRECT = "direct"
+    VERTEX = "vertex"
+
+
 class AuthProvider(StrEnum):
     """Authentication provider types."""
 
@@ -116,18 +132,28 @@ def parse_cost(v: Any) -> Any:
 class GatekeeperConfig(BaseSettings):
     """Gatekeeper Model configuration"""
 
+    provider: GatekeeperProvider | None = None
+    backend: GatekeeperBackend = GatekeeperBackend.DIRECT
     model: str | None = None
 
-    # model quantization (e.g. fp8, bf16 - only supported for openrouter)
+    # Model quantization for OpenRouter provider routing (e.g. fp8, bf16)
     quantization: str | None = None
+
+    # OpenAI-compatible API base URL (OpenAI provider only)
+    base_url: str | None = None
+
+    # GCP project and region for Vertex backends
+    project: str | None = None
+    location: str | None = None
 
     # reasoning effort
     reasoning_effort: ReasoningEffort | None = None
 
-    # Whether we should use structured output (default, autodetect support)
-    structured_output: bool | None = None
+    # Whether we should use structured output
+    structured_output: bool = True
 
-    # dict of extra template keyword arguments
+    # Extra chat-template arguments for OpenAI-compatible servers (e.g. llama.cpp enable_thinking).
+    # Passed as chat_template_kwargs on Chat Completions requests.
     template_kwargs: dict[str, Any] = Field(default_factory=dict)
 
     # Temperature for gatekeeper model

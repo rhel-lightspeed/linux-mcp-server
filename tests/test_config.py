@@ -10,6 +10,8 @@ from pydantic import SecretStr
 from pydantic import ValidationError
 
 from linux_mcp_server.config import Config
+from linux_mcp_server.config import GatekeeperBackend
+from linux_mcp_server.config import GatekeeperProvider
 
 
 class TestConfig:
@@ -299,29 +301,31 @@ class TestHandleDeprecatedAliases:
 
 
 class TestGatekeeperConfig:
+    def test_provider_and_backend(self, mock_getuser, monkeypatch):
+        monkeypatch.setenv("LINUX_MCP_GATEKEEPER__PROVIDER", "gemini")
+        monkeypatch.setenv("LINUX_MCP_GATEKEEPER__BACKEND", "vertex")
+        monkeypatch.setenv("LINUX_MCP_GATEKEEPER__MODEL", "gemini-3.1-pro-preview")
+
+        config = Config()
+
+        assert config.gatekeeper.provider == GatekeeperProvider.GEMINI
+        assert config.gatekeeper.backend == GatekeeperBackend.VERTEX
+        assert config.gatekeeper.model == "gemini-3.1-pro-preview"
+
+    def test_structured_output_defaults_true(self, mock_getuser, monkeypatch):
+        config = Config()
+        assert config.gatekeeper.structured_output is True
+
     def test_template_kwargs(self, mock_getuser, monkeypatch):
-        """Test setting template_kwargs with a JSON object."""
         monkeypatch.setenv(
             "LINUX_MCP_GATEKEEPER__TEMPLATE_KWARGS", '{ "enable_thinking": true, "reasoning_effort": "low" }'
         )
 
         config = Config()
+
         assert config.gatekeeper.template_kwargs == {"enable_thinking": True, "reasoning_effort": "low"}
 
-    def test_template_kwargs_one_by_one(self, mock_getuser, monkeypatch):
-        """Test setting template_kwargs, key-by-key"""
-
-        # This ends up with strings, which is not what we want, so we'll just document
-        # setting it as a JSON object
-        monkeypatch.setenv("LINUX_MCP_GATEKEEPER__TEMPLATE_KWARGS__ENABLE_THINKING", "true")
-        monkeypatch.setenv("LINUX_MCP_GATEKEEPER__TEMPLATE_KWARGS__REASONING_EFFORT", "low")
-        monkeypatch.setenv("LINUX_MCP_GATEKEEPER__TEMPLATE_KWARGS__UNSET", "")
-
-        config = Config()
-        assert config.gatekeeper.template_kwargs == {"enable_thinking": "true", "reasoning_effort": "low"}
-
     def test_template_kwargs_unset(self, mock_getuser, monkeypatch):
-        """Test default value for template_kwargs"""
         config = Config()
         assert config.gatekeeper.template_kwargs == {}
 
@@ -329,6 +333,17 @@ class TestGatekeeperConfig:
         monkeypatch.setenv("LINUX_MCP_GATEKEEPER__COST", "1e-6:4e-6")
         config = Config()
         assert config.gatekeeper.cost == (1e-6, 4e-6)
+
+    def test_openrouter_provider_and_quantization(self, mock_getuser, monkeypatch):
+        monkeypatch.setenv("LINUX_MCP_GATEKEEPER__PROVIDER", "openrouter")
+        monkeypatch.setenv("LINUX_MCP_GATEKEEPER__MODEL", "openai/gpt-oss-120b")
+        monkeypatch.setenv("LINUX_MCP_GATEKEEPER__QUANTIZATION", "fp4")
+
+        config = Config()
+
+        assert config.gatekeeper.provider == GatekeeperProvider.OPENROUTER
+        assert config.gatekeeper.model == "openai/gpt-oss-120b"
+        assert config.gatekeeper.quantization == "fp4"
 
     @pytest.mark.parametrize(
         "value",

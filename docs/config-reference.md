@@ -58,13 +58,18 @@ These are used when `LINUX_MCP_TOOLSET` is set to `run_script` or `both`.
 | Option / Env Var | Default | Description |
 | ---------------- | ------- | ----------- |
 | `--always-confirm-scripts` / `--no-always-confirm-scripts`<br>`LINUX_MCP_ALWAYS_CONFIRM_SCRIPTS` | `False` | All scripts must be confirmed by the user |
-| `--gatekeeper.model`<br>`LINUX_MCP_GATEKEEPER__MODEL` | _(none)_ | Required: [LiteLLM model name](https://docs.litellm.ai/docs/providers) to use |
-| `--gatekeeper.quantization`<br>`LINUX_MCP_GATEKEEPER__QUANTIZATION` | _(model specific)_ | _Not usually needed_ - Particular model quantization to use (openrouter only) |
-| `--gatekeeper.reasoning_effort`<br>`LINUX_MCP_GATEKEEPER__REASONING_EFFORT` | _(model specific)_ | Reasoning effort to use for gatekeeper model (`none`, `minimal`, `low`, `medium`, `high`, `xhigh`). Not all values are supported for all models. |
-| `--gatekeeper.structured_output`<br>`LINUX_MCP_GATEKEEPER__STRUCTURED_OUTPUT` | _(autodetected)_ | _Not usually needed_ - Whether to use structured output generation for the model. Default is to use if detected as available. |
-| `--gatekeeper.temperature`<br>`LINUX_MCP_GATEKEEPER__TEMPERATURE` | 0.0 | _Not usually needed_ - Temperature to use for model - for some models, a non-zero value may be necessary when enabling reasoning. |
-| `--gatekeeper.template_kwargs`<br>`LINUX_MCP_GATEKEEPER__TEMPLATE_KWARGS` | _(none)_ | _Not usually needed_ - Extra arguments for the model's chat template, formatted as a JSON string. Example: `{ "enable_thinking": false }` |
-| Other environment variables | _(none)_ | As required by the LiteLLM provider, e.g. `OPENAI_API_KEY` |
+| `--gatekeeper.provider`<br>`LINUX_MCP_GATEKEEPER__PROVIDER` | `openai` (inferred from model if unset) | LLM provider: `openai`, `anthropic`, `gemini`, or `openrouter` |
+| `--gatekeeper.backend`<br>`LINUX_MCP_GATEKEEPER__BACKEND` | `direct` | API backend: `direct` or `vertex` (GCP/Vertex AI) |
+| `--gatekeeper.model`<br>`LINUX_MCP_GATEKEEPER__MODEL` | _(none)_ | Required: provider-native model ID (e.g. `gpt-5.4`, `claude-sonnet-4-6`, `gemini-2.0-flash`, `openai/gpt-oss-120b` for OpenRouter) |
+| `--gatekeeper.quantization`<br>`LINUX_MCP_GATEKEEPER__QUANTIZATION` | _(none)_ | OpenRouter only: filter providers by quantization level (e.g. `fp4`, `bf16`) |
+| `--gatekeeper.base_url`<br>`LINUX_MCP_GATEKEEPER__BASE_URL` / `OPENAI_API_BASE` | `https://api.openai.com/v1` | OpenAI-compatible API base URL (OpenAI provider only) |
+| `--gatekeeper.project`<br>`LINUX_MCP_GATEKEEPER__PROJECT` / `VERTEXAI_PROJECT` | _(none)_ | GCP project for Vertex backends |
+| `--gatekeeper.location`<br>`LINUX_MCP_GATEKEEPER__LOCATION` / `VERTEXAI_LOCATION` | `global` | GCP region for Vertex backends |
+| `--gatekeeper.reasoning_effort`<br>`LINUX_MCP_GATEKEEPER__REASONING_EFFORT` | _(model specific)_ | Reasoning effort (`none`, `minimal`, `low`, `medium`, `high`, `xhigh`). Not all values are supported for all models. |
+| `--gatekeeper.structured_output`<br>`LINUX_MCP_GATEKEEPER__STRUCTURED_OUTPUT` | `True` | Whether to use structured JSON output from the model |
+| `--gatekeeper.temperature`<br>`LINUX_MCP_GATEKEEPER__TEMPERATURE` | 0.0 | Temperature to use for the model |
+| `--gatekeeper.template_kwargs`<br>`LINUX_MCP_GATEKEEPER__TEMPLATE_KWARGS` | _(none)_ | _Not usually needed_ - Extra chat-template arguments for OpenAI-compatible servers (e.g. llama.cpp `enable_thinking`), sent as `chat_template_kwargs` on Chat Completions requests. JSON object, e.g. `{ "enable_thinking": false }` |
+| Provider credentials | _(none)_ | `OPENAI_API_KEY`, `ANTHROPIC_API_KEY`, `GOOGLE_API_KEY` / `GEMINI_API_KEY`, or `OPENROUTER_API_KEY` for direct backends; `GOOGLE_APPLICATION_CREDENTIALS` for Vertex backends |
 
 ## Logging Configuration
 
