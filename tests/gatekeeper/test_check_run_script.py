@@ -134,8 +134,7 @@ class TestCheckRunScript:
 
     async def test_timeout(self, mocker):
         async def slow_complete(_prompt: str, **kwargs: object) -> GatekeeperCompletion:
-            await asyncio.sleep(10)
-            return GatekeeperCompletion(text='{"status": "OK"}')
+            return await asyncio.Future()
 
         mocker.patch.object(
             check_run_script_module,

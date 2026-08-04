@@ -89,3 +89,5 @@ async def complete_vertex_ai(
                 base_url=_get_vertex_openapi_base_url(),
                 headers=auth,
             )
+        case _:  # pragma: no cover
+            raise ValueError(f"Unsupported Vertex AI API style for model: {model}")

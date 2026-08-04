@@ -216,13 +216,13 @@ class GatekeeperException(Exception):
 @overload
 async def check_run_script(
     description: str, script_type: str, script: str, *, readonly: bool, include_stats: Literal[False] = False
-) -> GatekeeperResult: ...
+) -> GatekeeperResult: ...  # pragma: no cover
 
 
 @overload
 async def check_run_script(
     description: str, script_type: str, script: str, *, readonly: bool, include_stats: Literal[True]
-) -> tuple[GatekeeperResult, GatekeeperStats]: ...
+) -> tuple[GatekeeperResult, GatekeeperStats]: ...  # pragma: no cover
 
 
 async def check_run_script(

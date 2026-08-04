@@ -121,6 +121,23 @@ class TestGeminiClient:
         assert "key=" not in mock_post.call_args.kwargs["url"]
         assert mock_post.call_args.kwargs["headers"]["Authorization"] == "Bearer gcp-token"
 
+    async def test_complete_gemini_without_structured_output(self, gatekeeper_config, mocker):
+        gatekeeper_config.structured_output = False
+        mock_post = mocker.patch(
+            "linux_mcp_server.gatekeeper.gemini_client.post_json",
+            new_callable=mocker.AsyncMock,
+            return_value={
+                "candidates": [{"content": {"parts": [{"text": '{"status": "OK"}'}]}}],
+                "usageMetadata": {"promptTokenCount": 1, "candidatesTokenCount": 1},
+            },
+        )
+
+        await gemini_client.complete_gemini("prompt", max_tokens=8000)
+
+        body = mock_post.call_args.kwargs["body"]
+        assert "responseMimeType" not in body["generationConfig"]
+        assert "responseSchema" not in body["generationConfig"]
+
     async def test_complete_gemini_requires_api_key(self, gatekeeper_config, mocker):
         mocker.patch.dict("os.environ", {"GOOGLE_API_KEY": "", "GEMINI_API_KEY": ""}, clear=False)
 

@@ -68,6 +68,7 @@ class TestComputeCost:
         [
             "unknown-model-xyz",  # missing from provider catalog
             "model-without-cost",  # present but cost is null
+            "provider/",  # empty candidate after provider prefix is skipped
         ],
     )
     def test_unknown_model_defaults_to_zero(self, gatekeeper_config, mocker, model):
