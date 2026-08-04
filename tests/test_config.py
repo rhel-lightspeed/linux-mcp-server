@@ -2,7 +2,10 @@
 
 import logging
 
+from collections.abc import Callable
 from pathlib import Path
+from typing import Any
+from typing import cast
 
 import pytest
 
@@ -301,6 +304,11 @@ class TestHandleDeprecatedAliases:
 
         assert config.gatekeeper is not None
         assert config.gatekeeper.model == "gpt-4"
+
+    def test_ignores_non_dict_data(self):
+        """Before-validator no-ops when input is not a dict."""
+        handle = cast(Callable[[Any], Any], Config.handle_deprecated_aliases)
+        assert handle("not-a-dict") == "not-a-dict"
 
 
 class TestGatekeeperConfig:
