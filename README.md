@@ -1,3 +1,5 @@
+[![MCP Toplist](https://mcptoplist.com/badge/glama%2Frhel-lightspeed%2Flinux-mcp-server.svg)](https://mcptoplist.com/server/glama%2Frhel-lightspeed%2Flinux-mcp-server)
+
 <!-- mcp-name: io.github.rhel-lightspeed/linux-mcp-server -->
 [![CI](https://github.com/rhel-lightspeed/linux-mcp-server/actions/workflows/ci.yml/badge.svg)](https://github.com/rhel-lightspeed/linux-mcp-server/actions/workflows/ci.yml)
 [![Coverage](https://codecov.io/gh/rhel-lightspeed/linux-mcp-server/graph/badge.svg?token=TtUkG1y0rx)](https://codecov.io/gh/rhel-lightspeed/linux-mcp-server)
