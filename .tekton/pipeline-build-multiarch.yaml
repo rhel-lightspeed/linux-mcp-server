@@ -244,6 +244,7 @@ spec:
             - $(params.build-args[*])
             - PSEUDO_VERSION=$(tasks.get-version.results.pseudo_version)
             - VERSION=$(tasks.get-version.results.version)
+            - RELEASE_TYPE=$(tasks.get-version.results.release_type)
 
         - name: BUILD_ARGS_FILE
           value: $(params.build-args-file)
