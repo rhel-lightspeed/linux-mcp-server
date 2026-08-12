@@ -1,6 +1,5 @@
 """Tests for logging configuration."""
 
-import importlib
 import json
 import logging
 
@@ -29,25 +28,10 @@ class TestSetupLogging:
         assert text_log.exists()
         assert json_log.exists()
 
-    def test_log_level_from_environment(self, tmp_path, monkeypatch):
-        """Test that log level can be set from environment variable."""
-        # Patch log_dir to avoid creating files in home directory during tests
-        monkeypatch.setenv("LINUX_MCP_LOG_LEVEL", "DEBUG")
-        monkeypatch.setenv("LINUX_MCP_LOG_RETENTION_DAYS", "10")
-        monkeypatch.setenv("LINUX_MCP_LOG_DIR", str(tmp_path))
-
-        # Reload config module to pick up the environment variables
-        from linux_mcp_server import config
-
-        importlib.reload(config)
-
-        # Reload logging_config to pick up the new CONFIG
-        from linux_mcp_server import logging_config
-
-        importlib.reload(logging_config)
-
-        # Import setup_logging again to get the reloaded version
-        from linux_mcp_server.logging_config import setup_logging
+    def test_log_level_from_environment(self, tmp_path, mocker):
+        """Test that log level can be set from configuration."""
+        mocker.patch("linux_mcp_server.logging_config.CONFIG.log_dir", tmp_path)
+        mocker.patch("linux_mcp_server.logging_config.CONFIG.log_level", "DEBUG")
 
         setup_logging()
 
