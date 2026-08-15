@@ -7,6 +7,7 @@ from linux_mcp_server.tools.logs import read_log_file
 from linux_mcp_server.tools.network import get_listening_ports
 from linux_mcp_server.tools.network import get_network_connections
 from linux_mcp_server.tools.network import get_network_interfaces
+from linux_mcp_server.tools.network import get_network_routes
 
 # processes
 from linux_mcp_server.tools.processes import get_process_info
@@ -49,6 +50,7 @@ __all__ = [
     "get_memory_information",
     "get_network_connections",
     "get_network_interfaces",
+    "get_network_routes",
     "get_process_info",
     "get_service_logs",
     "get_service_status",
