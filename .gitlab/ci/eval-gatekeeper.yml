@@ -17,7 +17,7 @@ setup-uv:
 
 download-secure-files:
   stage: setup
-  image: registry.gitlab.com/gitlab-org/cli:latest@sha256:4dbd09345a1d8b2a14a1e655ce992ad3fb9138c1d4bec75b04232efa0701f456
+  image: registry.gitlab.com/gitlab-org/cli:latest@sha256:797256f9f46c6da08a337566eb11b3e53dee31fdef7d2d41b379d5841ed10cd7
   script:
     - mkdir -p securefiles
     - '[ -z "$CI_SERVER_TLS_CA_FILE" ] || glab config set ca_cert "$CI_SERVER_TLS_CA_FILE" --host "$CI_SERVER_FQDN"'
