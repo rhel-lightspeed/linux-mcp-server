@@ -1,4 +1,4 @@
-FROM quay.io/fedora/fedora:46@sha256:a050291208211a66071d31e044105c890b6a2e6666a848c8cfbe64386a2a97fe
+FROM quay.io/fedora/fedora:46@sha256:cf46488900fafb7d19aecbbc44420a3b63b3d77c1d821fc66a72d276e1bb175f
 
 ENV UV_LINK_MODE=copy
 ENV UV_COMPILE_BYTECODE=1
@@ -13,7 +13,7 @@ RUN dnf install -y \
     sudo \
     && dnf clean all
 
-COPY --from=ghcr.io/astral-sh/uv:latest@sha256:df4cae8f3a96d175e2e5f992e597550000edbe78fdc2594d5cd8de1a217f504c /uv /usr/local/bin/uv
+COPY --from=ghcr.io/astral-sh/uv:latest@sha256:e85be844203885286c60ffad8a858d48afb6c5a5c237ca0e67f12e74b8f174b1 /uv /usr/local/bin/uv
 
 # Create vscode user with sudo access and fish shell
 RUN useradd -m -s /usr/bin/fish vscode && \
