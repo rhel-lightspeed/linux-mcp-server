@@ -72,8 +72,7 @@ Logging is centralized in `src/linux_mcp_server/audit.py` using the `log_tool_ca
 ```python
 @mcp.tool()
 @log_tool_call
-async def list_directories(path: str, order_by: OrderBy, sort: SortBy, top_n: int | None) -> list[DirectoryEntry]:
-    ...
+async def list_directories(path: str, order_by: OrderBy, sort: SortBy, top_n: int | None) -> list[DirectoryEntry]: ...
 ```
 
 The `audit.py` module provides structured logging functions:

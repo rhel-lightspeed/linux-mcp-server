@@ -88,8 +88,10 @@ We follow Test-Driven Development (TDD):
 # tests/tools/test_my_feature.py
 import pytest
 
+
 async def test_my_feature_returns_expected_format():
     from linux_mcp_server.tools import my_module
+
     result = await my_module.my_function()
     assert "expected" in result
 ```
@@ -166,17 +168,21 @@ Add the command definition to `src/linux_mcp_server/commands.py`:
 import pytest
 from unittest.mock import AsyncMock, patch
 
+
 async def test_my_tool_returns_output():
     with patch("linux_mcp_server.tools.my_tool.get_command") as mock_cmd:
         mock_cmd.return_value.run = AsyncMock(return_value=(0, "output", ""))
 
         from linux_mcp_server.tools.my_tool import my_tool_name
+
         result = await my_tool_name(param1="value")
 
         assert "output" in result
 
+
 async def test_server_exposes_my_tool():
     from linux_mcp_server.server import mcp
+
     tools = await mcp.list_tools()
     tool_names = [t.name for t in tools]
     assert "my_tool_name" in tool_names
