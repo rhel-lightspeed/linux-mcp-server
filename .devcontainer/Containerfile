@@ -1,4 +1,4 @@
-FROM quay.io/fedora/fedora:46@sha256:cf46488900fafb7d19aecbbc44420a3b63b3d77c1d821fc66a72d276e1bb175f
+FROM quay.io/fedora/fedora:46@sha256:fec74c41d9981a917eaf1ca36de7a2b6cfb935fa4f626f0f349c04d194f83ff8
 
 ENV UV_LINK_MODE=copy
 ENV UV_COMPILE_BYTECODE=1
