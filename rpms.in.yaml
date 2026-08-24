@@ -1,0 +1,43 @@
+# Build-toolchain RPMs prefetched by Hermeto for hermetic Konflux builds.
+# Containerfile-source compiles all Python wheels from source, which needs a
+# C/Rust toolchain that the Hummingbird builder image does not ship. In hermetic
+# mode every RUN is network-isolated, so these RPMs must be prefetched.
+# Python 3.12 + pip are already in the Hummingbird builder image.
+# Regenerate rpms.lock.yaml after editing this file:
+#   make rpm-lock
+# This file is also used during container build - the magic comments here divide
+# the packages based on whether they are needed in the build step or in the final
+# runtime image.
+packages:
+  # <BUILD_PACKAGES>
+  - cargo
+  - gcc
+  - gcc-c++
+  - git
+  - krb5-devel
+  - libffi-devel
+  - openssl-devel
+  - python3.12
+  - python3.12-devel
+  - python3.12-pip
+  - python-unversioned-command
+  # </BUILD_PACKAGES>
+  # <RUN_PACKAGES>
+  - openssh
+  - python3.12
+  - python-unversioned-command
+  # </RUN_PACKAGES>
+contentOrigin:
+  repos:
+    - repoid: ubi-10-for-$basearch-baseos-rpms
+      baseurl: https://cdn-ubi.redhat.com/content/public/ubi/dist/ubi10/10/$basearch/baseos/os
+    - repoid: ubi-10-for-$basearch-baseos-source-rpms
+      baseurl: https://cdn-ubi.redhat.com/content/public/ubi/dist/ubi10/10/$basearch/baseos/source/SRPMS
+    - repoid: ubi-10-for-$basearch-appstream-rpms
+      baseurl: https://cdn-ubi.redhat.com/content/public/ubi/dist/ubi10/10/$basearch/appstream/os
+    - repoid: ubi-10-for-$basearch-appstream-source-rpms
+      baseurl: https://cdn-ubi.redhat.com/content/public/ubi/dist/ubi10/10/$basearch/appstream/source/SRPMS
+arches:
+  - x86_64
+  - aarch64
+installWeakDeps: false

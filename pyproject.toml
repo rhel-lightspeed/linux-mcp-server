@@ -86,6 +86,16 @@ docs = [
     "mkdocstrings[python]>=1.0.2",
 ]
 
+# slushy-build keeps .konflux/requirements-* and the .tekton prefetch-input in
+# sync with uv.lock. Used only by the update-konflux-deps CI workflow. Not on
+# PyPI yet, so pulled from git; this is a dev-only group and never ends up in
+# the runtime requirements Hermeto prefetches.
+slushy = [
+    # slushy-build requires Python >=3.12; gate the marker so the >=3.10/3.11
+    # resolution splits stay satisfiable. CI runs this group on >=3.12.
+    "slushy-build ; python_version >= '3.12'",
+]
+
 [tool.hatch.build.targets.wheel]
 packages = ["src/linux_mcp_server"]
 
@@ -207,3 +217,7 @@ order-by-type = false
 
 [tool.uv]
 exclude-newer = "7 days"
+
+[tool.uv.sources]
+# slushy-build is not published to PyPI yet; pull it from git.
+slushy-build = { git = "https://github.com/owtaylor/slushy-build" }

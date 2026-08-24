@@ -1,0 +1,8 @@
+# slushy-build-source: gssapi==1.11.1
+# slushy-build-source: idna==3.18
+# slushy-build-source: packaging==26.2
+# slushy-build-source: packaging==26.3
+# slushy-build-source: pathspec==1.1.1
+cython==3.2.4
+flit-core<5,>=3.12
+setuptools>=40.8.0
