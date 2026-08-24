@@ -3,12 +3,6 @@
   "extends": ["github>rhel-lightspeed/renovate-config"],
   "packageRules": [
     {
-      "description": "Group other non-major updates not explicitly grouped",
-      "matchUpdateTypes": ["minor", "patch", "pin", "digest"],
-      "groupName": "other non-major updates",
-      "groupSlug": "other-non-major"
-    },
-    {
       "description": "Only update uv.lock for Python packages",
       "matchManagers": [
         "pep621",
@@ -18,34 +12,6 @@
         "pipenv"
       ],
       "rangeStrategy": "in-range-only"
-    },
-    {
-      "description": "Group most non-major updates to Python packages",
-      "matchManagers": [
-        "pep621",
-        "pip_requirements",
-        "pip-compile",
-        "poetry",
-        "pipenv"
-      ],
-      "matchUpdateTypes": ["minor", "patch", "pin", "digest"],
-      "groupName": "non-major Python updates",
-      "groupSlug": "python-non-major",
-      "matchPackageNames": [
-        "!fastmcp",
-        "!litellm"
-      ]
-    },
-    {
-      "description": "Exclude FastMCP and LiteLLM from grouping",
-      "matchPackageNames": ["fastmcp", "litellm"],
-      "groupName": null
-    },
-    {
-      "description": "Group updates to NPM packages used to build our mcp-app",
-      "matchManagers": ["npm"],
-      "groupName": "mcp-app NPM updates",
-      "groupSlug": "mcp-app-npm"
     }
   ]
 }
