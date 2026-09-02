@@ -1393,7 +1393,7 @@ test = [
 requires-dist = [
     { name = "asyncssh", extras = ["bcrypt"], specifier = ">=2.22.0" },
     { name = "fakeredis", specifier = "<2.35" },
-    { name = "fastmcp", specifier = ">=3.2.4" },
+    { name = "fastmcp", specifier = ">=3.2.4,<4" },
     { name = "google-auth", marker = "extra == 'gcp'", specifier = ">=2.40.0" },
     { name = "gssapi", marker = "extra == 'gssapi'", specifier = ">=1.11.1" },
     { name = "httpx", specifier = ">=0.28.1" },
