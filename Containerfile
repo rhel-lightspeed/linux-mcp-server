@@ -19,9 +19,7 @@ ENV PATH=$VENVS/mcp/bin:"$VENVS/uv/bin:$PATH"
 
 # Provide the version to avoid the need to pass in the .git directory.
 # https://setuptools-scm.readthedocs.io/en/latest/usage/#with-dockerpodman
-# FIXME: This should be SETUPTOOLS_SCM_PRETEND_VERSION_FOR_${DIST_NAME} but I
-#        can't figure out what exactly the value for DIST_NAME should be.
-ENV SETUPTOOLS_SCM_PRETEND_VERSION=${PSEUDO_VERSION}
+ENV SETUPTOOLS_SCM_PRETEND_VERSION_FOR_LINUX_MCP_SERVER=${PSEUDO_VERSION}
 
 # Add in source files. The .git directory is used by setuptools-scm to determine
 # the release version.

@@ -92,6 +92,9 @@ packages = ["src/linux_mcp_server"]
 [tool.hatch.version]
 source = "vcs"
 
+[tool.hatch.version.raw-options]
+dist_name = "linux-mcp-server"
+
 [tool.pytest.ini_options]
 addopts = [
     "-r", "a",
