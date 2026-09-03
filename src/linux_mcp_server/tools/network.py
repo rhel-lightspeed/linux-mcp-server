@@ -1,12 +1,14 @@
 """Network diagnostic tools."""
 
+from fastmcp.exceptions import ToolError
 from mcp.types import ToolAnnotations
 
 from linux_mcp_server.audit import log_tool_call
 from linux_mcp_server.commands import get_command
-from linux_mcp_server.formatters import format_listening_ports
-from linux_mcp_server.formatters import format_network_connections
-from linux_mcp_server.formatters import format_network_interfaces
+from linux_mcp_server.models import ListeningPort
+from linux_mcp_server.models import NetworkConnection
+from linux_mcp_server.models import NetworkInterface
+from linux_mcp_server.parsers import merge_network_interfaces
 from linux_mcp_server.parsers import parse_ip_brief
 from linux_mcp_server.parsers import parse_proc_net_dev
 from linux_mcp_server.parsers import parse_ss_connections
@@ -27,7 +29,7 @@ from linux_mcp_server.utils.validation import is_successful_output
 @disallow_local_execution_in_containers
 async def get_network_interfaces(
     host: Host = None,
-) -> str:
+) -> list[NetworkInterface]:
     """Get network interface information.
 
     Retrieves all network interfaces with their operational state, IP addresses,
@@ -50,7 +52,7 @@ async def get_network_interfaces(
     if is_successful_output(returncode, stdout):
         stats = parse_proc_net_dev(stdout)
 
-    return format_network_interfaces(interfaces, stats)
+    return merge_network_interfaces(interfaces, stats)
 
 
 @mcp.tool(
@@ -63,7 +65,7 @@ async def get_network_interfaces(
 @disallow_local_execution_in_containers
 async def get_network_connections(
     host: Host = None,
-) -> str:
+) -> list[NetworkConnection]:
     """Get active network connections.
 
     Retrieves all established and pending network connections including protocol,
@@ -74,9 +76,8 @@ async def get_network_connections(
     returncode, stdout, stderr = await cmd.run(host=host)
 
     if is_successful_output(returncode, stdout):
-        connections = parse_ss_connections(stdout)
-        return format_network_connections(connections)
-    return f"Error getting network connections: return code {returncode}, stderr: {stderr}"
+        return parse_ss_connections(stdout)
+    raise ToolError(f"Error getting network connections: return code {returncode}, stderr: {stderr}")
 
 
 @mcp.tool(
@@ -89,7 +90,7 @@ async def get_network_connections(
 @disallow_local_execution_in_containers
 async def get_listening_ports(
     host: Host = None,
-) -> str:
+) -> list[ListeningPort]:
     """Get listening ports.
 
     Retrieves all ports with services actively listening for connections,
@@ -100,6 +101,5 @@ async def get_listening_ports(
     returncode, stdout, stderr = await cmd.run(host=host)
 
     if is_successful_output(returncode, stdout):
-        ports = parse_ss_listening(stdout)
-        return format_listening_ports(ports)
-    return f"Error getting listening ports: return code {returncode}, stderr: {stderr}"
+        return parse_ss_listening(stdout)
+    raise ToolError(f"Error getting listening ports: return code {returncode}, stderr: {stderr}")
