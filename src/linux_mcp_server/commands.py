@@ -274,6 +274,57 @@ COMMANDS: Mapping[str, CommandGroup] = MappingProxyType(
                 "lsusb": CommandSpec(args=("lsusb",)),
             }
         ),
+        # === PCP ===
+        "pcp_archive_list": CommandGroup(
+            commands={
+                "default": CommandSpec(
+                    args=("find", "/var/log/pcp/pmlogger", "-name", "*.index", "-type", "f"),
+                ),
+            }
+        ),
+        "pcp_archive_info": CommandGroup(
+            commands={
+                "default": CommandSpec(args=("pmdumplog", "-L", "{archive}")),
+            }
+        ),
+        "pcp_metrics_list": CommandGroup(
+            commands={
+                "default": CommandSpec(args=("pminfo", "-t")),
+            }
+        ),
+        "pcp_archive_dir": CommandGroup(
+            commands={
+                "default": CommandSpec(args=("pcp",)),
+            }
+        ),
+        "pcp_query_metrics": CommandGroup(
+            commands={
+                "default": CommandSpec(
+                    args=(
+                        "pmrep",
+                        "--archive",
+                        "{archive}",
+                        "--start",
+                        "{start_time}",
+                        "--finish",
+                        "{end_time}",
+                        "--interval",
+                        "{interval}",
+                        "--separate-header",
+                    ),
+                ),
+            }
+        ),
+        "pcp_xsos_live": CommandGroup(
+            commands={
+                "default": CommandSpec(args=("pcp", "xsos", "--all", "--nocolor")),
+            }
+        ),
+        "pcp_xsos_archive": CommandGroup(
+            commands={
+                "default": CommandSpec(args=("pcp", "xsos", "--all", "--nocolor", "--archive", "{archive}")),
+            }
+        ),
     }
 )
 
