@@ -233,21 +233,22 @@ async def check_run_script(
             return result, stats if stats is not None else GatekeeperStats()
         return result
 
-    # Check that the script does what is described
-    if "start_of_script" in script.lower() or "end_of_script" in script.lower():
-        return _return(
-            GatekeeperResult(
-                status=GatekeeperStatus.MALICIOUS, detail="Script contains 'start_of_script' or 'end_of_script'"
-            )
-        )
-
-    if "start_of_description" in script.lower() or "end_of_description" in script.lower():
-        return _return(
-            GatekeeperResult(
-                status=GatekeeperStatus.MALICIOUS,
-                detail="Script contains 'start_of_description' or 'end_of_description'",
-            )
-        )
+    # Check both script and description for prompt delimiter injection.
+    DELIMITER_PATTERNS = [
+        "start_of_script",
+        "end_of_script",
+        "start_of_description",
+        "end_of_description",
+    ]
+    for field, value in [("Script", script), ("Description", description)]:
+        for pattern in DELIMITER_PATTERNS:
+            if pattern in value.lower():
+                return _return(
+                    GatekeeperResult(
+                        status=GatekeeperStatus.MALICIOUS,
+                        detail=f"{field} contains prompt delimiter '{pattern}'",
+                    ), GatekeeperStats()
+                )
 
     prompt = PROMPT.format(
         script_type=script_type,
