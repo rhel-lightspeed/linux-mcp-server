@@ -21,8 +21,10 @@ summary: Functional linux-mcp-server testing
   # Download dependencies (including pytest) and build project.
   # Will output exact versions used for dependencies
   uv sync --python=$PYTHON_CMD --locked --group test
-  # We'll use linux-mcp-server and pytest from the virtual env
-  PATH="$PWD/.venv/bin:$PATH"
+
+  # Set the path for the execute step, so that it picks up
+  # linux-mcp-server and pytest from the virtual env
+  echo 'export PATH="$TMT_TREE/.venv/bin:$PATH"' >> "$TMT_PLAN_SOURCE_SCRIPT"
 
 discover:
     how: fmf
