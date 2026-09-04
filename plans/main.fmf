@@ -14,7 +14,7 @@ summary: Functional linux-mcp-server testing
           fi
       done
   fi
-  export SETUPTOOLS_SCM_PRETEND_VERSION=0.0.0
+  export SETUPTOOLS_SCM_PRETEND_VERSION_FOR_LINUX_MCP_SERVER=0.0.0
 
   # Install from the current directory (the repo under test)
   $PYTHON_CMD -m pip install .

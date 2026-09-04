@@ -2,40 +2,32 @@ FROM registry.access.redhat.com/ubi10-minimal:10.2-1788137716@sha256:d801168f5e8
 
 FROM base as build
 
-RUN microdnf -y --nodocs --setopt=install_weak_deps=0 install \
-        git \
-        python3.12 \
-        python3.12-pip \
-        python-unversioned-command \
-    && microdnf clean all
+RUN --mount=type=bind,source=scripts/container-install-rpms.sh,target=/tmp/install-rpms.sh \
+    --mount=type=bind,source=./rpms.in.yaml,target=/tmp/rpms.in.yaml \
+    /tmp/install-rpms.sh build
+
+# Build from source by default (Product Security requirement for Konflux).
+# Override with --build-arg BUILD_FROM_SOURCE=0 for fast prebuilt-wheel builds.
+ARG BUILD_FROM_SOURCE=1
 
 ARG PSEUDO_VERSION=0.1.0a
 
-ENV VENVS=/opt/venvs
-ENV UV_PROJECT=/usr/share/container-setup/linux-mcp-server/
-ENV UV_PROJECT_ENVIRONMENT="${VENVS}"/mcp
-ENV UV_PYTHON=/usr/bin/python
-ENV PATH=$VENVS/mcp/bin:"$VENVS/uv/bin:$PATH"
+ENV VENV=/opt/venvs/mcp
+ENV SOURCE=/usr/share/container-setup/linux-mcp-server
 
-# Provide the version to avoid the need to pass in the .git directory.
-# https://setuptools-scm.readthedocs.io/en/latest/usage/#with-dockerpodman
-# FIXME: This should be SETUPTOOLS_SCM_PRETEND_VERSION_FOR_${DIST_NAME} but I
-#        can't figure out what exactly the value for DIST_NAME should be.
-ENV SETUPTOOLS_SCM_PRETEND_VERSION=${PSEUDO_VERSION}
+ENV PATH="$VENV/bin:$PATH"
 
 # Add in source files. The .git directory is used by setuptools-scm to determine
 # the release version.
-ADD uv.lock pyproject.toml README.md "$UV_PROJECT"
-ADD src/ "$UV_PROJECT"/src/
+ADD pyproject.toml README.md $SOURCE
+ADD src/ $SOURCE/src/
+ADD .konflux/ $SOURCE/.konflux/
 
-# Install the application in its own virtual environment
-RUN python -m venv /opt/venvs/uv \
-    && /opt/venvs/uv/bin/python -m pip install -U pip \
-    && /opt/venvs/uv/bin/python -m pip install uv \
-    && uv venv --seed "${VENVS}"/mcp \
-    && uv sync --no-cache --locked --no-dev --no-editable \
-    && "${VENVS}"/mcp/bin/python -m pip uninstall -y diskcache
-
+# Provide the version to avoid the need to pass in the .git directory.
+# https://setuptools-scm.readthedocs.io/en/latest/usage/#with-dockerpodman
+RUN --mount=type=bind,source=scripts/container-install-app.sh,target=/tmp/install-app.sh \
+    SETUPTOOLS_SCM_PRETEND_VERSION_FOR_LINUX_MCP_SERVER="${PSEUDO_VERSION}" \
+    /tmp/install-app.sh
 
 FROM base as final
 
@@ -73,12 +65,9 @@ LABEL version=${VERSION}
 ADD licenses/ /licenses/
 ADD LICENSE /licenses/Apache-2.0.txt
 
-RUN microdnf -y --nodocs --setopt=install_weak_deps=0 install \
-        git \
-        openssh \
-        python3.12 \
-        python-unversioned-command \
-    && microdnf clean all
+RUN --mount=type=bind,source=scripts/container-install-rpms.sh,target=/tmp/install-rpms.sh \
+    --mount=type=bind,source=./rpms.in.yaml,target=/tmp/rpms.in.yaml \
+    /tmp/install-rpms.sh run
 
 COPY --from=build /opt/venvs/mcp /opt/venvs/mcp
 

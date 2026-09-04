@@ -38,6 +38,18 @@ spec:
     - name: dockerfile
       value: /Containerfile
 
+    - name: hermetic
+      value: "true"
+
+    # Hermeto prefetch: pip sdists (no binary field = no binary SBOM annotations)
+    # plus the build-toolchain RPMs (rpms.lock.yaml). hermetic builds compile
+    # every wheel from source, so the network is fully isolated.
+    - name: prefetch-input
+      value: '[{"type": "pip", "path": ".", "requirements_files": [".konflux/requirements.txt"], "requirements_build_files": [".konflux/requirements-build.txt", ".konflux/requirements-build-1.txt"]}, {"type": "rpm", "path": "."}]'
+
+    - name: build-source-image
+      value: "true"
+
     - name: additional-tags
       value:
         - latest
