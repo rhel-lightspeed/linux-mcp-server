@@ -115,7 +115,15 @@ class TestWrapScript:
 
     def test_python_wraps_script_in_bash_c(self) -> None:
         """Python scripts are embedded in the wrapper with shell-safe quoting."""
-        cmd = _wrap_script(SCRIPT_TYPE_PYTHON, "print('hi')")
+        details = ScriptDetails(
+            state="waiting-approval",
+            script_type=SCRIPT_TYPE_PYTHON,
+            script="print('hi')",
+            description="Greet the world",
+            host="machine1.test",
+            readonly=True,
+        )
+        cmd = _wrap_script(details)
         assert cmd[0] == "bash"
         assert cmd[1] == "-c"
         assert "python -c" in cmd[2]
@@ -123,10 +131,61 @@ class TestWrapScript:
 
     def test_bash_includes_strict_preamble_in_quoted_payload(self) -> None:
         """Bash snippets include the strict-mode preamble inside the quoted payload."""
-        cmd = _wrap_script(SCRIPT_TYPE_BASH, "true")
+        details = ScriptDetails(
+            state="waiting-approval",
+            script_type=SCRIPT_TYPE_BASH,
+            script="true",
+            description="Succeed",
+            host="machine1.test",
+            readonly=True,
+        )
+        cmd = _wrap_script(details)
         inner = cmd[2]
         assert BASH_STRICT_PREAMBLE in inner
         assert "true" in inner
+
+    def test_bash_command_is_escaped(self) -> None:
+        """Bash snippets escape quotes in command."""
+
+        COMMAND = """
+            echo 'Hello' "World"
+        """.strip()
+        EXPECTED_ESCAPED_ENDING = """
+            ; echo '"'"'Hello'"'"' "World"'
+        """.strip()
+
+        details = ScriptDetails(
+            state="waiting-approval",
+            script_type=SCRIPT_TYPE_BASH,
+            script=COMMAND,
+            description="Succeed",
+            host="machine1.test",
+            readonly=True,
+        )
+        cmd = _wrap_script(details)
+        inner = cmd[2]
+        assert EXPECTED_ESCAPED_ENDING in inner
+
+    @pytest.mark.parametrize("readonly", [False, True])
+    def test_systemd_args(self, readonly: bool) -> None:
+        """Systemd sandboxing args appear in wrapped command"""
+        details = ScriptDetails(
+            state="waiting-approval",
+            script_type=SCRIPT_TYPE_BASH,
+            script="true",
+            description="Succeed",
+            host="machine1.test",
+            readonly=readonly,
+        )
+        cmd = _wrap_script(details)
+        inner = cmd[2]
+        assert "--property=WorkingDirectory=/tmp --property=PrivateTmp=true --property=NoNewPrivileges=true" in inner
+
+        readonly_args = "--property=ReadOnlyPaths=/ --property=RestrictAddressFamilies=AF_UNIX"
+        if readonly:
+            assert readonly_args in inner
+        else:
+            assert readonly_args not in inner
 
 
 class TestValidateScriptMCP:
@@ -211,6 +270,34 @@ class TestValidateScriptMCP:
 
 class TestRunScriptMCP:
     """``run_script`` (token only) via ``client``."""
+
+    async def test_command_wrapped(
+        self,
+        client: Any,
+        script_store_fresh: ScriptStore,
+        patch_execute_command: Any,
+    ) -> None:
+        """On success with str stdout, return the stdout text unchanged."""
+        script_store_fresh._scripts["tok"] = ScriptDetails(
+            state="waiting-approval",
+            description="d",
+            script="echo output",
+            script_type=SCRIPT_TYPE_BASH,
+            host=None,
+            readonly=True,
+        )
+        patch_execute_command.return_value = (0, "output", "")
+        result = await client.call_tool("run_script", {"token": "tok"})
+        assert _tool_text(result) == "output"
+
+        args, kwargs = patch_execute_command.call_args
+        wrapped_command = args[0]
+        assert wrapped_command[0:2] == ["bash", "-c"]
+
+        inner = wrapped_command[2]
+        assert "SCRIPT='set -euo pipefail; echo output'" in inner
+        assert "--property=WorkingDirectory=/tmp --property=PrivateTmp=true --property=NoNewPrivileges=true" in inner
+        assert "--property=ReadOnlyPaths=/ --property=RestrictAddressFamilies=AF_UNIX" in inner
 
     async def test_success_string_stdout(
         self,

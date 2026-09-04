@@ -217,12 +217,18 @@ class RunScriptInteractiveResult(BaseModel):
 #
 
 
-def _wrap_script(script_type: ScriptType, script: str) -> list[str]:
+def _wrap_script(details: ScriptDetails) -> list[str]:
     """Wrap a script in a wrapper script that uses sudo+systemd-run when available, else run script directly."""
+    if details.readonly:
+        args = SYSTEMD_RUN_ARGS + SYSTEMD_RUN_READONLY_ARGS
+    else:
+        args = SYSTEMD_RUN_ARGS
     wrapper_script = WRAPPER_TEMPLATE.format(
-        systemd_run_command=SYSTEMD_RUN_COMMAND.format(args=" ".join(SYSTEMD_RUN_ARGS)),
-        script_type=script_type,
-        script=shlex.quote((BASH_STRICT_PREAMBLE + script) if script_type == SCRIPT_TYPE_BASH else script),
+        systemd_run_command=SYSTEMD_RUN_COMMAND.format(args=" ".join(args)),
+        script_type=details.script_type,
+        script=shlex.quote(
+            (BASH_STRICT_PREAMBLE + details.script) if details.script_type == SCRIPT_TYPE_BASH else details.script
+        ),
     )
     return ["bash", "-c", wrapper_script]
 
@@ -244,7 +250,7 @@ async def execute_script(
     id: t.Annotated[str, Field(description="The associated ID of the script to be executed")],
 ) -> ToolResult:
     script_details = script_store.get_script_details(id)
-    command = _wrap_script(script_details.script_type, script_details.script)
+    command = _wrap_script(script_details)
     script_store.set_script_state(id, "executing")
     content: list[ContentBlock] = []
 
@@ -455,7 +461,7 @@ async def run_script(
 
     script_store.set_script_state(token, "executing")
     try:
-        command = _wrap_script(script_details.script_type, script_details.script)
+        command = _wrap_script(script_details)
         returncode, stdout, stderr = await execute_command(command, host=script_details.host)
     except Exception:
         script_store.set_script_state(token, "failure")
@@ -534,7 +540,7 @@ async def run_script_with_confirmation(
         script_store.set_script_state(token, "executing")
 
     try:
-        command = _wrap_script(execute_details.script_type, execute_details.script)
+        command = _wrap_script(script_details)
         returncode, stdout, stderr = await execute_command(command, host=execute_details.host)
     except Exception:
         if not details_changed:
