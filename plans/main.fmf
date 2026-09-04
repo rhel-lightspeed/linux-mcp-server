@@ -16,10 +16,13 @@ summary: Functional linux-mcp-server testing
   fi
   export SETUPTOOLS_SCM_PRETEND_VERSION_FOR_LINUX_MCP_SERVER=0.0.0
 
-  # Install from the current directory (the repo under test)
-  $PYTHON_CMD -m pip install .
-  $PYTHON_CMD -m pip install -r tests/functional/requirements.txt
-  $PYTHON_CMD -m pip freeze
+  $PYTHON_CMD -m pip install uv
+
+  # Download dependencies (including pytest) and build project.
+  # Will output exact versions used for dependencies
+  uv sync --python=$PYTHON_CMD --locked --group test
+  # We'll use linux-mcp-server and pytest from the virtual env
+  PATH="$PWD/.venv/bin:$PATH"
 
 discover:
     how: fmf
