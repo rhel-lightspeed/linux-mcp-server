@@ -12,10 +12,10 @@
 # slushy-build-source: certifi==2026.7.22
 # slushy-build-source: cffi==2.0.0
 # slushy-build-source: cffi==2.1.1
-# slushy-build-source: click==8.4.2
+# slushy-build-source: click==8.5.0
 # slushy-build-source: coherent-licensed==0.5.2
-# slushy-build-source: cryptography==50.0.0
-# slushy-build-source: cyclopts==4.22.5
+# slushy-build-source: cryptography==50.0.1
+# slushy-build-source: cyclopts==4.23.3
 # slushy-build-source: decorator==5.3.1
 # slushy-build-source: dnspython==2.8.0
 # slushy-build-source: docstring-parser==0.18.0
@@ -25,7 +25,8 @@
 # slushy-build-source: fastmcp==3.4.7
 # slushy-build-source: fastmcp-slim==3.4.7
 # slushy-build-source: flit-scm==1.7.0
-# slushy-build-source: griffelib==2.1.0
+# slushy-build-source: griffelib==2.2.0
+# slushy-build-source: gssapi==1.12.0
 # slushy-build-source: hatch-fancy-pypi-readme==25.1.0
 # slushy-build-source: hatch-vcs==0.5.0
 # slushy-build-source: httpcore==1.0.9
@@ -45,13 +46,13 @@
 # slushy-build-source: markdown-it-py==4.2.0
 # slushy-build-source: markupsafe==3.0.3
 # slushy-build-source: maturin==1.14.1
-# slushy-build-source: mcp==1.29.0
+# slushy-build-source: mcp==1.29.1
 # slushy-build-source: mdurl==0.1.2
 # slushy-build-source: more-itertools==11.1.0
 # slushy-build-source: openapi-pydantic==0.5.1
 # slushy-build-source: opentelemetry-api==1.44.0
 # slushy-build-source: pathable==0.6.0
-# slushy-build-source: platformdirs==4.11.2
+# slushy-build-source: platformdirs==4.11.4
 # slushy-build-source: pluggy==1.6.0
 # slushy-build-source: py-key-value-aio==0.4.5
 # slushy-build-source: pyasn1==0.6.4
@@ -60,12 +61,11 @@
 # slushy-build-source: pydantic==2.13.4
 # slushy-build-source: pydantic-core==2.46.4
 # slushy-build-source: pydantic-settings==2.15.0
-# slushy-build-source: pygments==2.20.0
+# slushy-build-source: pygments==2.21.0
 # slushy-build-source: pyjwt==2.13.0
 # slushy-build-source: pyperclip==1.11.0
-# slushy-build-source: python-dotenv==1.2.2
+# slushy-build-source: python-dotenv==1.2.3
 # slushy-build-source: python-multipart==0.0.32
-# slushy-build-source: pyyaml==6.0.3
 # slushy-build-source: redis==8.1.0
 # slushy-build-source: referencing==0.37.0
 # slushy-build-source: rich==15.0.0
@@ -83,15 +83,15 @@
 # slushy-build-source: uncalled-for==0.4.0
 # slushy-build-source: uv-build==0.11.7
 # slushy-build-source: uv-dynamic-versioning==0.14.0
-# slushy-build-source: uvicorn==0.52.2
+# slushy-build-source: uvicorn==0.52.4
 # slushy-build-source: vcs-versioning==2.2.2
 # slushy-build-source: watchfiles==1.2.0
-# slushy-build-source: websockets==17.0.1
+# slushy-build-source: websockets==17.1
 # slushy-build-source: wheel==0.47.0
 calver
 cffi>=2.0.0
 coherent-licensed
-cython>=3.0
+cython==3.3.0
 flit-core<4,>=3.12,~=3.5
 flit-scm
 hatch-fancy-pypi-readme>=23.2.0
