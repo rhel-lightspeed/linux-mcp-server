@@ -23,8 +23,10 @@ summary: Functional linux-mcp-server testing
   uv sync --python=$PYTHON_CMD --locked --group test
 
   # Set the path for the execute step, so that it picks up
-  # linux-mcp-server and pytest from the virtual env
-  echo 'export PATH="$TMT_TREE/.venv/bin:$PATH"' >> "$TMT_PLAN_SOURCE_SCRIPT"
+  # linux-mcp-server and pytest from the virtual env. The plan
+  # environment file is parsed as dotenv (no shell expansion and
+  # no 'export'), so expand PATH here and write a literal value.
+  echo "PATH=$TMT_TREE/.venv/bin:$PATH" >> "$TMT_PLAN_ENVIRONMENT_FILE"
 
 discover:
     how: fmf
