@@ -60,13 +60,13 @@ arches:
     name: glibc-devel
     evr: 2.39-128.el10_2
     sourcerpm: glibc-2.39-128.el10_2.src.rpm
-  - url: https://cdn-ubi.redhat.com/content/public/ubi/dist/ubi10/10/aarch64/appstream/os/Packages/k/kernel-headers-6.12.0-211.51.1.el10_2.aarch64.rpm
+  - url: https://cdn-ubi.redhat.com/content/public/ubi/dist/ubi10/10/aarch64/appstream/os/Packages/k/kernel-headers-6.12.0-211.53.1.el10_2.aarch64.rpm
     repoid: ubi-10-for-aarch64-appstream-rpms
-    size: 3671425
-    checksum: sha256:a1a29f87c3f6a48664c2bb910623b42e22a3476948c4d4a6875d0a20eb4a3b15
+    size: 3679773
+    checksum: sha256:bcea75bff24bcba5450957d6e9c8165f1cbc4dbdc2f2a56070bc84100f17d18e
     name: kernel-headers
-    evr: 6.12.0-211.51.1.el10_2
-    sourcerpm: kernel-6.12.0-211.51.1.el10_2.src.rpm
+    evr: 6.12.0-211.53.1.el10_2
+    sourcerpm: kernel-6.12.0-211.53.1.el10_2.src.rpm
   - url: https://cdn-ubi.redhat.com/content/public/ubi/dist/ubi10/10/aarch64/appstream/os/Packages/k/keyutils-libs-devel-1.6.3-5.el10.aarch64.rpm
     repoid: ubi-10-for-aarch64-appstream-rpms
     size: 66529
@@ -725,13 +725,13 @@ arches:
     name: elfutils-libs
     evr: 0.194-2.el10_2
     sourcerpm: elfutils-0.194-2.el10_2.src.rpm
-  - url: https://cdn-ubi.redhat.com/content/public/ubi/dist/ubi10/10/aarch64/baseos/os/Packages/e/expat-2.7.3-1.el10_2.1.aarch64.rpm
+  - url: https://cdn-ubi.redhat.com/content/public/ubi/dist/ubi10/10/aarch64/baseos/os/Packages/e/expat-2.7.3-1.el10_2.3.aarch64.rpm
     repoid: ubi-10-for-aarch64-baseos-rpms
-    size: 123527
-    checksum: sha256:0dcfff5c701c572248fb431cc2b7f7c46b5e56365e7eab5b9da6e0155950c4b8
+    size: 124545
+    checksum: sha256:c2cc96badf054560d11e4d5041e10e51b38dedca132d3ebeb0cb219b4f1f9955
     name: expat
-    evr: 2.7.3-1.el10_2.1
-    sourcerpm: expat-2.7.3-1.el10_2.1.src.rpm
+    evr: 2.7.3-1.el10_2.3
+    sourcerpm: expat-2.7.3-1.el10_2.3.src.rpm
   - url: https://cdn-ubi.redhat.com/content/public/ubi/dist/ubi10/10/aarch64/baseos/os/Packages/g/gdbm-1.23-12.el10_0.aarch64.rpm
     repoid: ubi-10-for-aarch64-baseos-rpms
     size: 158080
@@ -1241,12 +1241,12 @@ arches:
     checksum: sha256:c00334fd7c0a0b607a5baa3b2badf0d49d254b9417ace5401418680ad8012f27
     name: elfutils
     evr: 0.194-2.el10_2
-  - url: https://cdn-ubi.redhat.com/content/public/ubi/dist/ubi10/10/aarch64/baseos/source/SRPMS/Packages/e/expat-2.7.3-1.el10_2.1.src.rpm
+  - url: https://cdn-ubi.redhat.com/content/public/ubi/dist/ubi10/10/aarch64/baseos/source/SRPMS/Packages/e/expat-2.7.3-1.el10_2.3.src.rpm
     repoid: ubi-10-for-aarch64-baseos-source-rpms
-    size: 859745
-    checksum: sha256:5e62cde4dc80da8eecab55080c2b2c6ed5d7055ac1b7bef1007deacaa50d6526
+    size: 874521
+    checksum: sha256:0e374c836935a7e07de43136299688b3bb172bce5a85754f923c57c36168ee26
     name: expat
-    evr: 2.7.3-1.el10_2.1
+    evr: 2.7.3-1.el10_2.3
   - url: https://cdn-ubi.redhat.com/content/public/ubi/dist/ubi10/10/aarch64/baseos/source/SRPMS/Packages/g/gcc-14.3.1-4.4.el10.src.rpm
     repoid: ubi-10-for-aarch64-baseos-source-rpms
     size: 93249736
@@ -1504,13 +1504,13 @@ arches:
     name: glibc-devel
     evr: 2.39-128.el10_2
     sourcerpm: glibc-2.39-128.el10_2.src.rpm
-  - url: https://cdn-ubi.redhat.com/content/public/ubi/dist/ubi10/10/x86_64/appstream/os/Packages/k/kernel-headers-6.12.0-211.51.1.el10_2.x86_64.rpm
+  - url: https://cdn-ubi.redhat.com/content/public/ubi/dist/ubi10/10/x86_64/appstream/os/Packages/k/kernel-headers-6.12.0-211.52.1.el10_2.x86_64.rpm
     repoid: ubi-10-for-x86_64-appstream-rpms
-    size: 3709621
-    checksum: sha256:5b5026365d898e6c41330fb31e77f70deaed8f60d8706fedfc53dbf9902ce8c2
+    size: 3713393
+    checksum: sha256:d6fd1a71df1f70d034b27b71c48500173739199f8324068aced3c70ab19f6479
     name: kernel-headers
-    evr: 6.12.0-211.51.1.el10_2
-    sourcerpm: kernel-6.12.0-211.51.1.el10_2.src.rpm
+    evr: 6.12.0-211.52.1.el10_2
+    sourcerpm: kernel-6.12.0-211.52.1.el10_2.src.rpm
   - url: https://cdn-ubi.redhat.com/content/public/ubi/dist/ubi10/10/x86_64/appstream/os/Packages/k/keyutils-libs-devel-1.6.3-5.el10.x86_64.rpm
     repoid: ubi-10-for-x86_64-appstream-rpms
     size: 66541
@@ -2155,13 +2155,13 @@ arches:
     name: elfutils-libs
     evr: 0.194-2.el10_2
     sourcerpm: elfutils-0.194-2.el10_2.src.rpm
-  - url: https://cdn-ubi.redhat.com/content/public/ubi/dist/ubi10/10/x86_64/baseos/os/Packages/e/expat-2.7.3-1.el10_2.1.x86_64.rpm
+  - url: https://cdn-ubi.redhat.com/content/public/ubi/dist/ubi10/10/x86_64/baseos/os/Packages/e/expat-2.7.3-1.el10_2.3.x86_64.rpm
     repoid: ubi-10-for-x86_64-baseos-rpms
-    size: 129412
-    checksum: sha256:77280b9f04b396003ad79ad918f164c8f05ac55998ba9663906045ada679ce5b
+    size: 130336
+    checksum: sha256:2f0c525858f8a52069796979aff0d064d81225641f00de54eb40e5eacf211735
     name: expat
-    evr: 2.7.3-1.el10_2.1
-    sourcerpm: expat-2.7.3-1.el10_2.1.src.rpm
+    evr: 2.7.3-1.el10_2.3
+    sourcerpm: expat-2.7.3-1.el10_2.3.src.rpm
   - url: https://cdn-ubi.redhat.com/content/public/ubi/dist/ubi10/10/x86_64/baseos/os/Packages/g/gdbm-1.23-12.el10_0.x86_64.rpm
     repoid: ubi-10-for-x86_64-baseos-rpms
     size: 159273
@@ -2664,12 +2664,12 @@ arches:
     checksum: sha256:c00334fd7c0a0b607a5baa3b2badf0d49d254b9417ace5401418680ad8012f27
     name: elfutils
     evr: 0.194-2.el10_2
-  - url: https://cdn-ubi.redhat.com/content/public/ubi/dist/ubi10/10/x86_64/baseos/source/SRPMS/Packages/e/expat-2.7.3-1.el10_2.1.src.rpm
+  - url: https://cdn-ubi.redhat.com/content/public/ubi/dist/ubi10/10/x86_64/baseos/source/SRPMS/Packages/e/expat-2.7.3-1.el10_2.3.src.rpm
     repoid: ubi-10-for-x86_64-baseos-source-rpms
-    size: 859745
-    checksum: sha256:5e62cde4dc80da8eecab55080c2b2c6ed5d7055ac1b7bef1007deacaa50d6526
+    size: 874521
+    checksum: sha256:0e374c836935a7e07de43136299688b3bb172bce5a85754f923c57c36168ee26
     name: expat
-    evr: 2.7.3-1.el10_2.1
+    evr: 2.7.3-1.el10_2.3
   - url: https://cdn-ubi.redhat.com/content/public/ubi/dist/ubi10/10/x86_64/baseos/source/SRPMS/Packages/g/gcc-14.3.1-4.4.el10.src.rpm
     repoid: ubi-10-for-x86_64-baseos-source-rpms
     size: 93249736
