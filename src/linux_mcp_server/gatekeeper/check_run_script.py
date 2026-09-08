@@ -247,7 +247,8 @@ async def check_run_script(
                     GatekeeperResult(
                         status=GatekeeperStatus.MALICIOUS,
                         detail=f"{field} contains prompt delimiter '{pattern}'",
-                    ), GatekeeperStats()
+                    ),
+                    GatekeeperStats(),
                 )
 
     prompt = PROMPT.format(
