@@ -32,9 +32,9 @@ attrs==26.1.0 \
     #   jsonschema
     #   jsonschema-path
     #   referencing
-authlib==1.7.2 \
-    --hash=sha256:2cea25fefcd4e7173bdf1372c0afc265c8034b23a8cd5dcb6a9164b826c64231 \
-    --hash=sha256:3e1faedc9d87e7d56a164eca3ccb6ace0d61b94abe83e92242f8dc8bba9b4a9f
+authlib==1.8.0 \
+    --hash=sha256:88aebbd9af6757e14e912d5dc007ae1dc1f3e27e3b2152ce7c552ee2c3b3c121 \
+    --hash=sha256:f3ecd5f1da737262fb53bf1a4d95c4ea1ad9dd509316587a255c99ab1838a4f0
     # via fastmcp-slim
     # via jaraco-context
 bcrypt==5.0.0 \
@@ -106,9 +106,9 @@ beartype==0.22.9 \
     --hash=sha256:8f82b54aa723a2848a56008d18875f91c1db02c32ef6a62319a002e3e25a975f \
     --hash=sha256:d16c9bbc61ea14637596c5f6fbff2ee99cbe3573e46a716401734ef50c3060c2
     # via py-key-value-aio
-cachetools==7.1.7 \
-    --hash=sha256:a3e2a00b14d8f8a6b70c1dae7b4685e7ad3bc965c5b42124a2d6ce895da6cf50 \
-    --hash=sha256:ef98ef375ad188819ef2f9b3645e3987f4b8c5b7550e436ad998c2de78296df0
+cachetools==7.1.8 \
+    --hash=sha256:1221d547a0b24b7f26fa891d40d488b5258beab9aebd8ed68c729be3af849c43 \
+    --hash=sha256:a81e3844acaa7355b6567f97bd67a94a14ec3a9bc2cbbdae45b9592cc036775b
     # via py-key-value-aio
     # via aiofile
 caio==0.12.2 ; python_full_version >= '3.11' \
@@ -424,9 +424,9 @@ jeepney==0.9.0 ; sys_platform == 'linux' \
     # via
     #   keyring
     #   secretstorage
-joserfc==1.7.4 \
-    --hash=sha256:32d46c2cd5e3203c13e87a6c61333cab310b1ba80cd54b4c4f386a848a122463 \
-    --hash=sha256:b3bc561672ae541b17a9237053b48a03dacddd92d68047b3ecdfb4b5714a88ed
+joserfc==1.7.5 \
+    --hash=sha256:add2c2c84e8373b084d526a8b53daba5d7a513a118cd2dcd9fc9f979d0922159 \
+    --hash=sha256:d5ff536e658e17664f8c1b1ab60dc4aa62aa973fcef1edd33cc44bda45d6f5ea
     # via
     #   authlib
     #   fastmcp-slim
@@ -484,9 +484,9 @@ pathable==0.6.0 \
     --hash=sha256:6404b8b82aef5ff0fd478934137128b99b12212ba35afdde5525ca4f8388ea58 \
     --hash=sha256:82c4ca6c98c502ad12e0d4e9779b6210afee93c38990988c8c5d1b49bdcdf566
     # via jsonschema-path
-platformdirs==4.11.5 \
-    --hash=sha256:89f8d42695853b89c7170bd49bc3dc593f98a71e695ede88e06a3b247bc4563b \
-    --hash=sha256:e8b31f4f8bcbbedef91a6b57a706255e4f148d2a4e01648382a0a47342539173
+platformdirs==4.11.7 \
+    --hash=sha256:4f41487eeeeeb07f3a6625e61d9bc0ae6809f92d3386dbd74392fbb76108104d \
+    --hash=sha256:8a02cb259042c79d1cd0450facc2fe6dc9d303ae7901afbe33bf8ea0b188cef6
     # via fastmcp-slim
 py-key-value-aio==0.4.5 \
     --hash=sha256:ab862adbcb8c72547d1c57821f22cbbb71ab86509039c96f36e914e0336c8dd7 \
