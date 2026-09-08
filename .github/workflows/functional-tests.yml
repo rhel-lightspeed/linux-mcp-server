@@ -4,10 +4,18 @@ on:
   push:
     branches:
       - main
+    paths-ignore:
+      - ".tekton/**"
+      - "docs/**"
+      - "eval/**"
   pull_request_target:
     types: [opened, synchronize, labeled]
     branches:
       - main
+    paths-ignore:
+      - ".tekton/**"
+      - "docs/**"
+      - "eval/**"
   workflow_dispatch:
 
 permissions:
