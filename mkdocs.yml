@@ -67,6 +67,7 @@ nav:
       - Security Best Practices: security.md
       - Architecture: architecture.md
       - Debug Logging: debugging.md
+      - Configuring Keycloak: keycloak.md
   - Tools:
       - System Information: tools/system-information.md
       - Services: tools/services.md

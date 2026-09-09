@@ -113,6 +113,7 @@ Setting up and configuring an authorization server is largely outside the scope 
 If you don't already have one configured for your organization
 or need to set up a dedicated authorization server for testing,
 [Keycloak](https://www.keycloak.org) is a flexible open-source choice.
+See the [Keycloak Configuration](keycloak.md) guide for step-by-step setup instructions.
 
 When configuring an authorization server,
 we need to configure a provider and set specific fields for that provider.
