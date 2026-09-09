@@ -1,6 +1,11 @@
 {
   "$schema": "https://docs.renovatebot.com/renovate-schema.json",
   "extends": ["github>rhel-lightspeed/renovate-config"],
+  "rpm-lockfile": {
+    "lockFileMaintenance": {
+      "branchTopic": "rpm-lockfile-refresh"
+    }
+  },
   "pip-compile": {
     "enabled": true
   },
