@@ -1504,13 +1504,13 @@ arches:
     name: glibc-devel
     evr: 2.39-128.el10_2
     sourcerpm: glibc-2.39-128.el10_2.src.rpm
-  - url: https://cdn-ubi.redhat.com/content/public/ubi/dist/ubi10/10/x86_64/appstream/os/Packages/k/kernel-headers-6.12.0-211.52.1.el10_2.x86_64.rpm
+  - url: https://cdn-ubi.redhat.com/content/public/ubi/dist/ubi10/10/x86_64/appstream/os/Packages/k/kernel-headers-6.12.0-211.53.1.el10_2.x86_64.rpm
     repoid: ubi-10-for-x86_64-appstream-rpms
-    size: 3713393
-    checksum: sha256:d6fd1a71df1f70d034b27b71c48500173739199f8324068aced3c70ab19f6479
+    size: 3717961
+    checksum: sha256:2e5e1e96c39d2886b554ab812b0fc52f9aa29d31a07ec9936f0ddeaddf2a6aab
     name: kernel-headers
-    evr: 6.12.0-211.52.1.el10_2
-    sourcerpm: kernel-6.12.0-211.52.1.el10_2.src.rpm
+    evr: 6.12.0-211.53.1.el10_2
+    sourcerpm: kernel-6.12.0-211.53.1.el10_2.src.rpm
   - url: https://cdn-ubi.redhat.com/content/public/ubi/dist/ubi10/10/x86_64/appstream/os/Packages/k/keyutils-libs-devel-1.6.3-5.el10.x86_64.rpm
     repoid: ubi-10-for-x86_64-appstream-rpms
     size: 66541
