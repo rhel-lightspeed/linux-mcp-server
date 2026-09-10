@@ -4,62 +4,7 @@ This module provides functions to format parsed data into
 human-readable strings for tool output.
 """
 
-from linux_mcp_server.models import ListeningPort
-from linux_mcp_server.models import NetworkConnection
-from linux_mcp_server.models import NetworkInterface
 from linux_mcp_server.models import ProcessInfo
-from linux_mcp_server.utils import format_bytes
-
-
-def format_network_connections(
-    connections: list[NetworkConnection],
-    header: str = "=== Active Network Connections ===\n",
-) -> str:
-    """Format network connections into a readable string.
-
-    Args:
-        connections: List of NetworkConnection objects.
-        header: Header text for the output.
-
-    Returns:
-        Formatted string representation.
-    """
-    lines = [header]
-    lines.append(f"{'Proto':<8} {'Local Address':<30} {'Remote Address':<30} {'Status':<15} {'PID/Program'}")
-    lines.append("-" * 110)
-
-    for conn in connections:
-        local = f"{conn.local_address}:{conn.local_port}"
-        remote = f"{conn.remote_address}:{conn.remote_port}" if conn.remote_address else "N/A"
-        lines.append(f"{conn.protocol:<8} {local:<30} {remote:<30} {conn.state:<15} {conn.process}")
-
-    lines.append(f"\n\nTotal connections: {len(connections)}")
-    return "\n".join(lines)
-
-
-def format_listening_ports(
-    ports: list[ListeningPort],
-    header: str = "=== Listening Ports ===\n",
-) -> str:
-    """Format listening ports into a readable string.
-
-    Args:
-        ports: List of ListeningPort objects.
-        header: Header text for the output.
-
-    Returns:
-        Formatted string representation.
-    """
-    lines = [header]
-    lines.append(f"{'Proto':<8} {'Local Address':<30} {'Status':<15} {'PID/Program'}")
-    lines.append("-" * 80)
-
-    for port in ports:
-        local = f"{port.local_address}:{port.local_port}"
-        lines.append(f"{port.protocol:<8} {local:<30} {'LISTEN':<15} {port.process}")
-
-    lines.append(f"\n\nTotal listening ports: {len(ports)}")
-    return "\n".join(lines)
 
 
 def format_process_list(
@@ -101,41 +46,6 @@ def format_process_list(
     lines.append(f"\n\nTotal processes: {len(processes)}")
     if max_display is not None and len(processes) > max_display:
         lines.append(f"Showing: First {max_display} processes")
-
-    return "\n".join(lines)
-
-
-def format_network_interfaces(
-    interfaces: dict[str, NetworkInterface],
-    stats: dict[str, NetworkInterface] | None = None,
-) -> str:
-    """Format network interface information into a readable string.
-
-    Args:
-        interfaces: Dictionary of interface name to NetworkInterface objects.
-        stats: Optional dictionary of interface statistics.
-
-    Returns:
-        Formatted string representation.
-    """
-    lines = ["=== Network Interfaces ===\n"]
-
-    for name, iface in sorted(interfaces.items()):
-        lines.append(f"\n{name}:")
-        if iface.status:
-            lines.append(f"  Status: {iface.status}")
-        for addr in iface.addresses:
-            lines.append(f"  Address: {addr}")
-
-        # Add stats if available
-        if stats and name in stats:
-            stat = stats[name]
-            lines.append(f"  RX: {format_bytes(stat.rx_bytes)} ({stat.rx_packets} packets)")
-            lines.append(f"  TX: {format_bytes(stat.tx_bytes)} ({stat.tx_packets} packets)")
-            if stat.rx_errors or stat.tx_errors:
-                lines.append(f"  Errors: RX={stat.rx_errors}, TX={stat.tx_errors}")
-            if stat.rx_dropped or stat.tx_dropped:
-                lines.append(f"  Dropped: RX={stat.rx_dropped}, TX={stat.tx_dropped}")
 
     return "\n".join(lines)
 

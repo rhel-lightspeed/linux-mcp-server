@@ -14,10 +14,13 @@ async def test_network_interfaces(mcp_session):
 
     actual_network_interfaces = shell("ip -j a", silent=True).stdout.strip()
     interfaces = json.loads(actual_network_interfaces)
+    content = response.structured_content["result"]
+    assert content is not None
+
+    content_by_name = {iface["name"]: iface for iface in content}
+
     for iface in interfaces:
         if iface["link_type"] == "loopback":
-            # Skip the loopback as it has different attributes
-            # (I did not want to parse them now)
             continue
         name = iface["ifname"]
         status = iface["operstate"]
@@ -30,7 +33,8 @@ async def test_network_interfaces(mcp_session):
                     addresses.append(f"{addr['local']}/{addr['prefixlen']}")
 
         assert addresses, f"No addresses found for interface {name}"
-        matching_string = f"{name}:\n  Status: {status}\n"
-        matching_string += "\n".join(f"  Address: {address}" for address in addresses)
-
-        assert matching_string in response.content[0].text
+        assert name in content_by_name, f"Interface {name} not found in structured output"
+        result_iface = content_by_name[name]
+        assert result_iface["status"] == status
+        for address in addresses:
+            assert address in result_iface["addresses"]
