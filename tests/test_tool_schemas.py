@@ -21,6 +21,8 @@ class TestToolSchemaExamples:
             ("list_directories", "path"),
             ("list_files", "path"),
             ("read_file", "path"),
+            ("list_pcp_metrics", "search_keyword"),
+            ("query_pcp_metrics", "metrics"),
         ],
     )
     async def test_parameter_has_examples(self, tool_name: str, param_name: str) -> None:
