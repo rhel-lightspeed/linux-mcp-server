@@ -9,9 +9,9 @@ annotated-types==0.8.0 \
     --hash=sha256:13b2beaad985e05e2d6407ee4c4f35590b11f8d693a258a561055cac8f64cab7 \
     --hash=sha256:f072f4d804ea359e4eaf198b1af7a8b0943881a87f31bb764f8bf219bb9419e0
     # via pydantic
-anyio==4.14.2 \
-    --hash=sha256:9f505dda5ac9f0c8309b5e8bd445a8c2bf7246f3ce950121e45ea15bc41d1494 \
-    --hash=sha256:cfa139f3ed1a23ee8f88a145ddb5ac7605b8bbfd8592baacd7ce3d8bb4313c7f
+anyio==4.15.1 \
+    --hash=sha256:6152fdbbf9a77fdec97731721bebf7c4c44f7c29b424b0065826173efc7ed101 \
+    --hash=sha256:9f28306018cbd6d329e64a36d58256edff76dd996fe423bc957326e578b82a94
     # via
     #   httpx
     #   mcp
@@ -312,9 +312,9 @@ cryptography==50.0.1 \
     #   joserfc
     #   pyjwt
     #   secretstorage
-cyclopts==4.23.3 \
-    --hash=sha256:4299ec47f5be853f9a114fcc534c84d42bbf19fefa303994597ecb7e5fd3082b \
-    --hash=sha256:b3a65872942afb08f3ab5ca3d65b0b3ecfc872c9ccbea9d6a74ec11aa8a0215e
+cyclopts==4.25.0 \
+    --hash=sha256:251e6120d1baf4504ef0e74c0fa96837793898393870784dcaa77957adcde41d \
+    --hash=sha256:fc718173321964a34a37e3a1eef09080b2f30cd59a8cc0f860d5dc9123efdb15
     # via fastmcp-slim
 decorator==5.3.1 \
     --hash=sha256:4cbcdd55a6efadb9dbea26b858f4fb3264567b52d69ca0d25b721b553f60ea82 \
@@ -350,13 +350,13 @@ fastmcp-slim==3.4.7 \
     --hash=sha256:06b32a358320a7dc2b2ee040ba89ea55ddc20763dff2949f384f7974b13b5d8f \
     --hash=sha256:6c931a0089705f3f2935428ef9b2bc74ad94140adc64aab84d116d103e694b3a
     # via fastmcp
-google-auth==2.57.0 \
-    --hash=sha256:180dafe015cfb62193bea26b677500fab5b9fd51a1e825ebf3ad9b182047ae59 \
-    --hash=sha256:9b4f96d6a1feb5f7201231f47cfb3de08d8f176f8a61f9e461555116e95a8789
+google-auth==2.57.1 \
+    --hash=sha256:ab439dee60a6856412bc058f13a68eb6a59c5b81526bb89cfdcf89ce9c0a48c9 \
+    --hash=sha256:eb47b230fc6707eed4aee1c9cef55ec05bc1785eecba74ff8b572d531e921b1e
     # via linux-mcp-server
-griffelib==2.2.0 \
-    --hash=sha256:d71c3bc2bbed9f958488634fe788b843a9f705d6d2838ca32cd6c25eeb64dfc4 \
-    --hash=sha256:e1bc36fe9cd21d4b6b659b456346755e4cfdc5676c0a5214083126ee12612b3c
+griffelib==2.3.0 \
+    --hash=sha256:1b8f9cd525681c26b1d6d574faa1371651e8459ca51d209684f50b8096ae06e0 \
+    --hash=sha256:7b0952caf5bca6afa4bb5ee8c6a2d183fe3f21b62efc5f6c7243cb2b26d2d115
     # via fastmcp-slim
 gssapi==1.12.0 \
     --hash=sha256:06f3363a5d201cf328e4964e491c37b0777636d67ef19549bbb96792b7293dca \
@@ -870,9 +870,9 @@ sortedcontainers==2.4.0 \
     --hash=sha256:25caa5a06cc30b6b83d11423433f65d1f9d76c4c6a0c90e3379eaa43b9bfdb88 \
     --hash=sha256:a163dcaede0f1c021485e957a39245190e74249897e2ae4b2aa38595db237ee0
     # via fakeredis
-sse-starlette==3.4.8 \
-    --hash=sha256:6e82314c786709a3cd9520f2285cf9fff90e181e598e8a357b0cf80f66afba0d \
-    --hash=sha256:ed89ffbb75cbf78a5fe2f2109cd584792ee7f9dfac96f791db546df8f15f3f9c
+sse-starlette==3.4.11 \
+    --hash=sha256:1bae716c02f3e6f294be41ff333220692dae7c3cbab077c900f159676719dade \
+    --hash=sha256:c7b2244bdff016fe7f64e10075e89a3e6bbf899649cc89b0fe884b5545042453
     # via mcp
 starlette==1.6.0 \
     --hash=sha256:a86dd39d14bb45f85a3d18525215a9ef0cfd1f192ac793220e72598c90335f0c \
