@@ -36,7 +36,7 @@ The Linux MCP Server uses SSH to execute commands on remote Linux systems. This 
 
 ## Specifying Remote Hosts
 
-When using MCP tools, the `host` parameter may be a fully qualified domain name (FQDN), an alias from `~/.ssh/config`, or an IP address.
+Every MCP tool takes a required `host` parameter. Pass `localhost` to run on the system the MCP server runs on; any other value is connected to over SSH and may be a fully qualified domain name (FQDN), an alias from `~/.ssh/config`, or an IP address.
 
 ## Per-Host Configuration
 

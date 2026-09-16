@@ -20,7 +20,7 @@ class TestGetNetworkInterfaces:
         ("host", "responses", "expected_interfaces"),
         [
             pytest.param(
-                None,
+                "localhost",
                 [
                     (
                         0,
@@ -64,7 +64,7 @@ class TestGetNetworkInterfaces:
             (1, "", "Command failed"),
         ]
 
-        result = await mcp_client.call_tool("get_network_interfaces")
+        result = await mcp_client.call_tool("get_network_interfaces", {"host": "localhost"})
         result_text = result.content[0].text.casefold()
 
         assert "network interfaces" in result_text
@@ -77,7 +77,7 @@ class TestGetNetworkInterfaces:
             (1, "", "Command failed"),
         ]
 
-        result = await mcp_client.call_tool("get_network_interfaces")
+        result = await mcp_client.call_tool("get_network_interfaces", {"host": "localhost"})
         result_text = result.content[0].text.casefold()
 
         assert "network interfaces" in result_text
@@ -88,7 +88,7 @@ class TestGetNetworkInterfaces:
         match = re.compile(r"error calling tool.*raised intentionally", flags=re.I)
 
         with pytest.raises(ToolError, match=match):
-            await mcp_client.call_tool("get_network_interfaces")
+            await mcp_client.call_tool("get_network_interfaces", {"host": "localhost"})
 
 
 class TestGetNetworkConnections:
@@ -98,7 +98,7 @@ class TestGetNetworkConnections:
         ("host", "mock_output", "expected_content"),
         [
             pytest.param(
-                None,
+                "localhost",
                 """Netid  State      Recv-Q Send-Q Local Address:Port   Peer Address:Port
 tcp    ESTAB      0      0      192.168.1.100:22     192.168.1.1:54321
 tcp    LISTEN     0      128    0.0.0.0:80           0.0.0.0:*""",
@@ -135,7 +135,7 @@ tcp    ESTAB      0      0      10.0.0.5:443         10.0.0.1:12345""",
     async def test_get_network_connections_failure(self, mcp_client, mock_execute, return_value):
         """Test getting network connections when command fails or returns empty."""
         mock_execute.return_value = return_value
-        result = await mcp_client.call_tool("get_network_connections")
+        result = await mcp_client.call_tool("get_network_connections", {"host": "localhost"})
         result_text = result.content[0].text.casefold()
         expected = (
             "error",
@@ -148,7 +148,7 @@ tcp    ESTAB      0      0      10.0.0.5:443         10.0.0.1:12345""",
         mock_execute.side_effect = ValueError("Raised intentionally")
         match = re.compile(r"error calling tool.*raised intentionally", flags=re.I)
         with pytest.raises(ToolError, match=match):
-            await mcp_client.call_tool("get_network_connections")
+            await mcp_client.call_tool("get_network_connections", {"host": "localhost"})
 
 
 class TestGetListeningPorts:
@@ -158,7 +158,7 @@ class TestGetListeningPorts:
         ("host", "mock_output", "expected_content"),
         [
             pytest.param(
-                None,
+                "localhost",
                 """Netid  State      Recv-Q Send-Q Local Address:Port   Peer Address:Port
 tcp    LISTEN     0      128    0.0.0.0:80           0.0.0.0:*
 udp    UNCONN     0      0      0.0.0.0:53           0.0.0.0:*""",
@@ -194,7 +194,7 @@ tcp    LISTEN     0      128    0.0.0.0:22           0.0.0.0:*""",
     async def test_get_listening_ports_failure(self, mcp_client, mock_execute, return_value):
         """Test getting listening ports when command fails or returns empty."""
         mock_execute.return_value = return_value
-        result = await mcp_client.call_tool("get_listening_ports")
+        result = await mcp_client.call_tool("get_listening_ports", {"host": "localhost"})
         result_text = result.content[0].text.casefold()
         expected_content = (
             "error",
@@ -210,4 +210,4 @@ tcp    LISTEN     0      128    0.0.0.0:22           0.0.0.0:*""",
         mock_execute.side_effect = ValueError("Raised intentionally")
         match = re.compile(r"error calling tool.*raised intentionally", flags=re.I)
         with pytest.raises(ToolError, match=match):
-            await mcp_client.call_tool("get_listening_ports")
+            await mcp_client.call_tool("get_listening_ports", {"host": "localhost"})

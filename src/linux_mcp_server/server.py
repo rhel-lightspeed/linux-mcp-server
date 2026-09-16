@@ -33,8 +33,10 @@ from linux_mcp_server.mcp_app import hide_app_tools_for_client
 from linux_mcp_server.mcp_app import MCP_APP_MIME_TYPE
 from linux_mcp_server.mcp_app import RUN_SCRIPT_APP_URI
 from linux_mcp_server.mcp_app import use_mcp_app_for_client
+from linux_mcp_server.target_host import resolve_target_host
 from linux_mcp_server.toolset import get_toolset
 from linux_mcp_server.toolset import Toolset as ToolsetInfo
+from linux_mcp_server.utils.types import LOCALHOST
 
 
 def monkeypatch_fastmcp_for_app_visibility():
@@ -68,8 +70,7 @@ These tools map to six areas:
 
 ## Behavior
 
-- **Remote execution:** Every tool accepts an optional `host` argument. When set, the work runs on that host over SSH instead of locally.
-- **Containers:** If the `container` environment variable is set, tools refuse to run locally; a remote `host` must be used.
+- **Target host:** Every tool requires a `host` argument: `localhost` runs the work on the system the MCP server runs on, any other value runs it on that host over SSH.
 - **Read-only vs destructive:** All tools are marked read-only. Do not expect to be able to modify the system.
 - **Log file access:** requires explicit allowlist configuration via LINUX_MCP_ALLOWED_LOG_PATHS
 - **Service names:** automatically append '.service' suffix if not provided
@@ -105,8 +106,7 @@ You must validate a script before it will be allowed to run.
 
 ## Behavior
 
-- **Remote execution:** Every tool accepts an optional `host` argument. When set, the work runs on that host over SSH instead of locally.
-- **Containers:** If the `container` environment variable is set, tools refuse to run locally; a remote `host` must be used.
+- **Target host:** Every tool requires a `host` argument: `localhost` runs the work on the system the MCP server runs on, any other value runs it on that host over SSH.
 - **Log file access:** requires explicit allowlist configuration via LINUX_MCP_ALLOWED_LOG_PATHS
 - **Service names:** automatically append '.service' suffix if not provided
 - **File paths:** must be absolute
@@ -151,8 +151,7 @@ These tools map to six areas:
 
 ## Behavior
 
-- **Remote execution:** Every tool accepts an optional `host` argument. When set, the work runs on that host over SSH instead of locally.
-- **Containers:** If the `container` environment variable is set, tools refuse to run locally; a remote `host` must be used.
+- **Target host:** Every tool requires a `host` argument: `localhost` runs the work on the system the MCP server runs on, any other value runs it on that host over SSH.
 - **Log file access:** requires explicit allowlist configuration via LINUX_MCP_ALLOWED_LOG_PATHS
 - **Service names:** automatically append '.service' suffix if not provided
 - **File paths:** must be absolute
@@ -244,7 +243,6 @@ class AuthorizationMiddleware(Middleware):
     async def on_call_tool(self, context: MiddlewareContext, call_next):
         # Extract tool metadata
         tool_args = context.message.arguments or {}
-        target_host = tool_args.get("host")
 
         assert context.fastmcp_context
 
@@ -252,6 +250,8 @@ class AuthorizationMiddleware(Middleware):
         if tool is None or not ComponentFilter.get(context.fastmcp_context).includes(tool):
             logger.error(f"Tool not found: '{context.message.name}'")
             raise NotFoundError(f"Tool not found: '{context.message.name}'")
+
+        target_host = resolve_target_host(tool, tool_args)
 
         # For stdio without policy configured, allow everything
         if CONFIG.transport == Transport.stdio and CONFIG.policy_path is None:
@@ -269,13 +269,13 @@ class AuthorizationMiddleware(Middleware):
         email = claims.get("email", "unauthenticated")
 
         # Log authorization attempt
-        log_level(f"Tool call: {tool.name}, Host: {target_host or 'local'}, User: {email}")
+        log_level(f"Tool call: {tool.name}, Host: {target_host}, User: {email}")
 
         # Evaluate policy by tool, host and claims matching
         action, ssh_key_config = evaluate_policy(tool, target_host, claims)
 
         # Validate that action matches execution mode (should be prevented by policy validation)
-        is_local_execution = not target_host
+        is_local_execution = target_host == LOCALHOST
 
         # Block local execution with SSH action (should be prevented by policy validation)
         if is_local_execution and action in [PolicyAction.SSH_KEY, PolicyAction.SSH_DEFAULT]:
@@ -288,11 +288,11 @@ class AuthorizationMiddleware(Middleware):
             raise RuntimeError(f"Policy validation error: Cannot use local action for remote host '{target_host}'. ")
 
         if action == PolicyAction.DENY:
-            logger.warning(f"Authorization denied: tool={tool.name}, host={target_host or 'local'}, user={email}")
-            raise ValueError(f"Authorization denied: tool '{tool.name}' on host '{target_host or 'local'}'")
+            logger.warning(f"Authorization denied: tool={tool.name}, host={target_host}, user={email}")
+            raise ValueError(f"Authorization denied: tool '{tool.name}' on host '{target_host}'")
 
         # Log the authorized action
-        log_level(f"Authorized: tool={tool.name}, host={target_host or 'local'}, action={action.value}, user={email}")
+        log_level(f"Authorized: tool={tool.name}, host={target_host}, action={action.value}, user={email}")
 
         # Build ExecutionContext based on policy action
         match action:

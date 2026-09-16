@@ -102,10 +102,18 @@ def auto_log_test_boundaries(request):
 
 # 1. Define a Wrapper Class for logging the MCP session calls
 class LoggingMCPSession:
-    def __init__(self, original_session):
+    def __init__(self, original_session, target_host):
         self._session = original_session
+        self._target_host = target_host
 
     async def call_tool(self, name, arguments=None):
+        # Every tool requires a 'host'; fill in the system under test so each test
+        # only has to spell out the arguments it actually cares about. A test that
+        # wants a different host can still pass its own.
+        return await self.call_tool_exactly(name, {"host": self._target_host, **(arguments or {})})
+
+    async def call_tool_exactly(self, name, arguments=None):
+        """Call a tool with exactly these arguments, without filling in 'host'."""
         print(f"\n--- [AUTO-LOG] Calling tool: '{name}' with args: {arguments}")
 
         # Call the actual method
@@ -125,7 +133,7 @@ class LoggingMCPSession:
 # Wrap the MCP session to a fixture with logging enabled
 # scope="session" to have the MCP session enabled for all the tests with the same environment variables
 @pytest_asyncio.fixture(scope="session")
-async def mcp_session(request):
+async def mcp_session(request, target_host):
     # 1. Capture the parameters from the test
     # If no param is passed (non-parametrized test), default to None
     params = getattr(request, "param", None)
@@ -133,7 +141,7 @@ async def mcp_session(request):
     # 2. Create the actual session using the helper
     async with mcp_server_lifecycle(env_overrides=params) as raw_session:
         # 3. Wrap it immediately
-        logging_session = LoggingMCPSession(raw_session)
+        logging_session = LoggingMCPSession(raw_session, target_host)
 
         # 4. Yield the wrapper to the test
         yield logging_session
@@ -142,7 +150,8 @@ async def mcp_session(request):
 @pytest.fixture(scope="session")
 def client_hostname():
     """
-    This is for multihost execution. Returns the client hostname.
+    This is for multihost execution. Returns the client hostname, or None when
+    the server and the system under test are the same machine.
     """
     if os.getenv("MCP_TESTS_MULTIHOST", "").lower() == "true":
         path = shell("realpath $TMT_TOPOLOGY_YAML", silent=True).stdout.strip()
@@ -153,3 +162,12 @@ def client_hostname():
 
         return hostname
     return None
+
+
+@pytest.fixture(scope="session")
+def target_host(client_hostname):
+    """
+    The 'host' every tool call targets: the remote client under multihost
+    execution, otherwise the system the server itself runs on.
+    """
+    return client_hostname or "localhost"

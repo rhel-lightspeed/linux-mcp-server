@@ -6,6 +6,7 @@ from linux_mcp_server.connection.ssh import execute_command
 from linux_mcp_server.connection.ssh import SSHConnectionManager
 from linux_mcp_server.execution_context import ExecutionContext
 from linux_mcp_server.execution_context import use_execution_context
+from linux_mcp_server.utils.types import LOCALHOST
 
 
 @pytest.fixture
@@ -32,7 +33,7 @@ async def test_execute_command_local(command, kwargs, expected_rc, expected_out,
     context = ExecutionContext(allow_local=True)
 
     with use_execution_context(context):
-        returncode, stdout, stderr = await execute_command(command, **kwargs)
+        returncode, stdout, stderr = await execute_command(command, host=LOCALHOST, **kwargs)
 
     assert returncode == expected_rc
     assert expected_out in stdout
@@ -58,7 +59,7 @@ async def test_execute_command_remote(mock_connection_manager):
 async def test_execute_command_fails_without_context():
     """Test execute_command fails when no ExecutionContext is set."""
     with pytest.raises(RuntimeError, match="No execution context set"):
-        await execute_command(["echo", "test"])
+        await execute_command(["echo", "test"], host=LOCALHOST)
 
 
 async def test_local_execution_allowed():
@@ -66,7 +67,7 @@ async def test_local_execution_allowed():
     context = ExecutionContext(allow_local=True)
 
     with use_execution_context(context):
-        returncode, stdout, stderr = await execute_command(["echo", "test"])
+        returncode, stdout, stderr = await execute_command(["echo", "test"], host=LOCALHOST)
 
     assert returncode == 0
     assert isinstance(stdout, str)
@@ -79,7 +80,7 @@ async def test_local_execution_denied():
 
     with use_execution_context(context):
         with pytest.raises(RuntimeError, match="Local execution not allowed"):
-            await execute_command(["echo", "test"])
+            await execute_command(["echo", "test"], host=LOCALHOST)
 
 
 async def test_remote_execution_with_ssh_default_allowed(mock_connection_manager):

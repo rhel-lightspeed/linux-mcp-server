@@ -14,7 +14,9 @@ async def test_list_files(setup_test_paths, mcp_client, tmp_path):
     ]
     setup_test_paths(file_specs)
 
-    result = await mcp_client.call_tool("list_files", arguments={"path": str(tmp_path), "order_by": "name"})
+    result = await mcp_client.call_tool(
+        "list_files", arguments={"host": "localhost", "path": str(tmp_path), "order_by": "name"}
+    )
     content = result.structured_content
     names = [item["name"] for item in content["nodes"]]
 
@@ -30,7 +32,9 @@ async def test_list_files_by_name(setup_test_paths, mcp_client, tmp_path):
     ]
     setup_test_paths(file_specs)
 
-    result = await mcp_client.call_tool("list_files", arguments={"path": str(tmp_path), "order_by": "name"})
+    result = await mcp_client.call_tool(
+        "list_files", arguments={"host": "localhost", "path": str(tmp_path), "order_by": "name"}
+    )
     content = result.structured_content
     positions = {item["name"]: id for id, item in enumerate(content["nodes"])}
 
@@ -48,7 +52,9 @@ async def test_list_files_by_size(setup_test_paths, mcp_client, tmp_path):
         ("medium.txt", 200, 2000.0),
     ]
     setup_test_paths(file_specs)
-    result = await mcp_client.call_tool("list_files", arguments={"path": str(tmp_path), "order_by": "size"})
+    result = await mcp_client.call_tool(
+        "list_files", arguments={"host": "localhost", "path": str(tmp_path), "order_by": "size"}
+    )
     content = result.structured_content
     names = [item["name"] for item in content["nodes"]]
 
@@ -63,7 +69,9 @@ async def test_list_files_descending(setup_test_paths, mcp_client, tmp_path):
         ("gamma.txt", 300, 3000.0),
     ]
     setup_test_paths(file_specs)
-    result = await mcp_client.call_tool("list_files", arguments={"path": str(tmp_path), "sort": "descending"})
+    result = await mcp_client.call_tool(
+        "list_files", arguments={"host": "localhost", "path": str(tmp_path), "sort": "descending"}
+    )
     content = result.structured_content
     positions = {dir["name"]: id for id, dir in enumerate(content["nodes"])}
 
@@ -82,7 +90,9 @@ async def test_list_files_with_top_n(setup_test_paths, mcp_client, order, tmp_pa
         ("file3.txt", 300, 3000.0),
     ]
     setup_test_paths(file_specs)
-    result = await mcp_client.call_tool("list_files", arguments={"path": str(tmp_path), "order_by": order, "top_n": 2})
+    result = await mcp_client.call_tool(
+        "list_files", arguments={"host": "localhost", "path": str(tmp_path), "order_by": order, "top_n": 2}
+    )
     content = result.structured_content
 
     assert content["total"] == 2
@@ -93,7 +103,7 @@ async def test_list_files_nonexistent_path(tmp_path, mcp_client):
     nonexistent = tmp_path / "nonexistent"
 
     with pytest.raises(ToolError) as exc_info:
-        await mcp_client.call_tool("list_files", arguments={"path": str(nonexistent)})
+        await mcp_client.call_tool("list_files", arguments={"host": "localhost", "path": str(nonexistent)})
 
     assert "Error running command: command failed with return code 1" in str(exc_info.value)
 
