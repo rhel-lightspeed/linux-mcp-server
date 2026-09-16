@@ -72,15 +72,17 @@ MODULE_CATEGORIES: dict[str, tuple[int, str, str, str]] = {
 # Tags that indicate internal/hidden tools
 HIDDEN_TAGS = {"hidden_from_model"}
 
-# Parameters to skip (documented once in the page header)
-SKIP_PARAMS = {"host"}
-
 HOST_NOTE = textwrap.dedent("""\
-    !!! note "Remote execution"
-        All tools on this page accept an optional **`host`** parameter (string)
-        to execute the command on a remote machine via SSH instead of locally.
+    !!! note "Choosing where to run"
+        All tools on this page require a **`host`** parameter (string). Pass
+        `localhost` to run the command on the system the MCP server runs on, or
+        a remote machine to run it there via SSH.
         See [SSH Configuration](../ssh.md) for details.
 """)
+
+
+def takes_host(tool) -> bool:
+    return "host" in tool.parameters.get("properties", {})
 
 
 def resolve_ref(schema: dict, defs: dict) -> dict:
@@ -305,8 +307,12 @@ def format_return_schema(tool) -> list[str]:
     return lines
 
 
-def format_tool(tool) -> str:
-    """Format a single tool as markdown."""
+def format_tool(tool, skip_host: bool) -> str:
+    """Format a single tool as markdown.
+
+    ``skip_host`` omits the 'host' parameter, for pages whose header documents it
+    once for every tool.
+    """
     lines = []
 
     # Heading with tool name
@@ -340,7 +346,8 @@ def format_tool(tool) -> str:
     required = set(tool.parameters.get("required", []))
 
     # Filter out skipped params and resolve $refs
-    visible_params = {k: resolve_ref(v, defs) for k, v in params.items() if k not in SKIP_PARAMS}
+    skipped = {"host"} if skip_host else set()
+    visible_params = {k: resolve_ref(v, defs) for k, v in params.items() if k not in skipped}
 
     if visible_params:
         lines.append("**Parameters:**")
@@ -364,10 +371,15 @@ def generate_page(heading: str, description: str, tools: list) -> str:
     if description:
         lines.append(description)
         lines.append("")
-    lines.append(HOST_NOTE)
+    # Tools that run a previously validated script take their host from the stored
+    # script rather than a parameter, so only annotate the page when it applies to
+    # every tool on it; otherwise document 'host' per tool like any other parameter.
+    skip_host = all(takes_host(tool) for tool in tools)
+    if skip_host:
+        lines.append(HOST_NOTE)
 
     for tool in sorted(tools, key=lambda t: t.name):
-        lines.append(format_tool(tool))
+        lines.append(format_tool(tool, skip_host))
 
     return "\n".join(lines)
 

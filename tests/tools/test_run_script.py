@@ -86,13 +86,14 @@ class TestScriptStore:
         """Adding a script stores metadata, returns an ID, and state can be updated."""
         _stub_secrets_token(monkeypatch, "fixed-token-id")
         store = ScriptStore()
-        sid = store.add_script("desc", "print(1)", SCRIPT_TYPE_PYTHON, None, True)
+        sid = store.add_script("desc", "print(1)", SCRIPT_TYPE_PYTHON, "localhost", True)
         assert sid == "fixed-token-id"
         d = store.get_script_details(sid)
         assert d.state == "waiting-approval"
         assert d.description == "desc"
         assert d.script == "print(1)"
         assert d.script_type == SCRIPT_TYPE_PYTHON
+        assert d.host == "localhost"
         assert d.readonly is True
         store.set_script_state(sid, "executing")
         assert store.get_script_details(sid).state == "executing"
@@ -217,6 +218,7 @@ class TestValidateScriptMCP:
         result = await client.call_tool(
             "validate_script",
             {
+                "host": "localhost",
                 "description": "d",
                 "script_type": SCRIPT_TYPE_PYTHON,
                 "script": "print(1)",
@@ -245,6 +247,7 @@ class TestValidateScriptMCP:
             await client.call_tool(
                 "validate_script",
                 {
+                    "host": "localhost",
                     "description": "d",
                     "script_type": SCRIPT_TYPE_PYTHON,
                     "script": "print(1)",
@@ -266,6 +269,7 @@ class TestValidateScriptMCP:
         await client.call_tool(
             "validate_script",
             {
+                "host": "localhost",
                 "description": "d",
                 "script_type": SCRIPT_TYPE_BASH,
                 "script": "true",
@@ -284,6 +288,11 @@ class TestValidateScriptMCP:
 class TestRunScriptMCP:
     """``run_script`` (token only) via ``client``."""
 
+    async def test_unknown_token(self, client: Any, script_store_fresh: ScriptStore) -> None:
+        """A token with no stored script fails while the middleware looks for its host."""
+        with pytest.raises(ToolError, match="No validated script found"):
+            await client.call_tool("run_script", {"token": "nope"})
+
     async def test_command_wrapped(
         self,
         client: Any,
@@ -296,7 +305,7 @@ class TestRunScriptMCP:
             description="d",
             script="echo output",
             script_type=SCRIPT_TYPE_BASH,
-            host=None,
+            host="localhost",
             readonly=True,
         )
         patch_execute_command.return_value = (0, "output", "")
@@ -324,7 +333,7 @@ class TestRunScriptMCP:
             description="d",
             script="print(1)",
             script_type=SCRIPT_TYPE_PYTHON,
-            host=None,
+            host="localhost",
             readonly=True,
         )
         patch_execute_command.return_value = (0, "output", "")
@@ -345,7 +354,7 @@ class TestRunScriptMCP:
             description="d",
             script="x",
             script_type=SCRIPT_TYPE_PYTHON,
-            host=None,
+            host="localhost",
             readonly=True,
         )
         patch_execute_command.return_value = (0, "café".encode("utf-8"), "")
@@ -364,7 +373,7 @@ class TestRunScriptMCP:
             description="d",
             script="x",
             script_type=SCRIPT_TYPE_PYTHON,
-            host=None,
+            host="localhost",
             readonly=True,
         )
         patch_execute_command.return_value = (1, "", "err")
@@ -385,7 +394,7 @@ class TestRunScriptMCP:
             description="d",
             script="x",
             script_type=SCRIPT_TYPE_PYTHON,
-            host=None,
+            host="localhost",
             readonly=True,
         )
         patch_execute_command.side_effect = ValueError("nope")
@@ -405,7 +414,7 @@ class TestRunScriptMCP:
             description="d",
             script="rm -rf /",
             script_type=SCRIPT_TYPE_BASH,
-            host=None,
+            host="localhost",
             readonly=False,
         )
         with pytest.raises(ToolError, match="run_script_with_confirmation"):
@@ -429,7 +438,7 @@ class TestRunScriptWithConfirmationMCP:
             description="same",
             script="print(3)",
             script_type=SCRIPT_TYPE_PYTHON,
-            host=None,
+            host="localhost",
             readonly=False,
         )
         patch_execute_command.return_value = (0, "ran", "")
@@ -437,6 +446,7 @@ class TestRunScriptWithConfirmationMCP:
             await client.call_tool(
                 "run_script_with_confirmation",
                 {
+                    "host": "localhost",
                     "description": "same",
                     "script_type": SCRIPT_TYPE_PYTHON,
                     "script": "print(3)",
@@ -462,7 +472,7 @@ class TestRunScriptWithConfirmationMCP:
             description="same",
             script="print(3)",
             script_type=SCRIPT_TYPE_PYTHON,
-            host=None,
+            host="localhost",
             readonly=False,
         )
         patch_check_run_script.return_value = _ok()
@@ -471,6 +481,7 @@ class TestRunScriptWithConfirmationMCP:
             await client.call_tool(
                 "run_script_with_confirmation",
                 {
+                    "host": "localhost",
                     "description": "same",
                     "script_type": SCRIPT_TYPE_PYTHON,
                     "script": "print(99)",
@@ -505,7 +516,7 @@ class TestRunScriptWithConfirmationMCP:
             description="same",
             script="print(3)",
             script_type=SCRIPT_TYPE_PYTHON,
-            host=None,
+            host="localhost",
             readonly=False,
         )
         patch_check_run_script.return_value = GatekeeperResult(status=GatekeeperStatus.MALICIOUS, detail="x")
@@ -513,6 +524,7 @@ class TestRunScriptWithConfirmationMCP:
             await client.call_tool(
                 "run_script_with_confirmation",
                 {
+                    "host": "localhost",
                     "description": "same",
                     "script_type": SCRIPT_TYPE_PYTHON,
                     "script": "print(99)",
@@ -536,7 +548,7 @@ class TestRunScriptWithConfirmationMCP:
             description="same",
             script="print(1)",
             script_type=SCRIPT_TYPE_PYTHON,
-            host=None,
+            host="localhost",
             readonly=False,
         )
         patch_execute_command.return_value = (3, "", "stderr-here")
@@ -544,6 +556,7 @@ class TestRunScriptWithConfirmationMCP:
             await client.call_tool(
                 "run_script_with_confirmation",
                 {
+                    "host": "localhost",
                     "description": "same",
                     "script_type": SCRIPT_TYPE_PYTHON,
                     "script": "print(1)",
@@ -568,13 +581,14 @@ class TestRunScriptWithConfirmationMCP:
             description="d",
             script="true",
             script_type=SCRIPT_TYPE_BASH,
-            host=None,
+            host="localhost",
             readonly=True,
         )
         with pytest.raises(ToolError, match="run_script instead"):
             await client.call_tool(
                 "run_script_with_confirmation",
                 {
+                    "host": "localhost",
                     "description": "d",
                     "script_type": SCRIPT_TYPE_BASH,
                     "script": "true",
@@ -598,7 +612,7 @@ class TestRunScriptWithConfirmationMCP:
             description="same",
             script="print(1)",
             script_type=SCRIPT_TYPE_PYTHON,
-            host=None,
+            host="localhost",
             readonly=False,
         )
         raw = b"\xff\xfe"
@@ -607,6 +621,7 @@ class TestRunScriptWithConfirmationMCP:
             await client.call_tool(
                 "run_script_with_confirmation",
                 {
+                    "host": "localhost",
                     "description": "same",
                     "script_type": SCRIPT_TYPE_PYTHON,
                     "script": "print(1)",
@@ -633,12 +648,13 @@ class TestRunScriptInteractiveMCP:
             description="d",
             script="print(1)",
             script_type=SCRIPT_TYPE_PYTHON,
-            host=None,
+            host="localhost",
             readonly=False,
         )
         result = await app_client.call_tool(
             "run_script_interactive",
             {
+                "host": "localhost",
                 "description": "d",
                 "script_type": SCRIPT_TYPE_PYTHON,
                 "script": "print(1)",
@@ -663,7 +679,7 @@ class TestRunScriptInteractiveMCP:
             description="d",
             script="print(1)",
             script_type=SCRIPT_TYPE_PYTHON,
-            host=None,
+            host="localhost",
             readonly=False,
         )
         patch_check_run_script.return_value = _ok()
@@ -671,6 +687,7 @@ class TestRunScriptInteractiveMCP:
         result = await app_client.call_tool(
             "run_script_interactive",
             {
+                "host": "localhost",
                 "description": "d",
                 "script_type": SCRIPT_TYPE_PYTHON,
                 "script": "print(2)",
@@ -694,7 +711,7 @@ class TestRunScriptInteractiveMCP:
             description="d",
             script="print(1)",
             script_type=SCRIPT_TYPE_PYTHON,
-            host=None,
+            host="localhost",
             readonly=False,
         )
         patch_check_run_script.return_value = GatekeeperResult(status=GatekeeperStatus.DANGEROUS, detail="no")
@@ -702,6 +719,7 @@ class TestRunScriptInteractiveMCP:
             await app_client.call_tool(
                 "run_script_interactive",
                 {
+                    "host": "localhost",
                     "description": "d",
                     "script_type": SCRIPT_TYPE_PYTHON,
                     "script": "print(9)",
@@ -723,13 +741,14 @@ class TestRunScriptInteractiveMCP:
             description="d",
             script="true",
             script_type=SCRIPT_TYPE_BASH,
-            host=None,
+            host="localhost",
             readonly=True,
         )
         with pytest.raises(ToolError, match="run_script instead"):
             await app_client.call_tool(
                 "run_script_interactive",
                 {
+                    "host": "localhost",
                     "description": "d",
                     "script_type": SCRIPT_TYPE_BASH,
                     "script": "true",
@@ -755,7 +774,7 @@ class TestExecuteScriptMCP:
             description="d",
             script="print(1)",
             script_type=SCRIPT_TYPE_PYTHON,
-            host=None,
+            host="localhost",
             readonly=False,
         )
         patch_execute_command.return_value = (0, "out", "")
@@ -795,7 +814,7 @@ class TestExecuteScriptMCP:
             description="d",
             script="print(1)",
             script_type=SCRIPT_TYPE_PYTHON,
-            host=None,
+            host="localhost",
             readonly=False,
         )
         patch_execute_command.side_effect = OSError("boom")
@@ -818,7 +837,7 @@ class TestRejectAndGetExecutionStateMCP:
             description="d",
             script="x",
             script_type=SCRIPT_TYPE_PYTHON,
-            host=None,
+            host="localhost",
             readonly=True,
         )
         await app_client.call_tool("reject_script", {"id": "r"})

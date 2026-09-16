@@ -113,7 +113,9 @@ class TestLogToolCall:
     @pytest.mark.parametrize(
         ("params", "mode"),
         (
-            ({}, ExecutionMode.LOCAL),
+            # A tool with no 'host' parameter runs wherever its stored script says.
+            ({}, None),
+            ({"host": "localhost"}, ExecutionMode.LOCAL),
             ({"host": "server1.com", "username": "admin"}, ExecutionMode.REMOTE),
         ),
     )
@@ -127,12 +129,13 @@ class TestLogToolCall:
         assert Event.TOOL_CALL in caplog.text
         assert "list_services" in caplog.text
         assert caplog.records
-        assert getattr(record, "execution_mode") == mode
+        assert getattr(record, "execution_mode", None) == mode
 
     @pytest.mark.parametrize(
         ("params", "mode"),
         (
-            ({}, ExecutionMode.LOCAL),
+            ({}, None),
+            ({"host": "localhost"}, ExecutionMode.LOCAL),
             ({"host": "server1.com", "username": "admin"}, ExecutionMode.REMOTE),
         ),
     )

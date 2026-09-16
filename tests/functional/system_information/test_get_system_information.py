@@ -11,8 +11,7 @@ async def test_get_system_information(mcp_session, client_hostname):
     Verify the response contains the hostname, architecture, and kernel version
     corresponding to the actual system.
     """
-    arguments = {"host": client_hostname} if client_hostname else None
-    response = await mcp_session.call_tool("get_system_information", arguments=arguments)
+    response = await mcp_session.call_tool("get_system_information")
     assert response is not None
     data = json.loads(response.content[0].text)
 

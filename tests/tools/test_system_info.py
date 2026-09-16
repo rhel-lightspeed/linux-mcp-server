@@ -68,7 +68,7 @@ def create_mock_execute_side_effect(command_responses: dict[str, str | Exception
     ),
 )
 async def test_system_info_tools(tool, expected, mcp_client):
-    result = await mcp_client.call_tool(tool)
+    result = await mcp_client.call_tool(tool, {"host": "localhost"})
     result_text = result.content[0].text.casefold()
 
     assert all(any(n in result_text for n in case) for case in expected), "Did not find all expected values"
@@ -87,7 +87,7 @@ async def test_system_info_tools_unsuccessful(tool, error_message, mcp_client, m
     # These tools now raise ToolError when output is unsuccessful
     # The MCP client's raise_on_error=True (default) causes it to raise an exception
     with pytest.raises(exceptions.ToolError, match=error_message):
-        await mcp_client.call_tool(tool)
+        await mcp_client.call_tool(tool, {"host": "localhost"})
 
 
 @pytest.mark.parametrize(
@@ -100,7 +100,7 @@ async def test_system_info_tools_unsuccessful(tool, error_message, mcp_client, m
 async def test_system_info_tools_unsuccessful_empty(tool, mcp_client, mock_execute):
     mock_execute.return_value = (0, "", "")
 
-    result = await mcp_client.call_tool(tool)
+    result = await mcp_client.call_tool(tool, {"host": "localhost"})
 
     # These tools now return structured output (JSON), so check for structured content
     # When commands return empty output, the parsers return objects with default/empty values
@@ -119,7 +119,7 @@ async def test_system_info_tools_exception(tool, failing_command, mcp_client, mo
     mock_execute.side_effect = create_mock_execute_side_effect(command_responses)
 
     with pytest.raises(exceptions.ToolError, match="[Ee]rror"):
-        await mcp_client.call_tool(tool)
+        await mcp_client.call_tool(tool, {"host": "localhost"})
 
 
 async def test_get_memory_information_command_exception(mcp_client, mock_execute):
@@ -127,7 +127,7 @@ async def test_get_memory_information_command_exception(mcp_client, mock_execute
     mock_execute.side_effect = RuntimeError("Unexpected error during command execution")
 
     with pytest.raises(exceptions.ToolError, match="Error gathering memory information"):
-        await mcp_client.call_tool("get_memory_information")
+        await mcp_client.call_tool("get_memory_information", {"host": "localhost"})
 
 
 async def test_get_memory_information_parse_error(mcp_client, mock_execute):
@@ -137,7 +137,7 @@ async def test_get_memory_information_parse_error(mcp_client, mock_execute):
     mock_execute.return_value = (0, malformed_output, "")
 
     with pytest.raises(exceptions.ToolError, match="Error calling tool 'get_memory_information'"):
-        await mcp_client.call_tool("get_memory_information")
+        await mcp_client.call_tool("get_memory_information", {"host": "localhost"})
 
 
 async def test_get_disk_usage_parse_error(mcp_client, mock_execute):
@@ -146,7 +146,7 @@ async def test_get_disk_usage_parse_error(mcp_client, mock_execute):
     mock_execute.side_effect = ValueError("Raised intentionally")
 
     with pytest.raises(exceptions.ToolError, match="Error gathering disk usage information"):
-        await mcp_client.call_tool("get_disk_usage")
+        await mcp_client.call_tool("get_disk_usage", {"host": "localhost"})
 
 
 async def test_get_disk_usage_invalid_json(mcp_client, mock_execute):
@@ -155,7 +155,7 @@ async def test_get_disk_usage_invalid_json(mcp_client, mock_execute):
     mock_execute.return_value = (0, "invalid json {{", "")
 
     with pytest.raises(exceptions.ToolError, match="Error parsing disk usage information"):
-        await mcp_client.call_tool("get_disk_usage")
+        await mcp_client.call_tool("get_disk_usage", {"host": "localhost"})
 
 
 async def test_get_disk_usage_null_filesystem_fields(mcp_client, mock_execute):
@@ -190,7 +190,7 @@ async def test_get_disk_usage_null_filesystem_fields(mcp_client, mock_execute):
     )
     mock_execute.return_value = (0, findmnt_json, "")
 
-    result = await mcp_client.call_tool("get_disk_usage")
+    result = await mcp_client.call_tool("get_disk_usage", {"host": "localhost"})
     result_text = result.content[0].text
     parsed = json.loads(result_text)
 
@@ -205,7 +205,7 @@ async def test_get_hardware_information_unexpected_exception(mcp_client, mock_ex
     mock_execute.side_effect = RuntimeError("Unexpected error")
 
     with pytest.raises(exceptions.ToolError, match="Error gathering hardware information"):
-        await mcp_client.call_tool("get_hardware_information")
+        await mcp_client.call_tool("get_hardware_information", {"host": "localhost"})
 
 
 async def test_get_hardware_information_success(mcp_client, mock_execute):
@@ -230,7 +230,7 @@ Bus 002 Device 001: ID 1d6b:0003 Linux Foundation 3.0 root hub"""
 
     mock_execute.side_effect = create_mock_execute_side_effect(command_responses)
 
-    result = await mcp_client.call_tool("get_hardware_information")
+    result = await mcp_client.call_tool("get_hardware_information", {"host": "localhost"})
 
     # Verify structured content exists
     assert result.structured_content is not None
@@ -266,7 +266,7 @@ async def test_get_hardware_information_command_not_found(mcp_client, mock_execu
 
     mock_execute.side_effect = create_mock_execute_side_effect(command_responses)
 
-    result = await mcp_client.call_tool("get_hardware_information")
+    result = await mcp_client.call_tool("get_hardware_information", {"host": "localhost"})
 
     assert result.structured_content is not None
     content = result.structured_content
@@ -283,7 +283,7 @@ async def test_get_hardware_information_command_failure(mcp_client, mock_execute
     """Test get_hardware_information when a command fails."""
     mock_execute.return_value = (1, "", "Permission denied")
 
-    result = await mcp_client.call_tool("get_hardware_information")
+    result = await mcp_client.call_tool("get_hardware_information", {"host": "localhost"})
 
     assert result.structured_content is not None
     content = result.structured_content
