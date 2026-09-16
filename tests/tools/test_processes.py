@@ -12,7 +12,7 @@ from fastmcp.exceptions import ToolError
 class TestProcesses:
     async def test_list_processes(self, mcp_client):
         """Test that list_processes contains process information."""
-        result = await mcp_client.call_tool("list_processes")
+        result = await mcp_client.call_tool("list_processes", {"host": "localhost"})
         result_text = result.content[0].text.casefold()
         expected = (
             ("pid", "process"),
@@ -24,13 +24,13 @@ class TestProcesses:
     async def test_get_process_info_with_current_process(self, mcp_client):
         """Test getting info about the current process."""
         current_pid = os.getpid()
-        result = await mcp_client.call_tool("get_process_info", arguments={"pid": current_pid})
+        result = await mcp_client.call_tool("get_process_info", arguments={"host": "localhost", "pid": current_pid})
 
         assert str(current_pid) in result.content[0].text
 
     async def test_get_process_info_with_init_process(self, mcp_client):
         """Test getting info about init process (PID 1)."""
-        result = await mcp_client.call_tool("get_process_info", arguments={"pid": 1})
+        result = await mcp_client.call_tool("get_process_info", arguments={"host": "localhost", "pid": 1})
         result_text = result.content[0].text.casefold()
         expected = (
             "1",
@@ -42,7 +42,7 @@ class TestProcesses:
     async def test_get_process_info_with_nonexistent_process(self, mcp_client):
         """Test getting info about a non-existent process."""
         # Use a very high PID that likely doesn't exist
-        result = await mcp_client.call_tool("get_process_info", arguments={"pid": 999999})
+        result = await mcp_client.call_tool("get_process_info", arguments={"host": "localhost", "pid": 999999})
         result_text = result.content[0].text.casefold()
         expected = ("not found", "does not exist", "error")
 

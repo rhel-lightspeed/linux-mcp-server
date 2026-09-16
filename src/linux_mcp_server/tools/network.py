@@ -26,7 +26,7 @@ from linux_mcp_server.utils.validation import is_successful_output
 @log_tool_call
 @disallow_local_execution_in_containers
 async def get_network_interfaces(
-    host: Host = None,
+    host: Host,
 ) -> str:
     """Get network interface information.
 
@@ -62,7 +62,7 @@ async def get_network_interfaces(
 @log_tool_call
 @disallow_local_execution_in_containers
 async def get_network_connections(
-    host: Host = None,
+    host: Host,
 ) -> str:
     """Get active network connections.
 
@@ -88,7 +88,7 @@ async def get_network_connections(
 @log_tool_call
 @disallow_local_execution_in_containers
 async def get_listening_ports(
-    host: Host = None,
+    host: Host,
 ) -> str:
     """Get listening ports.
 

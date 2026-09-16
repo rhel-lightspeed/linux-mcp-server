@@ -193,7 +193,7 @@ See [SSH Configuration](ssh.md#managing-host-keys) for more details on host key 
 
 ### macOS / Windows: Tools not working locally
 
-Local execution (without the `host` parameter) is only supported on Linux. On macOS and Windows, use the MCP server to manage remote Linux systems via SSH by specifying a `host` parameter.
+Local execution (`host: localhost`) is only supported on Linux. On macOS and Windows, use the MCP server to manage remote Linux systems via SSH by passing a remote host in the `host` parameter.
 
 ---
 

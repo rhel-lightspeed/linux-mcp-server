@@ -16,7 +16,9 @@ async def test_list_directories(setup_test_paths, mcp_client, tmp_path):
     ]
     expected_names = setup_test_paths(dir_specs)
 
-    result = await mcp_client.call_tool("list_directories", arguments={"path": str(tmp_path), "order_by": "name"})
+    result = await mcp_client.call_tool(
+        "list_directories", arguments={"host": "localhost", "path": str(tmp_path), "order_by": "name"}
+    )
     content = result.structured_content
     names = [dir["name"] for dir in content["nodes"]]
     positions = {dir["name"]: id for id, dir in enumerate(content["nodes"])}
@@ -38,7 +40,9 @@ async def test_list_directories_by_size(setup_test_paths, mcp_client, tmp_path):
     ]
     setup_test_paths(dir_specs)
 
-    result = await mcp_client.call_tool("list_directories", arguments={"path": str(tmp_path), "order_by": "size"})
+    result = await mcp_client.call_tool(
+        "list_directories", arguments={"host": "localhost", "path": str(tmp_path), "order_by": "size"}
+    )
     content = result.structured_content
     names = [dir["name"] for dir in content["nodes"]]
 
@@ -74,7 +78,8 @@ async def test_list_directories_descending(setup_test_paths, dir_specs, order_by
     setup_test_paths(dir_specs)
 
     result = await mcp_client.call_tool(
-        "list_directories", arguments={"path": str(tmp_path), "order_by": order_by, "sort": "descending"}
+        "list_directories",
+        arguments={"host": "localhost", "path": str(tmp_path), "order_by": order_by, "sort": "descending"},
     )
     content = result.structured_content
     names = [dir["name"] for dir in content["nodes"]]
@@ -95,7 +100,7 @@ async def test_list_directories_with_top_n(setup_test_paths, mcp_client, order, 
     setup_test_paths(dir_specs)
 
     result = await mcp_client.call_tool(
-        "list_directories", arguments={"path": str(tmp_path), "order_by": order, "top_n": 2}
+        "list_directories", arguments={"host": "localhost", "path": str(tmp_path), "order_by": order, "top_n": 2}
     )
 
     assert result.structured_content["total"] == 2
@@ -106,13 +111,13 @@ async def test_list_directories_nonexistent_path(tmp_path, mcp_client):
     nonexistent = tmp_path / "nonexistent"
 
     with pytest.raises(ToolError, match="Error running command: command failed with return code 1"):
-        await mcp_client.call_tool("list_directories", arguments={"path": str(nonexistent)})
+        await mcp_client.call_tool("list_directories", arguments={"host": "localhost", "path": str(nonexistent)})
 
 
 @pytest.mark.skipif(sys.platform != "linux", reason="requires GNU version of coreutils/findutils")
 async def test_list_directories_restricted_path(restricted_path, mcp_client):
     with pytest.raises(ToolError) as exc_info:
-        await mcp_client.call_tool("list_directories", arguments={"path": str(restricted_path)})
+        await mcp_client.call_tool("list_directories", arguments={"host": "localhost", "path": str(restricted_path)})
 
     assert "Error running command: command failed with return code 1" in str(exc_info.value)
 

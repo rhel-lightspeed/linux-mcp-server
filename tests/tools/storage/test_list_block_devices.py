@@ -11,7 +11,7 @@ async def test_list_block_devices(mock_execute_with_fallback, mcp_client):
     lsblk_output = '{"blockdevices":[{"name":"sda","size":"1TB","type":"disk","mountpoint":null,"fstype":null,"model":null,"children":[{"name":"sda1","size":"512G","type":"part","mountpoint":"/","fstype":"ext4","model":null}]}]}'
     mock_execute_with_fallback.return_value = (0, lsblk_output, "")
 
-    result = await mcp_client.call_tool("list_block_devices", {})
+    result = await mcp_client.call_tool("list_block_devices", {"host": "localhost"})
     result = result.structured_content
     first_device = result["blockdevices"][0]
 
@@ -47,7 +47,7 @@ async def test_list_block_devices_command_failure(side_effect, expected_match, m
     )
 
     with pytest.raises(ToolError, match=expected_match):
-        await mcp_client.call_tool("list_block_devices", {})
+        await mcp_client.call_tool("list_block_devices", {"host": "localhost"})
 
 
 async def test_list_block_devices_remote_execution(mock_execute_with_fallback, mcp_client):
