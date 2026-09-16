@@ -505,7 +505,8 @@ async def run_script_with_confirmation(
 ) -> str:
     script_details = script_store.get_script_details(token)
 
-    # Verify that this script requires confirmation
+    # Verify that validate_script returned needs_confirmation=True (not a security check, perhaps
+    # helps a model avoid unnecessary confirmations later in the conversation.)
     if not script_details.needs_confirmation:
         raise ToolError(
             "This script does not require confirmation. Use run_script instead of run_script_with_confirmation."
@@ -540,7 +541,7 @@ async def run_script_with_confirmation(
         script_store.set_script_state(token, "executing")
 
     try:
-        command = _wrap_script(script_details)
+        command = _wrap_script(execute_details)
         returncode, stdout, stderr = await execute_command(command, host=execute_details.host)
     except Exception:
         if not details_changed:

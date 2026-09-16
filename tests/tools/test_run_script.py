@@ -443,7 +443,7 @@ class TestRunScriptWithConfirmationMCP:
         patch_execute_command: Any,
         patch_check_run_script: Any,
     ) -> None:
-        """Changed script body triggers gatekeeper again; on OK the stored script runs."""
+        """Changed script body triggers gatekeeper again; on OK the *new* script runs."""
         script_store_fresh._scripts["t2"] = ScriptDetails(
             state="waiting-approval",
             description="same",
@@ -461,13 +461,23 @@ class TestRunScriptWithConfirmationMCP:
                     "description": "same",
                     "script_type": SCRIPT_TYPE_PYTHON,
                     "script": "print(99)",
-                    "readonly": False,
+                    # if the original script was readonly, the call would be rejected
+                    # because needs_confirmation=False, but we allow this on mismatch.
+                    "readonly": True,
                     "token": "t2",
                 },
             )
         )
         assert out == "out"
         patch_check_run_script.assert_called_once()
+
+        # The newly-supplied script must be the one wrapped and executed, not the
+        # stale stored one - and its readonly flag must drive the sandbox args.
+        wrapped_command = patch_execute_command.call_args.args[0][2]
+        assert "print(99)" in wrapped_command
+        assert "print(3)" not in wrapped_command
+        for arg in run_script_mod.SYSTEMD_RUN_READONLY_ARGS:
+            assert arg in wrapped_command
 
     async def test_mismatch_gatekeeper_fails(
         self,
