@@ -187,6 +187,19 @@ class TestWrapScript:
         else:
             assert readonly_args not in inner
 
+    def test_systemd_description_is_fixed_and_quoted(self) -> None:
+        """A fixed --description keeps systemd-run from deriving one from a multi-line script."""
+        details = ScriptDetails(
+            state="waiting-approval",
+            script_type=SCRIPT_TYPE_BASH,
+            script="echo one\necho two",
+            description="Echo twice",
+            host="machine1.test",
+            readonly=True,
+        )
+        inner = _wrap_script(details)[2]
+        assert "--description='linux-mcp-server script'" in inner
+
 
 class TestValidateScriptMCP:
     """``validate_script`` through ``client.call_tool``."""

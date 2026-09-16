@@ -158,11 +158,21 @@ script_store = ScriptStore()
 
 BASH_STRICT_PREAMBLE = "set -euo pipefail; "
 
+# Without an explicit --description, systemd-run derives Description= from the command
+# line it is about to run - and versions before the fix in systemd commit 9ce3440a6fb3
+# (in RHEL 10, but not backported to RHEL 8/RHEL 9) don't escape embedded newlines when
+# doing so. For a multi-line script that splits Description= across several lines of the
+# generated transient unit file, leaving lines without a '=' - the unit then fails to
+# re-parse on the next daemon-reload, and systemd loses track of the command it is
+# currently executing, so `systemd-run --wait` never reports completion.
+SYSTEMD_RUN_DESCRIPTION = "linux-mcp-server script"
+
 SYSTEMD_RUN_ARGS = [
     "--quiet",
     "--pipe",
     "--collect",
     "--wait",
+    f"--description={shlex.quote(SYSTEMD_RUN_DESCRIPTION)}",
     "--property=WorkingDirectory=/tmp",
     "--property=PrivateTmp=true",
     "--property=NoNewPrivileges=true",
