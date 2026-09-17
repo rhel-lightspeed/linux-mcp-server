@@ -280,6 +280,42 @@ def parse_ip_brief(stdout: str) -> dict[str, NetworkInterface]:
     return interfaces
 
 
+def merge_network_interfaces(
+    interfaces: dict[str, NetworkInterface],
+    stats: dict[str, NetworkInterface] | None = None,
+) -> list[NetworkInterface]:
+    """Merge interface address info with traffic statistics.
+
+    Args:
+        interfaces: Interface address/status info keyed by name.
+        stats: Optional traffic statistics keyed by name.
+
+    Returns:
+        Sorted list of merged NetworkInterface objects.
+    """
+    if stats is None:
+        stats = {}
+
+    merged: list[NetworkInterface] = []
+    for name, iface in sorted(interfaces.items()):
+        if name in stats:
+            stat = stats[name]
+            iface = iface.model_copy(
+                update={
+                    "rx_bytes": stat.rx_bytes,
+                    "tx_bytes": stat.tx_bytes,
+                    "rx_packets": stat.rx_packets,
+                    "tx_packets": stat.tx_packets,
+                    "rx_errors": stat.rx_errors,
+                    "tx_errors": stat.tx_errors,
+                    "rx_dropped": stat.rx_dropped,
+                    "tx_dropped": stat.tx_dropped,
+                }
+            )
+        merged.append(iface)
+    return merged
+
+
 def parse_system_info(results: dict[str, str]) -> SystemInfo:
     """Parse system info command results into SystemInfo object.
 
