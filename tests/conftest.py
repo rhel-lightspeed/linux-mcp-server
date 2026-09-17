@@ -11,6 +11,11 @@ os.environ.setdefault("LINUX_MCP_TOOLSET", "both")
 os.environ.setdefault("LINUX_MCP_GATEKEEPER__MODEL", "gemini-2.5-flash")
 os.environ.setdefault("LINUX_MCP_GATEKEEPER__PROVIDER", "gemini")
 
+# The default host mode depends on the platform and on whether we're in a container,
+# so pin it: tests that care about a mode set it themselves, and the rest should not
+# behave differently depending on where the suite runs.
+os.environ["LINUX_MCP_HOST_MODE"] = "any"
+
 import pytest
 
 from fastmcp.client import Client
@@ -21,13 +26,6 @@ from linux_mcp_server.audit import log_tool_call
 from linux_mcp_server.config import CONFIG
 from linux_mcp_server.config import Toolset
 from linux_mcp_server.server import mcp
-
-
-@pytest.fixture(autouse=True)
-def clean_env(monkeypatch):
-    unset = {"container"}
-    for var in unset:
-        monkeypatch.delenv(var, raising=False)
 
 
 @contextmanager

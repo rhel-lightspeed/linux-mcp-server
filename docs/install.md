@@ -5,7 +5,7 @@ Get the Linux MCP Server running quickly with your favorite MCP client.
 !!! note "Architecture Requirement"
     This setup requires a **Control System**, where the MCP server and AI assistant run, and a **Target System** - the Linux system you wish to troubleshoot, which can be the same system or a remote host accessed via SSH.
 
-    Local execution (without SSH) is only supported on Linux.
+    Local execution (without SSH) is only supported on Linux, and is turned off by default when the server runs in a container. See [Host mode](config-reference.md#host-mode).
 
 ---
 

@@ -46,10 +46,33 @@ See [SSH Configuration](ssh.md) for details on setting up SSH connections and ma
 | Option / Env Var | Default | Description |
 |------------------|---------|-------------|
 | `--toolset`<br>`LINUX_MCP_TOOLSET` | `fixed` | Toolset: `fixed`, `run_script`, or `both` |
+| `--host-mode`<br>`LINUX_MCP_HOST_MODE` | *(see below)* | Where tools may run: `local-only`, `remote-only`, or `any` |
 | `--allowed-log-paths`<br>`LINUX_MCP_ALLOWED_LOG_PATHS` | *(none)* | Comma-separated allowlist of log file paths for `read_log_file` |
 | `--max-file-read-bytes`<br>`LINUX_MCP_MAX_FILE_READ_BYTES` | `1048576` | Maximum bytes `read_file` may return |
 
 See [Guarded Command Execution](guarded-command-execution.md) for details on the `run_script` toolset.
+
+### Host mode
+
+By default most tools take a required `host` parameter: `localhost` runs the work on the system the MCP server runs on, and any other value runs it on that host over SSH. `LINUX_MCP_HOST_MODE` controls which of those the server accepts:
+
+| Value | Effect |
+|-------|--------|
+| `any` | Both `localhost` and remote hosts are allowed |
+| `local-only` | Everything runs on the system the server runs on; tools take no `host` parameter at all |
+| `remote-only` | Only remote hosts are allowed; `localhost` is refused |
+
+The default is `remote-only` when the server runs in a container or on a platform other than Linux, and `any` otherwise. In a container, tools would otherwise report on the container's own filesystem, processes and units rather than the host's; on macOS and Windows local execution is not implemented at all.
+
+The setting shapes what the model is shown, so it is told what it can do rather than finding out by being refused: the server instructions describe where tools run, `remote-only` describes each tool's `host` parameter as a remote system to reach over SSH, and `local-only` drops that parameter from the tool schemas entirely, since there is only one value it could have. A `host` outside the configured mode is rejected, never silently redirected. A client still passing an explicit `host: localhost` under `local-only` keeps working.
+
+!!! note "Only `localhost` means local execution"
+    The mode is decided by comparing `host` against `localhost`, so `remote-only` controls whether tools
+    run locally without SSH. It does not stop a client from naming the server's own address or host name
+    and reaching it over SSH; there is no way to recognize every name that resolves back to the same system.
+
+!!! note "Not an authorization mechanism"
+    Host mode narrows what the model is offered. Use an [authorization policy](#authorization-policy) to control who may run which tools where.
 
 ## Guarded Command Execution Settings
 

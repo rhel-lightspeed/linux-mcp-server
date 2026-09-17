@@ -36,7 +36,9 @@ The Linux MCP Server uses SSH to execute commands on remote Linux systems. This 
 
 ## Specifying Remote Hosts
 
-Every MCP tool takes a required `host` parameter. Pass `localhost` to run on the system the MCP server runs on; any other value is connected to over SSH and may be a fully qualified domain name (FQDN), an alias from `~/.ssh/config`, or an IP address.
+Most MCP tools take a required `host` parameter. Pass `localhost` to run on the system the MCP server runs on; any other value is connected to over SSH and may be a fully qualified domain name (FQDN), an alias from `~/.ssh/config`, or an IP address.
+
+A server can be configured to accept only one of the two - see [Host mode](config-reference.md#host-mode). `remote-only` is the default when the server runs in a container or on a platform other than Linux, where local execution would not tell the user anything useful. Under `local-only` there is no `host` parameter at all, since everything runs on the system the server runs on.
 
 ## Per-Host Configuration
 
