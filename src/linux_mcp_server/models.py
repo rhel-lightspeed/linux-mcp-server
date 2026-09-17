@@ -4,6 +4,7 @@ from datetime import datetime
 from pathlib import Path
 
 from pydantic import BaseModel
+from pydantic import ConfigDict
 from pydantic import Field
 from pydantic import field_serializer
 from pydantic import model_validator
@@ -41,6 +42,20 @@ class ListeningPort(BaseModel):
     local_address: str
     local_port: str
     process: str = ""
+
+
+class Route(BaseModel):
+    """Parsed route entry from ip -json route output."""
+
+    model_config = ConfigDict(populate_by_name=True)
+
+    destination: str = Field(validation_alias="dst")
+    gateway: str = ""
+    device: str = Field(default="", validation_alias="dev")
+    protocol: str = ""
+    scope: str = ""
+    source: str = Field(default="", validation_alias="prefsrc")
+    metric: int | None = None
 
 
 class NetworkInterface(BaseModel):
