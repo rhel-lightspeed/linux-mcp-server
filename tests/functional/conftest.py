@@ -17,7 +17,10 @@ from utils.shell import shell
 # --- Default configuration ---
 SERVER_COMMAND = "linux-mcp-server"
 SERVER_ARGS = []
-DEFAULT_SERVER_ENV = {"LINUX_MCP_LOG_LEVEL": "INFO"}
+# The default host mode depends on the platform and on whether the server runs in a
+# container; pin it so the suite exercises the tools rather than that default. The
+# tests for the setting itself override it.
+DEFAULT_SERVER_ENV = {"LINUX_MCP_LOG_LEVEL": "INFO", "LINUX_MCP_HOST_MODE": "any"}
 
 
 @contextlib.asynccontextmanager

@@ -37,7 +37,7 @@ make verify                  # All checks (required before commit)
 
 ## Adding Tools
 
-1. Create tool in `src/linux_mcp_server/tools/` using `@mcp.tool()`, `@log_tool_call`, `@disallow_local_execution_in_containers` decorators
+1. Create tool in `src/linux_mcp_server/tools/` using the `@mcp.tool()` and `@log_tool_call` decorators, with a required `host: Host` parameter
 2. Register command in `commands.py`
 3. Write tests in `tests/tools/`
 

@@ -77,7 +77,9 @@ HOST_NOTE = textwrap.dedent("""\
         All tools on this page require a **`host`** parameter (string). Pass
         `localhost` to run the command on the system the MCP server runs on, or
         a remote machine to run it there via SSH.
-        See [SSH Configuration](../ssh.md) for details.
+        See [SSH Configuration](../ssh.md) for details, and
+        [Host mode](../config-reference.md#host-mode) for restricting which of
+        the two a server accepts.
 """)
 
 
