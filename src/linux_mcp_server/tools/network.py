@@ -12,7 +12,6 @@ from linux_mcp_server.parsers import parse_proc_net_dev
 from linux_mcp_server.parsers import parse_ss_connections
 from linux_mcp_server.parsers import parse_ss_listening
 from linux_mcp_server.server import mcp
-from linux_mcp_server.utils.decorators import disallow_local_execution_in_containers
 from linux_mcp_server.utils.types import Host
 from linux_mcp_server.utils.validation import is_successful_output
 
@@ -24,7 +23,6 @@ from linux_mcp_server.utils.validation import is_successful_output
     annotations=ToolAnnotations(readOnlyHint=True),
 )
 @log_tool_call
-@disallow_local_execution_in_containers
 async def get_network_interfaces(
     host: Host,
 ) -> str:
@@ -60,7 +58,6 @@ async def get_network_interfaces(
     annotations=ToolAnnotations(readOnlyHint=True),
 )
 @log_tool_call
-@disallow_local_execution_in_containers
 async def get_network_connections(
     host: Host,
 ) -> str:
@@ -86,7 +83,6 @@ async def get_network_connections(
     annotations=ToolAnnotations(readOnlyHint=True),
 )
 @log_tool_call
-@disallow_local_execution_in_containers
 async def get_listening_ports(
     host: Host,
 ) -> str:

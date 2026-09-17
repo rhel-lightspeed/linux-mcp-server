@@ -128,7 +128,6 @@ from pydantic import Field
 from linux_mcp_server.audit import log_tool_call
 from linux_mcp_server.commands import get_command
 from linux_mcp_server.server import mcp
-from linux_mcp_server.utils.decorators import disallow_local_execution_in_containers
 from linux_mcp_server.utils.types import Host
 
 
@@ -138,10 +137,9 @@ from linux_mcp_server.utils.types import Host
     annotations=ToolAnnotations(readOnlyHint=True),
 )
 @log_tool_call
-@disallow_local_execution_in_containers
 async def my_tool_name(
     param1: t.Annotated[str, Field(description="Parameter description")],
-    host: Host | None = None,
+    host: Host,
 ) -> str:
     """Extended documentation if needed."""
     cmd = get_command("my_command")

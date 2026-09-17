@@ -193,7 +193,9 @@ See [SSH Configuration](ssh.md#managing-host-keys) for more details on host key 
 
 ### macOS / Windows: Tools not working locally
 
-Local execution (`host: localhost`) is only supported on Linux. On macOS and Windows, use the MCP server to manage remote Linux systems via SSH by passing a remote host in the `host` parameter.
+Local execution (`host: localhost`) is only supported on Linux, so on macOS and Windows the server defaults to `LINUX_MCP_HOST_MODE=remote-only` and refuses `localhost`. Use the MCP server to manage remote Linux systems via SSH by passing a remote host in the `host` parameter. The same applies when the server itself runs in a container, where local execution would only report on the container.
+
+See [Host mode](config-reference.md#host-mode) for the full set of values.
 
 ---
 

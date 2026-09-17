@@ -22,7 +22,6 @@ from linux_mcp_server.parsers import parse_file_listing
 from linux_mcp_server.server import mcp
 from linux_mcp_server.utils import format_bytes
 from linux_mcp_server.utils import StrEnum
-from linux_mcp_server.utils.decorators import disallow_local_execution_in_containers
 from linux_mcp_server.utils.types import Host
 from linux_mcp_server.utils.types import LOCALHOST
 from linux_mcp_server.utils.validation import is_successful_output
@@ -84,7 +83,6 @@ async def _list_resources(
     annotations=ToolAnnotations(readOnlyHint=True),
 )
 @log_tool_call
-@disallow_local_execution_in_containers
 async def list_block_devices(
     host: Host,
 ) -> BlockDevices:
@@ -109,7 +107,6 @@ async def list_block_devices(
     annotations=ToolAnnotations(readOnlyHint=True),
 )
 @log_tool_call
-@disallow_local_execution_in_containers
 async def list_directories(
     path: t.Annotated[
         Path,
@@ -155,7 +152,6 @@ async def list_directories(
     annotations=ToolAnnotations(readOnlyHint=True),
 )
 @log_tool_call
-@disallow_local_execution_in_containers
 async def list_files(
     path: t.Annotated[
         Path,
@@ -201,7 +197,6 @@ async def list_files(
     annotations=ToolAnnotations(readOnlyHint=True),
 )
 @log_tool_call
-@disallow_local_execution_in_containers
 async def read_file(
     path: t.Annotated[
         Path,

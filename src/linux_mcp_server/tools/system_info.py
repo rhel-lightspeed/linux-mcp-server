@@ -16,7 +16,6 @@ from linux_mcp_server.parsers import parse_cpu_info
 from linux_mcp_server.parsers import parse_free_output
 from linux_mcp_server.parsers import parse_system_info
 from linux_mcp_server.server import mcp
-from linux_mcp_server.utils.decorators import disallow_local_execution_in_containers
 from linux_mcp_server.utils.types import Host
 from linux_mcp_server.utils.validation import is_successful_output
 
@@ -28,7 +27,6 @@ from linux_mcp_server.utils.validation import is_successful_output
     annotations=ToolAnnotations(readOnlyHint=True),
 )
 @log_tool_call
-@disallow_local_execution_in_containers
 async def get_system_information(
     host: Host,
 ) -> SystemInfo:
@@ -57,7 +55,6 @@ async def get_system_information(
     annotations=ToolAnnotations(readOnlyHint=True),
 )
 @log_tool_call
-@disallow_local_execution_in_containers
 async def get_cpu_information(
     host: Host,
 ) -> CpuInfo:
@@ -85,7 +82,6 @@ async def get_cpu_information(
     annotations=ToolAnnotations(readOnlyHint=True),
 )
 @log_tool_call
-@disallow_local_execution_in_containers
 async def get_memory_information(
     host: Host,
 ) -> SystemMemory:
@@ -114,7 +110,6 @@ async def get_memory_information(
     annotations=ToolAnnotations(readOnlyHint=True),
 )
 @log_tool_call
-@disallow_local_execution_in_containers
 async def get_disk_usage(
     host: Host,
 ) -> DiskUsage:
@@ -147,7 +142,6 @@ async def get_disk_usage(
     annotations=ToolAnnotations(readOnlyHint=True),
 )
 @log_tool_call
-@disallow_local_execution_in_containers
 async def get_hardware_information(
     host: Host,
 ) -> dict[str, str | list[str]]:
