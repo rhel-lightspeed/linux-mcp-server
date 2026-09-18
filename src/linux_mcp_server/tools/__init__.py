@@ -8,6 +8,12 @@ from linux_mcp_server.tools.network import get_listening_ports
 from linux_mcp_server.tools.network import get_network_connections
 from linux_mcp_server.tools.network import get_network_interfaces
 
+# pcp
+from linux_mcp_server.tools.pcp import get_performance_summary
+from linux_mcp_server.tools.pcp import list_pcp_archives
+from linux_mcp_server.tools.pcp import list_pcp_metrics
+from linux_mcp_server.tools.pcp import query_pcp_metrics
+
 # processes
 from linux_mcp_server.tools.processes import get_process_info
 from linux_mcp_server.tools.processes import list_processes
@@ -49,6 +55,7 @@ __all__ = [
     "get_memory_information",
     "get_network_connections",
     "get_network_interfaces",
+    "get_performance_summary",
     "get_process_info",
     "get_service_logs",
     "get_service_status",
@@ -56,8 +63,11 @@ __all__ = [
     "list_block_devices",
     "list_directories",
     "list_files",
+    "list_pcp_archives",
+    "list_pcp_metrics",
     "list_processes",
     "list_services",
+    "query_pcp_metrics",
     "read_file",
     "read_log_file",
     "reject_script",
