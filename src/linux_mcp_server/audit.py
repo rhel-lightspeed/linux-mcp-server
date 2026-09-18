@@ -15,6 +15,8 @@ from contextlib import contextmanager
 from datetime import timedelta
 
 from linux_mcp_server.utils import StrEnum
+from linux_mcp_server.utils.types import Host
+from linux_mcp_server.utils.types import LOCALHOST
 
 
 Function: t.TypeAlias = t.Callable[..., t.Any]
@@ -131,15 +133,16 @@ def _log_event_start(
     The timestamp is in nanoseconds. It is meant to be used to calculate
     total execution time.
     """
-    execution_mode = ExecutionMode.REMOTE if params.get("host") else ExecutionMode.LOCAL
     safe_params = sanitize_parameters(params)
 
     extra = {
         "tool": tool_name,
-        "execution_mode": execution_mode,
     }
+    # Tools that run a previously validated script take their host from the stored
+    # script rather than a parameter, so there is nothing to report for them here.
     if "host" in params:
         extra["host"] = params["host"]
+        extra["execution_mode"] = ExecutionMode.LOCAL if params["host"] == LOCALHOST else ExecutionMode.REMOTE
 
     if "username" in params:
         extra["username"] = params["username"]
@@ -232,7 +235,7 @@ def log_tool_call(func: t.Callable) -> Function:
 
 
 def log_ssh_connect(
-    host: str,
+    host: Host,
     status: str,
     username: str = "",
     reused: bool = False,
@@ -295,7 +298,7 @@ def log_ssh_connect(
 
 def log_ssh_command(
     command: str,
-    host: str,
+    host: Host,
     exit_code: int,
     duration: float | None = None,
 ):

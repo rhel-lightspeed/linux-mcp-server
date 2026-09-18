@@ -15,6 +15,8 @@ from pydantic import model_validator
 
 from linux_mcp_server.config import CONFIG
 from linux_mcp_server.toolset import get_toolset
+from linux_mcp_server.utils.types import Host
+from linux_mcp_server.utils.types import LOCALHOST
 
 
 logger = logging.getLogger("linux-mcp-server")
@@ -53,7 +55,7 @@ class PolicyRule(BaseModel):
     @model_validator(mode="after")
     def validate_host_action(self):
         # localhost should have LOCAL or DENY action
-        if self.host == "localhost":
+        if self.host == LOCALHOST:
             if self.action not in [PolicyAction.LOCAL, PolicyAction.DENY]:
                 raise ValueError(
                     f"Rule with host: 'localhost' must use action 'local' or 'deny' and not '{self.action.value}'"
@@ -79,10 +81,10 @@ class PolicyRule(BaseModel):
             raise ValueError("Rule with action 'ssh_key' must have ssh_key(path and user) configured")
         return self
 
-    def matches_host(self, target_host: str | None) -> bool:
-        if target_host is None:
+    def matches_host(self, target_host: Host) -> bool:
+        if target_host == LOCALHOST:
             # 'host: *' should not allow local execution
-            return self.host == "localhost"
+            return self.host == LOCALHOST
         return fnmatch.fnmatch(target_host, self.host)
 
     # Check if the rule matches the policy tool name
@@ -146,7 +148,7 @@ class PolicyRule(BaseModel):
         self,
         tool_name: str,
         tool_tags: set[str],
-        target_host: str | None,
+        target_host: Host,
         token_claims: dict[str, Any],
     ) -> bool:
         # Check if this rule matches the given context.
@@ -183,7 +185,7 @@ class AuthPolicy(BaseModel):
         self,
         tool_name: str,
         tool_tags: set[str],
-        target_host: str | None,
+        target_host: Host,
         token_claims: dict[str, Any],
     ) -> tuple[PolicyAction, SSHKeyConfig | None, bool]:
 
@@ -214,7 +216,7 @@ def get_policy() -> AuthPolicy:
 # Wrapper that loads policy and calls AuthPolicy.evaluate()
 def evaluate_policy(
     tool: Tool,
-    target_host: str | None,
+    target_host: Host,
     token_claims: dict[str, Any],
 ) -> tuple[PolicyAction, SSHKeyConfig | None]:
     policy = get_policy()

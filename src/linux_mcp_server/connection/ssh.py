@@ -26,6 +26,7 @@ from linux_mcp_server.audit import Status
 from linux_mcp_server.config import CONFIG
 from linux_mcp_server.execution_context import get_execution_context
 from linux_mcp_server.utils.types import Host
+from linux_mcp_server.utils.types import LOCALHOST
 
 
 logger = logging.getLogger("linux-mcp-server")
@@ -97,7 +98,7 @@ class SSHConnectionManager:
             cls._instance._ssh_key = discover_ssh_key()
         return cls._instance
 
-    async def get_connection(self, host: str) -> asyncssh.SSHClientConnection:
+    async def get_connection(self, host: Host) -> asyncssh.SSHClientConnection:
         """
         Get or create an SSH connection to a host.
 
@@ -201,7 +202,7 @@ class SSHConnectionManager:
     async def execute_remote(
         self,
         command: Sequence[str],
-        host: str,
+        host: Host,
         timeout: int = CONFIG.command_timeout,
         encoding: str | None = "utf-8",
     ) -> tuple[int, str | bytes, str | bytes]:
@@ -351,7 +352,7 @@ async def get_remote_bin_path(
 
 async def execute_command(
     command: Sequence[str],
-    host: str | None = None,
+    host: Host,
     encoding: str | None = "utf-8",
     **kwargs,
 ) -> tuple[int, str | bytes, str | bytes]:
@@ -360,12 +361,12 @@ async def execute_command(
 
     This is the main entry point for command execution. It routes the command
     to either local subprocess execution or remote SSH execution based on
-    whether host/username parameters are provided.
+    whether the host is LOCALHOST.
 
     Args:
         command: Command and arguments to execute. If the command is not an absolute path
                  it will be resolved to the full path before execution.
-        host: Optional remote host address
+        host: Host to run the command on; LOCALHOST runs it locally
         encoding: Character encoding for stdout/stderr. Defaults to "utf-8".
             Set to None to receive raw bytes for commands that may output
             binary content.
@@ -376,18 +377,16 @@ async def execute_command(
         if encoding is not None, otherwise bytes.
 
     Raises:
-        ValueError: If host is provided without username
         ConnectionError: If remote connection fails
 
     Examples:
         # Local execution
-        >>> returncode, stdout, stderr = await execute_command(["ls", "-la"])
+        >>> returncode, stdout, stderr = await execute_command(["ls", "-la"], host=LOCALHOST)
 
         # Remote execution
         >>> returncode, stdout, stderr = await execute_command(
         ...     ["ls", "-la"],
         ...     host="server.example.com",
-        ...     username="admin"
         ... )
     """
     # Get execution context, fail-closed if not set
@@ -397,7 +396,7 @@ async def execute_command(
 
     cmd_str = " ".join(command)
 
-    if host:
+    if host != LOCALHOST:
         # Remote execution, check permissions
         if not context.allow_ssh_default and context.ssh_key_path is None:
             raise RuntimeError("Remote execution not allowed")
@@ -416,7 +415,8 @@ async def execute_command(
 async def execute_with_fallback(
     args: Sequence[str],
     fallback: Sequence[str] | None = None,
-    host: str | None = None,
+    *,
+    host: Host,
     encoding: str | None = "utf-8",
     **kwargs,
 ) -> tuple[int, str | bytes, str | bytes]:
@@ -430,8 +430,7 @@ async def execute_with_fallback(
     Args:
         args: Primary command and arguments to execute
         fallback: Optional fallback command if primary fails
-        host: Optional remote host address
-        username: Optional SSH username (required if host is provided)
+        host: Host to run the command on; LOCALHOST runs it locally
         encoding: Character encoding for stdout/stderr. Defaults to "utf-8".
             Set to None to receive raw bytes for commands that may output
             binary content.

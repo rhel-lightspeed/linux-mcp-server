@@ -34,7 +34,7 @@ class TestPolicyRuleHostMatching:
         assert rule.matches_host("host2.example.com")
         assert not rule.matches_host("example.com")
 
-    def test_localhost_normalization(self):
+    def test_localhost_match(self):
         rule = PolicyRule(
             host="localhost",
             tools=["*"],
@@ -42,9 +42,19 @@ class TestPolicyRuleHostMatching:
             action=PolicyAction.LOCAL,
             all_users=True,
         )
-        # None gets normalized to localhost
-        assert rule.matches_host(None)
         assert rule.matches_host("localhost")
+        assert not rule.matches_host("host1.example.com")
+
+    def test_wildcard_does_not_match_localhost(self):
+        rule = PolicyRule(
+            host="*",
+            tools=["*"],
+            claims={},
+            action=PolicyAction.SSH_DEFAULT,
+            all_users=True,
+        )
+        assert rule.matches_host("host1.example.com")
+        assert not rule.matches_host("localhost")
 
 
 class TestPolicyRuleValidation:

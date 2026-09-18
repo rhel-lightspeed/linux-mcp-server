@@ -6,6 +6,8 @@ import os
 
 from fastmcp.exceptions import ToolError
 
+from linux_mcp_server.utils.types import LOCALHOST
+
 
 CONTAINER_ENV_VARS = [
     "openvz",
@@ -26,7 +28,7 @@ def disallow_local_execution_in_containers(func):
     Decorator that raises a ToolError if local execution is attempted in a container.
 
     This decorator checks if:
-    1. The 'host' parameter is None (indicating local execution)
+    1. The 'host' parameter is LOCALHOST (indicating local execution)
     2. The process is running in a container (via the 'container' environment variable)
 
     If both conditions are true, it raises a ToolError.
@@ -48,14 +50,14 @@ def disallow_local_execution_in_containers(func):
         bound_args = sig.bind_partial(*args, **kwargs)
         bound_args.apply_defaults()
 
-        # Check if 'host' parameter exists and is None
+        # Check if 'host' parameter exists and is LOCALHOST
         host_value = bound_args.arguments.get("host")
 
-        # Check if running in a container and host is None (local execution)
-        if host_value is None and os.environ.get("container") in CONTAINER_ENV_VARS:
+        # Check if running in a container and the target is the local system
+        if host_value == LOCALHOST and os.environ.get("container") in CONTAINER_ENV_VARS:
             raise ToolError(
                 "Local execution is not allowed when running in a container. "
-                "Please specify a 'host' parameter to execute remotely via SSH."
+                "Please pass a remote host in the 'host' parameter to execute via SSH."
             )
 
         # Call the original function

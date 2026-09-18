@@ -99,7 +99,7 @@ class TestGetJournalLogs:
             "",
         )
 
-        result = await mcp_client.call_tool("get_journal_logs", params)
+        result = await mcp_client.call_tool("get_journal_logs", {"host": "localhost", **params})
         content = result.structured_content
         cmd_args = mock_execute_with_fallback.call_args.args[0]
 
@@ -126,7 +126,7 @@ class TestGetJournalLogs:
         mock_execute_with_fallback.return_value = (returncode, stdout, stderr)
 
         with pytest.raises(ToolError, match=match):
-            await mcp_client.call_tool("get_journal_logs", {})
+            await mcp_client.call_tool("get_journal_logs", {"host": "localhost"})
 
     @pytest.mark.parametrize(
         "side_effect",
@@ -141,12 +141,12 @@ class TestGetJournalLogs:
         mock_execute_with_fallback.side_effect = side_effect
 
         with pytest.raises(ToolError, match=side_effect.args[0]):
-            await mcp_client.call_tool("get_journal_logs", {})
+            await mcp_client.call_tool("get_journal_logs", {"host": "localhost"})
 
     async def test_get_journal_logs_invalid_transport(self, mcp_client, mock_execute_with_fallback):
         """Test get_journal_logs rejects invalid transport values via MCP validation."""
         with pytest.raises(Exception) as exc_info:
-            await mcp_client.call_tool("get_journal_logs", {"transport": "invalid"})
+            await mcp_client.call_tool("get_journal_logs", {"host": "localhost", "transport": "invalid"})
 
         assert "validation error" in str(exc_info.value).casefold() or "invalid" in str(exc_info.value).casefold()
         mock_execute_with_fallback.assert_not_called()
@@ -175,7 +175,7 @@ class TestGetJournalLogs:
             "",
         )
 
-        result = await mcp_client.call_tool("get_journal_logs", {})
+        result = await mcp_client.call_tool("get_journal_logs", {"host": "localhost"})
         content = result.structured_content
 
         assert content["lines_count"] == 3
@@ -184,7 +184,7 @@ class TestGetJournalLogs:
     async def test_get_journal_logs_mutually_exclusive_lines(self, mcp_client, mock_execute_with_fallback):
         """Test get_journal_logs rejects both first_lines and last_lines."""
         with pytest.raises(ToolError, match="mutually exclusive"):
-            await mcp_client.call_tool("get_journal_logs", {"first_lines": 10, "last_lines": 20})
+            await mcp_client.call_tool("get_journal_logs", {"host": "localhost", "first_lines": 10, "last_lines": 20})
 
 
 class TestReadLogFile:
@@ -207,7 +207,7 @@ class TestReadLogFile:
         log_file = setup_log_file()
         mock_execute_with_fallback.return_value = (0, "Test log content\nLine 2", "")
 
-        result = await mcp_client.call_tool("read_log_file", {"log_path": log_file})
+        result = await mcp_client.call_tool("read_log_file", {"host": "localhost", "log_path": log_file})
         content = result.structured_content
 
         assert content["entries"] == ["Test log content", "Line 2"]
@@ -223,7 +223,9 @@ class TestReadLogFile:
         log_file = setup_log_file()
         mock_execute_with_fallback.return_value = (0, "Test log content\nLine 2", "")
 
-        result = await mcp_client.call_tool("read_log_file", {"log_path": log_file, "last_lines": 50})
+        result = await mcp_client.call_tool(
+            "read_log_file", {"host": "localhost", "log_path": log_file, "last_lines": 50}
+        )
         content = result.structured_content
 
         assert content["lines_count"] == 2
@@ -237,7 +239,9 @@ class TestReadLogFile:
         log_file = setup_log_file()
         mock_execute_with_fallback.return_value = (0, "Test log content\nLine 2", "")
 
-        result = await mcp_client.call_tool("read_log_file", {"log_path": log_file, "first_lines": 25})
+        result = await mcp_client.call_tool(
+            "read_log_file", {"host": "localhost", "log_path": log_file, "first_lines": 25}
+        )
         content = result.structured_content
 
         assert content["lines_count"] == 2
@@ -251,14 +255,16 @@ class TestReadLogFile:
         log_file = setup_log_file()
 
         with pytest.raises(ToolError, match="mutually exclusive"):
-            await mcp_client.call_tool("read_log_file", {"log_path": log_file, "first_lines": 10, "last_lines": 20})
+            await mcp_client.call_tool(
+                "read_log_file", {"host": "localhost", "log_path": log_file, "first_lines": 10, "last_lines": 20}
+            )
 
     async def test_read_log_file_no_allowed_paths(self, mcp_client, mock_allowed_log_paths):
         """Test read_log_file when no allowed paths are configured."""
         mock_allowed_log_paths("")
 
         with pytest.raises(ToolError, match="No log files are allowed"):
-            await mcp_client.call_tool("read_log_file", {"log_path": "/var/log/test.log"})
+            await mcp_client.call_tool("read_log_file", {"host": "localhost", "log_path": "/var/log/test.log"})
 
     @pytest.mark.parametrize(
         "test_scenario, log_path, match",
@@ -281,7 +287,7 @@ class TestReadLogFile:
 
         test_path = tmp_path / log_path
         with pytest.raises(ToolError, match=match):
-            await mcp_client.call_tool("read_log_file", {"log_path": test_path})
+            await mcp_client.call_tool("read_log_file", {"host": "localhost", "log_path": test_path})
 
     async def test_read_log_file_nonexistent_but_allowed(self, mcp_client, mock_allowed_log_paths, tmp_path):
         """Test read_log_file when path is allowed but file doesn't exist."""
@@ -289,7 +295,7 @@ class TestReadLogFile:
         mock_allowed_log_paths(str(nonexistent_file))
 
         with pytest.raises(ToolError, match="Log file not found"):
-            await mcp_client.call_tool("read_log_file", {"log_path": nonexistent_file})
+            await mcp_client.call_tool("read_log_file", {"host": "localhost", "log_path": nonexistent_file})
 
     async def test_read_log_file_path_is_directory(self, mcp_client, mock_allowed_log_paths, tmp_path):
         """Test read_log_file when path is a directory, not a file."""
@@ -298,7 +304,7 @@ class TestReadLogFile:
         mock_allowed_log_paths(str(log_dir))
 
         with pytest.raises(ToolError, match="Path is not a file"):
-            await mcp_client.call_tool("read_log_file", {"log_path": log_dir})
+            await mcp_client.call_tool("read_log_file", {"host": "localhost", "log_path": log_dir})
 
     @pytest.mark.parametrize(
         "returncode, stderr, match",
@@ -315,7 +321,7 @@ class TestReadLogFile:
         mock_execute_with_fallback.return_value = (returncode, "", stderr)
 
         with pytest.raises(ToolError, match=match):
-            await mcp_client.call_tool("read_log_file", {"log_path": log_file})
+            await mcp_client.call_tool("read_log_file", {"host": "localhost", "log_path": log_file})
 
     async def test_read_log_file_empty(self, mcp_client, mock_execute_with_fallback, setup_log_file):
         """Test read_log_file with empty log file."""
@@ -323,7 +329,7 @@ class TestReadLogFile:
         mock_execute_with_fallback.return_value = (0, "", "")
 
         with pytest.raises(ToolError, match="Log file is empty"):
-            await mcp_client.call_tool("read_log_file", {"log_path": log_file})
+            await mcp_client.call_tool("read_log_file", {"host": "localhost", "log_path": log_file})
 
     async def test_read_log_file_tail_not_found(self, mcp_client, mock_execute_with_fallback, setup_log_file):
         """Test read_log_file when tail command is not available."""
@@ -331,7 +337,7 @@ class TestReadLogFile:
         mock_execute_with_fallback.side_effect = FileNotFoundError("tail not found")
 
         with pytest.raises(ToolError, match="tail not found"):
-            await mcp_client.call_tool("read_log_file", {"log_path": log_file})
+            await mcp_client.call_tool("read_log_file", {"host": "localhost", "log_path": log_file})
 
     async def test_read_log_file_multiple_allowed_paths(
         self, mcp_client, mock_execute_with_fallback, mock_allowed_log_paths, tmp_path
@@ -345,7 +351,7 @@ class TestReadLogFile:
         mock_allowed_log_paths(f"{log_file1},{log_file2}")
         mock_execute_with_fallback.return_value = (0, "content2", "")
 
-        result = await mcp_client.call_tool("read_log_file", {"log_path": log_file2})
+        result = await mcp_client.call_tool("read_log_file", {"host": "localhost", "log_path": log_file2})
         content = result.structured_content
 
         assert "content2" in content["entries"]

@@ -7,7 +7,7 @@ async def test_read_file_success(tmp_path, mcp_client):
     test_file = tmp_path / "test.txt"
     test_file.write_text("Hello, World!")
 
-    result = await mcp_client.call_tool("read_file", arguments={"path": str(test_file)})
+    result = await mcp_client.call_tool("read_file", arguments={"host": "localhost", "path": str(test_file)})
 
     assert result.content[0].text == "Hello, World!"
 
@@ -16,14 +16,14 @@ async def test_read_file_nonexistent(tmp_path, mcp_client):
     nonexistent = tmp_path / "nonexistent.txt"
 
     with pytest.raises(ToolError) as exc_info:
-        await mcp_client.call_tool("read_file", arguments={"path": str(nonexistent)})
+        await mcp_client.call_tool("read_file", arguments={"host": "localhost", "path": str(nonexistent)})
 
     assert f"Path is not a file: {nonexistent}" == str(exc_info.value)
 
 
 async def test_read_file_is_directory(tmp_path, mcp_client):
     with pytest.raises(ToolError) as exc_info:
-        await mcp_client.call_tool("read_file", arguments={"path": str(tmp_path)})
+        await mcp_client.call_tool("read_file", arguments={"host": "localhost", "path": str(tmp_path)})
 
     assert "not a file" in str(exc_info.value)
 
@@ -49,7 +49,7 @@ async def test_read_file_rejects_large_local_file(tmp_path, mcp_client, mocker):
     test_file.write_text("0123456789")
 
     with pytest.raises(ToolError, match="too large"):
-        await mcp_client.call_tool("read_file", arguments={"path": str(test_file)})
+        await mcp_client.call_tool("read_file", arguments={"host": "localhost", "path": str(test_file)})
 
 
 async def test_read_file_remote_rejects_large_file(mock_execute_with_fallback, mcp_client, mocker):
@@ -78,7 +78,7 @@ async def test_read_file_sentinel_rejects_over_limit(tmp_path, mcp_client, mocke
     mocker.patch("pathlib.Path.stat", return_value=type("stat", (), {"st_size": 7})())
 
     with pytest.raises(ToolError, match="too large"):
-        await mcp_client.call_tool("read_file", arguments={"path": str(test_file)})
+        await mcp_client.call_tool("read_file", arguments={"host": "localhost", "path": str(test_file)})
 
 
 async def test_read_file_custom_limit(tmp_path, mcp_client, mocker):
@@ -86,6 +86,6 @@ async def test_read_file_custom_limit(tmp_path, mcp_client, mocker):
     test_file = tmp_path / "small.txt"
     test_file.write_text("OK")
 
-    result = await mcp_client.call_tool("read_file", arguments={"path": str(test_file)})
+    result = await mcp_client.call_tool("read_file", arguments={"host": "localhost", "path": str(test_file)})
 
     assert result.content[0].text == "OK"
