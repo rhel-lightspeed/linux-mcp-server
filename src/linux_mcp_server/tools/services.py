@@ -12,7 +12,6 @@ from linux_mcp_server.formatters import format_service_status
 from linux_mcp_server.formatters import format_services_list
 from linux_mcp_server.parsers import parse_service_count
 from linux_mcp_server.server import mcp
-from linux_mcp_server.utils.decorators import disallow_local_execution_in_containers
 from linux_mcp_server.utils.types import Host
 from linux_mcp_server.utils.validation import is_empty_output
 
@@ -24,7 +23,6 @@ from linux_mcp_server.utils.validation import is_empty_output
     annotations=ToolAnnotations(readOnlyHint=True),
 )
 @log_tool_call
-@disallow_local_execution_in_containers
 async def list_services(
     host: Host,
 ) -> str:
@@ -57,7 +55,6 @@ async def list_services(
     annotations=ToolAnnotations(readOnlyHint=True),
 )
 @log_tool_call
-@disallow_local_execution_in_containers
 async def get_service_status(
     service_name: t.Annotated[
         str,
@@ -97,7 +94,6 @@ async def get_service_status(
     annotations=ToolAnnotations(readOnlyHint=True),
 )
 @log_tool_call
-@disallow_local_execution_in_containers
 async def get_service_logs(
     service_name: t.Annotated[
         str,

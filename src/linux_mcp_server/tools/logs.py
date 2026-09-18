@@ -15,7 +15,6 @@ from linux_mcp_server.config import CONFIG
 from linux_mcp_server.models import LogEntries
 from linux_mcp_server.server import mcp
 from linux_mcp_server.utils import StrEnum
-from linux_mcp_server.utils.decorators import disallow_local_execution_in_containers
 from linux_mcp_server.utils.types import Host
 from linux_mcp_server.utils.types import LOCALHOST
 from linux_mcp_server.utils.validation import is_empty_output
@@ -90,7 +89,6 @@ async def _get_journal_logs(
     annotations=ToolAnnotations(readOnlyHint=True),
 )
 @log_tool_call
-@disallow_local_execution_in_containers
 async def get_journal_logs(
     unit: t.Annotated[
         str,
@@ -185,7 +183,6 @@ async def get_journal_logs(
     annotations=ToolAnnotations(readOnlyHint=True),
 )
 @log_tool_call
-@disallow_local_execution_in_containers
 async def read_log_file(
     log_path: t.Annotated[
         Path,

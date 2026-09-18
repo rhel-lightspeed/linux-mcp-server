@@ -191,10 +191,6 @@ See [SSH Configuration](ssh.md#managing-host-keys) for more details on host key 
 
 **Solution:** The Linux MCP Server requires systemd on the target system for service-related tools. The main use case is modern RHEL-family distributions (RHEL 9+, Fedora, CentOS Stream).
 
-### macOS / Windows: Tools not working locally
-
-Local execution (`host: localhost`) is only supported on Linux. On macOS and Windows, use the MCP server to manage remote Linux systems via SSH by passing a remote host in the `host` parameter.
-
 ---
 
 ## Getting Additional Help

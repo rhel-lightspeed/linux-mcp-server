@@ -36,6 +36,43 @@ class Toolset(StrEnum):
     BOTH = "both"
 
 
+# Values that systemd and the common container runtimes set 'container' to.
+CONTAINER_ENV_VARS = [
+    "openvz",
+    "lxc",
+    "lxc-libvirt",
+    "systemd-nspawn",
+    "docker",
+    "podman",
+    "rkt",
+    "wsl",
+    "proot",
+    "pouch",
+]
+
+
+class HostMode(StrEnum):
+    """Where tools are allowed to run."""
+
+    LOCAL_ONLY = "local-only"
+    REMOTE_ONLY = "remote-only"
+    ANY = "any"
+
+
+def default_host_mode() -> HostMode:
+    """Allow local execution only where it would tell the user anything useful.
+
+    A container sees its own filesystem, process table and units rather than the
+    host's, and local execution isn't implemented for anything but Linux. In both
+    cases the only meaningful answers come from a remote host, so don't offer the
+    model a choice it cannot use.
+    """
+    if sys.platform != "linux" or os.environ.get("container") in CONTAINER_ENV_VARS:
+        return HostMode.REMOTE_ONLY
+
+    return HostMode.ANY
+
+
 class ReasoningEffort(StrEnum):
     """Reasoning effort levels for the gatekeeper model."""
 
@@ -208,6 +245,9 @@ class Config(BaseSettings):
 
     # What tools are available
     toolset: Toolset = Toolset.FIXED
+
+    # Where tools are allowed to run
+    host_mode: HostMode = Field(default_factory=default_host_mode)
 
     # Required when toolset is run_script or both (provider and model are mandatory on GatekeeperConfig)
     gatekeeper: GatekeeperConfig | None = None
