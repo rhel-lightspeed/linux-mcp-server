@@ -166,7 +166,10 @@ def host_from_stored_script(argument: str):
 
     def resolver(arguments: dict[str, t.Any]) -> Host:
         try:
-            return script_store.get_script_details(arguments[argument]).host
+            arg_value = arguments.get(argument)
+            if not (arg_value and isinstance(arg_value, str)):
+                raise ToolError(f"The '{argument}' parameter is required and must be a non-empty string")
+            return script_store.get_script_details(arg_value).host
         except KeyError:
             raise ToolError("No validated script found for the supplied token.") from None
 

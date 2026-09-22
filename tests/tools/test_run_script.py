@@ -288,6 +288,11 @@ class TestValidateScriptMCP:
 class TestRunScriptMCP:
     """``run_script`` (token only) via ``client``."""
 
+    async def test_missing_parameter(self, client: Any) -> None:
+        """No token parameter is passed."""
+        with pytest.raises(ToolError, match="The 'token' parameter is required"):
+            await client.call_tool("run_script", {})
+
     async def test_unknown_token(self, client: Any, script_store_fresh: ScriptStore) -> None:
         """A token with no stored script fails while the middleware looks for its host."""
         with pytest.raises(ToolError, match="No validated script found"):
