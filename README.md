@@ -22,13 +22,6 @@ A Model Context Protocol (MCP) server for read-only Linux system administration,
 
 ## Installation and Usage
 
-For detailed instructions on setting up and using the Linux MCP Server, please refer to our official documentation:
+For detailed instructions on setting up and using the Linux MCP Server, please refer to our [documentation].
 
-- **[Installation Guide]**: Detailed steps for `pip`, `uv`, and container-based deployments.
-- **[Usage Guide]**: Information on running the server, configuring LLM clients, and troubleshooting.
-- **[Cheatsheet]**: A reference for what prompts to use to invoke various tools.
-
-
-[Installation Guide]: https://rhel-lightspeed.github.io/linux-mcp-server/install/
-[Usage Guide]: https://rhel-lightspeed.github.io/linux-mcp-server/usage/
-[Cheatsheet]: https://rhel-lightspeed.github.io/linux-mcp-server/cheatsheet/
+[documentation]: https://rhel-lightspeed.github.io/linux-mcp-server/
