@@ -72,6 +72,13 @@
           "format": "string",
           "isSecret": false
         },
+        {
+          "name": "LINUX_MCP_HOST_MODE",
+          "description": "Where tools may run: `local-only`, `remote-only`, or `any` (default: `remote-only` in a container or on a non-Linux platform, otherwise `any`)",
+          "isRequired": false,
+          "format": "string",
+          "isSecret": false
+        },
 
         {
           "name": "LINUX_MCP_LOG_DIR",

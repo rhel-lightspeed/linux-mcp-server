@@ -27,7 +27,6 @@ from linux_mcp_server.mcp_app import RUN_SCRIPT_APP_URI
 from linux_mcp_server.mcp_app import use_mcp_app_for_client
 from linux_mcp_server.server import mcp
 from linux_mcp_server.target_host import target_host_from
-from linux_mcp_server.utils.decorators import disallow_local_execution_in_containers
 from linux_mcp_server.utils.types import Host
 
 
@@ -275,7 +274,6 @@ class ExecuteScriptResult:
     app=AppConfig(visibility=["app"]),
 )
 @log_tool_call
-@disallow_local_execution_in_containers
 @host_from_stored_script("id")
 async def execute_script(
     id: t.Annotated[str, Field(description="The associated ID of the script to be executed")],
@@ -313,7 +311,6 @@ async def execute_script(
     app=AppConfig(visibility=["app"]),
 )
 @log_tool_call
-@disallow_local_execution_in_containers
 @host_from_stored_script("id")
 async def reject_script(
     id: t.Annotated[str, Field(description="The associated ID of the script to be rejected")],
@@ -330,7 +327,6 @@ async def reject_script(
     app=AppConfig(resource_uri=RUN_SCRIPT_APP_URI),
 )
 @log_tool_call
-@disallow_local_execution_in_containers
 async def run_script_interactive(
     ctx: Context,
     description: t.Annotated[
@@ -402,7 +398,6 @@ async def run_script_interactive(
     app=AppConfig(visibility=["app"]),
 )
 @log_tool_call
-@disallow_local_execution_in_containers
 @host_from_stored_script("id")
 async def get_execution_details(id: str):
     script_detail = script_store.get_script_details(id)
@@ -425,7 +420,6 @@ def _pick_execution_tool(needs_confirmation: bool):
     annotations=ToolAnnotations(readOnlyHint=True),
 )
 @log_tool_call
-@disallow_local_execution_in_containers
 async def validate_script(
     ctx: Context,
     description: t.Annotated[
@@ -482,7 +476,6 @@ async def validate_script(
     annotations=ToolAnnotations(readOnlyHint=True),
 )
 @log_tool_call
-@disallow_local_execution_in_containers
 @host_from_stored_script("token")
 async def run_script(
     ctx: Context,
@@ -517,7 +510,6 @@ async def run_script(
     annotations=ToolAnnotations(destructiveHint=True),
 )
 @log_tool_call
-@disallow_local_execution_in_containers
 async def run_script_with_confirmation(
     ctx: Context,
     description: t.Annotated[

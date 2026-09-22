@@ -12,7 +12,6 @@ from linux_mcp_server.formatters import format_process_list
 from linux_mcp_server.parsers import parse_proc_status
 from linux_mcp_server.parsers import parse_ps_output
 from linux_mcp_server.server import mcp
-from linux_mcp_server.utils.decorators import disallow_local_execution_in_containers
 from linux_mcp_server.utils.types import Host
 from linux_mcp_server.utils.validation import is_successful_output
 
@@ -24,7 +23,6 @@ from linux_mcp_server.utils.validation import is_successful_output
     annotations=ToolAnnotations(readOnlyHint=True),
 )
 @log_tool_call
-@disallow_local_execution_in_containers
 async def list_processes(
     host: Host,
 ) -> str:
@@ -49,7 +47,6 @@ async def list_processes(
     annotations=ToolAnnotations(readOnlyHint=True),
 )
 @log_tool_call
-@disallow_local_execution_in_containers
 async def get_process_info(
     pid: t.Annotated[
         int,

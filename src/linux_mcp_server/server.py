@@ -33,7 +33,10 @@ from linux_mcp_server.mcp_app import hide_app_tools_for_client
 from linux_mcp_server.mcp_app import MCP_APP_MIME_TYPE
 from linux_mcp_server.mcp_app import RUN_SCRIPT_APP_URI
 from linux_mcp_server.mcp_app import use_mcp_app_for_client
+from linux_mcp_server.target_host import adjust_tool
 from linux_mcp_server.target_host import resolve_target_host
+from linux_mcp_server.target_host import restrict
+from linux_mcp_server.target_host import target_host_instructions
 from linux_mcp_server.toolset import get_toolset
 from linux_mcp_server.toolset import Toolset as ToolsetInfo
 from linux_mcp_server.utils.types import LOCALHOST
@@ -70,7 +73,7 @@ These tools map to six areas:
 
 ## Behavior
 
-- **Target host:** Most tools require a `host` argument: `localhost` runs the work on the system the MCP server runs on, any other value runs it on that host over SSH.
+{target_host}
 - **Read-only vs destructive:** All tools are marked read-only. Do not expect to be able to modify the system.
 - **Log file access:** requires explicit allowlist configuration via LINUX_MCP_ALLOWED_LOG_PATHS
 - **Service names:** automatically append '.service' suffix if not provided
@@ -106,7 +109,7 @@ You must validate a script before it will be allowed to run.
 
 ## Behavior
 
-- **Target host:** Most tools require a `host` argument: `localhost` runs the work on the system the MCP server runs on, any other value runs it on that host over SSH.
+{target_host}
 - **Log file access:** requires explicit allowlist configuration via LINUX_MCP_ALLOWED_LOG_PATHS
 - **Service names:** automatically append '.service' suffix if not provided
 - **File paths:** must be absolute
@@ -151,7 +154,7 @@ These tools map to six areas:
 
 ## Behavior
 
-- **Target host:** Most tools require a `host` argument: `localhost` runs the work on the system the MCP server runs on, any other value runs it on that host over SSH.
+{target_host}
 - **Log file access:** requires explicit allowlist configuration via LINUX_MCP_ALLOWED_LOG_PATHS
 - **Service names:** automatically append '.service' suffix if not provided
 - **File paths:** must be absolute
@@ -161,13 +164,15 @@ These tools map to six areas:
 def _get_instructions() -> str:
     match CONFIG.toolset:
         case Toolset.FIXED:
-            return INSTRUCTIONS_FIXED
+            instructions = INSTRUCTIONS_FIXED
         case Toolset.RUN_SCRIPT:
-            return INSTRUCTIONS_RUN_SCRIPT
+            instructions = INSTRUCTIONS_RUN_SCRIPT
         case Toolset.BOTH:
-            return INSTRUCTIONS_BOTH
+            instructions = INSTRUCTIONS_BOTH
         case _:  # pragma: no cover
             assert False, f"Unknown toolset configuration: {CONFIG.toolset}"
+
+    return instructions.replace("{target_host}", target_host_instructions())
 
 
 def _current_toolset():
@@ -241,8 +246,9 @@ class ComponentFilter:
 # Middleware to enforce authorization policy
 class AuthorizationMiddleware(Middleware):
     async def on_call_tool(self, context: MiddlewareContext, call_next):
-        # Extract tool metadata
-        tool_args = context.message.arguments or {}
+        # Extract tool metadata. resolve_target_host() can add 'host', so hand it the
+        # dict the tool itself will be called with rather than a throwaway copy.
+        tool_args = context.message.arguments = context.message.arguments or {}
 
         assert context.fastmcp_context
 
@@ -256,7 +262,7 @@ class AuthorizationMiddleware(Middleware):
         # For stdio without policy configured, allow everything
         if CONFIG.transport == Transport.stdio and CONFIG.policy_path is None:
             exec_context = ExecutionContext(allow_local=True, allow_ssh_default=True)
-            with use_execution_context(exec_context):
+            with use_execution_context(restrict(exec_context)):
                 return await call_next(context)
 
         # For http transports log auth at INFO for audit trail info
@@ -312,7 +318,7 @@ class AuthorizationMiddleware(Middleware):
                 raise RuntimeError(f"Unexpected policy action: {action}")
 
         # Execute with the appropriate ExecutionContext
-        with use_execution_context(exec_context):
+        with use_execution_context(restrict(exec_context)):
             return await call_next(context)
 
 
@@ -364,7 +370,7 @@ class DynamicDiscoveryMiddleware(Middleware):
 
         assert context.fastmcp_context
         filter = ComponentFilter.get(context.fastmcp_context, is_list_tools=True)
-        return [t for t in tools if filter.includes(t)]
+        return [adjust_tool(t) for t in tools if filter.includes(t)]
 
     async def on_list_resources(self, context: MiddlewareContext, call_next):
         resources = await call_next(context)
