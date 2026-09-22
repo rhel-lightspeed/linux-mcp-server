@@ -60,13 +60,13 @@ arches:
     name: glibc-devel
     evr: 2.39-128.el10_2
     sourcerpm: glibc-2.39-128.el10_2.src.rpm
-  - url: https://cdn-ubi.redhat.com/content/public/ubi/dist/ubi10/10/aarch64/appstream/os/Packages/k/kernel-headers-6.12.0-211.55.1.el10_2.aarch64.rpm
+  - url: https://cdn-ubi.redhat.com/content/public/ubi/dist/ubi10/10/aarch64/appstream/os/Packages/k/kernel-headers-6.12.0-211.56.1.el10_2.aarch64.rpm
     repoid: ubi-10-for-aarch64-appstream-rpms
-    size: 3693157
-    checksum: sha256:c8b909c83e6b8ed1af0c95a9543e6e1e751d30f885ce219f86d1b620b84796de
+    size: 3699933
+    checksum: sha256:081d95821ff549e1cc45127ff5d09923371d85bd9d601c1579c2d43417bf382d
     name: kernel-headers
-    evr: 6.12.0-211.55.1.el10_2
-    sourcerpm: kernel-6.12.0-211.55.1.el10_2.src.rpm
+    evr: 6.12.0-211.56.1.el10_2
+    sourcerpm: kernel-6.12.0-211.56.1.el10_2.src.rpm
   - url: https://cdn-ubi.redhat.com/content/public/ubi/dist/ubi10/10/aarch64/appstream/os/Packages/k/keyutils-libs-devel-1.6.3-5.el10.aarch64.rpm
     repoid: ubi-10-for-aarch64-appstream-rpms
     size: 66529
@@ -879,20 +879,20 @@ arches:
     name: ncurses
     evr: 6.4-15.20240127.el10_1
     sourcerpm: ncurses-6.4-15.20240127.el10_1.src.rpm
-  - url: https://cdn-ubi.redhat.com/content/public/ubi/dist/ubi10/10/aarch64/baseos/os/Packages/o/openssh-9.9p1-25.el10_2.aarch64.rpm
+  - url: https://cdn-ubi.redhat.com/content/public/ubi/dist/ubi10/10/aarch64/baseos/os/Packages/o/openssh-9.9p1-27.el10_2.aarch64.rpm
     repoid: ubi-10-for-aarch64-baseos-rpms
-    size: 362021
-    checksum: sha256:efbfae2e48c491a0be07ca9d0cb9e7b7cead35aaac2fdd6f438026ebcc43fe28
+    size: 362120
+    checksum: sha256:95c362810311b57ff4c4e39310bcb9eedde7b820a85a355bd16cbd6767d30893
     name: openssh
-    evr: 9.9p1-25.el10_2
-    sourcerpm: openssh-9.9p1-25.el10_2.src.rpm
-  - url: https://cdn-ubi.redhat.com/content/public/ubi/dist/ubi10/10/aarch64/baseos/os/Packages/o/openssh-clients-9.9p1-25.el10_2.aarch64.rpm
+    evr: 9.9p1-27.el10_2
+    sourcerpm: openssh-9.9p1-27.el10_2.src.rpm
+  - url: https://cdn-ubi.redhat.com/content/public/ubi/dist/ubi10/10/aarch64/baseos/os/Packages/o/openssh-clients-9.9p1-27.el10_2.aarch64.rpm
     repoid: ubi-10-for-aarch64-baseos-rpms
-    size: 767678
-    checksum: sha256:0ad46b3cd53851f65ee4145466cc3ef929c9e0c86cee26059d39cbdf26074d4b
+    size: 768275
+    checksum: sha256:c7af5e73c48cd0680422e2798b3a224398b0e55958bd9dfc85a4fada9cdf24fe
     name: openssh-clients
-    evr: 9.9p1-25.el10_2
-    sourcerpm: openssh-9.9p1-25.el10_2.src.rpm
+    evr: 9.9p1-27.el10_2
+    sourcerpm: openssh-9.9p1-27.el10_2.src.rpm
   - url: https://cdn-ubi.redhat.com/content/public/ubi/dist/ubi10/10/aarch64/baseos/os/Packages/o/openssl-libs-3.5.8-1.el10_2.aarch64.rpm
     repoid: ubi-10-for-aarch64-baseos-rpms
     size: 2236883
@@ -1392,12 +1392,12 @@ arches:
     checksum: sha256:f31cd79c6f005f85f0fdbdac5025c1ccc2b2b9c88103fd8ca94fc523c8c4c6ec
     name: ncurses
     evr: 6.4-15.20240127.el10_1
-  - url: https://cdn-ubi.redhat.com/content/public/ubi/dist/ubi10/10/aarch64/baseos/source/SRPMS/Packages/o/openssh-9.9p1-25.el10_2.src.rpm
+  - url: https://cdn-ubi.redhat.com/content/public/ubi/dist/ubi10/10/aarch64/baseos/source/SRPMS/Packages/o/openssh-9.9p1-27.el10_2.src.rpm
     repoid: ubi-10-for-aarch64-baseos-source-rpms
-    size: 2398850
-    checksum: sha256:112d73e9d7ebeafd1dd76e25a1acbe3237d4a486f31746c9a49b8142d9c52bea
+    size: 2404763
+    checksum: sha256:96c890cf0d8ee5ac1b8510bbef0d02441f75818909308afbf095976c50b16866
     name: openssh
-    evr: 9.9p1-25.el10_2
+    evr: 9.9p1-27.el10_2
   - url: https://cdn-ubi.redhat.com/content/public/ubi/dist/ubi10/10/aarch64/baseos/source/SRPMS/Packages/o/openssl-3.5.8-1.el10_2.src.rpm
     repoid: ubi-10-for-aarch64-baseos-source-rpms
     size: 53473629
@@ -1511,13 +1511,13 @@ arches:
     name: glibc-devel
     evr: 2.39-128.el10_2
     sourcerpm: glibc-2.39-128.el10_2.src.rpm
-  - url: https://cdn-ubi.redhat.com/content/public/ubi/dist/ubi10/10/x86_64/appstream/os/Packages/k/kernel-headers-6.12.0-211.55.1.el10_2.x86_64.rpm
+  - url: https://cdn-ubi.redhat.com/content/public/ubi/dist/ubi10/10/x86_64/appstream/os/Packages/k/kernel-headers-6.12.0-211.56.1.el10_2.x86_64.rpm
     repoid: ubi-10-for-x86_64-appstream-rpms
-    size: 3731329
-    checksum: sha256:0a38e481e5e4b5f642639625bef1b9c02d80d2ab4984e1ca280a88be29a65885
+    size: 3738117
+    checksum: sha256:0b88b9032629a400ae760499213bfacce9542c37b0d415e59aeb256a1ee4a8f6
     name: kernel-headers
-    evr: 6.12.0-211.55.1.el10_2
-    sourcerpm: kernel-6.12.0-211.55.1.el10_2.src.rpm
+    evr: 6.12.0-211.56.1.el10_2
+    sourcerpm: kernel-6.12.0-211.56.1.el10_2.src.rpm
   - url: https://cdn-ubi.redhat.com/content/public/ubi/dist/ubi10/10/x86_64/appstream/os/Packages/k/keyutils-libs-devel-1.6.3-5.el10.x86_64.rpm
     repoid: ubi-10-for-x86_64-appstream-rpms
     size: 66541
