@@ -8,7 +8,7 @@ import pytest
 @pytest.mark.skipif(sys.platform != "linux", reason="Only passes on Linux")
 class TestServices:
     async def test_list_services(self, mcp_client):
-        result = await mcp_client.call_tool("list_services")
+        result = await mcp_client.call_tool("list_services", {"host": "localhost"})
         result_text = result.content[0].text.casefold()
         expected = (
             ("service", "unit"),
@@ -25,14 +25,16 @@ class TestServices:
         ),
     )
     async def test_get_service_status(self, mcp_client, service_name, expected):
-        result = await mcp_client.call_tool("get_service_status", arguments={"service_name": service_name})
+        result = await mcp_client.call_tool(
+            "get_service_status", arguments={"host": "localhost", "service_name": service_name}
+        )
         result_text = result.content[0].text.casefold()
 
         assert any(n in result_text for n in expected), "Did not find any expected values"
 
     async def test_get_service_status_with_nonexistent_service(self, mcp_client):
         result = await mcp_client.call_tool(
-            "get_service_status", arguments={"service_name": "nonexistent-service-xyz123"}
+            "get_service_status", arguments={"host": "localhost", "service_name": "nonexistent-service-xyz123"}
         )
         result_text = result.content[0].text.casefold()
         expected = (
@@ -43,7 +45,9 @@ class TestServices:
         assert any(n in result_text for n in expected), "Did not find any expected values"
 
     async def test_get_service_logs(self, mcp_client):
-        result = await mcp_client.call_tool("get_service_logs", arguments={"service_name": "sshd.service", "lines": 5})
+        result = await mcp_client.call_tool(
+            "get_service_logs", arguments={"host": "localhost", "service_name": "sshd.service", "lines": 5}
+        )
         # Filter out empty lines, header lines (=), and journalctl boot markers (--)
         result_lines = [
             line
@@ -55,7 +59,8 @@ class TestServices:
 
     async def test_get_service_logs_with_nonexistent_service(self, mcp_client):
         result = await mcp_client.call_tool(
-            "get_service_logs", arguments={"service_name": "nonexistent-service-xyz123", "lines": 10}
+            "get_service_logs",
+            arguments={"host": "localhost", "service_name": "nonexistent-service-xyz123", "lines": 10},
         )
         result_text = result.content[0].text.casefold()
         expected = (

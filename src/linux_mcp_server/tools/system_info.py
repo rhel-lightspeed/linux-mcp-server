@@ -30,7 +30,7 @@ from linux_mcp_server.utils.validation import is_successful_output
 @log_tool_call
 @disallow_local_execution_in_containers
 async def get_system_information(
-    host: Host = None,
+    host: Host,
 ) -> SystemInfo:
     """Get basic system information.
 
@@ -59,7 +59,7 @@ async def get_system_information(
 @log_tool_call
 @disallow_local_execution_in_containers
 async def get_cpu_information(
-    host: Host = None,
+    host: Host,
 ) -> CpuInfo:
     """Get CPU information.
 
@@ -87,7 +87,7 @@ async def get_cpu_information(
 @log_tool_call
 @disallow_local_execution_in_containers
 async def get_memory_information(
-    host: Host = None,
+    host: Host,
 ) -> SystemMemory:
     """Get memory information.
 
@@ -116,7 +116,7 @@ async def get_memory_information(
 @log_tool_call
 @disallow_local_execution_in_containers
 async def get_disk_usage(
-    host: Host = None,
+    host: Host,
 ) -> DiskUsage:
     """Get disk usage information.
 
@@ -149,7 +149,7 @@ async def get_disk_usage(
 @log_tool_call
 @disallow_local_execution_in_containers
 async def get_hardware_information(
-    host: Host = None,
+    host: Host,
 ) -> dict[str, str | list[str]]:
     """Get hardware information.
 

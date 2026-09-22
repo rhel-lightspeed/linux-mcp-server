@@ -12,4 +12,4 @@ from fastmcp.exceptions import ToolError
 )
 async def test_path_validation_rejects_injection_characters(path, expected_error, mcp_client):
     with pytest.raises(ToolError, match=expected_error):
-        await mcp_client.call_tool("read_file", arguments={"path": path})
+        await mcp_client.call_tool("read_file", arguments={"host": "localhost", "path": path})

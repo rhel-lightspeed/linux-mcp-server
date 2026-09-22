@@ -3,6 +3,7 @@
 import pytest
 
 from linux_mcp_server.server import mcp
+from linux_mcp_server.target_host import get_target_host_resolver
 
 
 class TestToolSchemaExamples:
@@ -31,3 +32,20 @@ class TestToolSchemaExamples:
         assert param_name in props, f"Parameter '{param_name}' not found in {tool_name}"
         assert "examples" in props[param_name], f"Parameter '{param_name}' in {tool_name} missing examples"
         assert len(props[param_name]["examples"]) > 0, f"Parameter '{param_name}' in {tool_name} has empty examples"
+
+
+class TestTargetHost:
+    """Every tool must let the middleware determine where it will run."""
+
+    async def test_host_is_required_where_present(self) -> None:
+        for tool in await mcp._list_tools():
+            if "host" in tool.parameters.get("properties", {}):
+                assert "host" in tool.parameters.get("required", []), f"'host' is optional in {tool.name}"
+
+    async def test_every_tool_has_a_target_host(self) -> None:
+        for tool in await mcp._list_tools():
+            if "host" in tool.parameters.get("properties", {}):
+                continue
+            assert get_target_host_resolver(tool) is not None, (
+                f"{tool.name} has no 'host' parameter and no @target_host_from() resolver"
+            )

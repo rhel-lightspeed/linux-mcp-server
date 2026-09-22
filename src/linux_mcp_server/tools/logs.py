@@ -17,6 +17,7 @@ from linux_mcp_server.server import mcp
 from linux_mcp_server.utils import StrEnum
 from linux_mcp_server.utils.decorators import disallow_local_execution_in_containers
 from linux_mcp_server.utils.types import Host
+from linux_mcp_server.utils.types import LOCALHOST
 from linux_mcp_server.utils.validation import is_empty_output
 from linux_mcp_server.utils.validation import validate_path
 
@@ -43,9 +44,10 @@ class Transport(StrEnum):
 
 
 async def _get_journal_logs(
+    *,
+    host: Host,
     first_lines: int | None = None,
     last_lines: int | None = None,
-    host: Host | None = None,
     unit: str | None = None,
     priority: str | None = None,
     since: str | None = None,
@@ -56,7 +58,7 @@ async def _get_journal_logs(
     Args:
         first_lines: Number of first log lines to retrieve (using -n +N).
         last_lines: Number of last log lines to retrieve (using -n N).
-        host: Optional remote host address.
+        host: Host to get the logs from; LOCALHOST reads the local journal.
         unit: Filter by systemd unit name.
         priority: Filter by priority level.
         since: Filter entries since specified time.
@@ -131,7 +133,8 @@ async def get_journal_logs(
             le=10_000,
         ),
     ] = None,
-    host: Host = None,
+    *,
+    host: Host,
 ) -> LogEntries:
     """Get systemd journal logs.
 
@@ -208,7 +211,8 @@ async def read_log_file(
             le=10_000,
         ),
     ] = None,
-    host: Host = None,
+    *,
+    host: Host,
 ) -> LogEntries:
     """Read a specific log file.
 
@@ -243,7 +247,7 @@ async def read_log_file(
 
     allowed_paths = [Path(p.strip()) for p in allowed_paths_env.split(",") if p.strip()]
 
-    if not host:
+    if host == LOCALHOST:
         # For local execution, resolve and check against allowlist
         requested_path = log_path.resolve()
 

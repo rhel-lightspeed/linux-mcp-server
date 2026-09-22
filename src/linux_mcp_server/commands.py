@@ -12,6 +12,7 @@ from pydantic import BaseModel
 from pydantic import ConfigDict
 
 from linux_mcp_server.connection.ssh import execute_with_fallback
+from linux_mcp_server.utils.types import Host
 
 
 class CommandSpec(BaseModel):
@@ -31,11 +32,11 @@ class CommandSpec(BaseModel):
     fallback: tuple[str, ...] | None = None
     optional_flags: Mapping[str, tuple[str, ...]] | None = None
 
-    async def run(self, host: str | None = None, **kwargs: object) -> tuple[int, str, str]:
+    async def run(self, host: Host, **kwargs: object) -> tuple[int, str, str]:
         """Run the command with optional fallback.
 
         Args:
-            host: Optional remote host address.
+            host: Host to run the command on; LOCALHOST runs it locally.
             **kwargs: Additional arguments passed to substitute_command_args.
         """
         args = list(substitute_command_args(self.args, **kwargs))
@@ -49,11 +50,11 @@ class CommandSpec(BaseModel):
         stderr = stderr if isinstance(stderr, str) else stderr.decode("utf-8", errors="replace")
         return returncode, stdout, stderr
 
-    async def run_bytes(self, host: str | None = None, **kwargs: object) -> tuple[int, bytes, bytes]:
+    async def run_bytes(self, host: Host, **kwargs: object) -> tuple[int, bytes, bytes]:
         """Run the command with optional fallback and return raw bytes.
 
         Args:
-            host: Optional remote host address.
+            host: Host to run the command on; LOCALHOST runs it locally.
             **kwargs: Additional arguments passed to substitute_command_args.
         """
         args = list(substitute_command_args(self.args, **kwargs))

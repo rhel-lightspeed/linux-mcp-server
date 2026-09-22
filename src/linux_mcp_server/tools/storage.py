@@ -24,6 +24,7 @@ from linux_mcp_server.utils import format_bytes
 from linux_mcp_server.utils import StrEnum
 from linux_mcp_server.utils.decorators import disallow_local_execution_in_containers
 from linux_mcp_server.utils.types import Host
+from linux_mcp_server.utils.types import LOCALHOST
 from linux_mcp_server.utils.validation import is_successful_output
 from linux_mcp_server.utils.validation import validate_path
 
@@ -57,7 +58,7 @@ async def _list_resources(
     order_by: OrderBy,
     sort: SortBy,
     top_n: int | None,
-    host: Host | None,
+    host: Host,
     parser: t.Callable[[str, OrderBy], list[NodeEntry]],
 ):
     returncode, stdout, stderr = await command.run(host=host, path=path)
@@ -85,7 +86,7 @@ async def _list_resources(
 @log_tool_call
 @disallow_local_execution_in_containers
 async def list_block_devices(
-    host: Host = None,
+    host: Host,
 ) -> BlockDevices:
     """List block devices.
 
@@ -128,7 +129,8 @@ async def list_directories(
             le=1_000,
         ),
     ] = None,
-    host: Host = None,
+    *,
+    host: Host,
 ) -> StorageNodes:
     """List directories under a specified path.
 
@@ -173,7 +175,8 @@ async def list_files(
             le=1_000,
         ),
     ] = None,
-    host: Host = None,
+    *,
+    host: Host,
 ) -> StorageNodes:
     """List files under a specified path.
 
@@ -208,7 +211,7 @@ async def read_file(
             examples=["/etc/hosts", "/etc/resolv.conf", "/etc/os-release", "/proc/cpuinfo"],
         ),
     ],
-    host: Host = None,
+    host: Host,
 ) -> str:
     """Read the contents of a file.
 
@@ -219,7 +222,7 @@ async def read_file(
     limit = CONFIG.max_file_read_bytes
     limit_text = format_bytes(limit)
 
-    if not host:
+    if host == LOCALHOST:
         if not os.path.isfile(path):
             raise ToolError(f"Path is not a file: {path}")
         file_size = path.stat().st_size

@@ -26,6 +26,7 @@ from linux_mcp_server.gatekeeper import GatekeeperStatus
 from linux_mcp_server.mcp_app import RUN_SCRIPT_APP_URI
 from linux_mcp_server.mcp_app import use_mcp_app_for_client
 from linux_mcp_server.server import mcp
+from linux_mcp_server.target_host import target_host_from
 from linux_mcp_server.utils.decorators import disallow_local_execution_in_containers
 from linux_mcp_server.utils.types import Host
 
@@ -156,6 +157,25 @@ class ScriptStore:
 script_store = ScriptStore()
 
 
+def host_from_stored_script(argument: str):
+    """Tell the authorization middleware to take the target host from a stored script.
+
+    The tools that run a previously validated script identify it by token rather
+    than repeating the host, so the host they will use is the stored one.
+    """
+
+    def resolver(arguments: dict[str, t.Any]) -> Host:
+        try:
+            arg_value = arguments.get(argument)
+            if not (arg_value and isinstance(arg_value, str)):
+                raise ToolError(f"The '{argument}' parameter is required and must be a non-empty string")
+            return script_store.get_script_details(arg_value).host
+        except KeyError:
+            raise ToolError("No validated script found for the supplied token.") from None
+
+    return target_host_from(resolver)
+
+
 BASH_STRICT_PREAMBLE = "set -euo pipefail; "
 
 # Without an explicit --description, systemd-run derives Description= from the command
@@ -256,6 +276,7 @@ class ExecuteScriptResult:
 )
 @log_tool_call
 @disallow_local_execution_in_containers
+@host_from_stored_script("id")
 async def execute_script(
     id: t.Annotated[str, Field(description="The associated ID of the script to be executed")],
 ) -> ToolResult:
@@ -293,6 +314,7 @@ async def execute_script(
 )
 @log_tool_call
 @disallow_local_execution_in_containers
+@host_from_stored_script("id")
 async def reject_script(
     id: t.Annotated[str, Field(description="The associated ID of the script to be rejected")],
 ):
@@ -327,7 +349,7 @@ async def run_script_interactive(
     ],
     readonly: t.Annotated[bool, Field(description="Should be true if the script does not modify the system.")],
     token: t.Annotated[str, Field(description="The token returned by the validate_script tool.")],
-    host: Host = None,
+    host: Host,
 ) -> ToolResult:
     script_details = script_store.get_script_details(token)
 
@@ -381,6 +403,7 @@ async def run_script_interactive(
 )
 @log_tool_call
 @disallow_local_execution_in_containers
+@host_from_stored_script("id")
 async def get_execution_details(id: str):
     script_detail = script_store.get_script_details(id)
     return {"state": script_detail.state, "timeout": CONFIG.command_timeout}
@@ -419,7 +442,8 @@ async def validate_script(
         str,
         Field(description="The script to run."),
     ],
-    host: Host = None,
+    *,
+    host: Host,
     readonly: t.Annotated[bool, Field(description="Should be true if the script does not modify the system.")] = True,
 ) -> ToolResult:
     gatekeeper_result = await check_run_script(
@@ -459,6 +483,7 @@ async def validate_script(
 )
 @log_tool_call
 @disallow_local_execution_in_containers
+@host_from_stored_script("token")
 async def run_script(
     ctx: Context,
     token: t.Annotated[str, Field(description="The token returned by the validate_script tool.")],
@@ -511,7 +536,7 @@ async def run_script_with_confirmation(
     ],
     readonly: t.Annotated[bool, Field(description="Should be true if the script does not modify the system.")],
     token: t.Annotated[str, Field(description="The token returned by the validate_script tool.")],
-    host: Host = None,
+    host: Host,
 ) -> str:
     script_details = script_store.get_script_details(token)
 

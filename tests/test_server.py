@@ -221,17 +221,17 @@ class TestAuthorizationMiddleware:
     async def test_disabled_tool_raises(self, setup: SetupFn):
         client = setup(transport="stdio")
         with pytest.raises(ToolError, match=r"Unknown tool: 'validate_script'"):
-            await client.call_tool("validate_script")
+            await client.call_tool("validate_script", {"host": "localhost"})
 
     async def test_stdio_no_policy_allows(self, setup: SetupFn):
         client = setup(transport="stdio")
-        result = await client.call_tool("get_memory_information")
+        result = await client.call_tool("get_memory_information", {"host": "localhost"})
         assert result.structured_content and result.structured_content["ram"]["free"] == 2497076
 
     async def test_http_no_policy_rejects(self, setup: SetupFn):
         client = setup(transport="http")
         with pytest.raises(ToolError, match=r"Authorization denied: tool 'get_memory_information'"):
-            await client.call_tool("get_memory_information")
+            await client.call_tool("get_memory_information", {"host": "localhost"})
 
     async def test_http_policy_all_users_allows(self, setup: SetupFn):
         client = setup(
@@ -241,7 +241,7 @@ class TestAuthorizationMiddleware:
             ),
         )
 
-        result = await client.call_tool("get_memory_information")
+        result = await client.call_tool("get_memory_information", {"host": "localhost"})
         assert result.structured_content and result.structured_content["ram"]["free"] == 2497076
 
     @pytest.mark.parametrize("email,allowed", [("user1@example.com", True), ("user2@example.com", False)])
@@ -262,11 +262,11 @@ class TestAuthorizationMiddleware:
         )
 
         if allowed:
-            result = await client.call_tool("get_memory_information")
+            result = await client.call_tool("get_memory_information", {"host": "localhost"})
             assert result.structured_content and result.structured_content["ram"]["free"] == 2497076
         else:
             with pytest.raises(ToolError, match=r"Authorization denied: tool 'get_memory_information'"):
-                await client.call_tool("get_memory_information")
+                await client.call_tool("get_memory_information", {"host": "localhost"})
 
     async def test_ssh_key_with_config_allows(self, setup: SetupFn, caplog):
         """SSH_KEY action with config, should allow and log"""
@@ -321,7 +321,7 @@ class TestAuthorizationMiddleware:
         with pytest.raises(
             ToolError, match=r"Policy validation error: Cannot use SSH action \('ssh_default'\) for local execution."
         ):
-            await client.call_tool("get_memory_information")
+            await client.call_tool("get_memory_information", {"host": "localhost"})
 
     async def test_ssh_key_with_no_config_raises(self, setup: SetupFn, mocker):
         """SSH_KEY action but no ssk_key configuration"""
@@ -362,7 +362,7 @@ class TestExecutionContextMiddlewareIntegration:
         mocker.patch("linux_mcp_server.server.CONFIG.transport", "stdio")
         mocker.patch("linux_mcp_server.server.CONFIG.policy_path", None)
 
-        await mcp_client.call_tool("get_memory_information")
+        await mcp_client.call_tool("get_memory_information", {"host": "localhost"})
 
         captured_context = capture_context.get_context()
         assert captured_context is not None
@@ -380,7 +380,7 @@ class TestExecutionContextMiddlewareIntegration:
             ),
         )
 
-        await mcp_client.call_tool("get_memory_information")
+        await mcp_client.call_tool("get_memory_information", {"host": "localhost"})
 
         captured_context = capture_context.get_context()
         assert captured_context is not None
