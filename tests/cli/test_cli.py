@@ -25,11 +25,11 @@ def test_cli_version(mocker, capsys):
     (
         (
             ["--transport", "streamable-http"],
-            {"host": "127.0.0.1", "port": 8000, "path": "/mcp", "log_level": "INFO"},
+            {"host": "127.0.0.1", "port": 8000, "path": "/mcp", "uvicorn_config": {"log_config": None}},
         ),
         (
             ["--transport", "http", "--host", "7.7.7.7", "--port", "8308", "--path", "/culdesac"],
-            {"host": "7.7.7.7", "port": 8308, "path": "/culdesac", "log_level": "INFO"},
+            {"host": "7.7.7.7", "port": 8308, "path": "/culdesac", "uvicorn_config": {"log_config": None}},
         ),
     ),
     ids=["streamable", "http-host"],
@@ -48,3 +48,13 @@ def test_cli_transport_invalid(monkeypatch: pytest.MonkeyPatch):
     monkeypatch.setitem(Config.model_config, "cli_parse_args", True)
     with pytest.raises(ValidationError, match="Input should be"):
         Config()
+
+
+def test_cli_logging_options(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setattr(
+        "sys.argv", ["linux-mcp-server", "--transport=http", "--log-output=stdout", "--log-format=json"]
+    )
+    monkeypatch.setitem(Config.model_config, "cli_parse_args", True)
+    config = Config()
+    assert config.log_output == "stdout"
+    assert config.log_format == "json"

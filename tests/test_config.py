@@ -406,3 +406,31 @@ class TestGatekeeperConfig:
 
         with pytest.raises(ValidationError, match=r"Cost must be formatted as '<float>:<float>'"):
             Config()
+
+
+@pytest.mark.parametrize("transport", ["stdio", "http", "streamable-http"])
+@pytest.mark.parametrize("output", ["files", "stdout", "stderr"])
+@pytest.mark.parametrize("format", ["text", "json"])
+def test_logging_configuration(
+    transport: str,
+    output: str,
+    format: str,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setenv("LINUX_MCP_TRANSPORT", transport)
+    monkeypatch.setenv("LINUX_MCP_LOG_OUTPUT", output)
+    monkeypatch.setenv("LINUX_MCP_LOG_FORMAT", format)
+    if transport == "stdio" and output == "stdout":
+        with pytest.raises(ValidationError, match="stdout logging is incompatible with stdio"):
+            Config()
+    else:
+        config = Config()
+        assert config.log_output == output
+        assert config.log_format == format
+
+
+@pytest.mark.parametrize("name", ["LOG_OUTPUT", "LOG_FORMAT"])
+def test_invalid_logging_configuration(name: str, monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setenv(f"LINUX_MCP_{name}", "invalid")
+    with pytest.raises(ValidationError, match="Input should be"):
+        Config()

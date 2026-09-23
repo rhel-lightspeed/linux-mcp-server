@@ -7,8 +7,14 @@ Supports structured logging with extra fields for audit and diagnostic purposes.
 import json
 import logging
 import logging.handlers
+import sys
+import time
+
+from typing import Any
 
 from linux_mcp_server.config import CONFIG
+from linux_mcp_server.config import LogFormat
+from linux_mcp_server.config import LogOutput
 
 
 def get_log_level() -> int:
@@ -73,29 +79,12 @@ class StructuredFormatter(logging.Formatter):
 class JSONFormatter(logging.Formatter):
     """JSON log formatter for machine-readable logs."""
 
-    EXCLUDE_FIELDS = {
-        "args",
-        "exc_text",
-        "exc_info",
-        "stack_info",
-        "filename",
-        "funcName",
-        "lineno",
-        "module",
-        "msecs",
-        "pathname",
-        "process",
-        "processName",
-        "relativeCreated",
-        "thread",
-        "threadName",
-        "taskName",
-    }
+    converter = time.gmtime
 
     def format(self, record: logging.LogRecord) -> str:
         """Format a log record as JSON."""
-        log_data = {
-            "timestamp": self.formatTime(record, self.datefmt),
+        log_data: dict[str, Any] = {
+            "timestamp": self.formatTime(record, "%Y-%m-%dT%H:%M:%SZ"),
             "level": record.levelname,
             "logger": record.name,
             "message": record.getMessage(),
@@ -105,64 +94,64 @@ class JSONFormatter(logging.Formatter):
         if record.exc_info:
             log_data["exception"] = self.formatException(record.exc_info)
 
-        # Add extra fields
-        for key, value in record.__dict__.items():
-            if (
-                key not in self.EXCLUDE_FIELDS
-                and key not in log_data
-                and key not in {"name", "msg", "levelname", "levelno", "created"}
-            ):
-                log_data[key] = value
+        attributes = {
+            key: value for key, value in record.__dict__.items() if key not in StructuredFormatter.STANDARD_FIELDS
+        }
+        if attributes:
+            log_data["attributes"] = attributes
 
-        return json.dumps(log_data)
+        # Extra values from dependencies may not be JSON-native (e.g. Paths).
+        return json.dumps(log_data, default=str)
 
 
-def setup_logging():
-    """Set up logging with structured formatters and rotation."""
-    log_dir = CONFIG.log_dir
-    log_dir.mkdir(parents=True, exist_ok=True)
+def setup_logging() -> None:
+    """Configure file or stream output for application and transport logs."""
     log_level = get_log_level()
-    retention_days = get_retention_days()
-
-    # Configure root logger
+    text_formatter = StructuredFormatter(
+        "%(asctime)s | %(levelname)s | %(name)s | %(message)s", datefmt="%Y-%m-%d %H:%M:%S"
+    )
+    json_formatter = JSONFormatter()
     root_logger = logging.getLogger()
     root_logger.setLevel(log_level)
-    root_logger.handlers.clear()  # Remove existing handlers
+    for handler in root_logger.handlers[:]:
+        root_logger.removeHandler(handler)
+        handler.close()
 
-    # Human-readable text log
-    text_handler = logging.handlers.TimedRotatingFileHandler(
-        filename=log_dir / "server.log",
-        when="midnight",
-        interval=1,
-        backupCount=retention_days,
-        encoding="utf-8",
-    )
-    text_handler.setLevel(log_level)
-    text_handler.setFormatter(
-        StructuredFormatter("%(asctime)s | %(levelname)s | %(name)s | %(message)s", datefmt="%Y-%m-%d %H:%M:%S")
-    )
-    text_handler.suffix = "%Y-%m-%d"
-    root_logger.addHandler(text_handler)
+    if CONFIG.log_output == LogOutput.files:
+        log_dir = CONFIG.log_dir
+        log_dir.mkdir(parents=True, exist_ok=True)
+        for filename, formatter in (("server.log", text_formatter), ("server.json", json_formatter)):
+            file_handler = logging.handlers.TimedRotatingFileHandler(
+                filename=log_dir / filename,
+                when="midnight",
+                interval=1,
+                backupCount=get_retention_days(),
+                encoding="utf-8",
+            )
+            file_handler.setFormatter(formatter)
+            file_handler.suffix = "%Y-%m-%d"
+            root_logger.addHandler(file_handler)
 
-    # JSON log
-    json_handler = logging.handlers.TimedRotatingFileHandler(
-        filename=log_dir / "server.json",
-        when="midnight",
-        interval=1,
-        backupCount=retention_days,
-        encoding="utf-8",
-    )
-    json_handler.setLevel(log_level)
-    json_handler.setFormatter(JSONFormatter(datefmt="%Y-%m-%dT%H:%M:%S"))
-    json_handler.suffix = "%Y-%m-%d"
-    root_logger.addHandler(json_handler)
-
-    # Console handler for development
-    console_handler = logging.StreamHandler()
-    console_handler.setLevel(log_level)
+    # File mode retains the existing text stderr output. Stream modes emit each
+    # record once, with no log directory or rotating files.
+    stream = sys.stdout if CONFIG.log_output == LogOutput.stdout else sys.stderr
+    console_handler = logging.StreamHandler(stream)
     console_handler.setFormatter(
-        StructuredFormatter("%(asctime)s | %(levelname)s | %(name)s | %(message)s", datefmt="%Y-%m-%d %H:%M:%S")
+        json_formatter
+        if CONFIG.log_output != LogOutput.files and CONFIG.log_format == LogFormat.json
+        else text_formatter
     )
     root_logger.addHandler(console_handler)
 
-    root_logger.info(f"Logging initialized: {log_dir}")
+    # FastMCP installs handlers at import time; Uvicorn may already have been
+    # configured by an embedding application. Route both through our handlers.
+    # transport_kwargs prevents either from replacing them during server startup.
+    for name in ("fastmcp", "uvicorn", "uvicorn.error", "uvicorn.access", "uvicorn.asgi"):
+        logger = logging.getLogger(name)
+        for handler in logger.handlers[:]:
+            logger.removeHandler(handler)
+            handler.close()
+        logger.setLevel(logging.NOTSET)
+        logger.propagate = True
+
+    root_logger.info("Logging initialized", extra={"output": CONFIG.log_output.value})

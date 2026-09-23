@@ -3,6 +3,9 @@ import pytest
 from linux_mcp_server.__main__ import cli
 
 
+pytestmark = pytest.mark.usefixtures("isolated_logging")
+
+
 def test_cli(mocker):
     main = mocker.patch("linux_mcp_server.__main__.main", autospec=True)
     cli()

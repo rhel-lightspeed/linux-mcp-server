@@ -100,9 +100,11 @@ These are used when `LINUX_MCP_TOOLSET` is set to `run_script` or `both`.
 
 | Option / Env Var | Default | Description |
 |------------------|---------|-------------|
-| `--log-dir`<br>`LINUX_MCP_LOG_DIR` | `~/.local/share/linux-mcp-server/logs` | Directory for server logs |
+| `--log-output`<br>`LINUX_MCP_LOG_OUTPUT` | `files` | Destination: `files` (rotating text and JSON files plus text stderr), `stdout`, or `stderr`. `stdout` requires an HTTP transport. |
+| `--log-format`<br>`LINUX_MCP_LOG_FORMAT` | `text` | Stream format: `text` or `json`. Applies to `stdout`/`stderr` output; ignored in `files` mode. |
+| `--log-dir`<br>`LINUX_MCP_LOG_DIR` | `~/.local/share/linux-mcp-server/logs` | Directory for server logs; used only with `--log-output=files` |
 | `--log-level`<br>`LINUX_MCP_LOG_LEVEL` | `INFO` | Log verbosity: `DEBUG`, `INFO`, `WARNING` |
-| `--log-retention-days`<br>`LINUX_MCP_LOG_RETENTION_DAYS` | `10` | Days to retain log files |
+| `--log-retention-days`<br>`LINUX_MCP_LOG_RETENTION_DAYS` | `10` | Days to retain log files; used only with `--log-output=files` |
 
 See [Debug Logging](debugging.md) for details on log formats and locations.
 
