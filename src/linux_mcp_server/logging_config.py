@@ -14,13 +14,16 @@ from typing import Any
 
 from linux_mcp_server.config import CONFIG
 from linux_mcp_server.config import LogFormat
+from linux_mcp_server.config import LogLevel
 from linux_mcp_server.config import LogOutput
 
 
 def get_log_level() -> int:
-    """Get the log level from environment variable (defaults to INFO)."""
+    """Get the root log level; default mode limits dependencies to WARNING."""
     level_name = CONFIG.log_level
-    return getattr(logging, level_name, logging.INFO)
+    if level_name == LogLevel.DEFAULT:
+        return logging.WARNING
+    return getattr(logging, level_name)
 
 
 def get_retention_days() -> int:
@@ -113,6 +116,7 @@ def setup_logging() -> None:
     json_formatter = JSONFormatter()
     root_logger = logging.getLogger()
     root_logger.setLevel(log_level)
+    logging.getLogger("linux_mcp_server").setLevel(logging.INFO if CONFIG.log_level == LogLevel.DEFAULT else log_level)
     for handler in root_logger.handlers[:]:
         root_logger.removeHandler(handler)
         handler.close()
@@ -154,4 +158,4 @@ def setup_logging() -> None:
         logger.setLevel(logging.NOTSET)
         logger.propagate = True
 
-    root_logger.info("Logging initialized", extra={"output": CONFIG.log_output.value})
+    logging.getLogger(__name__).info("Logging initialized", extra={"output": CONFIG.log_output.value})

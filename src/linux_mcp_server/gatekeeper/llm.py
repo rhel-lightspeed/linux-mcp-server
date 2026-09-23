@@ -8,7 +8,7 @@ from linux_mcp_server.config import CONFIG
 from linux_mcp_server.config import GatekeeperProvider
 
 
-logger = logging.getLogger("linux-mcp-server")
+logger = logging.getLogger(__name__)
 
 
 class GatekeeperCompletion(BaseModel):

@@ -14,6 +14,7 @@ from pydantic import ValidationError
 
 from linux_mcp_server.config import Config
 from linux_mcp_server.config import GatekeeperProvider
+from linux_mcp_server.config import LogLevel
 from linux_mcp_server.config import Toolset
 
 
@@ -26,7 +27,7 @@ class TestConfig:
         config = Config(
             user="customuser",
             log_dir=Path("/var/log/custom"),
-            log_level="DEBUG",
+            log_level=LogLevel.DEBUG,
             log_retention_days=30,
             allowed_log_paths="/var/log:/tmp",
             max_file_read_bytes=2 * 1024 * 1024,
@@ -124,26 +125,26 @@ class TestConfig:
         config = Config()
 
         # Should use default value, not empty string
-        assert config.log_level == "INFO"
+        assert config.log_level == "DEFAULT"
 
     def test_normalize_log_level_lowercase(self, mock_getuser):
         """Test that log_level validator converts lowercase to uppercase"""
 
-        config = Config(log_level="debug")
+        config = Config.model_validate({"log_level": "debug"})
 
         assert config.log_level == "DEBUG"
 
     def test_normalize_log_level_uppercase(self, mock_getuser):
         """Test that log_level validator keeps uppercase as is"""
 
-        config = Config(log_level="ERROR")
+        config = Config.model_validate({"log_level": "ERROR"})
 
         assert config.log_level == "ERROR"
 
     def test_normalize_log_level_mixed_case(self, mock_getuser):
         """Test that log_level validator converts mixed case to uppercase"""
 
-        config = Config(log_level="WaRnInG")
+        config = Config.model_validate({"log_level": "WaRnInG"})
 
         assert config.log_level == "WARNING"
 
@@ -222,12 +223,10 @@ class TestConfigEdgeCases:
         assert config.allowed_log_paths is None
         assert config.ssh_key_path is None
 
-    def test_empty_string_log_level_validation(self, mock_getuser):
-        """Test log_level validator with empty string"""
-
-        config = Config(log_level="")
-
-        assert config.log_level == ""
+    @pytest.mark.parametrize("value", ["", "defualt", "BASIC_FORMAT", "NOTSET", 20])
+    def test_invalid_log_level(self, value):
+        with pytest.raises(ValidationError, match="log_level"):
+            Config.model_validate({"log_level": value})
 
     @pytest.mark.parametrize("value", [0, -1])
     def test_max_file_read_bytes_rejects_non_positive(self, mock_getuser, value):

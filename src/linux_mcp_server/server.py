@@ -56,7 +56,7 @@ def monkeypatch_fastmcp_for_app_visibility():
 monkeypatch_fastmcp_for_app_visibility()
 
 
-logger = logging.getLogger("linux-mcp-server")
+logger = logging.getLogger(__name__)
 
 INSTRUCTIONS_FIXED = """You have access to predefined commands that inspect the system. They run standard Linux utilities and return formatted results.
 
