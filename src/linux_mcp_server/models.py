@@ -181,7 +181,7 @@ class NodeEntry(BaseModel):
 
     @field_serializer("modified", when_used="json-unless-none")
     def serialize_modified(self, value: datetime) -> datetime:
-        """Truncate on output so that we can use the full precision to sort chronologically."""
+        """Truncate microseconds for JSON output; we parse full-precision datetimes from command output for sorting."""
         return value.replace(microsecond=0)
 
 
