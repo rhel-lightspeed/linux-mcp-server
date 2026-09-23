@@ -254,6 +254,13 @@ def test_setup_replaces_and_closes_handlers(
 
 
 def test_json_is_independent_of_other_formatters() -> None:
+    """Text formatting must not leak cached fields into JSON attributes.
+
+    File mode sends the same LogRecord to the text handler before the JSON
+    handler. Python's logging.Formatter adds message and asctime to that record
+    during text formatting; JSON output must exclude those cached fields so its
+    contents do not depend on which other handlers ran first.
+    """
     record = logging.makeLogRecord(
         {"msg": "First line\nSecond line", "created": 0, "path": Path("/tmp/example"), "timestamp": "custom"}
     )

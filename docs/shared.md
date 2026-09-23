@@ -98,7 +98,7 @@ linux-mcp-server is a very standard Python server. It doesn't care strongly abou
  * **Installation** - it is recommended to use the official container build: `quay.io/redhat-services-prod/rhel-lightspeed-tenant/linux-mcp-server:latest`.
  * **Transport** - `LINUX_MCP_TRANSPORT` should be set to http.
  * **TLS** - currently linux-mcp-server does not support TLS; it is necessary to run a frontend server such as NGINX in front of linux-mcp-server to provide TLS termination.
- * **Logging** - for containers, set `LINUX_MCP_LOG_OUTPUT=stdout` and `LINUX_MCP_LOG_FORMAT=json` so the container runtime can collect logs without a file-forwarding sidecar. For file logging, forward logs from `LINUX_MCP_LOG_DIR` to your central log collector.
+ * **Logging** - for containers, set `LINUX_MCP_LOG_OUTPUT=stdout` and `LINUX_MCP_LOG_FORMAT=json` so the container runtime can collect logs without a file-forwarding sidecar.
  * **Clustering and resilience** - when using the `@fixed` toolset, linux-mcp-server is stateless. You can run multiple servers and restart them at any time. However, currently the `@run_script` toolset maintains state in the running server. Load-balancing between running servers will cause misbehavior, and server restarts may break active client sessions.
 
 ## Configuring clients to access a shared server

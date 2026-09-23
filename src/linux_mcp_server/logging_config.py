@@ -132,8 +132,8 @@ def setup_logging() -> None:
             file_handler.suffix = "%Y-%m-%d"
             root_logger.addHandler(file_handler)
 
-    # File mode retains the existing text stderr output. Stream modes emit each
-    # record once, with no log directory or rotating files.
+    # File mode also emits text logs on stderr. Stream modes emit each record
+    # once on the selected stream, with no log directory or rotating files.
     stream = sys.stdout if CONFIG.log_output == LogOutput.stdout else sys.stderr
     console_handler = logging.StreamHandler(stream)
     console_handler.setFormatter(

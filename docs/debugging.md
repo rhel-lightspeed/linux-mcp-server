@@ -23,7 +23,7 @@ export LINUX_MCP_LOG_LEVEL=DEBUG
 
 ## Log Output Locations
 
-By default (`--log-output=files`), logs are written to two files and also emitted as human-readable text on stderr:
+By default (`LINUX_MCP_LOG_OUTPUT=files`), logs are written to two files and also emitted as human-readable text on stderr:
 
 1. **Human-readable**: `~/.local/share/linux-mcp-server/logs/server.log`
 2. **JSON format**: `~/.local/share/linux-mcp-server/logs/server.json`
@@ -39,22 +39,21 @@ export LINUX_MCP_LOG_DIR=/path/to/your/logs
 For an HTTP server running in a container, emit JSON logs directly to stdout:
 
 ```bash
-linux-mcp-server --transport=http --log-output=stdout --log-format=json
+export LINUX_MCP_TRANSPORT=http
+export LINUX_MCP_LOG_OUTPUT=stdout
+export LINUX_MCP_LOG_FORMAT=json
 ```
 
-The equivalent environment variables are `LINUX_MCP_TRANSPORT=http`,
-`LINUX_MCP_LOG_OUTPUT=stdout`, and `LINUX_MCP_LOG_FORMAT=json`.
 The `streamable-http` transport also supports stdout logging.
 
-For stdio transport, use `--log-output=stderr` instead: stdout is reserved for MCP
+For stdio transport, use `LINUX_MCP_LOG_OUTPUT=stderr` instead: stdout is reserved for MCP
 protocol messages, and configuring stdout logging with stdio is rejected.
 
 Stream output creates no log directory or files and emits each record once.
-`--log-dir` and `--log-retention-days` apply only to file output.
-`--log-format=text` (the default) gives human-readable stream output; `json` emits
+`LINUX_MCP_LOG_DIR` and `LINUX_MCP_LOG_RETENTION_DAYS` apply only to file output.
+`LINUX_MCP_LOG_FORMAT=text` (the default) gives human-readable stream output; `json` emits
 one JSON object per line. The format option has no effect in file mode, which
 always writes both formats and uses text on stderr.
-Application, FastMCP, and Uvicorn logs use the selected destination and format.
 
 JSON records have a UTC `timestamp`, `level`, `logger`, and `message`. Custom
 fields are nested under `attributes`, which is omitted when empty. Exceptions

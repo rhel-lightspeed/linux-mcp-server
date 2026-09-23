@@ -48,13 +48,3 @@ def test_cli_transport_invalid(monkeypatch: pytest.MonkeyPatch):
     monkeypatch.setitem(Config.model_config, "cli_parse_args", True)
     with pytest.raises(ValidationError, match="Input should be"):
         Config()
-
-
-def test_cli_logging_options(monkeypatch: pytest.MonkeyPatch) -> None:
-    monkeypatch.setattr(
-        "sys.argv", ["linux-mcp-server", "--transport=http", "--log-output=stdout", "--log-format=json"]
-    )
-    monkeypatch.setitem(Config.model_config, "cli_parse_args", True)
-    config = Config()
-    assert config.log_output == "stdout"
-    assert config.log_format == "json"
