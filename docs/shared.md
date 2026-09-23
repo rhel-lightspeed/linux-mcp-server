@@ -97,7 +97,7 @@ linux-mcp-server is a very standard Python server. It doesn't care strongly abou
 
  * **Installation** - it is recommended to use the official container build: `quay.io/redhat-services-prod/rhel-lightspeed-tenant/linux-mcp-server:latest`.
  * **Transport** - `LINUX_MCP_TRANSPORT` should be set to http.
- * **TLS** - currently linux-mcp-server does not support TLS; it is necessary to run a frontend server such as NGINX in front of linux-mcp-server to provide TLS termination.
+ * **TLS** - configure a certificate and private key directly as described below, or use a frontend server such as NGINX for TLS termination.
  * **Logging** - you should use a log forwarder to forward logs from the configured `LINUX_MCP_LOG_DIR` to your central log collector.
  * **Clustering and resilience** - when using the `@fixed` toolset, linux-mcp-server is stateless. You can run multiple servers and restart them at any time. However, currently the `@run_script` toolset maintains state in the running server. Load-balancing between running servers will cause misbehavior, and server restarts may break active client sessions.
 
@@ -221,3 +221,25 @@ Granting such wide access is more suitable for a development system than a produ
 Details of how to configure clients to access the shared linux-mcp-server instance will depend on the client.
 Typically it will be as simple as adding a MCP server to the client's UI and providing the URL to the linux-mcp-server instance.
 Authentication will occur interactively using OAuth2.
+
+## Direct TLS termination
+
+To serve HTTPS directly, configure both a certificate chain and its private key
+using environment variables. For example:
+
+```sh
+LINUX_MCP_TRANSPORT=http
+LINUX_MCP_HOST=0.0.0.0
+LINUX_MCP_PORT=8443
+LINUX_MCP_TLS_CERT=/etc/linux-mcp-server/tls/fullchain.pem
+LINUX_MCP_TLS_KEY=/etc/linux-mcp-server/tls/key.pem
+```
+
+Clients connect to `https://<server-hostname>:8443/mcp`.
+
+Use PEM files, with the server certificate followed by any intermediate certificates
+in the certificate chain file, and an unencrypted private key. Restart the server
+after replacing certificates or keys.
+
+FastMCP may still print an `http://` URL in its startup message when TLS is enabled;
+use `https://` when both TLS settings are configured.

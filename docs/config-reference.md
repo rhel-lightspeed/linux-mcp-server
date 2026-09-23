@@ -15,9 +15,11 @@ To see available options, run `linux-mcp-server --help`.
 | `--host`<br>`LINUX_MCP_HOST` | `127.0.0.1` | Host address for HTTP transport |
 | `--port`<br>`LINUX_MCP_PORT` | `8000` | Port number for HTTP transport |
 | `--path`<br>`LINUX_MCP_PATH` | `/mcp` | Path for HTTP transport |
+| `--tls-cert`<br>`LINUX_MCP_TLS_CERT` | *(none)* | Path to PEM certificate chain for HTTPS; requires `--tls-key` |
+| `--tls-key`<br>`LINUX_MCP_TLS_KEY` | *(none)* | Path to PEM private key for HTTPS; requires `--tls-cert` |
 
-!!! warning "HTTP Transport Security"
-    The HTTP transport does not currently have authentication. It should not be used in production or on untrusted networks.
+TLS settings require `http` transport. Without them, the server uses plain HTTP.
+See [Shared Server](shared.md) for TLS, authentication, and authorization setup.
 
 !!! note
     Some clients, like Claude Desktop, require `stdio` transport.

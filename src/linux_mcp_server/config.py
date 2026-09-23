@@ -222,6 +222,8 @@ class Config(BaseSettings):
     host: str = "127.0.0.1"
     port: int = 8000
     path: str = "/mcp"
+    tls_cert: Path | None = None
+    tls_key: Path | None = None
 
     # Logging configuration
     log_dir: Path = Path.home() / ".local" / "share" / "linux-mcp-server" / "logs"
@@ -273,14 +275,27 @@ class Config(BaseSettings):
         return self.known_hosts_path or Path.home() / ".ssh" / "known_hosts"
 
     @property
-    def transport_kwargs(self):
-        result: dict[str, str | int] = {"log_level": self.log_level}
+    def transport_kwargs(self) -> dict[str, Any]:
+        result: dict[str, Any] = {"log_level": self.log_level}
         if self.transport in {Transport.http, Transport.streamable_http}:
             result["host"] = self.host
             result["port"] = self.port
             result["path"] = self.path
+            if self.tls_cert is not None and self.tls_key is not None:
+                result["uvicorn_config"] = {
+                    "ssl_certfile": str(self.tls_cert),
+                    "ssl_keyfile": str(self.tls_key),
+                }
 
         return result
+
+    @model_validator(mode="after")
+    def validate_tls_config(self) -> "Config":
+        if (self.tls_cert is None) != (self.tls_key is None):
+            raise ValueError("tls_cert (LINUX_MCP_TLS_CERT) and tls_key (LINUX_MCP_TLS_KEY) must be set together")
+        if self.tls_cert is not None and self.transport == Transport.stdio:
+            raise ValueError("TLS requires the http or streamable-http transport")
+        return self
 
     @model_validator(mode="after")
     def validate_gatekeeper_config(self):
