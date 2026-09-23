@@ -25,11 +25,11 @@ def test_cli_version(mocker, capsys):
     (
         (
             ["--transport", "streamable-http"],
-            {"host": "127.0.0.1", "port": 8000, "path": "/mcp", "log_level": "INFO"},
+            {"host": "127.0.0.1", "port": 8000, "path": "/mcp", "uvicorn_config": {"log_config": None}},
         ),
         (
             ["--transport", "http", "--host", "7.7.7.7", "--port", "8308", "--path", "/culdesac"],
-            {"host": "7.7.7.7", "port": 8308, "path": "/culdesac", "log_level": "INFO"},
+            {"host": "7.7.7.7", "port": 8308, "path": "/culdesac", "uvicorn_config": {"log_config": None}},
         ),
     ),
     ids=["streamable", "http-host"],

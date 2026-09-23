@@ -15,29 +15,45 @@ from linux_mcp_server.config import Transport
 @pytest.mark.parametrize(
     "transport, enabled, expected",
     [
-        (Transport.stdio, False, {"log_level": "INFO"}),
-        (Transport.http, False, {"log_level": "INFO", "host": "127.0.0.1", "port": 8000, "path": "/mcp"}),
-        (Transport.streamable_http, False, {"log_level": "INFO", "host": "127.0.0.1", "port": 8000, "path": "/mcp"}),
+        (Transport.stdio, False, {}),
+        (
+            Transport.http,
+            False,
+            {
+                "host": "127.0.0.1",
+                "port": 8000,
+                "path": "/mcp",
+                "uvicorn_config": {"log_config": None},
+            },
+        ),
+        (
+            Transport.streamable_http,
+            False,
+            {
+                "host": "127.0.0.1",
+                "port": 8000,
+                "path": "/mcp",
+                "uvicorn_config": {"log_config": None},
+            },
+        ),
         (
             Transport.http,
             True,
             {
-                "log_level": "INFO",
                 "host": "127.0.0.1",
                 "port": 8000,
                 "path": "/mcp",
-                "uvicorn_config": {"ssl_certfile": "cert.pem", "ssl_keyfile": "key.pem"},
+                "uvicorn_config": {"log_config": None, "ssl_certfile": "cert.pem", "ssl_keyfile": "key.pem"},
             },
         ),
         (
             Transport.streamable_http,
             True,
             {
-                "log_level": "INFO",
                 "host": "127.0.0.1",
                 "port": 8000,
                 "path": "/mcp",
-                "uvicorn_config": {"ssl_certfile": "cert.pem", "ssl_keyfile": "key.pem"},
+                "uvicorn_config": {"log_config": None, "ssl_certfile": "cert.pem", "ssl_keyfile": "key.pem"},
             },
         ),
     ],
