@@ -30,7 +30,7 @@ from linux_mcp_server.target_host import target_host_from
 from linux_mcp_server.utils.types import Host
 
 
-logger = logging.getLogger("linux-mcp-server")
+logger = logging.getLogger(__name__)
 
 ExecutionState = t.Literal[
     "waiting-approval", "success", "failure", "executing", "rejected-user", "rejected-gatekeeper"

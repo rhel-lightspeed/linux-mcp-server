@@ -124,7 +124,7 @@ class TestConfig:
         config = Config()
 
         # Should use default value, not empty string
-        assert config.log_level == "INFO"
+        assert config.log_level == "DEFAULT"
 
     def test_normalize_log_level_lowercase(self, mock_getuser):
         """Test that log_level validator converts lowercase to uppercase"""

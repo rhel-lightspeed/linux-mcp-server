@@ -238,7 +238,7 @@ class Config(BaseSettings):
     log_output: LogOutput = LogOutput.files
     log_format: LogFormat = LogFormat.text
     log_dir: Path = Path.home() / ".local" / "share" / "linux-mcp-server" / "logs"
-    log_level: UpperCase = "INFO"
+    log_level: UpperCase = "DEFAULT"
     log_retention_days: int = 10
 
     # Log file access control

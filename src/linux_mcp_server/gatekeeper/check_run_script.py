@@ -15,7 +15,7 @@ from linux_mcp_server.gatekeeper.pricing import compute_cost
 from linux_mcp_server.utils import StrEnum
 
 
-logger = logging.getLogger("linux-mcp-server")
+logger = logging.getLogger(__name__)
 
 
 def get_model() -> str:

@@ -104,7 +104,7 @@ def AuditContext(**extra_fields: t.Any) -> t.Generator[logging.LoggerAdapter, No
     Yields:
         logging.LoggerAdapter: Logger adapter with extra fields attached.
     """
-    logger = logging.getLogger()
+    logger = logging.getLogger(__name__)
 
     # Create adapter with extra fields
     class ContextAdapter(logging.LoggerAdapter):
@@ -191,7 +191,7 @@ def log_tool_call(func: t.Callable) -> Function:
 
     Works with sync or async functions.
     """
-    logger = logging.getLogger("linux-mcp-server")
+    logger = logging.getLogger(__name__)
     tool_name = func.__name__
 
     @functools.wraps(func)
