@@ -18,6 +18,7 @@ async def test_list_files(setup_test_paths, mcp_client, tmp_path):
         "list_files", arguments={"host": "localhost", "path": str(tmp_path), "order_by": "name"}
     )
     content = result.structured_content
+    assert all(set(node) == {"name"} for node in content["nodes"])
     names = [item["name"] for item in content["nodes"]]
 
     assert names == [item[0] for item in file_specs]
@@ -56,6 +57,7 @@ async def test_list_files_by_size(setup_test_paths, mcp_client, tmp_path):
         "list_files", arguments={"host": "localhost", "path": str(tmp_path), "order_by": "size"}
     )
     content = result.structured_content
+    assert all(set(node) == {"name", "size"} for node in content["nodes"])
     names = [item["name"] for item in content["nodes"]]
 
     assert names == ["small.txt", "medium.txt", "large.txt"]

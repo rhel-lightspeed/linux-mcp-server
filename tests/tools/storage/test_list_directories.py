@@ -1,7 +1,11 @@
+import os
 import sys
+
+from pathlib import Path
 
 import pytest
 
+from fastmcp.client import Client
 from fastmcp.exceptions import ToolError
 
 from linux_mcp_server.tools.storage import OrderBy
@@ -20,6 +24,7 @@ async def test_list_directories(setup_test_paths, mcp_client, tmp_path):
         "list_directories", arguments={"host": "localhost", "path": str(tmp_path), "order_by": "name"}
     )
     content = result.structured_content
+    assert all(set(node) == {"name"} for node in content["nodes"])
     names = [dir["name"] for dir in content["nodes"]]
     positions = {dir["name"]: id for id, dir in enumerate(content["nodes"])}
 
@@ -44,6 +49,7 @@ async def test_list_directories_by_size(setup_test_paths, mcp_client, tmp_path):
         "list_directories", arguments={"host": "localhost", "path": str(tmp_path), "order_by": "size"}
     )
     content = result.structured_content
+    assert all(set(node) == {"name", "size"} for node in content["nodes"])
     names = [dir["name"] for dir in content["nodes"]]
 
     assert content["total"] == len(dir_specs)
@@ -135,3 +141,29 @@ async def test_list_directories_remote(mock_execute_with_fallback, mcp_client):
     mock_execute_with_fallback.assert_called_once()
     call_kwargs = mock_execute_with_fallback.call_args[1]
     assert call_kwargs["host"] == "remote.host"
+
+
+@pytest.mark.skipif(sys.platform != "linux", reason="requires GNU find")
+@pytest.mark.parametrize("tool_name", ["list_directories", "list_files"])
+async def test_modified_timestamp(
+    tool_name: str,
+    mcp_client: Client,
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Return whole-second timestamps in the target's timezone."""
+    # Set TZ for the child command without changing the server's timezone.
+    monkeypatch.setenv("TZ", "Asia/Kathmandu")
+    node = tmp_path / "alpha"
+    if tool_name == "list_directories":
+        node.mkdir()
+    else:
+        node.touch()
+    os.utime(node, (1700000000.75, 1700000000.75))
+
+    result = await mcp_client.call_tool(tool_name, {"host": "localhost", "path": str(tmp_path), "order_by": "modified"})
+
+    assert result.structured_content == {
+        "nodes": [{"name": "alpha", "modified": "2023-11-15T03:58:20+05:45"}],
+        "total": 1,
+    }

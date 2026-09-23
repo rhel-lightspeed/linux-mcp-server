@@ -1391,7 +1391,6 @@ dev = [
     { name = "ipdb" },
     { name = "ipython", version = "8.39.0", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version < '3.11'" },
     { name = "ipython", version = "9.17.1", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version >= '3.11'" },
-    { name = "jsonschema" },
     { name = "pyright" },
     { name = "pytest" },
     { name = "pytest-asyncio" },
@@ -1414,7 +1413,6 @@ slushy = [
     { name = "slushy-build", marker = "python_full_version >= '3.12'" },
 ]
 test = [
-    { name = "jsonschema" },
     { name = "pytest" },
     { name = "pytest-asyncio" },
     { name = "pytest-cov" },
@@ -1439,7 +1437,6 @@ provides-extras = ["gcp", "gssapi"]
 dev = [
     { name = "ipdb" },
     { name = "ipython" },
-    { name = "jsonschema" },
     { name = "pyright" },
     { name = "pytest", specifier = ">=9.0.2" },
     { name = "pytest-asyncio", specifier = ">=1.3.0" },
@@ -1460,7 +1457,6 @@ lint = [
 ]
 slushy = [{ name = "slushy-build", marker = "python_full_version >= '3.12'", git = "https://github.com/owtaylor/slushy-build" }]
 test = [
-    { name = "jsonschema" },
     { name = "pytest", specifier = ">=9.0.2" },
     { name = "pytest-asyncio", specifier = ">=1.3.0" },
     { name = "pytest-cov", specifier = ">=7.0.0" },

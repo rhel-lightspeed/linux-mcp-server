@@ -133,9 +133,9 @@ async def list_directories(
 
     Retrieves subdirectories with names and the metadata used for ordering.
     Results ordered by size include sizes in bytes. Results ordered by modification
-    time include timestamps rounded to the nearest second with the target machine's
+    time include timestamps truncated to whole seconds with the target machine's
     timezone offset.
-    Metadata not retrieved is omitted. Supports sorting and result limiting.
+    Supports sorting and result limiting.
     """
     return await _list_resources(
         path=path,
@@ -181,9 +181,9 @@ async def list_files(
 
     Retrieves files with names and the metadata used for ordering.
     Results ordered by size include sizes in bytes. Results ordered by modification
-    time include timestamps rounded to the nearest second with the target machine's
+    time include timestamps truncated to whole seconds with the target machine's
     timezone offset.
-    Metadata not retrieved is omitted. Useful for finding large or recently modified files.
+    Useful for finding large or recently modified files.
     """
     return await _list_resources(
         path=path,

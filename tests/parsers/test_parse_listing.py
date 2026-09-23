@@ -89,5 +89,6 @@ def test_parse_file_listing(stdout, order_by, expected_count, expected):
 @pytest.mark.parametrize("parser", [parse_directory_listing, parse_file_listing])
 @pytest.mark.parametrize("value", ["invalid", "0:", "0:+2500", "nope:+0000", "nan:+0000", "inf:+0000", "1e30:+0000"])
 def test_invalid_modified(parser: Callable[[str, str], list[NodeEntry]], value: str) -> None:
+    """Test that entries with invalid timestamps are skipped."""
     assert parser(f"{value}\tbad\n0:+0000\tvalid", "modified")[0].name == "valid"
     assert len(parser(f"{value}\tbad", "modified")) == 0

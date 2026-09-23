@@ -1,7 +1,6 @@
 import typing as t
 
 from datetime import datetime
-from datetime import timedelta
 from pathlib import Path
 
 from pydantic import AwareDatetime
@@ -176,19 +175,14 @@ class NodeEntry(BaseModel):
     modified: AwareDatetime | None = Field(
         default=None,
         exclude_if=lambda value: value is None,
-        description="Modification time rounded to the nearest second with the target timezone offset; "
-        "included only when ordering by modified",
+        description="Modification time",
     )
     name: str = ""
 
     @field_serializer("modified", when_used="json-unless-none")
     def serialize_modified(self, value: datetime) -> datetime:
-        """Round to the nearest second, with half seconds rounding forward.
-
-        Keep full precision internally so listing order remains chronological.
-        """
-        rounded = value.replace(microsecond=0) + timedelta(seconds=value.microsecond >= 500_000)
-        return rounded
+        """Truncate on output so that we can use the full precision to sort chronologically."""
+        return value.replace(microsecond=0)
 
 
 class StorageNodes(BaseModel):

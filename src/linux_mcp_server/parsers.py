@@ -458,8 +458,8 @@ def parse_service_count(stdout: str) -> int:
     return count
 
 
-def _parse_modified(value: str) -> datetime:
-    """Parse find's epoch timestamp and the target's offset at that instant."""
+def _parse_timestamp_with_offset(value: str) -> datetime:
+    """Parse a timestamp with the target's offset to match target-local log entries."""
     timestamp, offset = value.split(":", 1)
     tz = datetime.strptime(offset, "%z").tzinfo
     return datetime.fromtimestamp(float(timestamp), tz=tz)
@@ -499,7 +499,7 @@ def parse_directory_listing(
             parts = line.split("\t", 1)
             if len(parts) == 2:
                 try:
-                    modified = _parse_modified(parts[0])
+                    modified = _parse_timestamp_with_offset(parts[0])
                     name = parts[1]
                     entries.append(NodeEntry(modified=modified, name=name))
                 except (ValueError, OverflowError, OSError):
@@ -546,7 +546,7 @@ def parse_file_listing(
             parts = line.split("\t", 1)
             if len(parts) == 2:
                 try:
-                    modified = _parse_modified(parts[0])
+                    modified = _parse_timestamp_with_offset(parts[0])
                     name = parts[1]
                     entries.append(NodeEntry(modified=modified, name=name))
                 except (ValueError, OverflowError, OSError):

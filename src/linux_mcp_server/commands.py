@@ -204,6 +204,7 @@ COMMANDS: Mapping[str, CommandGroup] = MappingProxyType(
                 ),
             }
         ),
+        # Include the target's offset so we can show its local time without a separate timezone lookup.
         "list_directories_modified": CommandGroup(
             commands={
                 "default": CommandSpec(
@@ -236,6 +237,7 @@ COMMANDS: Mapping[str, CommandGroup] = MappingProxyType(
                 ),
             }
         ),
+        # Include the target's offset so we can show its local time without a separate timezone lookup.
         "list_files_modified": CommandGroup(
             commands={
                 "default": CommandSpec(
