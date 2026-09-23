@@ -1,14 +1,13 @@
 import typing as t
 
 from datetime import datetime
+from datetime import timedelta
 from pathlib import Path
 
+from pydantic import AwareDatetime
 from pydantic import BaseModel
 from pydantic import Field
 from pydantic import field_serializer
-from pydantic import model_validator
-
-from linux_mcp_server.utils.format import format_bytes
 
 
 ### Default factory functions ###
@@ -169,18 +168,27 @@ class BlockDevices(BaseModel):
 class NodeEntry(BaseModel):
     """A node entry model that is used by both directories and files listing."""
 
-    size: int = 0
-    modified: float = 0.0
+    size: int | None = Field(
+        default=None,
+        exclude_if=lambda value: value is None,
+        description="Size in bytes, included only when ordering by size",
+    )
+    modified: AwareDatetime | None = Field(
+        default=None,
+        exclude_if=lambda value: value is None,
+        description="Modification time rounded to the nearest second with the target timezone offset; "
+        "included only when ordering by modified",
+    )
     name: str = ""
-    human_size: str = ""
-    human_modified: datetime = datetime.fromtimestamp(0.0)
 
-    @model_validator(mode="after")
-    def human_values(self):
-        self.human_size = format_bytes(self.size)
-        self.human_modified = datetime.fromtimestamp(self.modified)
+    @field_serializer("modified", when_used="json-unless-none")
+    def serialize_modified(self, value: datetime) -> datetime:
+        """Round to the nearest second, with half seconds rounding forward.
 
-        return self
+        Keep full precision internally so listing order remains chronological.
+        """
+        rounded = value.replace(microsecond=0) + timedelta(seconds=value.microsecond >= 500_000)
+        return rounded
 
 
 class StorageNodes(BaseModel):

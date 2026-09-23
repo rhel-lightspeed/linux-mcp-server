@@ -207,7 +207,18 @@ COMMANDS: Mapping[str, CommandGroup] = MappingProxyType(
         "list_directories_modified": CommandGroup(
             commands={
                 "default": CommandSpec(
-                    args=("find", "{path}", "-mindepth", "1", "-maxdepth", "1", "-type", "d", "-printf", "%T@\\t%f\\n")
+                    args=(
+                        "find",
+                        "{path}",
+                        "-mindepth",
+                        "1",
+                        "-maxdepth",
+                        "1",
+                        "-type",
+                        "d",
+                        "-printf",
+                        "%T@:%Tz\\t%f\\n",
+                    )
                 ),
             }
         ),
@@ -228,7 +239,18 @@ COMMANDS: Mapping[str, CommandGroup] = MappingProxyType(
         "list_files_modified": CommandGroup(
             commands={
                 "default": CommandSpec(
-                    args=("find", "{path}", "-mindepth", "1", "-maxdepth", "1", "-type", "f", "-printf", "%T@\\t%f\\n")
+                    args=(
+                        "find",
+                        "{path}",
+                        "-mindepth",
+                        "1",
+                        "-maxdepth",
+                        "1",
+                        "-type",
+                        "f",
+                        "-printf",
+                        "%T@:%Tz\\t%f\\n",
+                    )
                 ),
             }
         ),

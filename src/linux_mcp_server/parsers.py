@@ -4,6 +4,7 @@ This module provides functions to parse raw command output into
 structured data that can be used by formatters.
 """
 
+from datetime import datetime
 from pathlib import Path
 
 from linux_mcp_server.models import CpuInfo
@@ -457,6 +458,13 @@ def parse_service_count(stdout: str) -> int:
     return count
 
 
+def _parse_modified(value: str) -> datetime:
+    """Parse find's epoch timestamp and the target's offset at that instant."""
+    timestamp, offset = value.split(":", 1)
+    tz = datetime.strptime(offset, "%z").tzinfo
+    return datetime.fromtimestamp(float(timestamp), tz=tz)
+
+
 def parse_directory_listing(
     stdout: str,
     sort_by: str,
@@ -487,14 +495,14 @@ def parse_directory_listing(
             if idx < last:
                 entries.append(NodeEntry(size=size, name=path.name))
         elif sort_by == "modified":
-            # Format: TIMESTAMP\tNAME (from find -printf "%T@\t%f\n")
+            # Format: TIMESTAMP:OFFSET\tNAME (from find -printf "%T@:%Tz\t%f\n")
             parts = line.split("\t", 1)
             if len(parts) == 2:
                 try:
-                    modified = float(parts[0])
+                    modified = _parse_modified(parts[0])
                     name = parts[1]
                     entries.append(NodeEntry(modified=modified, name=name))
-                except ValueError:
+                except (ValueError, OverflowError, OSError):
                     continue
         else:
             # Format: NAME (from find -printf "%f\n")
@@ -534,14 +542,14 @@ def parse_file_listing(
                 except ValueError:
                     continue
         elif sort_by == "modified":
-            # Format: TIMESTAMP\tNAME (from find -printf "%T@\t%f\n")
+            # Format: TIMESTAMP:OFFSET\tNAME (from find -printf "%T@:%Tz\t%f\n")
             parts = line.split("\t", 1)
             if len(parts) == 2:
                 try:
-                    modified = float(parts[0])
+                    modified = _parse_modified(parts[0])
                     name = parts[1]
                     entries.append(NodeEntry(modified=modified, name=name))
-                except ValueError:
+                except (ValueError, OverflowError, OSError):
                     continue
         else:
             # Format: NAME (from find -printf "%f\n")

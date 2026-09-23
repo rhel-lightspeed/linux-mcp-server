@@ -131,8 +131,11 @@ async def list_directories(
 ) -> StorageNodes:
     """List directories under a specified path.
 
-    Retrieves subdirectories with their size (when ordered by size) or
-    modification time, supporting flexible sorting and result limiting.
+    Retrieves subdirectories with names and the metadata used for ordering.
+    Results ordered by size include sizes in bytes. Results ordered by modification
+    time include timestamps rounded to the nearest second with the target machine's
+    timezone offset.
+    Metadata not retrieved is omitted. Supports sorting and result limiting.
     """
     return await _list_resources(
         path=path,
@@ -176,8 +179,11 @@ async def list_files(
 ) -> StorageNodes:
     """List files under a specified path.
 
-    Retrieves files with their size or modification time, supporting flexible
-    sorting and result limiting. Useful for finding large or recently modified files.
+    Retrieves files with names and the metadata used for ordering.
+    Results ordered by size include sizes in bytes. Results ordered by modification
+    time include timestamps rounded to the nearest second with the target machine's
+    timezone offset.
+    Metadata not retrieved is omitted. Useful for finding large or recently modified files.
     """
     return await _list_resources(
         path=path,
