@@ -14,6 +14,7 @@ To see available options, run `linux-mcp-server --help`.
 | `--transport`<br>`LINUX_MCP_TRANSPORT` | `stdio` | Transport type: `stdio` or `http` |
 | `--host`<br>`LINUX_MCP_HOST` | `127.0.0.1` | Host address for HTTP transport |
 | `--port`<br>`LINUX_MCP_PORT` | `8000` | Port number for HTTP transport |
+| `--base-url`<br>`LINUX_MCP_BASE_URL` | *(derived from TLS, host, and port)* | Public server URL including scheme, used for authentication URLs |
 | `--path`<br>`LINUX_MCP_PATH` | `/mcp` | Path for HTTP transport |
 | `--tls-cert`<br>`LINUX_MCP_TLS_CERT` | *(none)* | Path to PEM certificate chain for HTTPS; requires `--tls-key` |
 | `--tls-key`<br>`LINUX_MCP_TLS_KEY` | *(none)* | Path to PEM private key for HTTPS; requires `--tls-cert` |

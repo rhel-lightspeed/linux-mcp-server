@@ -8,6 +8,7 @@ from pathlib import Path
 from typing import Annotated
 from typing import Any
 
+from pydantic import AnyHttpUrl
 from pydantic import BeforeValidator
 from pydantic import Field
 from pydantic import model_validator
@@ -222,6 +223,7 @@ class Config(BaseSettings):
     host: str = "127.0.0.1"
     port: int = 8000
     path: str = "/mcp"
+    base_url: AnyHttpUrl | None = None
     tls_cert: Path | None = None
     tls_key: Path | None = None
 
@@ -273,6 +275,14 @@ class Config(BaseSettings):
     def effective_known_hosts_path(self) -> Path:
         """Return the known_hosts path, using default ~/.ssh/known_hosts if not configured."""
         return self.known_hosts_path or Path.home() / ".ssh" / "known_hosts"
+
+    @property
+    def effective_base_url(self) -> str:
+        """Return the public URL, falling back to the listener's scheme and address."""
+        if self.base_url is not None:
+            return str(self.base_url)
+        scheme = "https" if self.tls_cert is not None else "http"
+        return f"{scheme}://{self.host}:{self.port}"
 
     @property
     def transport_kwargs(self) -> dict[str, Any]:

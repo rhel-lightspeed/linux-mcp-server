@@ -237,6 +237,15 @@ LINUX_MCP_TLS_KEY=/etc/linux-mcp-server/tls/key.pem
 
 Clients connect to `https://<server-hostname>:8443/mcp`.
 
+The base URL used for authentication defaults to `http://<host>:<port>`, or
+`https://<host>:<port>` when TLS is enabled. If the public URL differs from the
+listener address, such as when binding to `0.0.0.0` or running behind a frontend
+server, set it explicitly:
+
+```sh
+LINUX_MCP_BASE_URL=https://mcp.example.com
+```
+
 Use PEM files, with the server certificate followed by any intermediate certificates
 in the certificate chain file, and an unencrypted private key. Restart the server
 after replacing certificates or keys.
