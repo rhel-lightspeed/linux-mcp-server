@@ -3,12 +3,10 @@ import typing as t
 from datetime import datetime
 from pathlib import Path
 
+from pydantic import AwareDatetime
 from pydantic import BaseModel
 from pydantic import Field
 from pydantic import field_serializer
-from pydantic import model_validator
-
-from linux_mcp_server.utils.format import format_bytes
 
 
 ### Default factory functions ###
@@ -169,18 +167,22 @@ class BlockDevices(BaseModel):
 class NodeEntry(BaseModel):
     """A node entry model that is used by both directories and files listing."""
 
-    size: int = 0
-    modified: float = 0.0
+    size: int | None = Field(
+        default=None,
+        exclude_if=lambda value: value is None,
+        description="Size in bytes, included only when ordering by size",
+    )
+    modified: AwareDatetime | None = Field(
+        default=None,
+        exclude_if=lambda value: value is None,
+        description="Modification time",
+    )
     name: str = ""
-    human_size: str = ""
-    human_modified: datetime = datetime.fromtimestamp(0.0)
 
-    @model_validator(mode="after")
-    def human_values(self):
-        self.human_size = format_bytes(self.size)
-        self.human_modified = datetime.fromtimestamp(self.modified)
-
-        return self
+    @field_serializer("modified", when_used="json-unless-none")
+    def serialize_modified(self, value: datetime) -> datetime:
+        """Truncate microseconds for JSON output; we parse full-precision datetimes from command output for sorting."""
+        return value.replace(microsecond=0)
 
 
 class StorageNodes(BaseModel):
