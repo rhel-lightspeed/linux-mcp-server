@@ -359,7 +359,7 @@ async def test_gatekeeper_audit_invalid_response(mock_gatekeeper_completion, gat
 
 
 async def test_gatekeeper_audit_timeout(mock_gatekeeper_completion, gatekeeper_audit, caplog):
-    mock_gatekeeper_completion.side_effect = TimeoutError()
+    mock_gatekeeper_completion.side_effect = asyncio.TimeoutError()
 
     with pytest.raises(GatekeeperException, match="Timeout calling gatekeeper model"):
         await check_run_script("Example", "bash", "echo ok", readonly=True)
