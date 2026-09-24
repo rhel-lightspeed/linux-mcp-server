@@ -33,6 +33,7 @@ from linux_mcp_server.tools.run_script import ScriptStore
 
 
 run_script_mod = import_module("linux_mcp_server.tools.run_script")
+check_run_script_mod = import_module("linux_mcp_server.gatekeeper.check_run_script")
 
 
 def _tool_text(result: Any) -> str:
@@ -915,12 +916,13 @@ async def test_script_audit_hides_wrapper(client, script_store_fresh, mocker, ca
 
 async def test_initial_and_repeat_validation_audit(client, script_store_fresh, mocker, caplog):
 
-    mocker.patch(
-        "linux_mcp_server.gatekeeper.check_run_script.complete_gatekeeper",
+    mocker.patch.object(
+        check_run_script_mod,
+        "complete_gatekeeper",
         autospec=True,
         return_value=GatekeeperCompletion(text='{"status":"OK","detail":"Allowed"}'),
     )
-    mocker.patch("linux_mcp_server.tools.run_script.execute_command", autospec=True, return_value=(0, "ok", ""))
+    mocker.patch.object(run_script_mod, "execute_command", autospec=True, return_value=(0, "ok", ""))
 
     caplog.set_level(logging.INFO)
     parameters = {

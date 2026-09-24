@@ -5,6 +5,7 @@ import builtins
 import json
 import logging
 
+from importlib import import_module
 from pathlib import Path
 from typing import Any
 from typing import Literal
@@ -39,6 +40,9 @@ from linux_mcp_server.logging_config import JSONFormatter
 from linux_mcp_server.server import AuthorizationMiddleware
 from linux_mcp_server.server import mcp
 from linux_mcp_server.tools.run_script import script_store
+
+
+run_script_mod = import_module("linux_mcp_server.tools.run_script")
 
 
 FIXED_TOOLS = set(
@@ -539,7 +543,7 @@ async def test_stored_script_host_in_audit(setup_client, mocker, caplog):
 
     client = await setup_client(toolset=Toolset.RUN_SCRIPT)
     token = script_store.add_script("Example", "print(1)", "python", "stored.example", True)
-    mocker.patch("linux_mcp_server.tools.run_script.execute_command", autospec=True, return_value=(0, "1", ""))
+    mocker.patch.object(run_script_mod, "execute_command", autospec=True, return_value=(0, "1", ""))
 
     caplog.set_level(logging.INFO)
 
