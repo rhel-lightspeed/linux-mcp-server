@@ -16,7 +16,6 @@ from pydantic_settings import BaseSettings
 from pydantic_settings import SettingsConfigDict
 
 from linux_mcp_server.utils.enum import StrEnum
-from linux_mcp_server.utils.types import UpperCase
 
 
 logger = logging.getLogger(__name__)
@@ -32,6 +31,15 @@ class LogOutput(StrEnum):
     files = "files"
     stdout = "stdout"
     stderr = "stderr"
+
+
+class LogLevel(StrEnum):
+    DEFAULT = "DEFAULT"
+    DEBUG = "DEBUG"
+    INFO = "INFO"
+    WARNING = "WARNING"
+    ERROR = "ERROR"
+    CRITICAL = "CRITICAL"
 
 
 class LogFormat(StrEnum):
@@ -238,7 +246,9 @@ class Config(BaseSettings):
     log_output: LogOutput = LogOutput.files
     log_format: LogFormat = LogFormat.text
     log_dir: Path = Path.home() / ".local" / "share" / "linux-mcp-server" / "logs"
-    log_level: UpperCase = "DEFAULT"
+    log_level: Annotated[
+        LogLevel, BeforeValidator(lambda value: value.upper() if isinstance(value, str) else value)
+    ] = LogLevel.DEFAULT
     log_retention_days: int = 10
 
     # Log file access control

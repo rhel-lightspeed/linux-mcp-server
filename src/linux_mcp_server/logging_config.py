@@ -14,15 +14,16 @@ from typing import Any
 
 from linux_mcp_server.config import CONFIG
 from linux_mcp_server.config import LogFormat
+from linux_mcp_server.config import LogLevel
 from linux_mcp_server.config import LogOutput
 
 
 def get_log_level() -> int:
     """Get the root log level; default mode limits dependencies to WARNING."""
     level_name = CONFIG.log_level
-    if level_name == "DEFAULT":
+    if level_name == LogLevel.DEFAULT:
         return logging.WARNING
-    return getattr(logging, level_name, logging.INFO)
+    return getattr(logging, level_name)
 
 
 def get_retention_days() -> int:
@@ -115,12 +116,7 @@ def setup_logging() -> None:
     json_formatter = JSONFormatter()
     root_logger = logging.getLogger()
     root_logger.setLevel(log_level)
-    # Dependencies may set their own levels at import time. Make existing
-    # loggers inherit our policy, just as loggers created later will by default.
-    for logger in list(logging.Logger.manager.loggerDict.values()):
-        if isinstance(logger, logging.Logger):
-            logger.setLevel(logging.NOTSET)
-    logging.getLogger("linux_mcp_server").setLevel(logging.INFO if CONFIG.log_level == "DEFAULT" else log_level)
+    logging.getLogger("linux_mcp_server").setLevel(logging.INFO if CONFIG.log_level == LogLevel.DEFAULT else log_level)
     for handler in root_logger.handlers[:]:
         root_logger.removeHandler(handler)
         handler.close()

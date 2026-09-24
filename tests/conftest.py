@@ -33,11 +33,6 @@ from linux_mcp_server.server import mcp
 @pytest.fixture
 def isolated_logging() -> Iterator[None]:
     """Keep application logging setup from replacing pytest's logging state."""
-    levels = {
-        logger: logger.level
-        for logger in logging.Logger.manager.loggerDict.values()
-        if isinstance(logger, logging.Logger)
-    }
     names = (
         "",
         "linux_mcp_server",
@@ -51,15 +46,15 @@ def isolated_logging() -> Iterator[None]:
     saved = [(logger, logger.handlers[:], logger.level, logger.propagate) for logger in loggers]
     for logger in loggers:
         logger.handlers = []
-    yield
-    for logger, handlers, level, propagate in saved:
-        for handler in logger.handlers:
-            handler.close()
-        logger.handlers = handlers
-        logger.setLevel(level)
-        logger.propagate = propagate
-    for logger, level in levels.items():
-        logger.setLevel(level)
+    try:
+        yield
+    finally:
+        for logger, handlers, level, propagate in saved:
+            for handler in logger.handlers:
+                handler.close()
+            logger.handlers = handlers
+            logger.setLevel(level)
+            logger.propagate = propagate
 
 
 @contextmanager

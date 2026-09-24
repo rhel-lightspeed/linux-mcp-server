@@ -339,7 +339,7 @@ def test_log_level_policy_and_reconfiguration(
     monkeypatch: pytest.MonkeyPatch,
     capsys: pytest.CaptureFixture[str],
 ) -> None:
-    """Check emitted records, including overrides of dependency-set levels."""
+    """Check emitted records across destinations and repeated configuration."""
     from linux_mcp_server.audit import AuditContext
 
     monkeypatch.setattr(CONFIG, "log_output", output)
@@ -347,8 +347,6 @@ def test_log_level_policy_and_reconfiguration(
     monkeypatch.setattr(CONFIG, "log_dir", tmp_path)
     application_names = ("linux_mcp_server", "linux_mcp_server.connection.ssh", "linux_mcp_server.audit")
     dependency_names = ("mcp.server.lowlevel.server", "fastmcp.server", "asyncssh", "uvicorn.error", "uvicorn.access")
-    # A dependency may configure its own level before we take over logging.
-    monkeypatch.setattr(logging.getLogger("asyncssh"), "level", logging.ERROR)
     levels = (logging.DEBUG, logging.INFO, logging.WARNING, logging.ERROR, logging.CRITICAL)
 
     # Switching both ways also checks that previous overrides do not persist.
@@ -383,3 +381,22 @@ def test_log_level_policy_and_reconfiguration(
         ]
         assert actual == expected
         assert any(record["message"] == f"audit-{configured}" for record in records) == (app_level <= logging.INFO)
+
+
+@pytest.mark.parametrize("level", ["DEFAULT", "DEBUG", "INFO", "WARNING"])
+def test_dependency_suppression_is_preserved(
+    level: str, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
+) -> None:
+    """FastMCP suppresses noisy griffe warnings; logging setup must preserve that."""
+    logger = logging.getLogger("griffe")
+    monkeypatch.setattr(logger, "level", logging.ERROR)
+    monkeypatch.setattr(CONFIG, "log_level", level)
+    monkeypatch.setattr(CONFIG, "log_output", LogOutput.stderr)
+    monkeypatch.setattr(CONFIG, "log_format", LogFormat.json)
+    setup_logging()
+    capsys.readouterr()
+    logger.warning("No type or annotation for parameter 'a'")
+    logger.error("Parsing failed")
+    records = [json.loads(line) for line in capsys.readouterr().err.splitlines()]
+    assert [record["message"] for record in records] == ["Parsing failed"]
+    assert logger.level == logging.ERROR
