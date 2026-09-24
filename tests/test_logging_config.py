@@ -2,8 +2,10 @@
 
 import json
 import logging
+import sys
 
 from collections.abc import AsyncIterator
+from contextlib import asynccontextmanager
 from pathlib import Path
 from socket import socket
 from typing import Any
@@ -11,15 +13,21 @@ from typing import Literal
 
 import pytest
 
+from fastmcp import FastMCP
 from pytest_mock import MockerFixture
+from uvicorn import Server
 
+from linux_mcp_server.audit import audit_context
+from linux_mcp_server.audit import Event
 from linux_mcp_server.config import CONFIG
 from linux_mcp_server.config import LogFormat
+from linux_mcp_server.config import LogLevel
 from linux_mcp_server.config import LogOutput
 from linux_mcp_server.config import Transport
 from linux_mcp_server.logging_config import JSONFormatter
 from linux_mcp_server.logging_config import setup_logging
 from linux_mcp_server.logging_config import StructuredFormatter
+from linux_mcp_server.logging_config import text_value
 
 
 pytestmark = pytest.mark.usefixtures("isolated_logging")
@@ -152,7 +160,6 @@ class TestJSONFormatter:
 
     def test_format_with_exception(self):
         """Test formatting with exception information."""
-        import sys
 
         formatter = JSONFormatter(datefmt="%Y-%m-%dT%H:%M:%S")
         try:
@@ -264,8 +271,6 @@ async def test_http_startup_preserves_logging(
     capsys: pytest.CaptureFixture[str],
     mocker: MockerFixture,
 ) -> None:
-    from fastmcp import FastMCP
-    from uvicorn import Server
 
     monkeypatch.setattr(CONFIG, "transport", transport)
     monkeypatch.setattr(CONFIG, "log_level", level)
@@ -301,9 +306,6 @@ async def test_stdio_startup_preserves_logging(
     capsys: pytest.CaptureFixture[str],
     mocker: MockerFixture,
 ) -> None:
-    from contextlib import asynccontextmanager
-
-    from fastmcp import FastMCP
 
     monkeypatch.setattr(CONFIG, "transport", Transport.stdio)
     monkeypatch.setattr(CONFIG, "log_level", level)
@@ -340,7 +342,6 @@ def test_log_level_policy_and_reconfiguration(
     capsys: pytest.CaptureFixture[str],
 ) -> None:
     """Check emitted records across destinations and repeated configuration."""
-    from linux_mcp_server.audit import AuditContext
 
     monkeypatch.setattr(CONFIG, "log_output", output)
     monkeypatch.setattr(CONFIG, "log_format", LogFormat.json)
@@ -358,8 +359,8 @@ def test_log_level_policy_and_reconfiguration(
         for name in (*application_names, *dependency_names):
             for level in levels:
                 logging.getLogger(name).log(level, "policy-%s", configured)
-        with AuditContext(tool="test_tool") as logger:
-            logger.info("audit-%s", configured)
+        with audit_context(tool="test_tool"):
+            logging.getLogger("linux_mcp_server.audit").info("audit-%s", configured)
 
         captured = capsys.readouterr()
         if output == LogOutput.files:
@@ -400,3 +401,103 @@ def test_dependency_suppression_is_preserved(
     records = [json.loads(line) for line in capsys.readouterr().err.splitlines()]
     assert [record["message"] for record in records] == ["Parsing failed"]
     assert logger.level == logging.ERROR
+
+
+@pytest.mark.parametrize(
+    "value,expected",
+    [
+        ("plain", "plain"),
+        ("two words", '"two words"'),
+        ("a|b=c", '"a|b=c"'),
+        ("a\nb\r", '"a\\nb\\r"'),
+        ('a"b\\c', '"a\\"b\\\\c"'),
+        ("", '""'),
+        ({"nested": [1, "a\nb"]}, '{"nested":[1,"a\\nb"]}'),
+        (None, "null"),
+        (True, "true"),
+    ],
+)
+def test_text_values(value, expected):
+
+    assert text_value(value) == expected
+
+
+def test_primary_event_formatters_share_record():
+
+    record = logging.makeLogRecord(
+        {
+            "name": "linux_mcp_server.audit",
+            "levelname": "INFO",
+            "msg": "Command completed",
+            "audit_event": Event.COMMAND_COMPLETE,
+            "command": "echo a\necho b",
+            "exit_status": 0,
+        }
+    )
+
+    formatter = StructuredFormatter("%(message)s")
+    text = formatter.format(record)
+    assert text == 'COMMAND_COMPLETE: Command completed | command="echo a\\necho b" | exit_status=0'
+
+    data = json.loads(JSONFormatter().format(record))
+    assert data["event"] == "COMMAND_COMPLETE"
+    assert data["message"] == "Command completed"
+    assert data["attributes"] == {"command": "echo a\necho b", "exit_status": 0}
+
+    assert formatter.format(record) == text
+
+
+def test_dependency_fields_cannot_replace_envelope():
+    record = logging.makeLogRecord(
+        {
+            "name": "dependency",
+            "msg": "message",
+            "event": "custom",
+            "audit_event": "custom",
+            "timestamp": "fake",
+            "attributes": {"nested": True},
+        }
+    )
+
+    data = json.loads(JSONFormatter().format(record))
+    assert "event" not in data
+    assert data["timestamp"] != "fake"
+    assert data["attributes"] == {
+        "event": "custom",
+        "audit_event": "custom",
+        "timestamp": "fake",
+        "attributes": {"nested": True},
+    }
+
+
+def test_text_exception_stays_on_one_line():
+
+    try:
+        raise ValueError("multiple\nlines")
+    except ValueError:
+        record = logging.makeLogRecord({"msg": "Failed\nrequest", "exc_info": sys.exc_info()})
+
+    formatted = StructuredFormatter("%(message)s").format(record)
+    assert "\n" not in formatted
+    assert "Failed\\nrequest" in formatted
+    assert "ValueError: multiple\\nlines" in formatted
+
+
+@pytest.mark.usefixtures("isolated_logging")
+@pytest.mark.parametrize("name", ["linux_mcp_server.test", "dependency"])
+def test_diagnostic_context(name, monkeypatch, capsys):
+
+    monkeypatch.setattr(CONFIG, "log_output", LogOutput.stderr)
+    monkeypatch.setattr(CONFIG, "log_format", LogFormat.json)
+    monkeypatch.setattr(CONFIG, "log_level", LogLevel.DEBUG)
+    setup_logging()
+    capsys.readouterr()
+
+    with audit_context(call_id="c42", host="inherited"):
+        logging.getLogger(name).debug("diagnostic", extra={"host": "explicit"})
+
+    logging.getLogger(name).debug("outside")
+
+    records = [json.loads(line) for line in capsys.readouterr().err.splitlines()]
+    assert records[0]["attributes"] == {"call_id": "c42", "host": "explicit"}
+    assert "attributes" not in records[1]

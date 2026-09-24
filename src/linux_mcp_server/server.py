@@ -1,10 +1,14 @@
 """Core MCP server for Linux diagnostics using FastMCP."""
 
+import asyncio
 import logging
+import time
+import uuid
 
 from dataclasses import dataclass
 from importlib import resources
 from pathlib import Path
+from typing import Any
 
 from fastmcp import Context
 from fastmcp import FastMCP
@@ -12,15 +16,20 @@ from fastmcp.exceptions import NotFoundError
 from fastmcp.resources import ResourceContent
 from fastmcp.resources import ResourceResult
 from fastmcp.server.dependencies import get_access_token
+from fastmcp.server.dependencies import get_http_request
 from fastmcp.server.middleware import Middleware
 from fastmcp.server.middleware import MiddlewareContext
 from fastmcp.server.middleware.middleware import CallNext
+from fastmcp.tools import Tool
 from fastmcp.utilities.components import FastMCPComponent
 from mcp.types import InitializeRequest
 from mcp.types import InitializeResult
 
 import linux_mcp_server
 
+from linux_mcp_server.audit import audit_context
+from linux_mcp_server.audit import Event
+from linux_mcp_server.audit import log_event
 from linux_mcp_server.auth import create_auth_provider
 from linux_mcp_server.auth_policy import evaluate_policy
 from linux_mcp_server.auth_policy import PolicyAction
@@ -39,6 +48,7 @@ from linux_mcp_server.target_host import restrict
 from linux_mcp_server.target_host import target_host_instructions
 from linux_mcp_server.toolset import get_toolset
 from linux_mcp_server.toolset import Toolset as ToolsetInfo
+from linux_mcp_server.utils.types import Host
 from linux_mcp_server.utils.types import LOCALHOST
 
 
@@ -245,37 +255,77 @@ class ComponentFilter:
 
 # Middleware to enforce authorization policy
 class AuthorizationMiddleware(Middleware):
-    async def on_call_tool(self, context: MiddlewareContext, call_next):
-        # Extract tool metadata. resolve_target_host() can add 'host', so hand it the
-        # dict the tool itself will be called with rather than a throwaway copy.
+    async def on_call_tool(self, context: MiddlewareContext, call_next: CallNext) -> Any:
         tool_args = context.message.arguments = context.message.arguments or {}
+        parameters = {key: value for key, value in tool_args.items() if key != "ctx"}
 
-        assert context.fastmcp_context
+        access_token = get_access_token()
+        claims = access_token.claims if access_token else {}
 
-        tool = await context.fastmcp_context.fastmcp.get_tool(context.message.name)
-        if tool is None or not ComponentFilter.get(context.fastmcp_context).includes(tool):
-            logger.error(f"Tool not found: '{context.message.name}'")
-            raise NotFoundError(f"Tool not found: '{context.message.name}'")
+        request_fields: dict[str, Any] = {}
+        if CONFIG.transport != Transport.stdio:
+            request_fields["claims"] = claims
+            try:
+                request = get_http_request()
+                if request.client:
+                    request_fields["client_ip"] = request.client.host
+            except RuntimeError:
+                pass
 
-        target_host = resolve_target_host(tool, tool_args)
+        start = time.perf_counter()
+        started = False
+        outcome = {"status": "success"}
 
+        with audit_context(
+            call_id=str(uuid.uuid4()),
+            tool=context.message.name,
+            **request_fields,
+        ) as fields:
+            try:
+                assert context.fastmcp_context
+                tool = await context.fastmcp_context.fastmcp.get_tool(context.message.name)
+                if tool is None or not ComponentFilter.get(context.fastmcp_context).includes(tool):
+                    raise NotFoundError(f"Tool not found: '{context.message.name}'")
+
+                target_host = resolve_target_host(tool, tool_args)
+                fields["host"] = target_host
+                parameters = {key: value for key, value in tool_args.items() if key != "ctx"}
+
+                log_event(Event.TOOL_CALL, "Tool called", parameters=parameters)
+                started = True
+
+                return await self._authorize_and_call_tool(context, call_next, tool, target_host, claims)
+            except BaseException as exc:
+                outcome = {
+                    "status": "cancelled" if isinstance(exc, asyncio.CancelledError) else "error",
+                    "error": str(exc),
+                }
+                raise
+            finally:
+                if not started:
+                    log_event(Event.TOOL_CALL, "Tool called", parameters=parameters)
+
+                log_event(
+                    Event.TOOL_COMPLETE,
+                    "Tool completed",
+                    level=logging.ERROR if outcome["status"] == "error" else logging.INFO,
+                    **outcome,
+                    duration_ms=(time.perf_counter() - start) * 1000,
+                )
+
+    async def _authorize_and_call_tool(
+        self,
+        context: MiddlewareContext,
+        call_next: CallNext,
+        tool: Tool,
+        target_host: Host,
+        claims: dict[str, Any],
+    ) -> Any:
         # For stdio without policy configured, allow everything
         if CONFIG.transport == Transport.stdio and CONFIG.policy_path is None:
             exec_context = ExecutionContext(allow_local=True, allow_ssh_default=True)
             with use_execution_context(restrict(exec_context)):
                 return await call_next(context)
-
-        # For http transports log auth at INFO for audit trail info
-        # For stdio use DEBUG to avoid noise
-        log_level = logger.info if CONFIG.transport != Transport.stdio else logger.debug
-
-        # Get claims from access token if available else use empty claims
-        access_token = get_access_token()
-        claims = access_token.claims if access_token else {}
-        email = claims.get("email", "unauthenticated")
-
-        # Log authorization attempt
-        log_level(f"Tool call: {tool.name}, Host: {target_host}, User: {email}")
 
         # Evaluate policy by tool, host and claims matching
         action, ssh_key_config = evaluate_policy(tool, target_host, claims)
@@ -294,11 +344,10 @@ class AuthorizationMiddleware(Middleware):
             raise RuntimeError(f"Policy validation error: Cannot use local action for remote host '{target_host}'. ")
 
         if action == PolicyAction.DENY:
-            logger.warning(f"Authorization denied: tool={tool.name}, host={target_host}, user={email}")
             raise ValueError(f"Authorization denied: tool '{tool.name}' on host '{target_host}'")
 
         # Log the authorized action
-        log_level(f"Authorized: tool={tool.name}, host={target_host}, action={action.value}, user={email}")
+        logger.debug("Authorized tool call", extra={"tool": tool.name, "host": target_host, "action": action.value})
 
         # Build ExecutionContext based on policy action
         match action:

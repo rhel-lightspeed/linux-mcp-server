@@ -1,8 +1,13 @@
 import asyncio
 import importlib
+import logging
+
+from typing import Any
 
 import pytest
 
+from linux_mcp_server.audit import audit_context
+from linux_mcp_server.audit import Event
 from linux_mcp_server.config import CONFIG
 from linux_mcp_server.config import GatekeeperConfig
 from linux_mcp_server.config import GatekeeperProvider
@@ -281,3 +286,109 @@ class TestGatekeeperConfigIntegration:
 
         assert mock_post.call_args.kwargs["url"].endswith("/responses")
         assert mock_post.call_args.kwargs["headers"]["Authorization"] == "Bearer gcp-token"
+
+
+@pytest.fixture
+def mock_gatekeeper_completion(mocker):
+    return mocker.patch.object(
+        check_run_script_module,
+        "complete_gatekeeper",
+        autospec=True,
+        return_value=GatekeeperCompletion(text='{"status":"OK","detail":"Allowed"}'),
+    )
+
+
+@pytest.fixture
+def gatekeeper_audit(caplog):
+    with caplog.at_level(logging.INFO), audit_context(call_id="c42", host="server1"):
+        yield
+
+
+def _gatekeeper_audit_fields(caplog) -> dict[str, Any]:
+    records = [r for r in caplog.records if getattr(r, "audit_event", None) == Event.GATEKEEPER_RESULT]
+    assert len(records) == 1
+
+    record = records[0]
+    assert record.call_id == "c42"
+    assert record.host == "server1"
+    return record.__dict__
+
+
+async def test_gatekeeper_audit_accepts(mock_gatekeeper_completion, gatekeeper_audit, caplog):
+    await check_run_script("Example", "bash", "echo ok", readonly=True)
+
+    record = _gatekeeper_audit_fields(caplog)
+    assert record["status"] == GatekeeperStatus.OK
+    assert record["explanation"] == "Allowed"
+    assert "error" not in record
+
+
+async def test_gatekeeper_audit_rejects(mock_gatekeeper_completion, gatekeeper_audit, caplog):
+    mock_gatekeeper_completion.return_value = GatekeeperCompletion(
+        text=GatekeeperResult(status=GatekeeperStatus.POLICY, detail="Disallowed operation").model_dump_json()
+    )
+
+    await check_run_script("Example", "bash", "echo ok", readonly=True)
+
+    record = _gatekeeper_audit_fields(caplog)
+    assert record["status"] == GatekeeperStatus.POLICY
+    assert record["explanation"] == "Disallowed operation"
+    assert "error" not in record
+
+
+async def test_gatekeeper_audit_early_rejection(mock_gatekeeper_completion, gatekeeper_audit, caplog):
+    await check_run_script("Example", "bash", "start_of_script", readonly=True)
+
+    record = _gatekeeper_audit_fields(caplog)
+    assert record["status"] == GatekeeperStatus.MALICIOUS
+    assert "prompt delimiter" in record["explanation"]
+    mock_gatekeeper_completion.assert_not_called()
+
+
+async def test_gatekeeper_audit_invalid_response(mock_gatekeeper_completion, gatekeeper_audit, caplog):
+    mock_gatekeeper_completion.return_value = GatekeeperCompletion(text="Invalid model response")
+
+    with pytest.raises(GatekeeperException, match="Failed to parse gatekeeper model output"):
+        await check_run_script("Example", "bash", "echo ok", readonly=True)
+
+    record = _gatekeeper_audit_fields(caplog)
+    assert record["status"] == "error"
+    assert record["error"] == "Failed to parse gatekeeper model output"
+    assert record["response"] == "Invalid model response"
+    assert "explanation" not in record
+
+
+async def test_gatekeeper_audit_timeout(mock_gatekeeper_completion, gatekeeper_audit, caplog):
+    mock_gatekeeper_completion.side_effect = asyncio.TimeoutError()
+
+    with pytest.raises(GatekeeperException, match="Timeout calling gatekeeper model"):
+        await check_run_script("Example", "bash", "echo ok", readonly=True)
+
+    record = _gatekeeper_audit_fields(caplog)
+    assert record["status"] == "error"
+    assert record["error"] == "Timeout calling gatekeeper model"
+    assert "explanation" not in record
+
+
+async def test_gatekeeper_audit_provider_error(mock_gatekeeper_completion, gatekeeper_audit, caplog):
+    mock_gatekeeper_completion.side_effect = RuntimeError("Provider unavailable")
+
+    with pytest.raises(RuntimeError, match="Provider unavailable"):
+        await check_run_script("Example", "bash", "echo ok", readonly=True)
+
+    record = _gatekeeper_audit_fields(caplog)
+    assert record["status"] == "error"
+    assert record["error"] == "Provider unavailable"
+    assert "explanation" not in record
+
+
+async def test_gatekeeper_audit_cancelled(mock_gatekeeper_completion, gatekeeper_audit, caplog):
+    mock_gatekeeper_completion.side_effect = asyncio.CancelledError()
+
+    with pytest.raises(asyncio.CancelledError):
+        await check_run_script("Example", "bash", "echo ok", readonly=True)
+
+    record = _gatekeeper_audit_fields(caplog)
+    assert record["status"] == "cancelled"
+    assert record["error"] == ""
+    assert "explanation" not in record

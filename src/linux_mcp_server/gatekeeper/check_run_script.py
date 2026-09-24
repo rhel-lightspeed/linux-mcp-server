@@ -9,13 +9,12 @@ from typing import overload
 from pydantic import BaseModel
 from pydantic import ValidationError
 
+from linux_mcp_server.audit import Event
+from linux_mcp_server.audit import log_event
 from linux_mcp_server.config import CONFIG
 from linux_mcp_server.gatekeeper.llm import complete_gatekeeper
 from linux_mcp_server.gatekeeper.pricing import compute_cost
 from linux_mcp_server.utils import StrEnum
-
-
-logger = logging.getLogger(__name__)
 
 
 def get_model() -> str:
@@ -229,6 +228,8 @@ async def check_run_script(
     description: str, script_type: str, script: str, *, readonly: bool, include_stats: bool = False
 ) -> GatekeeperResult | tuple[GatekeeperResult, GatekeeperStats]:
     def _return(result: GatekeeperResult, stats: GatekeeperStats | None = None):
+        log_event(Event.GATEKEEPER_RESULT, "Gatekeeper decided", status=result.status, explanation=result.detail)
+
         if include_stats:
             return result, stats if stats is not None else GatekeeperStats()
         return result
@@ -267,7 +268,23 @@ async def check_run_script(
             timeout=GATEKEEPER_TIMEOUT,
         )
     except asyncio.TimeoutError:
+        log_event(
+            Event.GATEKEEPER_RESULT,
+            "Gatekeeper failed",
+            level=logging.ERROR,
+            status="error",
+            error="Timeout calling gatekeeper model",
+        )
         raise GatekeeperException("Timeout calling gatekeeper model") from None
+    except (Exception, asyncio.CancelledError) as exc:
+        log_event(
+            Event.GATEKEEPER_RESULT,
+            "Gatekeeper failed",
+            level=logging.ERROR,
+            status="cancelled" if isinstance(exc, asyncio.CancelledError) else "error",
+            error=str(exc),
+        )
+        raise
 
     stats: GatekeeperStats | None = None
     if include_stats:
@@ -286,7 +303,14 @@ async def check_run_script(
     try:
         result = GatekeeperResult.model_validate_json(completion.text)
     except ValidationError as e:
-        logger.warning("Failed to parse gatekeeper model output: %s", e)
+        log_event(
+            Event.GATEKEEPER_RESULT,
+            "Gatekeeper failed",
+            level=logging.ERROR,
+            status="error",
+            error="Failed to parse gatekeeper model output",
+            response=completion.text,
+        )
         raise GatekeeperException("Failed to parse gatekeeper model output", stats=stats) from e
 
     return _return(result, stats)

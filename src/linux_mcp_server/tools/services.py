@@ -5,7 +5,6 @@ import typing as t
 from mcp.types import ToolAnnotations
 from pydantic import Field
 
-from linux_mcp_server.audit import log_tool_call
 from linux_mcp_server.commands import get_command
 from linux_mcp_server.formatters import format_service_logs
 from linux_mcp_server.formatters import format_service_status
@@ -22,7 +21,6 @@ from linux_mcp_server.utils.validation import is_empty_output
     tags={"fixed", "services", "systemd"},
     annotations=ToolAnnotations(readOnlyHint=True),
 )
-@log_tool_call
 async def list_services(
     host: Host,
 ) -> str:
@@ -54,7 +52,6 @@ async def list_services(
     tags={"fixed", "services", "systemd"},
     annotations=ToolAnnotations(readOnlyHint=True),
 )
-@log_tool_call
 async def get_service_status(
     service_name: t.Annotated[
         str,
@@ -93,7 +90,6 @@ async def get_service_status(
     tags={"fixed", "logs", "services", "systemd", "troubleshooting"},
     annotations=ToolAnnotations(readOnlyHint=True),
 )
-@log_tool_call
 async def get_service_logs(
     service_name: t.Annotated[
         str,

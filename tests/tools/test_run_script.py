@@ -4,21 +4,26 @@ Patches apply to ``linux_mcp_server.tools.run_script`` (the module object). The 
 server is built with ``LINUX_MCP_TOOLSET=both`` (see ``tests/conftest.py``).
 """
 
+import logging
 import shlex
 
 from importlib import import_module
 from types import SimpleNamespace
 from typing import Any
 
+import asyncssh
 import pytest
 
 from fastmcp.exceptions import ToolError
 
+from linux_mcp_server.audit import Event
 from linux_mcp_server.config import CONFIG
 from linux_mcp_server.config import Toolset
 from linux_mcp_server.connection.ssh import execute_command
+from linux_mcp_server.connection.ssh import SSHConnectionManager
 from linux_mcp_server.gatekeeper import GatekeeperResult
 from linux_mcp_server.gatekeeper import GatekeeperStatus
+from linux_mcp_server.gatekeeper.llm import GatekeeperCompletion
 from linux_mcp_server.tools.run_script import _wrap_script
 from linux_mcp_server.tools.run_script import BASH_STRICT_PREAMBLE
 from linux_mcp_server.tools.run_script import SCRIPT_TYPE_BASH
@@ -28,6 +33,7 @@ from linux_mcp_server.tools.run_script import ScriptStore
 
 
 run_script_mod = import_module("linux_mcp_server.tools.run_script")
+check_run_script_mod = import_module("linux_mcp_server.gatekeeper.check_run_script")
 
 
 def _tool_text(result: Any) -> str:
@@ -876,3 +882,64 @@ class TestRejectAndGetExecutionStateMCP:
         )
         result = await app_client.call_tool("get_execution_details", {"id": "g"})
         assert result.structured_content == {"state": "executing", "timeout": 60}
+
+
+@pytest.mark.parametrize("script_type,script", [("bash", "echo one\necho two"), ("python", "print(1)\nprint(2)")])
+async def test_script_audit_hides_wrapper(client, script_store_fresh, mocker, caplog, script_type, script):
+
+    token = script_store_fresh.add_script("Example", script, script_type, "remote", True)
+
+    conn = mocker.Mock(spec=asyncssh.SSHClientConnection)
+    conn.run = mocker.AsyncMock(
+        spec=asyncssh.SSHClientConnection.run,
+        return_value=asyncssh.SSHCompletedProcess(exit_status=0, stdout="ok", stderr=""),
+    )
+    mocker.patch.object(SSHConnectionManager(), "get_connection", autospec=True, return_value=conn)
+    mocker.patch("linux_mcp_server.connection.ssh.get_remote_bin_path", autospec=True, return_value="/bin/bash")
+
+    caplog.set_level(logging.INFO)
+    await client.call_tool("run_script", {"token": token})
+
+    events = [r for r in caplog.records if hasattr(r, "audit_event")]
+    assert [r.audit_event for r in events] == [Event.TOOL_CALL, Event.COMMAND_COMPLETE, Event.TOOL_COMPLETE]
+    assert len({r.call_id for r in events}) == 1
+
+    command = events[1]
+    assert command.command == script
+    assert command.interpreter == script_type
+    assert command.host == "remote"
+    assert "systemd-run" not in str([r.__dict__ for r in events])
+
+    expected = _wrap_script(script_store_fresh.get_script_details(token))
+    assert conn.run.call_args.args[0] == shlex.join(["/bin/bash", *expected[1:]])
+
+
+async def test_initial_and_repeat_validation_audit(client, script_store_fresh, mocker, caplog):
+
+    mocker.patch.object(
+        check_run_script_mod,
+        "complete_gatekeeper",
+        autospec=True,
+        return_value=GatekeeperCompletion(text='{"status":"OK","detail":"Allowed"}'),
+    )
+    mocker.patch.object(run_script_mod, "execute_command", autospec=True, return_value=(0, "ok", ""))
+
+    caplog.set_level(logging.INFO)
+    parameters = {
+        "description": "Example",
+        "script_type": "bash",
+        "script": "echo one",
+        "host": "localhost",
+        "readonly": False,
+    }
+    result = await client.call_tool("validate_script", parameters)
+    token = result.structured_content["token"]
+    await client.call_tool("run_script_with_confirmation", {**parameters, "script": "echo two", "token": token})
+
+    records = [r for r in caplog.records if hasattr(r, "audit_event")]
+    assert [r.audit_event for r in records] == [Event.TOOL_CALL, Event.GATEKEEPER_RESULT, Event.TOOL_COMPLETE] * 2
+    assert records[1].tool == "validate_script"
+    assert records[4].tool == "run_script_with_confirmation"
+    assert records[1].call_id != records[4].call_id
+    assert all(r.status == "OK" and r.explanation == "Allowed" for r in (records[1], records[4]))
+    assert all(r.host == "localhost" for r in records)

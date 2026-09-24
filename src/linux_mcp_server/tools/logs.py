@@ -9,7 +9,6 @@ from mcp.types import ToolAnnotations
 from pydantic import Field
 from pydantic.functional_validators import BeforeValidator
 
-from linux_mcp_server.audit import log_tool_call
 from linux_mcp_server.commands import get_command
 from linux_mcp_server.config import CONFIG
 from linux_mcp_server.models import LogEntries
@@ -88,7 +87,6 @@ async def _get_journal_logs(
     tags={"fixed", "journal", "logs", "systemd", "troubleshooting"},
     annotations=ToolAnnotations(readOnlyHint=True),
 )
-@log_tool_call
 async def get_journal_logs(
     unit: t.Annotated[
         str,
@@ -182,8 +180,7 @@ async def get_journal_logs(
     tags={"fixed", "files", "logs", "troubleshooting"},
     annotations=ToolAnnotations(readOnlyHint=True),
 )
-@log_tool_call
-async def read_log_file(
+async def read_log_file(  # noqa: C901
     log_path: t.Annotated[
         Path,
         BeforeValidator(validate_path),

@@ -11,7 +11,6 @@ import os
 import shlex
 import shutil
 import subprocess
-import time
 
 from collections.abc import Sequence
 from pathlib import Path
@@ -19,8 +18,8 @@ from typing import Optional
 
 import asyncssh
 
-from linux_mcp_server.audit import Event
-from linux_mcp_server.audit import log_ssh_command
+from linux_mcp_server.audit import CommandDescription
+from linux_mcp_server.audit import log_command_execution
 from linux_mcp_server.audit import log_ssh_connect
 from linux_mcp_server.audit import Status
 from linux_mcp_server.config import CONFIG
@@ -50,7 +49,7 @@ def discover_ssh_key() -> str | None:
         logger.debug(f"Checking SSH key from environment: {env_key}")
         key_path = Path(env_key)
         if key_path.exists() and key_path.is_file():
-            logger.info(f"Using SSH key from environment: {env_key}")
+            logger.debug(f"Using SSH key from environment: {env_key}")
             return str(key_path)
         else:
             logger.warning(f"SSH key specified in LINUX_MCP_SSH_KEY_PATH not found: {env_key}")
@@ -69,7 +68,7 @@ def discover_ssh_key() -> str | None:
 
         for key_path in default_keys:
             if key_path.exists() and key_path.is_file():
-                logger.info(f"Using SSH key: {key_path}")
+                logger.debug(f"Using SSH key: {key_path}")
                 return str(key_path)
 
         logger.warning("No SSH private key found in default locations")
@@ -147,7 +146,7 @@ class SSHConnectionManager:
 
         # Create new connection
         # DEBUG level: Log connection attempt before it completes
-        logger.debug(f"{Event.SSH_CONNECTING}: {key} | key={ssh_key or 'none'}")
+        logger.debug(f"SSH_CONNECTING: {key} | key={ssh_key or 'none'}")
 
         try:
             # Determine host key verification settings
@@ -205,6 +204,8 @@ class SSHConnectionManager:
         host: Host,
         timeout: int = CONFIG.command_timeout,
         encoding: str | None = "utf-8",
+        *,
+        description: CommandDescription | None = None,
     ) -> tuple[int, str | bytes, str | bytes]:
         """
         Execute a command on a remote host via SSH.
@@ -221,6 +222,7 @@ class SSHConnectionManager:
             encoding: Character encoding for stdout/stderr. Defaults to "utf-8".
                 Set to None to receive raw bytes for commands that may output
                 binary content.
+            description: Optional description for the command audit record when executing a wrapper.
 
         Returns:
             Tuple of (return_code, stdout, stderr) where stdout and stderr are strings
@@ -229,69 +231,37 @@ class SSHConnectionManager:
         Raises:
             ConnectionError: If SSH connection fails or command times out
         """
-        conn = await self.get_connection(host)
-        bin = command[0]
-        if not Path(bin).is_absolute():
-            bin = await get_remote_bin_path(bin, host, conn)
+        with log_command_execution(shlex.join(command), host, description=description) as execution:
+            conn = await self.get_connection(host)
 
-        full_command = [bin, *command[1:]]
+            bin = command[0]
+            if not Path(bin).is_absolute():
+                bin = await get_remote_bin_path(bin, host, conn)
 
-        # Build command string with proper shell escaping
-        # Use shlex.quote() to ensure special characters (like \n in printf format) are preserved
-        cmd_str = shlex.join(full_command)
+            cmd_str = shlex.join([bin, *command[1:]])
+            logger.debug("Executing remote command", extra={"command": cmd_str, "host": host})
 
-        # Start timing for command execution
-        start_time = time.time()
-
-        try:
             try:
                 result = await conn.run(cmd_str, check=False, timeout=timeout, encoding=encoding)
             except asyncssh.TimeoutError:
-                duration = time.time() - start_time
-                logger.error(
-                    f"Command timed out after {timeout}s",
-                    extra={
-                        "event": Event.REMOTE_EXEC_ERROR,
-                        "command": cmd_str,
-                        "host": host,
-                        "duration": f"{duration:.3f}s",
-                        "error": "timeout",
-                    },
-                )
                 raise ConnectionError(
-                    f"Command timed out after {timeout}s on {conn.get_extra_info('username')}@{host}: {cmd_str}"
+                    f"Command timed out after {timeout}s on {conn.get_extra_info('username')}@{host}"
                 ) from None
+            except asyncssh.Error as exc:
+                raise ConnectionError(f"Failed to execute command on {host}: {exc}") from exc
 
             return_code = result.exit_status if result.exit_status is not None else 0
+            execution.set_exit_status(return_code)
 
             stdout = result.stdout if result.stdout else b"" if encoding is None else ""
             stderr = result.stderr if result.stderr else b"" if encoding is None else ""
-            # Calculate duration
-            duration = time.time() - start_time
-
-            # Use audit log for command execution
-            log_ssh_command(cmd_str, host, exit_code=return_code, duration=duration)
 
             return return_code, stdout, stderr
-
-        except asyncssh.Error as e:
-            duration = time.time() - start_time
-            logger.error(
-                f"Error executing command on {host}: {e}",
-                extra={
-                    "event": Event.REMOTE_EXEC_ERROR,
-                    "command": cmd_str,
-                    "host": host,
-                    "duration": f"{duration:.3f}s",
-                    "error": str(e),
-                },
-            )
-            raise ConnectionError(f"Failed to execute command on {host}: {e}") from e
 
     async def close_all(self):
         """Close all SSH connections."""
         connection_count = len(self._connections)
-        logger.info(f"Closing {connection_count} SSH connections")
+        logger.debug(f"Closing {connection_count} SSH connections")
 
         for key, conn in list(self._connections.items()):
             try:
@@ -354,6 +324,8 @@ async def execute_command(
     command: Sequence[str],
     host: Host,
     encoding: str | None = "utf-8",
+    *,
+    description: CommandDescription | None = None,
     **kwargs,
 ) -> tuple[int, str | bytes, str | bytes]:
     """
@@ -370,6 +342,7 @@ async def execute_command(
         encoding: Character encoding for stdout/stderr. Defaults to "utf-8".
             Set to None to receive raw bytes for commands that may output
             binary content.
+        description: Optional description for the command audit record when executing a wrapper.
         **kwargs: Additional arguments (reserved for future use)
 
     Returns:
@@ -377,7 +350,7 @@ async def execute_command(
         if encoding is not None, otherwise bytes.
 
     Raises:
-        ConnectionError: If remote connection fails
+        OSError: If a command cannot be found, started, or completed due to an OS error.
 
     Examples:
         # Local execution
@@ -402,14 +375,14 @@ async def execute_command(
             raise RuntimeError("Remote execution not allowed")
 
         logger.debug(f"Routing to remote execution: {host} | command={cmd_str}")
-        return await _connection_manager.execute_remote(command, host, encoding=encoding)
+        return await _connection_manager.execute_remote(command, host, encoding=encoding, description=description)
 
     # Local execution,check permissions
     if not context.allow_local:
         raise RuntimeError("Local execution not allowed")
 
     logger.debug(f"LOCAL_EXEC: {cmd_str}")
-    return await _execute_local(command, encoding=encoding)
+    return await _execute_local(command, encoding=encoding, description=description)
 
 
 async def execute_with_fallback(
@@ -434,6 +407,7 @@ async def execute_with_fallback(
         encoding: Character encoding for stdout/stderr. Defaults to "utf-8".
             Set to None to receive raw bytes for commands that may output
             binary content.
+        description: Optional description for the command audit record when executing a wrapper.
         **kwargs: Additional arguments passed to execute_command
 
     Returns:
@@ -458,7 +432,7 @@ async def execute_with_fallback(
 
 
 async def _execute_local(
-    command: Sequence[str], encoding: str | None = "utf-8"
+    command: Sequence[str], encoding: str | None = "utf-8", *, description: CommandDescription | None = None
 ) -> tuple[int, str | bytes, str | bytes]:
     """
     Execute a command locally using subprocess.
@@ -467,6 +441,7 @@ async def _execute_local(
         command: Command and arguments to execute
         encoding: Character encoding for stdout/stderr. Defaults to "utf-8".
             Set to None to receive raw bytes.
+        description: Optional description for the command audit record when executing a wrapper.
 
     Returns:
         Tuple of (return_code, stdout, stderr) where stdout and stderr are strings
@@ -475,16 +450,15 @@ async def _execute_local(
     Raises:
         TimeoutError: If the command does not complete within ``CONFIG.command_timeout`` seconds.
     """
-    cmd_str = " ".join(command)
-    start_time = time.time()
-    bin = command[0]
-    if not Path(bin).is_absolute():
-        bin = get_bin_path(bin)
+    with log_command_execution(shlex.join(command), LOCALHOST, description=description) as execution:
+        bin = command[0]
+        if not Path(bin).is_absolute():
+            bin = get_bin_path(bin)
 
-    full_command = [bin, *command[1:]]
-    timeout = CONFIG.command_timeout
+        full_command = [bin, *command[1:]]
+        timeout = CONFIG.command_timeout
+        logger.debug("Executing local command", extra={"command": shlex.join(full_command)})
 
-    try:
         proc = await asyncio.create_subprocess_exec(
             *full_command,
             start_new_session=True,
@@ -492,44 +466,17 @@ async def _execute_local(
             stdout=subprocess.PIPE,
             stderr=subprocess.PIPE,
         )
+
         try:
             stdout_bytes, stderr_bytes = await asyncio.wait_for(proc.communicate(), timeout=timeout)
         except asyncio.TimeoutError:
             proc.kill()
             await proc.wait()
-            duration = time.time() - start_time
-            logger.error(
-                f"Command timed out after {timeout}s",
-                extra={
-                    "event": Event.LOCAL_EXEC_ERROR,
-                    "command": cmd_str,
-                    "duration": f"{duration:.3f}s",
-                    "error": "timeout",
-                },
-            )
-            raise TimeoutError(f"Command timed out after {timeout}s on localhost: {cmd_str}") from None
+            raise TimeoutError(f"Command timed out after {timeout}s on localhost") from None
 
         return_code = proc.returncode if proc.returncode is not None else 0
         stdout = stdout_bytes if encoding is None else stdout_bytes.decode(encoding, errors="replace")
         stderr = stderr_bytes if encoding is None else stderr_bytes.decode(encoding, errors="replace")
 
-        duration = time.time() - start_time
-
-        logger.debug(f"LOCAL_EXEC completed: {cmd_str} | exit_code={return_code} | duration={duration:.3f}s")
-
+        execution.set_exit_status(return_code)
         return return_code, stdout, stderr
-
-    except TimeoutError:
-        raise
-    except Exception as e:
-        duration = time.time() - start_time
-        logger.error(
-            f"Error executing local command: {cmd_str}",
-            extra={
-                "event": Event.LOCAL_EXEC_ERROR,
-                "command": cmd_str,
-                "duration": f"{duration:.3f}s",
-                "error": str(e),
-            },
-        )
-        return 1, "", str(e)
