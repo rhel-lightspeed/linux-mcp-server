@@ -406,3 +406,10 @@ class TestGatekeeperConfig:
 
         with pytest.raises(ValidationError, match=r"Cost must be formatted as '<float>:<float>'"):
             Config()
+
+
+@pytest.mark.parametrize("base_url", ["mcp.example.com", "ftp://mcp.example.com"])
+def test_invalid_base_url(base_url: str, monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setenv("LINUX_MCP_BASE_URL", base_url)
+    with pytest.raises(ValidationError):
+        Config()

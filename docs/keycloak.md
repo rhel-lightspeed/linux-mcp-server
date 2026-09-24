@@ -77,7 +77,7 @@ The MCP server validates JWT tokens using Keycloak's public keys (JWKS).
 
 ```bash
 # Transport
-export LINUX_MCP_TRANSPORT=streamable-http
+export LINUX_MCP_TRANSPORT=http
 export LINUX_MCP_HOST=localhost
 export LINUX_MCP_PORT=3000
 
@@ -106,7 +106,7 @@ Create a confidential OpenID Connect client with service account roles enabled f
 
 ```bash
 # Transport
-export LINUX_MCP_TRANSPORT=streamable-http
+export LINUX_MCP_TRANSPORT=http
 export LINUX_MCP_HOST=localhost
 export LINUX_MCP_PORT=3000
 

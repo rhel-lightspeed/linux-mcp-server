@@ -1,10 +1,12 @@
 import pytest
 
 from pydantic import SecretStr
+from pytest_mock import MockerFixture
 
 from linux_mcp_server.auth import create_auth_provider
 from linux_mcp_server.config import AuthConfig
 from linux_mcp_server.config import AuthProvider
+from linux_mcp_server.config import Config
 from linux_mcp_server.config import GitHubAuthConfig
 from linux_mcp_server.config import GoogleAuthConfig
 from linux_mcp_server.config import IntrospectionAuthConfig
@@ -13,13 +15,13 @@ from linux_mcp_server.config import JWTAuthConfig
 
 class TestCreateAuthProvider:
     def test_no_auth_config_returns_none(self, mocker):
-        mocker.patch("linux_mcp_server.auth.CONFIG", auth=None, host="localhost", port=8000)
+        mocker.patch("linux_mcp_server.auth.CONFIG", Config(auth=None, host="localhost", port=8000))
         provider = create_auth_provider()
         assert provider is None
 
     def test_no_provider_selected_returns_none(self, mocker):
         auth_config = AuthConfig(provider=None)
-        mocker.patch("linux_mcp_server.auth.CONFIG", auth=auth_config, host="localhost", port=8000)
+        mocker.patch("linux_mcp_server.auth.CONFIG", Config(auth=auth_config, host="localhost", port=8000))
         provider = create_auth_provider()
         assert provider is None
 
@@ -32,7 +34,7 @@ class TestCreateAuthProvider:
             provider=AuthProvider.GOOGLE,
             google=google_config,
         )
-        mocker.patch("linux_mcp_server.auth.CONFIG", auth=auth_config, host="localhost", port=8000)
+        mocker.patch("linux_mcp_server.auth.CONFIG", Config(auth=auth_config, host="localhost", port=8000))
 
         provider = create_auth_provider()
         assert provider is not None
@@ -46,7 +48,7 @@ class TestCreateAuthProvider:
             provider=AuthProvider.GOOGLE,
             google=None,
         )
-        mocker.patch("linux_mcp_server.auth.CONFIG", auth=auth_config, host="localhost", port=8000)
+        mocker.patch("linux_mcp_server.auth.CONFIG", Config(auth=auth_config, host="localhost", port=8000))
 
         with pytest.raises(ValueError, match="Google auth provider selected"):
             create_auth_provider()
@@ -60,7 +62,7 @@ class TestCreateAuthProvider:
             provider=AuthProvider.GITHUB,
             github=github_config,
         )
-        mocker.patch("linux_mcp_server.auth.CONFIG", auth=auth_config, host="localhost", port=8000)
+        mocker.patch("linux_mcp_server.auth.CONFIG", Config(auth=auth_config, host="localhost", port=8000))
 
         provider = create_auth_provider()
         assert provider is not None
@@ -74,7 +76,7 @@ class TestCreateAuthProvider:
             provider=AuthProvider.GITHUB,
             github=None,
         )
-        mocker.patch("linux_mcp_server.auth.CONFIG", auth=auth_config, host="localhost", port=8000)
+        mocker.patch("linux_mcp_server.auth.CONFIG", Config(auth=auth_config, host="localhost", port=8000))
 
         with pytest.raises(ValueError, match="GitHub auth provider selected"):
             create_auth_provider()
@@ -89,7 +91,7 @@ class TestCreateAuthProvider:
             provider=AuthProvider.JWT,
             jwt=jwt_config,
         )
-        mocker.patch("linux_mcp_server.auth.CONFIG", auth=auth_config, host="localhost", port=8000)
+        mocker.patch("linux_mcp_server.auth.CONFIG", Config(auth=auth_config, host="localhost", port=8000))
 
         provider = create_auth_provider()
         assert provider is not None
@@ -101,7 +103,7 @@ class TestCreateAuthProvider:
             provider=AuthProvider.JWT,
             jwt=None,
         )
-        mocker.patch("linux_mcp_server.auth.CONFIG", auth=auth_config, host="localhost", port=8000)
+        mocker.patch("linux_mcp_server.auth.CONFIG", Config(auth=auth_config, host="localhost", port=8000))
 
         with pytest.raises(ValueError, match="JWT auth provider selected"):
             create_auth_provider()
@@ -118,7 +120,7 @@ class TestCreateAuthProvider:
             provider=AuthProvider.INTROSPECTION,
             introspection=introspection_config,
         )
-        mocker.patch("linux_mcp_server.auth.CONFIG", auth=auth_config, host="localhost", port=8000)
+        mocker.patch("linux_mcp_server.auth.CONFIG", Config(auth=auth_config, host="localhost", port=8000))
 
         provider = create_auth_provider()
         assert provider is not None
@@ -129,7 +131,44 @@ class TestCreateAuthProvider:
             provider=AuthProvider.INTROSPECTION,
             introspection=None,
         )
-        mocker.patch("linux_mcp_server.auth.CONFIG", auth=auth_config, host="localhost", port=8000)
+        mocker.patch("linux_mcp_server.auth.CONFIG", Config(auth=auth_config, host="localhost", port=8000))
 
         with pytest.raises(ValueError, match="LINUX_MCP_AUTH__INTROSPECTION__"):
             create_auth_provider()
+
+
+@pytest.mark.parametrize(
+    "tls, base_url, expected",
+    [
+        (False, None, "http://localhost:8443"),
+        (True, None, "https://localhost:8443"),
+        (False, "https://mcp.example.com/proxy", "https://mcp.example.com/proxy"),
+        (True, "https://mcp.example.com/proxy", "https://mcp.example.com/proxy"),
+    ],
+)
+def test_auth_base_url(
+    tls: bool,
+    base_url: str | None,
+    expected: str,
+    monkeypatch: pytest.MonkeyPatch,
+    mocker: MockerFixture,
+) -> None:
+    monkeypatch.setenv("LINUX_MCP_TRANSPORT", "http")
+    if tls:
+        monkeypatch.setenv("LINUX_MCP_TLS_CERT", "cert.pem")
+        monkeypatch.setenv("LINUX_MCP_TLS_KEY", "key.pem")
+    if base_url is not None:
+        monkeypatch.setenv("LINUX_MCP_BASE_URL", base_url)
+    config = Config(
+        host="localhost",
+        port=8443,
+        auth=AuthConfig(
+            provider=AuthProvider.JWT,
+            jwt=JWTAuthConfig(jwks_uri="https://auth.example.com/jwks", issuer="https://auth.example.com"),
+        ),
+    )
+    mocker.patch("linux_mcp_server.auth.CONFIG", config)
+    provider = mocker.patch("linux_mcp_server.auth.RemoteAuthProvider", autospec=True)
+    create_auth_provider()
+    assert provider.call_args is not None
+    assert provider.call_args.kwargs["base_url"] == expected

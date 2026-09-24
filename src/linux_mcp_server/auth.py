@@ -23,8 +23,7 @@ def create_auth_provider():
     if CONFIG.auth.provider is None:
         return None
 
-    # base URL from host and port
-    base_url = f"http://{CONFIG.host}:{CONFIG.port}"
+    base_url = CONFIG.effective_base_url
 
     if CONFIG.auth.provider == AuthProvider.GOOGLE:
         if CONFIG.auth.google is None:
