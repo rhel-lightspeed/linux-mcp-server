@@ -81,22 +81,36 @@
         },
 
         {
+          "name": "LINUX_MCP_LOG_OUTPUT",
+          "description": "Log destination: files (default, rotating text and JSON files plus text stderr), stdout (HTTP transports only), or stderr",
+          "isRequired": false,
+          "format": "string",
+          "isSecret": false
+        },
+        {
+          "name": "LINUX_MCP_LOG_FORMAT",
+          "description": "Stream log format: text (default) or json; ignored in files mode",
+          "isRequired": false,
+          "format": "string",
+          "isSecret": false
+        },
+        {
           "name": "LINUX_MCP_LOG_DIR",
-          "description": "Server log directory",
+          "description": "Server log directory (used only with LINUX_MCP_LOG_OUTPUT=files)",
           "isRequired": false,
           "format": "string",
           "isSecret": false
         },
         {
           "name": "LINUX_MCP_LOG_LEVEL",
-          "description": "Log verbosity (DEBUG, INFO, WARNING)",
+          "description": "Log verbosity: default, DEBUG, INFO, WARNING, ERROR, or CRITICAL. default is INFO and above for linux-mcp-server itself, but WARNING and above for libraries it uses.",
           "isRequired": false,
           "format": "string",
           "isSecret": false
         },
         {
           "name": "LINUX_MCP_LOG_RETENTION_DAYS",
-          "description": "Days to keep log files",
+          "description": "Days to keep log files (default: 10; used only with LINUX_MCP_LOG_OUTPUT=files)",
           "isRequired": false,
           "format": "string",
           "isSecret": false

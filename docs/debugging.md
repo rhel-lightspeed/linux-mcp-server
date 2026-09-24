@@ -110,6 +110,17 @@ The `audit.py` module provides structured logging functions:
 
 ## Log Levels
 
+The default `LINUX_MCP_LOG_LEVEL=default` records INFO and above for
+linux-mcp-server itself, but WARNING and above for libraries it depends upon.
+Routine messages from those libraries, such as HTTP access logs and SSH
+connection details, are suppressed.
+
+An explicit level applies to both application and dependency logs. For example,
+`LINUX_MCP_LOG_LEVEL=INFO` includes dependency INFO messages, and
+`LINUX_MCP_LOG_LEVEL=DEBUG` enables debug output from both. `WARNING`, `ERROR`,
+and `CRITICAL` can be used to restrict all logs to those levels and above.
+Values are case-insensitive.
+
 ### INFO Level
 - Tool invocations with parameters
 - Tool completion with status and timing

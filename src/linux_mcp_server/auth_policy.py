@@ -19,7 +19,7 @@ from linux_mcp_server.utils.types import Host
 from linux_mcp_server.utils.types import LOCALHOST
 
 
-logger = logging.getLogger("linux-mcp-server")
+logger = logging.getLogger(__name__)
 
 
 class PolicyAction(str, Enum):

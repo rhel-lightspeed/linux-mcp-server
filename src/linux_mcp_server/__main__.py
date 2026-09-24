@@ -18,7 +18,8 @@ def cli():
 
     setup_logging()
 
-    logger = logging.getLogger("linux-mcp-server")
+    # Keep the package logger name when invoked with python -m (__name__ is __main__).
+    logger = logging.getLogger("linux_mcp_server")
     logger.info(f"Running Linux MCP Server {__version__}. Press Ctrl+C, Enter to stop the server.")
 
     try:
