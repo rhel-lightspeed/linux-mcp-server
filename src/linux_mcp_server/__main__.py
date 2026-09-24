@@ -26,7 +26,7 @@ def cli():
         # FastMCP.run() creates its own event loop, don't use asyncio.run()
         main()
     except KeyboardInterrupt:
-        logger.info("Linux MCP Server stopped by user")
+        logger.debug("Linux MCP Server stopped by user")
         sys.exit(0)
     except Exception as e:
         logger.critical(f"Fatal error in Linux MCP Server: {e}", exc_info=True)

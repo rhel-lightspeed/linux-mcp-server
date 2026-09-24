@@ -125,7 +125,6 @@ import typing as t
 from mcp.types import ToolAnnotations
 from pydantic import Field
 
-from linux_mcp_server.audit import log_tool_call
 from linux_mcp_server.commands import get_command
 from linux_mcp_server.server import mcp
 from linux_mcp_server.utils.types import Host
@@ -136,7 +135,6 @@ from linux_mcp_server.utils.types import Host
     description="Brief description for LLM to understand when to use this tool.",
     annotations=ToolAnnotations(readOnlyHint=True),
 )
-@log_tool_call
 async def my_tool_name(
     param1: t.Annotated[str, Field(description="Parameter description")],
     host: Host,

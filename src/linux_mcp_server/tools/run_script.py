@@ -18,7 +18,7 @@ from mcp.types import ToolAnnotations
 from pydantic import BaseModel
 from pydantic import Field
 
-from linux_mcp_server.audit import log_tool_call
+from linux_mcp_server.audit import CommandDescription
 from linux_mcp_server.config import CONFIG
 from linux_mcp_server.connection.ssh import execute_command
 from linux_mcp_server.gatekeeper import check_run_script
@@ -267,6 +267,13 @@ def _wrap_script(details: ScriptDetails) -> list[str]:
     return ["bash", "-c", wrapper_script]
 
 
+async def _execute_script(details: ScriptDetails) -> tuple[int, str | bytes, str | bytes]:
+    command = _wrap_script(details)
+    description = CommandDescription(command=details.script, interpreter=details.script_type)
+
+    return await execute_command(command, host=details.host, description=description)
+
+
 @dataclass
 class ExecuteScriptResult:
     state: t.Literal["success", "failure"]
@@ -278,18 +285,16 @@ class ExecuteScriptResult:
     description="Execute a script; this is only available to the our mcp-app",
     app=AppConfig(visibility=["app"]),
 )
-@log_tool_call
 @host_from_stored_script("id")
 async def execute_script(
     id: t.Annotated[str, Field(description="The associated ID of the script to be executed")],
 ) -> ToolResult:
     script_details = script_store.get_script_details(id)
-    command = _wrap_script(script_details)
     script_store.set_script_state(id, "executing")
     content: list[ContentBlock] = []
 
     try:
-        returncode, stdout, stderr = await execute_command(command, host=script_details.host)
+        returncode, stdout, stderr = await _execute_script(script_details)
     except Exception:
         script_store.set_script_state(id, "failure")
         raise
@@ -315,7 +320,6 @@ async def execute_script(
     description="Reject a script; this is only available to the our mcp-app",
     app=AppConfig(visibility=["app"]),
 )
-@log_tool_call
 @host_from_stored_script("id")
 async def reject_script(
     id: t.Annotated[str, Field(description="The associated ID of the script to be rejected")],
@@ -331,7 +335,6 @@ async def reject_script(
     output_schema=RunScriptInteractiveResult.model_json_schema(),
     app=AppConfig(resource_uri=RUN_SCRIPT_APP_URI),
 )
-@log_tool_call
 async def run_script_interactive(
     ctx: Context,
     description: t.Annotated[
@@ -402,7 +405,6 @@ async def run_script_interactive(
     description="Get the execution details with request ID",
     app=AppConfig(visibility=["app"]),
 )
-@log_tool_call
 @host_from_stored_script("id")
 async def get_execution_details(id: str):
     script_detail = script_store.get_script_details(id)
@@ -424,7 +426,6 @@ def _pick_execution_tool(needs_confirmation: bool):
     description="Request validation of a script from the gatekeeper. The tool will return a unique token that must be included in the run_script tool call.",
     annotations=ToolAnnotations(readOnlyHint=True),
 )
-@log_tool_call
 async def validate_script(
     ctx: Context,
     description: t.Annotated[
@@ -480,7 +481,6 @@ async def validate_script(
     description="Call this tool to run a previously validated script. Use this when validate_script returned needs_confirmation: false.",
     annotations=ToolAnnotations(readOnlyHint=True),
 )
-@log_tool_call
 @host_from_stored_script("token")
 async def run_script(
     ctx: Context,
@@ -494,8 +494,7 @@ async def run_script(
 
     script_store.set_script_state(token, "executing")
     try:
-        command = _wrap_script(script_details)
-        returncode, stdout, stderr = await execute_command(command, host=script_details.host)
+        returncode, stdout, stderr = await _execute_script(script_details)
     except Exception:
         script_store.set_script_state(token, "failure")
         raise
@@ -514,7 +513,6 @@ async def run_script(
     description="Call this tool to run a previously validated script that modifies the system. Use this when validate_script returned needs_confirmation: true. The parameters must match those passed to validate_script.",
     annotations=ToolAnnotations(destructiveHint=True),
 )
-@log_tool_call
 async def run_script_with_confirmation(
     ctx: Context,
     description: t.Annotated[
@@ -573,8 +571,7 @@ async def run_script_with_confirmation(
         script_store.set_script_state(token, "executing")
 
     try:
-        command = _wrap_script(execute_details)
-        returncode, stdout, stderr = await execute_command(command, host=execute_details.host)
+        returncode, stdout, stderr = await _execute_script(execute_details)
     except Exception:
         if not details_changed:
             script_store.set_script_state(token, "failure")

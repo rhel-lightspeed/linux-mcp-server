@@ -60,53 +60,80 @@ fields are nested under `attributes`, which is omitted when empty. Exceptions
 are included in an optional `exception` field. Multiline messages and tracebacks
 are escaped within the JSON string, preserving one physical line per record.
 
-## Example Log Output
+## Audit Events
 
-### Human-Readable Format (INFO level)
+Each tool invocation has a server-generated `call_id`. Use it to follow a call
+from `TOOL_CALL` through gatekeeper decisions and command execution to
+`TOOL_COMPLETE`, including authorization or validation failures. Events carry
+the tool name, resolved host, verified identity claims, and HTTP client IP when
+available. For HTTP, the client IP is the immediate requestor's address unless
+an allowed proxy supplies `X-Forwarded-For`. `FORWARDED_ALLOW_IPS` controls which
+proxies are allowed; the default is loopback addresses.
 
+| Event | Fields and meaning |
+| --- | --- |
+| `TOOL_CALL` | Sanitized `parameters`, including nested values. Hosts for stored scripts come from their stored details. |
+| `TOOL_COMPLETE` | `status`, `duration_ms`, and `error` on failure. Timing includes authorization and execution. |
+| `GATEKEEPER_RESULT` | Parsed `status` and `explanation`, including early rejections and revalidation. Model failures have status `error` and an `error` message. |
+| `SSH_CONNECT` | Successful new SSH connection, with `host`, `username`, and `key_path`. |
+| `SSH_AUTH_FAILED` | Failed SSH connection, with `host` and `error`. |
+| `COMMAND_COMPLETE` | `command`, `host`, `status`, `duration_ms`, and either `exit_status` or `error` on execution failure. Same fields for local and SSH commands. |
+
+A command's nonzero exit status or error does not necessarily cause the tool to
+fail. A tool may try a fallback command, skip a missing optional command, or
+return an error message as its normal result. `TOOL_COMPLETE` describes whether
+the tool call returned normally, raised an error, or was cancelled.
+
+Sensitive parameter and claim keys (such as passwords and tokens) are redacted.
+Bearer credentials and the injected tool context are not recorded. Script
+bodies and ordinary argument values are logged as supplied.
+
+### Text format
+
+A stdio call to list services on a remote host:
+
+```text
+2026-09-24T15:00:00Z | INFO | linux_mcp_server.audit | TOOL_CALL: Tool called | call_id=bc769d24-5c4a-45cb-9c54-02abceef306a | tool=list_services | host=server1 | parameters={"host":"server1"}
+2026-09-24T15:00:00Z | INFO | linux_mcp_server.audit | COMMAND_COMPLETE: Command completed | call_id=bc769d24-5c4a-45cb-9c54-02abceef306a | tool=list_services | host=server1 | command="systemctl list-units --type=service --all --no-pager" | exit_status=0 | status=success | duration_ms=84.2
+2026-09-24T15:00:00Z | INFO | linux_mcp_server.audit | COMMAND_COMPLETE: Command completed | call_id=bc769d24-5c4a-45cb-9c54-02abceef306a | tool=list_services | host=server1 | command="systemctl list-units --type=service --state=running --no-pager" | exit_status=0 | status=success | duration_ms=72.1
+2026-09-24T15:00:00Z | INFO | linux_mcp_server.audit | TOOL_COMPLETE: Tool completed | call_id=bc769d24-5c4a-45cb-9c54-02abceef306a | tool=list_services | host=server1 | status=success | duration_ms=158.4
 ```
-2025-10-10 15:30:45.123 | INFO | linux_mcp_server.audit | TOOL_CALL: list_directories | path=/home/user, order_by=size, sort=descending, top_n=10 | event=TOOL_CALL | tool=list_directories | host=localhost | execution_mode=local
-2025-10-10 15:30:45.456 | INFO | linux_mcp_server.audit | TOOL_COMPLETE: list_directories | event=TOOL_COMPLETE | tool=list_directories | status=success | duration=0.333s
-```
 
-### Human-Readable Format (DEBUG level - shows command execution)
+Fields appear once as `key=value`. Strings containing whitespace, quotes, or
+field delimiters are quoted; newlines are escaped. Nested objects use compact
+JSON. Timestamps are UTC, and each record occupies one physical line.
 
-```
-2025-10-10 15:30:45.123 | INFO | linux_mcp_server.audit | TOOL_CALL: list_directories | path=/home/user, order_by=size, sort=descending, top_n=10 | event=TOOL_CALL | tool=list_directories | host=localhost | execution_mode=local
-2025-10-10 15:30:45.234 | DEBUG | linux_mcp_server.connection.ssh| LOCAL_EXEC completed: du -b --max-depth=1 /home/user | exit_code=0 | duration=0.200s
-2025-10-10 15:30:45.456 | INFO | linux_mcp_server.audit | TOOL_COMPLETE: list_directories | event=TOOL_COMPLETE | tool=list_directories | status=success | duration=0.333s
-```
-
-### JSON Format
+### JSON format
 
 ```json
 {
-  "timestamp": "2025-10-10T15:30:45Z",
+  "timestamp": "2026-09-24T15:00:00Z",
   "level": "INFO",
   "logger": "linux_mcp_server.audit",
-  "message": "TOOL_CALL: list_directories | path=/home/user, order_by=size, sort=descending, top_n=10",
+  "message": "Command completed",
+  "event": "COMMAND_COMPLETE",
   "attributes": {
-    "tool": "list_directories",
-    "host": "localhost",
-    "execution_mode": "LOCAL"
+    "call_id": "bc769d24-5c4a-45cb-9c54-02abceef306a",
+    "tool": "list_services",
+    "host": "server1",
+    "command": "systemctl list-units --type=service --all --no-pager",
+    "status": "success",
+    "exit_status": 0,
+    "duration_ms": 84.2
   }
 }
 ```
 
+The example is expanded for readability; emitted JSON is one object per line.
+Primary audit records have a stable top-level `event`. Ordinary application and
+library messages use the same envelope without an event. Their custom fields
+stay under `attributes`, including any library field named `event`. Diagnostic
+messages emitted during a tool call also receive its request context.
+
 ## Implementation
 
-Logging is centralized in `src/linux_mcp_server/audit.py` using the `log_tool_call()` decorator.
-
-```python
-@mcp.tool()
-@log_tool_call
-async def list_directories(path: str, order_by: OrderBy, sort: SortBy, top_n: int | None) -> list[DirectoryEntry]: ...
-```
-
-The `audit.py` module provides structured logging functions:
-- `log_tool_call()`: Logs tool invocation with parameters
-- `log_ssh_connect()`: Logs SSH connection events
-- `log_ssh_command()`: Logs remote command execution
+Tool lifecycle events are emitted by the authorization middleware. `audit.py`
+provides `audit_context()` to add context fields and `log_event()` to log events.
 
 ## Log Levels
 
@@ -122,30 +149,9 @@ and `CRITICAL` can be used to restrict all logs to those levels and above.
 Values are case-insensitive.
 
 ### INFO Level
-- Tool invocations with parameters
-- Tool completion with status and timing
-- SSH connection success/failure
-- Remote command execution
 
-### DEBUG Level
-- Detailed command execution timing
-- SSH connection pool state
-- Local command execution details
-- All INFO level events plus detailed diagnostics
-
-## Benefits
-
-1. **Centralized Logging**: All logging happens in one place (server.py + audit.py)
-2. **Structured Data**: Both human-readable and JSON formats available
-3. **Audit Trail**: Complete record of all operations with timing
-4. **SSH Monitoring**: Track remote connections and command execution
-5. **Performance Insights**: Execution duration for every tool call
-
-## Use Cases
-
-- **Debugging**: Track tool invocations and identify issues
-- **Auditing**: Complete record of all operations
-- **Performance**: Monitor execution times
-- **SSH Troubleshooting**: Debug connection and authentication issues
-- **Development**: Understand tool behavior during testing
+- Tool invocation and completion, with parameters, status, and timing
+- Gatekeeper decisions
+- Successful SSH connections
+- Local and remote command results, with timing
 
