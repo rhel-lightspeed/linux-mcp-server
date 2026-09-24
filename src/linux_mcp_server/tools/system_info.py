@@ -5,7 +5,6 @@ import json
 from fastmcp.exceptions import ToolError
 from mcp.types import ToolAnnotations
 
-from linux_mcp_server.audit import log_tool_call
 from linux_mcp_server.commands import get_command
 from linux_mcp_server.commands import get_command_group
 from linux_mcp_server.models import CpuInfo
@@ -26,7 +25,6 @@ from linux_mcp_server.utils.validation import is_successful_output
     tags={"fixed", "hardware", "system"},
     annotations=ToolAnnotations(readOnlyHint=True),
 )
-@log_tool_call
 async def get_system_information(
     host: Host,
 ) -> SystemInfo:
@@ -54,7 +52,6 @@ async def get_system_information(
     tags={"fixed", "cpu", "hardware", "performance", "system"},
     annotations=ToolAnnotations(readOnlyHint=True),
 )
-@log_tool_call
 async def get_cpu_information(
     host: Host,
 ) -> CpuInfo:
@@ -81,7 +78,6 @@ async def get_cpu_information(
     tags={"fixed", "hardware", "memory", "performance", "system"},
     annotations=ToolAnnotations(readOnlyHint=True),
 )
-@log_tool_call
 async def get_memory_information(
     host: Host,
 ) -> SystemMemory:
@@ -109,7 +105,6 @@ async def get_memory_information(
     tags={"fixed", "disk", "filesystem", "storage", "system"},
     annotations=ToolAnnotations(readOnlyHint=True),
 )
-@log_tool_call
 async def get_disk_usage(
     host: Host,
 ) -> DiskUsage:
@@ -141,7 +136,6 @@ async def get_disk_usage(
     tags={"fixed", "hardware", "system"},
     annotations=ToolAnnotations(readOnlyHint=True),
 )
-@log_tool_call
 async def get_hardware_information(
     host: Host,
 ) -> dict[str, str | list[str]]:

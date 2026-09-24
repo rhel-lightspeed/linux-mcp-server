@@ -51,7 +51,7 @@ reviews:
         - Ensure proper exception handling with graceful degradation
         - Error messages must be clear enough for LLMs to understand and act on
         - Check input validation before shell commands (command injection)
-        - Verify MCP decorator order: @mcp.tool, @log_tool_call, @disallow_local_execution_in_containers
+        - Verify tools are registered with @mcp.tool; authorization middleware handles tool audit logging
         - Host parameter pattern: host: Host | None = None (supports local and remote)
         - Resource cleanup: Verify SSH connections use context managers
         - Timeout handling: All network/SSH operations must have timeouts

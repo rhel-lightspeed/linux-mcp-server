@@ -194,7 +194,7 @@ class AuthPolicy(BaseModel):
                 logger.debug(f"Policy match: tool={tool_name}, host={target_host}, action={rule.action.value}")
                 return rule.action, rule.ssh_key, rule.all_users
 
-        logger.warning(f"No policy rule matched: tool={tool_name}, host={target_host}, claims={token_claims}")
+        logger.debug("No policy rule matched", extra={"tool": tool_name, "host": target_host})
         return PolicyAction.DENY, None, False
 
 
@@ -203,7 +203,7 @@ class AuthPolicy(BaseModel):
 def get_policy() -> AuthPolicy:
 
     if CONFIG.policy_path is None:
-        logger.info("No auth policy path configured, all requests will be denied")
+        logger.warning("No auth policy path configured, all requests will be denied")
         return AuthPolicy(rules=[])
 
     if not CONFIG.policy_path.exists():

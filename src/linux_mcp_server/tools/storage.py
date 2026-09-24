@@ -10,7 +10,6 @@ from mcp.types import ToolAnnotations
 from pydantic import Field
 from pydantic.functional_validators import BeforeValidator
 
-from linux_mcp_server.audit import log_tool_call
 from linux_mcp_server.commands import CommandSpec
 from linux_mcp_server.commands import get_command
 from linux_mcp_server.config import CONFIG
@@ -82,7 +81,6 @@ async def _list_resources(
     tags={"fixed", "devices", "storage"},
     annotations=ToolAnnotations(readOnlyHint=True),
 )
-@log_tool_call
 async def list_block_devices(
     host: Host,
 ) -> BlockDevices:
@@ -106,7 +104,6 @@ async def list_block_devices(
     tags={"fixed", "directories", "filesystem", "storage"},
     annotations=ToolAnnotations(readOnlyHint=True),
 )
-@log_tool_call
 async def list_directories(
     path: t.Annotated[
         Path,
@@ -151,7 +148,6 @@ async def list_directories(
     tags={"fixed", "files", "filesystem", "storage"},
     annotations=ToolAnnotations(readOnlyHint=True),
 )
-@log_tool_call
 async def list_files(
     path: t.Annotated[
         Path,
@@ -196,7 +192,6 @@ async def list_files(
     tags={"fixed", "files", "filesystem", "storage"},
     annotations=ToolAnnotations(readOnlyHint=True),
 )
-@log_tool_call
 async def read_file(
     path: t.Annotated[
         Path,

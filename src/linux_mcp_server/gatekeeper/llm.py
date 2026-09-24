@@ -46,5 +46,5 @@ async def complete_gatekeeper(prompt: str, *, max_tokens: int) -> GatekeeperComp
         case _:  # pragma: no cover
             raise ValueError(f"Unsupported gatekeeper provider: {provider}")
 
-    logger.info(f"Gatekeeper response: {completion.text}")
+    logger.debug("Gatekeeper response: %s", completion.text)
     return completion

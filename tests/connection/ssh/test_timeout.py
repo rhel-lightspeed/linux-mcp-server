@@ -101,7 +101,7 @@ async def test_timeout_behavior(
 
 
 async def test_timeout_error_contains_context(mocker, ssh_manager, mock_ssh_connection):
-    """Test that timeout error message includes command, host, and user context."""
+    """Test that timeout error message includes host and user, without command contents."""
     mock_ssh_connection.run = _make_timeout_mock()
     mocker.patch("linux_mcp_server.connection.ssh.get_remote_bin_path", return_value=("/usr/bin/mycommand"))
 
@@ -111,7 +111,7 @@ async def test_timeout_error_contains_context(mocker, ssh_manager, mock_ssh_conn
     error_msg = str(exc_info.value)
 
     assert "testuser@myhost.example.com" in error_msg
-    assert "mycommand" in error_msg
+    assert "mycommand" not in error_msg
     assert "5s" in error_msg
 
 
@@ -137,14 +137,14 @@ class TestLocalTimeout:
         with pytest.raises(TimeoutError, match="Command timed out after 1s on localhost"):
             await _execute_local(["/bin/sleep", "60"])
 
-    async def test_local_timeout_error_contains_command(self, mocker):
-        """Timeout error message includes the command that timed out."""
+    async def test_local_timeout_error_contains_host(self, mocker):
+        """Timeout error message includes host and duration, without command contents."""
         mocker.patch("linux_mcp_server.connection.ssh.CONFIG.command_timeout", 1)
         mocker.patch("linux_mcp_server.connection.ssh.get_bin_path", return_value="/bin/sleep")
 
         with pytest.raises(TimeoutError) as exc_info:
             await _execute_local(["/bin/sleep", "60"])
 
-        assert "sleep" in str(exc_info.value)
+        assert "sleep" not in str(exc_info.value)
         assert "1s" in str(exc_info.value)
         assert "localhost" in str(exc_info.value)
