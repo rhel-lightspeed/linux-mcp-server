@@ -103,7 +103,7 @@
         },
         {
           "name": "LINUX_MCP_LOG_LEVEL",
-          "description": "Log verbosity: default (application INFO, dependencies WARNING), or DEBUG, INFO, WARNING, ERROR, CRITICAL. Case-insensitive; dependency-specific suppressions are preserved.",
+          "description": "Log verbosity: default, DEBUG, INFO, WARNING, ERROR, or CRITICAL. default is INFO and above for linux-mcp-server itself, but WARNING and above for libraries it uses.",
           "isRequired": false,
           "format": "string",
           "isSecret": false
