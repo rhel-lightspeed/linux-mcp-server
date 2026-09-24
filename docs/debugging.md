@@ -23,7 +23,7 @@ export LINUX_MCP_LOG_LEVEL=DEBUG
 
 ## Log Output Locations
 
-Logs are written to two formats:
+By default (`LINUX_MCP_LOG_OUTPUT=files`), logs are written to two files and also emitted as human-readable text on stderr:
 
 1. **Human-readable**: `~/.local/share/linux-mcp-server/logs/server.log`
 2. **JSON format**: `~/.local/share/linux-mcp-server/logs/server.json`
@@ -33,6 +33,32 @@ You can customize the log directory with:
 ```bash
 export LINUX_MCP_LOG_DIR=/path/to/your/logs
 ```
+
+### Stream output
+
+For an HTTP server running in a container, emit JSON logs directly to stdout:
+
+```bash
+export LINUX_MCP_TRANSPORT=http
+export LINUX_MCP_LOG_OUTPUT=stdout
+export LINUX_MCP_LOG_FORMAT=json
+```
+
+The `streamable-http` transport also supports stdout logging.
+
+For stdio transport, use `LINUX_MCP_LOG_OUTPUT=stderr` instead: stdout is reserved for MCP
+protocol messages, and configuring stdout logging with stdio is rejected.
+
+Stream output creates no log directory or files and emits each record once.
+`LINUX_MCP_LOG_DIR` and `LINUX_MCP_LOG_RETENTION_DAYS` apply only to file output.
+`LINUX_MCP_LOG_FORMAT=text` (the default) gives human-readable stream output; `json` emits
+one JSON object per line. The format option has no effect in file mode, which
+always writes both formats and uses text on stderr.
+
+JSON records have a UTC `timestamp`, `level`, `logger`, and `message`. Custom
+fields are nested under `attributes`, which is omitted when empty. Exceptions
+are included in an optional `exception` field. Multiline messages and tracebacks
+are escaped within the JSON string, preserving one physical line per record.
 
 ## Example Log Output
 
@@ -55,14 +81,15 @@ export LINUX_MCP_LOG_DIR=/path/to/your/logs
 
 ```json
 {
-  "timestamp": "2025-10-10T15:30:45",
+  "timestamp": "2025-10-10T15:30:45Z",
   "level": "INFO",
   "logger": "linux_mcp_server.audit",
   "message": "TOOL_CALL: list_directories | path=/home/user, order_by=size, sort=descending, top_n=10",
-  "event": "TOOL_CALL",
-  "tool": "list_directories",
-  "host": "localhost",
-  "execution_mode": "local"
+  "attributes": {
+    "tool": "list_directories",
+    "host": "localhost",
+    "execution_mode": "LOCAL"
+  }
 }
 ```
 

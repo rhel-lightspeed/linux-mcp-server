@@ -1,5 +1,7 @@
+import logging
 import os
 
+from collections.abc import Iterator
 from contextlib import AsyncExitStack
 from contextlib import contextmanager
 from unittest.mock import patch
@@ -26,6 +28,23 @@ from linux_mcp_server.audit import log_tool_call
 from linux_mcp_server.config import CONFIG
 from linux_mcp_server.config import Toolset
 from linux_mcp_server.server import mcp
+
+
+@pytest.fixture
+def isolated_logging() -> Iterator[None]:
+    """Keep application logging setup from replacing pytest's logging state."""
+    names = ("", "fastmcp", "uvicorn", "uvicorn.error", "uvicorn.access", "uvicorn.asgi")
+    loggers = [logging.getLogger(name) for name in names]
+    saved = [(logger, logger.handlers[:], logger.level, logger.propagate) for logger in loggers]
+    for logger in loggers:
+        logger.handlers = []
+    yield
+    for logger, handlers, level, propagate in saved:
+        for handler in logger.handlers:
+            handler.close()
+        logger.handlers = handlers
+        logger.setLevel(level)
+        logger.propagate = propagate
 
 
 @contextmanager

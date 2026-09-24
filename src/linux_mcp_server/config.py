@@ -28,6 +28,17 @@ class Transport(StrEnum):
     streamable_http = "streamable-http"
 
 
+class LogOutput(StrEnum):
+    files = "files"
+    stdout = "stdout"
+    stderr = "stderr"
+
+
+class LogFormat(StrEnum):
+    text = "text"
+    json = "json"
+
+
 class Toolset(StrEnum):
     """Enumeration of available toolsets."""
 
@@ -224,6 +235,8 @@ class Config(BaseSettings):
     path: str = "/mcp"
 
     # Logging configuration
+    log_output: LogOutput = LogOutput.files
+    log_format: LogFormat = LogFormat.text
     log_dir: Path = Path.home() / ".local" / "share" / "linux-mcp-server" / "logs"
     log_level: UpperCase = "INFO"
     log_retention_days: int = 10
@@ -274,13 +287,22 @@ class Config(BaseSettings):
 
     @property
     def transport_kwargs(self):
-        result: dict[str, str | int] = {"log_level": self.log_level}
+        # setup_logging() owns logging, including FastMCP and Uvicorn. Passing a
+        # log_level to FastMCP would reinstall its separate stderr handlers.
+        result: dict[str, Any] = {}
         if self.transport in {Transport.http, Transport.streamable_http}:
             result["host"] = self.host
             result["port"] = self.port
             result["path"] = self.path
+            result["uvicorn_config"] = {"log_config": None}
 
         return result
+
+    @model_validator(mode="after")
+    def validate_log_output(self) -> "Config":
+        if self.log_output == LogOutput.stdout and self.transport == Transport.stdio:
+            raise ValueError("stdout logging is incompatible with stdio transport; use --log-output=stderr instead")
+        return self
 
     @model_validator(mode="after")
     def validate_gatekeeper_config(self):
