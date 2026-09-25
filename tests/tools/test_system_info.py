@@ -306,3 +306,97 @@ async def test_get_hardware_information_remote_execution(mcp_client, mock_execut
     mock_execute.assert_called()
     call_kwargs = mock_execute.call_args[1]
     assert call_kwargs["host"] == "remote.host.com"
+
+
+class TestPcpStatus:
+    """get_system_information reports PCP availability alongside the basics."""
+
+    @staticmethod
+    def responder(overrides: dict[str, tuple[int, str, str] | Exception] | None = None):
+        """Answer each command by name, so tests only state what they care about."""
+        defaults: dict[str, tuple[int, str, str] | Exception] = {
+            "hostname": (0, "example.test\n", ""),
+            "cat": (0, 'NAME="Fedora Linux"\nVERSION_ID="42"\n', ""),
+            "uname": (0, "6.14.0\n", ""),
+            "uptime": (0, "up 2 hours\n", ""),
+            "which": (0, "/usr/bin/pmlogger\n", ""),
+            "systemctl": (0, "active\n", ""),
+            "timedatectl": (0, "America/New_York\n", ""),
+            "pminfo": (
+                0,
+                "\npmcd.pmlogger.archive\n"
+                '    inst [0 or "primary"] value "/var/log/pcp/pmlogger/example.test.localdomain/20260904.00.10"\n',
+                "",
+            ),
+            "pmdumplog": (0, "", ""),
+        }
+        defaults.update(overrides or {})
+
+        def respond(*args, **_kwargs):
+            response = defaults[args[0][0]]
+            if isinstance(response, Exception):
+                raise response
+            return response
+
+        return respond
+
+    async def call(self, mcp_client, mock_execute, overrides=None):
+        mock_execute.side_effect = self.responder(overrides)
+        result = await mcp_client.call_tool("get_system_information", {"host": "localhost"})
+        return result.structured_content["pcp"]
+
+    async def test_reports_a_healthy_installation(self, mcp_client, mock_execute, pcp_archive_output):
+        pcp = await self.call(mcp_client, mock_execute, {"pmdumplog": (0, pcp_archive_output, "")})
+
+        assert pcp["installed"] is True
+        assert pcp["pmcd_running"] is True
+        assert pcp["pmlogger_running"] is True
+
+        assert pcp["available_time_ranges"] == [
+            {"start": "2023-12-31T19:00:00-05:00", "end": "2023-12-31T21:00:00-05:00"}
+        ]
+
+    async def test_reports_pcp_absent(self, mcp_client, mock_execute):
+        pcp = await self.call(mcp_client, mock_execute, {"which": (1, "", "")})
+
+        assert pcp["installed"] is False
+        assert pcp["available_time_ranges"] is None
+
+    async def test_a_failing_check_is_not_fatal(self, mcp_client, mock_execute):
+        pcp = await self.call(mcp_client, mock_execute, {"systemctl": RuntimeError("Raised intentionally")})
+
+        assert pcp["installed"] is True
+        assert pcp["pmcd_running"] is False
+        assert pcp["pmlogger_running"] is False
+
+    async def test_unknown_timezone_leaves_the_ranges_out(self, mcp_client, mock_execute, pcp_archive_output):
+        """A range without a timezone would be read against the wrong clock."""
+        pcp = await self.call(
+            mcp_client,
+            mock_execute,
+            {"timedatectl": (1, "", "not found"), "pmdumplog": (0, pcp_archive_output, "")},
+        )
+
+        assert pcp["installed"] is True
+        assert pcp["available_time_ranges"] is None
+
+    async def test_unreadable_archives_leave_the_ranges_out(self, mcp_client, mock_execute):
+        pcp = await self.call(mcp_client, mock_execute, {"pmdumplog": RuntimeError("Raised intentionally")})
+
+        assert pcp["installed"] is True
+        assert pcp["available_time_ranges"] is None
+
+    async def test_archives_are_read_where_pmcd_says_they_are(self, mcp_client, mock_execute, pcp_archive_output):
+        """The ranges reported here must come from the archives the query tools read."""
+        await self.call(mcp_client, mock_execute, {"pmdumplog": (0, pcp_archive_output, "")})
+
+        dumped = next(call.args[0] for call in mock_execute.call_args_list if call.args[0][0] == "pmdumplog")
+        assert dumped[-1] == "/var/log/pcp/pmlogger/example.test.localdomain"
+
+    async def test_an_undiscoverable_archive_leaves_the_ranges_out(self, mcp_client, mock_execute):
+        """Guessing the directory from the hostname would read the wrong host's archives."""
+        pcp = await self.call(mcp_client, mock_execute, {"pminfo": (1, "", "Cannot connect to PMCD")})
+
+        assert pcp["installed"] is True
+        assert pcp["available_time_ranges"] is None
+        assert not any(call.args[0][0] == "pmdumplog" for call in mock_execute.call_args_list)

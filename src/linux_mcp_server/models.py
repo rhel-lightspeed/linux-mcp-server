@@ -103,6 +103,29 @@ class SystemMemory(BaseModel):
 
 
 ### System models ###
+class PCPTimeRange(BaseModel):
+    """Available time ranges for PCP historical data."""
+
+    start: AwareDatetime
+    end: AwareDatetime
+
+
+class PCPSample(BaseModel):
+    """One timestamped row of PCP metric values."""
+
+    time: str
+    metrics: dict[str, str]
+
+
+class PCPStatus(BaseModel):
+    """PCP availability and service status."""
+
+    installed: bool = False
+    pmcd_running: bool = False
+    pmlogger_running: bool = False
+    available_time_ranges: list[PCPTimeRange] | None = None
+
+
 class SystemInfo(BaseModel):
     """Parsed system information."""
 
@@ -113,6 +136,7 @@ class SystemInfo(BaseModel):
     arch: str = ""
     uptime: str = ""
     boot_time: str = ""
+    pcp: PCPStatus = Field(default_factory=PCPStatus)
 
 
 class CpuInfo(BaseModel):

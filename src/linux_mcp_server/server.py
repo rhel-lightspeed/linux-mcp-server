@@ -62,7 +62,7 @@ INSTRUCTIONS_FIXED = """You have access to predefined commands that inspect the 
 
 ## Predefined command tools
 
-These tools map to six areas:
+These tools map to seven areas:
 
 - **System:** hostname, OS, kernel, uptime, CPU details, memory and swap, disk usage, hardware (PCI, USB, DMI).
 - **Services:** list systemd units with state; status and journal output for a given unit. Unit names get a `.service` suffix when omitted.
@@ -70,6 +70,7 @@ These tools map to six areas:
 - **Processes:** full process list and detailed info for a given PID.
 - **Storage and files:** block devices; list directories or files under a path (sort by size, name, or modification time); read a file. Paths must be absolute.
 - **Logs:** systemd journal with filters (unit, priority, time, transport) and tail of a specific log file. Log file paths are restricted to an allowlist (LINUX_MCP_ALLOWED_LOG_PATHS).
+- **Performance (PCP):** historical metric data from PCP archives; available metrics; performance summaries at a point in time.
 
 ## Behavior
 
@@ -78,6 +79,7 @@ These tools map to six areas:
 - **Log file access:** requires explicit allowlist configuration via LINUX_MCP_ALLOWED_LOG_PATHS
 - **Service names:** automatically append '.service' suffix if not provided
 - **File paths:** must be absolute
+- **Large results:** When a tool's description says its result is very large, delegate that call to a subagent if you can, and have the subagent return only the specific items you need rather than the full output.
 """
 
 INSTRUCTIONS_RUN_SCRIPT = """You have access to tools that validate and execute Python or Bash scripts you supply on the target system, for inspection or for making changes.
@@ -113,13 +115,14 @@ You must validate a script before it will be allowed to run.
 - **Log file access:** requires explicit allowlist configuration via LINUX_MCP_ALLOWED_LOG_PATHS
 - **Service names:** automatically append '.service' suffix if not provided
 - **File paths:** must be absolute
+- **Large results:** When a tool's description says its result is very large, delegate that call to a subagent if you can
 """
 
 INSTRUCTIONS_BOTH = """You have access to two kinds of tools: predefined commands that inspect the system, and script runners that execute Python or Bash you supply.
 
 ## Predefined command tools
 
-These tools map to six areas:
+These tools map to seven areas:
 
 - **System:** hostname, OS, kernel, uptime, CPU details, memory and swap, disk usage, hardware (PCI, USB, DMI).
 - **Services:** list systemd units with state; status and journal output for a given unit. Unit names get a `.service` suffix when omitted.
@@ -127,6 +130,7 @@ These tools map to six areas:
 - **Processes:** full process list and detailed info for a given PID.
 - **Storage and files:** block devices; list directories or files under a path (sort by size, name, or modification time); read a file. Paths must be absolute.
 - **Logs:** systemd journal with filters (unit, priority, time, transport) and tail of a specific log file. Log file paths are restricted to an allowlist (LINUX_MCP_ALLOWED_LOG_PATHS).
+- **Performance (PCP):** historical metric data from PCP archives; available metrics; performance summaries at a point in time.
 
 ## Script tools
 
@@ -158,6 +162,7 @@ These tools map to six areas:
 - **Log file access:** requires explicit allowlist configuration via LINUX_MCP_ALLOWED_LOG_PATHS
 - **Service names:** automatically append '.service' suffix if not provided
 - **File paths:** must be absolute
+- **Large results:** When a tool's description says its result is very large, delegate that call to a subagent if you can, and have the subagent return only the specific items you need rather than the full output.
 """
 
 

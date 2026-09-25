@@ -1,4 +1,9 @@
+import re
+
 from pathlib import Path
+
+
+_PCP_METRIC_NAME_RE = re.compile(r"^[a-zA-Z][a-zA-Z0-9_.]*$")
 
 
 class PathValidationError(ValueError):
@@ -58,6 +63,31 @@ def validate_path(path: str) -> Path:
         raise PathValidationError(f"Path contains invalid component '..': {path}")
 
     return Path(path)
+
+
+def validate_pcp_metrics(metrics: list[str]) -> tuple[str, ...]:
+    """Validate PCP metric names to prevent option injection.
+
+    Args:
+        metrics: Metric names to validate.
+
+    Returns:
+        The validated metric names as a tuple.
+
+    Raises:
+        ValueError: If the list is empty or any name is not a bare metric name.
+    """
+    if not metrics:
+        raise ValueError("At least one PCP metric name is required")
+
+    for metric in metrics:
+        if not _PCP_METRIC_NAME_RE.fullmatch(metric):
+            raise ValueError(
+                f"Invalid PCP metric name: {metric!r}. Names must start with a letter "
+                "and contain only letters, digits, underscores, and dots."
+            )
+
+    return tuple(metrics)
 
 
 def is_empty_output(stdout: str | None) -> bool:
