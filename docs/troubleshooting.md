@@ -206,3 +206,6 @@ See [SSH Configuration](ssh.md#managing-host-keys) for more details on host key 
      - Installation method used
      - Error messages and logs
      - Steps to reproduce
+
+!!! note "Getting Help with the MCP Server for RHEL"
+    For help with the MCP Server for RHEL, please first consult the [RHEL Documentation](https://docs.redhat.com/en/documentation/red_hat_enterprise_linux/10/html/interacting_with_the_command-line_assistant/using-the-rhel-mcp-server-to-enable-ai-assistants-to-run-discover-and-troubleshoot-complex-issues). If you still have problems, use the standard help channels for your RHEL subscription.

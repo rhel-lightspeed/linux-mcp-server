@@ -71,3 +71,19 @@ flowchart TB
 - **Configurable Log Access**: Control exactly which log files can be accessed via environment variables. Enterprise teams can enforce security policies while still enabling effective troubleshooting.
 
 - **RHEL/systemd Focused**: Built for Red Hat Enterprise Linux, Fedora, CentOS Stream, and other systemd-based distributions. Whether you're managing a personal Fedora workstation or a fleet of RHEL servers, this tool speaks your system's language.
+
+
+## MCP Server for RHEL
+
+The Linux MCP Server is developed by Red Hat,
+and forms the basis of the MCP Server for RHEL.
+Please see the
+[RHEL Documentation](https://docs.redhat.com/en/documentation/red_hat_enterprise_linux/10/html/interacting_with_the_command-line_assistant/using-the-rhel-mcp-server-to-enable-ai-assistants-to-run-discover-and-troubleshoot-complex-issues)
+for information about installing and using the MCP Server for RHEL.
+
+## Feedback
+
+To provide general feedback on the Linux MCP Server, open an issue: https://github.com/rhel-lightspeed/linux-mcp-server/issues.
+Make sure to check for duplicates first.
+
+Please see [Submit feedback for the MCP server for RHEL](https://docs.redhat.com/en/documentation/red_hat_enterprise_linux/10/html/interacting_with_the_command-line_assistant/using-the-rhel-mcp-server-to-enable-ai-assistants-to-run-discover-and-troubleshoot-complex-issues#submitting-feedback-for-the-mcp-server-for-rhel) for submitting feedback about the MCP Server for RHEL.
