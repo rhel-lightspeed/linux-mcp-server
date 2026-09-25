@@ -277,6 +277,14 @@ COMMANDS: Mapping[str, CommandGroup] = MappingProxyType(
                 "boot_time": CommandSpec(args=("uptime", "-s")),
             }
         ),
+        "host_info": CommandGroup(
+            commands={
+                "timezone": CommandSpec(
+                    args=("timedatectl", "show", "-p", "Timezone", "--value"),
+                    fallback=("cat", "/etc/timezone"),
+                ),
+            }
+        ),
         "cpu_info": CommandGroup(
             commands={
                 "model": CommandSpec(args=("grep", "-m", "1", "model name", "/proc/cpuinfo")),
@@ -300,16 +308,12 @@ COMMANDS: Mapping[str, CommandGroup] = MappingProxyType(
             }
         ),
         # === PCP ===
-        "pcp_archive_list": CommandGroup(
+        "pcp_status": CommandGroup(
             commands={
-                "default": CommandSpec(
-                    args=("find", "/var/log/pcp/pmlogger", "-name", "*.index", "-type", "f"),
-                ),
-            }
-        ),
-        "pcp_archive_info": CommandGroup(
-            commands={
-                "default": CommandSpec(args=("pmdumplog", "-L", "{archive}")),
+                "installed": CommandSpec(args=("sh", "-c", 'command -v "$1"', "sh", "{command}")),
+                "pmcd_running": CommandSpec(args=("systemctl", "is-active", "pmcd")),
+                "pmlogger_running": CommandSpec(args=("systemctl", "is-active", "pmlogger")),
+                "archive_ranges": CommandSpec(args=("pmdumplog", "-l", "-x", "-x", "-x", "-z", "{archive}")),
             }
         ),
         "pcp_metrics_list": CommandGroup(
@@ -317,9 +321,9 @@ COMMANDS: Mapping[str, CommandGroup] = MappingProxyType(
                 "default": CommandSpec(args=("pminfo", "-t")),
             }
         ),
-        "pcp_archive_dir": CommandGroup(
+        "pcp_primary_archive": CommandGroup(
             commands={
-                "default": CommandSpec(args=("pcp",)),
+                "default": CommandSpec(args=("pminfo", "-f", "pmcd.pmlogger.archive")),
             }
         ),
         "pcp_query_metrics": CommandGroup(
@@ -331,12 +335,18 @@ COMMANDS: Mapping[str, CommandGroup] = MappingProxyType(
                         "{archive}",
                         "--start",
                         "{start_time}",
-                        "--finish",
-                        "{end_time}",
-                        "--interval",
-                        "{interval}",
-                        "--separate-header",
+                        "--output",
+                        "csv",
+                        "--timezone",
+                        "UTC",
+                        "--timestamp-format",
+                        "%Y-%m-%dT%H:%M:%SZ",
                     ),
+                    optional_flags={
+                        "end_time": ("--finish", "{end_time}"),
+                        "interval": ("--interval", "{interval}"),
+                        "samples": ("--samples", "{samples}"),
+                    },
                 ),
             }
         ),
@@ -347,7 +357,9 @@ COMMANDS: Mapping[str, CommandGroup] = MappingProxyType(
         ),
         "pcp_xsos_archive": CommandGroup(
             commands={
-                "default": CommandSpec(args=("pcp", "xsos", "--all", "--nocolor", "--archive", "{archive}")),
+                "default": CommandSpec(
+                    args=("pcp", "xsos", "--all", "--nocolor", "--archive", "{archive}", "--origin", "{origin}"),
+                ),
             }
         ),
     }

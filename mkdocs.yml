@@ -75,6 +75,7 @@ nav:
       - Logs: tools/logs.md
       - Network: tools/network.md
       - Storage: tools/storage.md
+      - Performance Co-Pilot: tools/performance-co-pilot.md
       - Script Execution: tools/script-execution.md
   - Contributing: contributing.md
 
