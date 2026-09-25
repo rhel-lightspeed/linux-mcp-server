@@ -37,6 +37,8 @@ from linux_mcp_server.tools.system_info import get_hardware_information
 from linux_mcp_server.tools.system_info import get_memory_information
 from linux_mcp_server.tools.system_info import get_system_information
 
+# rpm info get_third_party_packages 
+from linux_mcp_server.tools.rpm_info import get_third_party_packages
 
 __all__ = [
     "execute_script",
@@ -53,6 +55,7 @@ __all__ = [
     "get_service_logs",
     "get_service_status",
     "get_system_information",
+    "get_third_party_packages",
     "list_block_devices",
     "list_directories",
     "list_files",
