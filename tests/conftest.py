@@ -176,3 +176,19 @@ def mock_getuser(mocker):
 def mock_execute_with_fallback(mock_execute_with_fallback_for):
     """Shared execute_with_fallback mock for linux_mcp_server.commands."""
     return mock_execute_with_fallback_for("linux_mcp_server.commands")
+
+
+@pytest.fixture
+def pcp_archive_output():
+    """Two archive labels with epoch timestamps and a 30-minute recording gap."""
+    return """--- archive /var/log/pcp/pmlogger/example.test/20231231.20.00 ---
+Log Label (Log Format Version 3)
+Performance metrics from host example.test
+    commencing Sun Dec 31 20:00:00.000000000 2023 1704067200
+    ending     Sun Dec 31 21:00:00.000000000 2023 1704070800
+--- archive /var/log/pcp/pmlogger/example.test/20231231.21.30 ---
+Log Label (Log Format Version 3)
+Performance metrics from host example.test
+    commencing Sun Dec 31 21:30:00.000000000 2023 1704072600
+    ending     Sun Dec 31 22:00:00.000000000 2023 1704074400
+"""

@@ -1,6 +1,7 @@
 """System information tools."""
 
 import json
+import logging
 
 from fastmcp.exceptions import ToolError
 from mcp.types import ToolAnnotations
@@ -10,19 +11,69 @@ from linux_mcp_server.commands import get_command
 from linux_mcp_server.commands import get_command_group
 from linux_mcp_server.models import CpuInfo
 from linux_mcp_server.models import DiskUsage
+from linux_mcp_server.models import PCPStatus
+from linux_mcp_server.models import PCPTimeRange
 from linux_mcp_server.models import SystemInfo
 from linux_mcp_server.models import SystemMemory
 from linux_mcp_server.parsers import parse_cpu_info
 from linux_mcp_server.parsers import parse_free_output
+from linux_mcp_server.parsers import parse_pcp_archive_ranges
 from linux_mcp_server.parsers import parse_system_info
 from linux_mcp_server.server import mcp
+from linux_mcp_server.utils.pcp import discover_timezone_name
+from linux_mcp_server.utils.pcp import pmlogger_archive_dir
 from linux_mcp_server.utils.types import Host
 from linux_mcp_server.utils.validation import is_successful_output
 
 
+logger = logging.getLogger(__name__)
+
+
+async def _get_pcp_status(host: Host) -> PCPStatus:
+    """Collect PCP installation, service status, and archive time ranges."""
+    group = get_command_group("pcp_status")
+    results: dict[str, bool] = {}
+
+    for name in ("installed", "pmcd_running", "pmlogger_running"):
+        try:
+            returncode, stdout, _ = await group.commands[name].run(host=host)
+        except Exception:
+            logger.debug("PCP check failed: %s", name, exc_info=True)
+            results[name] = False
+            continue
+
+        if name == "installed":
+            results[name] = is_successful_output(returncode, stdout)
+        else:
+            results[name] = returncode == 0 and stdout.strip() == "active"
+
+    available_time_ranges: list[PCPTimeRange] | None = None
+
+    timezone_name = await discover_timezone_name(host)
+
+    if timezone_name:
+        try:
+            archive = await pmlogger_archive_dir(host)
+            returncode, stdout, _ = await group.commands["archive_ranges"].run(host=host, archive=archive)
+            if is_successful_output(returncode, stdout):
+                available_time_ranges = parse_pcp_archive_ranges(stdout, timezone_name)
+        except Exception:
+            logger.debug("PCP archive check failed", exc_info=True)
+
+    return PCPStatus(
+        installed=results["installed"],
+        pmcd_running=results["pmcd_running"],
+        pmlogger_running=results["pmlogger_running"],
+        available_time_ranges=available_time_ranges,
+    )
+
+
 @mcp.tool(
     title="Get system information",
-    description="Get basic system information such as operating system, distribution, kernel version, uptime, and last boot time.",
+    description=(
+        "Get basic system information, including operating system, distribution, kernel version, uptime, "
+        "last boot time, PCP installation and service status, and historical PCP time ranges."
+    ),
     tags={"fixed", "hardware", "system"},
     annotations=ToolAnnotations(readOnlyHint=True),
 )
@@ -33,7 +84,7 @@ async def get_system_information(
     """Get basic system information.
 
     Retrieves hostname, OS name/version, kernel version, architecture,
-    system uptime, and last boot time.
+    system uptime, last boot time, and PCP availability.
     """
     group = get_command_group("system_info")
     results = {}
@@ -45,6 +96,7 @@ async def get_system_information(
             results[name] = stdout
 
     info = parse_system_info(results)
+    info.pcp = await _get_pcp_status(host)
     return info
 
 

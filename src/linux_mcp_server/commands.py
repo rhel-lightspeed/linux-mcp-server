@@ -299,6 +299,64 @@ COMMANDS: Mapping[str, CommandGroup] = MappingProxyType(
                 "lsusb": CommandSpec(args=("lsusb",)),
             }
         ),
+        # === PCP ===
+        "pcp_status": CommandGroup(
+            commands={
+                "installed": CommandSpec(args=("which", "pmlogger")),
+                "pmcd_running": CommandSpec(args=("systemctl", "is-active", "pmcd")),
+                "pmlogger_running": CommandSpec(args=("systemctl", "is-active", "pmlogger")),
+                "timezone": CommandSpec(
+                    args=("timedatectl", "show", "-p", "Timezone", "--value"),
+                    fallback=("cat", "/etc/timezone"),
+                ),
+                "archive_ranges": CommandSpec(args=("pmdumplog", "-l", "-x", "-x", "-x", "-z", "{archive}")),
+            }
+        ),
+        "pcp_metrics_list": CommandGroup(
+            commands={
+                "default": CommandSpec(args=("pminfo", "-t")),
+            }
+        ),
+        "pcp_primary_archive": CommandGroup(
+            commands={
+                "default": CommandSpec(args=("pminfo", "-f", "pmcd.pmlogger.archive")),
+            }
+        ),
+        "pcp_query_metrics": CommandGroup(
+            commands={
+                "default": CommandSpec(
+                    args=(
+                        "pmrep",
+                        "--archive",
+                        "{archive}",
+                        "--start",
+                        "{start_time}",
+                        "--output",
+                        "csv",
+                        "--timezone",
+                        "UTC",
+                        "--timestamp-format",
+                        "%Y-%m-%dT%H:%M:%SZ",
+                    ),
+                    optional_flags={
+                        "end_time": ("--finish", "{end_time}"),
+                        "interval": ("--interval", "{interval}"),
+                    },
+                ),
+            }
+        ),
+        "pcp_xsos_live": CommandGroup(
+            commands={
+                "default": CommandSpec(args=("pcp", "xsos", "--all", "--nocolor")),
+            }
+        ),
+        "pcp_xsos_archive": CommandGroup(
+            commands={
+                "default": CommandSpec(
+                    args=("pcp", "xsos", "--all", "--nocolor", "--archive", "{archive}", "--origin", "{origin}"),
+                ),
+            }
+        ),
     }
 )
 
