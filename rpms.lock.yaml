@@ -60,13 +60,13 @@ arches:
     name: glibc-devel
     evr: 2.39-128.el10_2
     sourcerpm: glibc-2.39-128.el10_2.src.rpm
-  - url: https://cdn-ubi.redhat.com/content/public/ubi/dist/ubi10/10/aarch64/appstream/os/Packages/k/kernel-headers-6.12.0-211.56.1.el10_2.aarch64.rpm
+  - url: https://cdn-ubi.redhat.com/content/public/ubi/dist/ubi10/10/aarch64/appstream/os/Packages/k/kernel-headers-6.12.0-211.60.1.el10_2.aarch64.rpm
     repoid: ubi-10-for-aarch64-appstream-rpms
-    size: 3699933
-    checksum: sha256:081d95821ff549e1cc45127ff5d09923371d85bd9d601c1579c2d43417bf382d
+    size: 3710985
+    checksum: sha256:62d03c55ea9b3113ae1fb62148bc7eb889edd41314b399e1a7f65af3ed124504
     name: kernel-headers
-    evr: 6.12.0-211.56.1.el10_2
-    sourcerpm: kernel-6.12.0-211.56.1.el10_2.src.rpm
+    evr: 6.12.0-211.60.1.el10_2
+    sourcerpm: kernel-6.12.0-211.60.1.el10_2.src.rpm
   - url: https://cdn-ubi.redhat.com/content/public/ubi/dist/ubi10/10/aarch64/appstream/os/Packages/k/keyutils-libs-devel-1.6.3-5.el10.aarch64.rpm
     repoid: ubi-10-for-aarch64-appstream-rpms
     size: 66529
@@ -1504,13 +1504,13 @@ arches:
     name: glibc-devel
     evr: 2.39-128.el10_2
     sourcerpm: glibc-2.39-128.el10_2.src.rpm
-  - url: https://cdn-ubi.redhat.com/content/public/ubi/dist/ubi10/10/x86_64/appstream/os/Packages/k/kernel-headers-6.12.0-211.56.1.el10_2.x86_64.rpm
+  - url: https://cdn-ubi.redhat.com/content/public/ubi/dist/ubi10/10/x86_64/appstream/os/Packages/k/kernel-headers-6.12.0-211.60.1.el10_2.x86_64.rpm
     repoid: ubi-10-for-x86_64-appstream-rpms
-    size: 3738117
-    checksum: sha256:0b88b9032629a400ae760499213bfacce9542c37b0d415e59aeb256a1ee4a8f6
+    size: 3749157
+    checksum: sha256:e35c111d4324f2a214721a72503510f0fdde6ffe4683636bd92000e8338b00f4
     name: kernel-headers
-    evr: 6.12.0-211.56.1.el10_2
-    sourcerpm: kernel-6.12.0-211.56.1.el10_2.src.rpm
+    evr: 6.12.0-211.60.1.el10_2
+    sourcerpm: kernel-6.12.0-211.60.1.el10_2.src.rpm
   - url: https://cdn-ubi.redhat.com/content/public/ubi/dist/ubi10/10/x86_64/appstream/os/Packages/k/keyutils-libs-devel-1.6.3-5.el10.x86_64.rpm
     repoid: ubi-10-for-x86_64-appstream-rpms
     size: 66541
