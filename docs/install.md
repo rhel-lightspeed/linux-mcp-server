@@ -41,16 +41,6 @@ Get the Linux MCP Server running quickly with your favorite MCP client.
 
 ---
 
-## Install from Fedora packages
-
-On Fedora, the server is available as a system package:
-
-```bash
-sudo dnf install linux-mcp-server
-```
-
----
-
 ## Run in a container
 
 Instead of installing the Python code for linux-mcp-server directly on your system, you can run
