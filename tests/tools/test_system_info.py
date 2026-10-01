@@ -11,6 +11,8 @@ from fastmcp import exceptions
 from fastmcp.client import Client
 from pytest_mock import MockType
 
+from linux_mcp_server.utils.pcp import PCP_GUIDE_TOOL
+
 
 @pytest.fixture
 def mock_execute(mock_execute_with_fallback_for):
@@ -367,6 +369,12 @@ class TestPcpStatus:
             {"start": "2023-12-31T19:00:00-05:00", "end": "2023-12-31T21:00:00-05:00"}
         ]
 
+    async def test_points_at_the_metrics_guide(self, mcp_client, mock_execute, pcp_archive_output):
+        """The guide pointer rides along with the news that PCP is usable."""
+        pcp = await self.call(mcp_client, mock_execute, {"pmdumplog": (0, pcp_archive_output, "")})
+
+        assert PCP_GUIDE_TOOL in pcp["metrics_guide"]
+
     async def test_reports_pcp_absent_when_required_commands_are_missing(
         self, mcp_client: Client, mock_execute: MockType
     ) -> None:
@@ -376,6 +384,8 @@ class TestPcpStatus:
         assert pcp["installed"] is False
         assert pcp["missing_commands"] == ["pmrep"]
         assert pcp["available_time_ranges"] is None
+        # Nothing to read the guide for, so don't spend context pointing at it.
+        assert pcp["metrics_guide"] is None
         commands_run = {call.args[0][0] for call in mock_execute.call_args_list}
         assert commands_run.isdisjoint({"systemctl", "timedatectl", "pminfo", "pmdumplog"})
 

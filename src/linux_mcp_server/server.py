@@ -79,6 +79,7 @@ These tools map to seven areas:
 - **Log file access:** requires explicit allowlist configuration via LINUX_MCP_ALLOWED_LOG_PATHS
 - **Service names:** automatically append '.service' suffix if not provided
 - **File paths:** must be absolute
+- **PCP metric names:** Before investigating performance with the PCP tools, call the `pcp_guide` tool. It lists the metrics recorded on a typical system and explains how to read the values returned. Do not guess metric names from memory.
 """
 
 INSTRUCTIONS_RUN_SCRIPT = """You have access to tools that validate and execute Python or Bash scripts you supply on the target system, for inspection or for making changes.
@@ -160,6 +161,7 @@ These tools map to seven areas:
 - **Log file access:** requires explicit allowlist configuration via LINUX_MCP_ALLOWED_LOG_PATHS
 - **Service names:** automatically append '.service' suffix if not provided
 - **File paths:** must be absolute
+- **PCP metric names:** Before investigating performance with the PCP tools, call the `pcp_guide` tool. It lists the metrics recorded on a typical system and explains how to read the values returned. Do not guess metric names from memory.
 """
 
 
