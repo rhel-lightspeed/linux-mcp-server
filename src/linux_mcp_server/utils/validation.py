@@ -3,7 +3,10 @@ import re
 from pathlib import Path
 
 
-_PCP_METRIC_NAME_RE = re.compile(r"^[a-zA-Z][a-zA-Z0-9_.]*$")
+#: A name in the PCP namespace: dot-separated components, the first one starting with
+#: a letter. Metrics and the namespaces above them are named the same way, and both
+#: reach pminfo or pmrep as command arguments, so both are held to this.
+_PCP_NAME_RE = re.compile(r"[a-zA-Z][a-zA-Z0-9_]*(?:\.[a-zA-Z0-9_]+)*")
 
 
 class PathValidationError(ValueError):
@@ -81,13 +84,34 @@ def validate_pcp_metrics(metrics: list[str]) -> list[str]:
         raise ValueError("At least one PCP metric name is required")
 
     for metric in metrics:
-        if not _PCP_METRIC_NAME_RE.fullmatch(metric):
+        if not _PCP_NAME_RE.fullmatch(metric):
             raise ValueError(
-                f"Invalid PCP metric name: {metric!r}. Names must start with a letter "
-                "and contain only letters, digits, underscores, and dots."
+                f"Invalid PCP metric name: {metric!r}. A metric is a dotted name such as "
+                "'mem.util.used', made up of letters, digits and underscores."
             )
 
     return metrics
+
+
+def validate_pcp_prefix(prefix: str) -> str:
+    """Validate a PCP namespace prefix to prevent option injection.
+
+    Args:
+        prefix: A dotted PMNS node name, such as "mem" or "disk.dev".
+
+    Returns:
+        The validated prefix.
+
+    Raises:
+        ValueError: If the prefix is not a dotted PMNS name.
+    """
+    if not _PCP_NAME_RE.fullmatch(prefix):
+        raise ValueError(
+            f"Invalid PCP namespace prefix: {prefix!r}. A prefix is a dotted name such as "
+            "'mem' or 'disk.dev', made up of letters, digits and underscores."
+        )
+
+    return prefix
 
 
 def is_empty_output(stdout: str | None) -> bool:

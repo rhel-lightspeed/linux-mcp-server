@@ -18,42 +18,111 @@ def mock_execute(mock_execute_with_fallback_for):
     return mock_execute_with_fallback_for("linux_mcp_server.commands")
 
 
-class TestListPcpMetrics:
-    async def test_list_all_metrics(self, mcp_client, mock_execute):
-        mock_execute.return_value = (
-            0,
-            "kernel.all.cpu.user [total user CPU time]\nmem.util.used [used memory]\n",
-            "",
-        )
-        result = await mcp_client.call_tool("pcp_list_metrics", {"host": "localhost"})
-        result_text = result.content[0].text
-
-        assert "kernel.all.cpu.user" in result_text
-        assert "mem.util.used" in result_text
-
-    @pytest.mark.parametrize(
-        ("result", "expected"),
-        [
-            pytest.param(FileNotFoundError("pminfo"), "pminfo", id="pminfo-missing"),
-            pytest.param((1, "", "pminfo: cannot connect to pmcd"), "cannot connect to pmcd", id="pmcd-unreachable"),
-            pytest.param((0, "   \n", ""), "No PCP metrics found", id="no-metrics"),
-        ],
-    )
-    async def test_failures_are_reported(self, mcp_client, mock_execute, result, expected):
-        if isinstance(result, Exception):
-            mock_execute.side_effect = result
-        else:
-            mock_execute.return_value = result
-
-        with pytest.raises(ToolError, match=expected):
-            await mcp_client.call_tool("pcp_list_metrics", {"host": "localhost"})
-
+METRICS_LIST_OUTPUT = "kernel.all.cpu.user [total user CPU time]\nmem.util.used [used memory]\n"
 
 ARCHIVE_DIR_OUTPUT = (
     "\npmcd.pmlogger.archive\n"
     '    inst [2384 or "2384"] value "/var/log/pcp/pmlogger/mcpvm-lazy-whisk.local/20260904.00.10"\n'
     '    inst [0 or "primary"] value "/var/log/pcp/pmlogger/mcpvm-lazy-whisk.local/20260904.00.10"\n'
 )
+
+ARCHIVE_DIR = "/var/log/pcp/pmlogger/mcpvm-lazy-whisk.local"
+
+ARCHIVE_OK = (0, ARCHIVE_DIR_OUTPUT, "")
+
+
+def stub_listing(mock_execute, result=(0, METRICS_LIST_OUTPUT, "")):
+    """Stub the archive discovery that runs ahead of the pminfo listing."""
+    mock_execute.side_effect = [ARCHIVE_OK, result]
+
+
+def pminfo_args(mock_execute):
+    """The argument tuple of the pminfo listing call."""
+    return mock_execute.call_args_list[1].args[0]
+
+
+class TestListPcpMetrics:
+    async def test_list_all_metrics(self, mcp_client, mock_execute):
+        stub_listing(mock_execute)
+
+        result = await mcp_client.call_tool("pcp_list_metrics", {"host": "localhost"})
+        result_text = result.content[0].text
+
+        assert "kernel.all.cpu.user [total user CPU time]" in result_text
+        assert "mem.util.used [used memory]" in result_text
+
+    async def test_the_listing_comes_from_the_archives(self, mcp_client, mock_execute):
+        """Nothing here queries live metrics, so listing one only invites a query
+        that comes back empty. A stock pmlogger records under half the namespace."""
+        stub_listing(mock_execute)
+
+        await mcp_client.call_tool("pcp_list_metrics", {"host": "localhost"})
+
+        args = pminfo_args(mock_execute)
+        assert args[args.index("--archive") + 1] == ARCHIVE_DIR
+
+    async def test_the_namespace_is_walked_from_the_prefix(self, mcp_client, mock_execute):
+        """pminfo has to do the filtering; fetching the whole namespace to trim it here
+        would leave the 200KB transfer this tool exists to avoid."""
+        stub_listing(mock_execute)
+
+        await mcp_client.call_tool("pcp_list_metrics", {"host": "localhost", "prefix": "mem.util"})
+
+        assert pminfo_args(mock_execute) == ("pminfo", "-t", "--archive", ARCHIVE_DIR, "mem.util")
+
+    async def test_a_large_namespace_is_collapsed(self, mcp_client, mock_execute):
+        """Returning 400 lines of metric names would exhaust the context this tool is meant to save."""
+        stub_listing(mock_execute, (0, "".join(f"mem.vmstat.m{i} [a counter]\n" for i in range(400)), ""))
+
+        result = await mcp_client.call_tool("pcp_list_metrics", {"host": "localhost", "prefix": "mem"})
+        result_text = result.content[0].text
+
+        assert "mem.vmstat <400 metrics>" in result_text
+        assert "mem.vmstat.m0" not in result_text
+
+    @pytest.mark.parametrize("prefix", ["-h", "mem;rm -rf /", "mem..util", ".mem", "mem."])
+    async def test_a_prefix_that_is_not_a_pmns_name_is_refused(self, mcp_client, mock_execute, prefix):
+        """The prefix becomes a pminfo argument, so it has to be an allowlisted shape."""
+        with pytest.raises(ToolError, match="Invalid PCP namespace prefix"):
+            await mcp_client.call_tool("pcp_list_metrics", {"host": "localhost", "prefix": prefix})
+
+        mock_execute.assert_not_called()
+
+    @pytest.mark.parametrize("returncode", [0, 1], ids=["pminfo-succeeds", "pminfo-fails"])
+    async def test_an_unknown_prefix_says_where_to_start(self, mcp_client, mock_execute, returncode):
+        """Reporting this as a system with no metrics would send the caller looking for the wrong fault.
+
+        The name may well exist live and simply not be recorded, as whole subsystems
+        are not, so the message cannot claim the system has never heard of it.
+        """
+        stub_listing(mock_execute, (returncode, "", "Error: cgroup: Unknown metric name\n"))
+
+        with pytest.raises(ToolError, match="No recorded PCP metric or namespace is called 'cgroup'"):
+            await mcp_client.call_tool("pcp_list_metrics", {"host": "localhost", "prefix": "cgroup"})
+
+    async def test_an_undiscoverable_archive_stops_the_listing(self, mcp_client, mock_execute):
+        """Without archives there is nothing to list that could also be queried."""
+        mock_execute.return_value = (0, "Performance Co-Pilot\n hardware: 2 cpus\n", "")
+
+        with pytest.raises(ToolError, match="Primary archive location could not be discovered"):
+            await mcp_client.call_tool("pcp_list_metrics", {"host": "localhost"})
+
+        assert mock_execute.call_count == 1
+
+    @pytest.mark.parametrize(
+        ("result", "expected"),
+        [
+            pytest.param(FileNotFoundError("pminfo"), "pminfo", id="pminfo-missing"),
+            pytest.param((1, "", "pminfo: cannot read archive"), "cannot read archive", id="archive-unreadable"),
+            pytest.param((0, "   \n", ""), "No PCP metrics found", id="no-metrics"),
+        ],
+    )
+    async def test_failures_are_reported(self, mcp_client, mock_execute, result, expected):
+        stub_listing(mock_execute, result)
+
+        with pytest.raises(ToolError, match=expected):
+            await mcp_client.call_tool("pcp_list_metrics", {"host": "localhost"})
+
 
 # A farm host logs other hosts too, and they can be listed before the primary.
 MIXED_ARCHIVE_OUTPUT = (
@@ -80,7 +149,6 @@ PMREP_CSV_OUTPUT = (
 # The stages pcp_query_metrics and pcp_performance_summary run, in order,
 # when nothing goes wrong.
 TIMEZONE_OK = (0, TIMEZONE_OUTPUT, "")
-ARCHIVE_OK = (0, ARCHIVE_DIR_OUTPUT, "")
 PMREP_OK = (0, PMREP_CSV_OUTPUT, "")
 XSOS_OK = (0, "OS\n  Hostname: myhost\n", "")
 

@@ -9,6 +9,7 @@ from linux_mcp_server.utils.validation import is_successful_output
 from linux_mcp_server.utils.validation import PathValidationError
 from linux_mcp_server.utils.validation import validate_path
 from linux_mcp_server.utils.validation import validate_pcp_metrics
+from linux_mcp_server.utils.validation import validate_pcp_prefix
 
 
 class TestIsEmptyOutput:
@@ -153,27 +154,51 @@ class TestValidatePath:
             validate_path(path)
 
 
+#: Metrics and namespaces are named the same way, so both validators take the same
+#: names. Every one of these would reach pminfo or pmrep as an option, as several
+#: arguments, or as a name other than the one the caller wrote.
+BAD_PCP_NAMES = [
+    pytest.param("-h", id="flag"),
+    pytest.param("--archive=/tmp/x", id="long-flag"),
+    pytest.param("mem; rm -rf /", id="shell-metacharacters"),
+    pytest.param("mem util", id="space"),
+    pytest.param("mem\nutil", id="newline"),
+    pytest.param("mem/util", id="slash"),
+    pytest.param("", id="empty"),
+    pytest.param("1mem", id="leading-digit"),
+    pytest.param("mem.", id="trailing-dot"),
+    pytest.param(".mem", id="leading-dot"),
+    pytest.param("mem..util", id="empty-component"),
+]
+
+GOOD_PCP_NAMES = ["mem", "disk.dev", "mem.util.committed_AS", "nfs4.server", "x"]
+
+
+class TestValidatePcpPrefix:
+    @pytest.mark.parametrize("prefix", GOOD_PCP_NAMES)
+    def test_accepts_a_pmns_name(self, prefix):
+        assert validate_pcp_prefix(prefix) == prefix
+
+    @pytest.mark.parametrize("prefix", BAD_PCP_NAMES)
+    def test_rejects_anything_that_could_reach_pminfo_as_an_option(self, prefix):
+        with pytest.raises(ValueError, match="Invalid PCP namespace prefix"):
+            validate_pcp_prefix(prefix)
+
+
 class TestValidatePcpMetrics:
-    """Test validate_pcp_metrics function for security.
+    def test_accepts_pmns_names(self):
+        assert validate_pcp_metrics(GOOD_PCP_NAMES) == GOOD_PCP_NAMES
 
-    Metric names are appended to the pmrep argument list, so anything that is
-    not a bare name is a way to smuggle an option through. The accepting path
-    is covered by the query tests in tests/tools/test_pcp.py.
-    """
+    @pytest.mark.parametrize("metric", BAD_PCP_NAMES)
+    def test_rejects_anything_that_could_reach_pmrep_as_an_option(self, metric):
+        with pytest.raises(ValueError, match="Invalid PCP metric name"):
+            validate_pcp_metrics([metric])
 
-    @pytest.mark.parametrize(
-        "metrics",
-        [
-            [],
-            ["--output-file"],
-            ["kernel\n--output-file=x"],
-            # fullmatch, not match: '$' alone also matches before a trailing newline.
-            ["kernel.all.cpu.user\n"],
-            # A valid name first must not short-circuit the rest of the check.
-            ["kernel.all.cpu.user", "kernel;id"],
-        ],
-    )
-    def test_rejects_unsafe_names(self, metrics):
-        """Empty, option-like and injected names are rejected."""
-        with pytest.raises(ValueError, match="At least one PCP metric name|Invalid PCP metric name"):
-            validate_pcp_metrics(metrics)
+    def test_rejects_one_bad_name_among_good_ones(self):
+        with pytest.raises(ValueError, match="Invalid PCP metric name"):
+            validate_pcp_metrics(["mem.util.used", "--output-file"])
+
+    def test_requires_at_least_one_metric(self):
+        """pmrep with no metrics is pmrep with whatever follows taken as the metric."""
+        with pytest.raises(ValueError, match="At least one PCP metric name is required"):
+            validate_pcp_metrics([])

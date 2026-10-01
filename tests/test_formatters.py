@@ -5,6 +5,7 @@ from linux_mcp_server.formatters import format_hardware_info
 from linux_mcp_server.formatters import format_listening_ports
 from linux_mcp_server.formatters import format_network_connections
 from linux_mcp_server.formatters import format_network_interfaces
+from linux_mcp_server.formatters import format_pcp_metric_listing
 from linux_mcp_server.formatters import format_process_detail
 from linux_mcp_server.formatters import format_process_list
 from linux_mcp_server.formatters import format_service_logs
@@ -13,6 +14,7 @@ from linux_mcp_server.formatters import format_services_list
 from linux_mcp_server.models import ListeningPort
 from linux_mcp_server.models import NetworkConnection
 from linux_mcp_server.models import NetworkInterface
+from linux_mcp_server.models import PCPMetricNode
 from linux_mcp_server.models import ProcessInfo
 
 
@@ -288,3 +290,62 @@ class TestFormatHardwareInfo:
         results = {"lspci": pci_lines}
         result = format_hardware_info(results)
         assert "... and 10 more PCI devices" in result
+
+
+class TestFormatPcpMetricListing:
+    """Tests for format_pcp_metric_listing function."""
+
+    def test_format_metrics(self):
+        """Test formatting plain metrics."""
+        nodes = [
+            PCPMetricNode(name="mem.physmem", description="total system memory"),
+            PCPMetricNode(name="mem.freemem", description="free system memory"),
+        ]
+
+        result = format_pcp_metric_listing(nodes, "mem")
+
+        assert result.splitlines()[0] == "2 PCP metrics recorded under mem and available to query."
+        assert "mem.physmem [total system memory]" in result
+
+    def test_format_namespace(self):
+        """Test that a collapsed namespace shows how much it hides."""
+        nodes = [PCPMetricNode(name="mem.util", description="from /proc/meminfo", metric_count=69)]
+
+        result = format_pcp_metric_listing(nodes, "mem")
+
+        assert "mem.util <69 metrics> [from /proc/meminfo]" in result
+
+    def test_format_namespace_without_description(self):
+        """Test that an undescribed namespace still lists."""
+        result = format_pcp_metric_listing([PCPMetricNode(name="mem.util", metric_count=69)], "mem")
+
+        assert "mem.util <69 metrics>" in result
+
+    def test_counts_metrics_hidden_by_namespaces(self):
+        """The header reports the size of the subtree, not the number of lines."""
+        nodes = [
+            PCPMetricNode(name="mem.physmem", description="total system memory"),
+            PCPMetricNode(name="mem.util", metric_count=69),
+        ]
+
+        result = format_pcp_metric_listing(nodes, "mem")
+
+        assert result.startswith("70 PCP metrics recorded under mem")
+
+    def test_explains_how_to_expand_a_namespace(self):
+        """Nothing else tells the caller that a collapsed line can be drilled into."""
+        result = format_pcp_metric_listing([PCPMetricNode(name="mem.util", metric_count=69)], "mem")
+
+        assert "prefix" in result.splitlines()[0]
+
+    def test_omits_the_explanation_when_nothing_is_collapsed(self):
+        """Spending tokens on how to expand a namespace only pays when there is one."""
+        result = format_pcp_metric_listing([PCPMetricNode(name="mem.physmem", description="total")], "mem")
+
+        assert result.splitlines()[0] == "1 PCP metric recorded under mem and available to query."
+
+    def test_format_without_prefix(self):
+        """Test formatting a listing of the whole namespace."""
+        result = format_pcp_metric_listing([PCPMetricNode(name="mem", metric_count=410)])
+
+        assert result.startswith("410 PCP metrics recorded on this system")
