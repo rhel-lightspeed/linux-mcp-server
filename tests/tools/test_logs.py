@@ -371,6 +371,21 @@ class TestReadLogFile:
         call_kwargs = mock_execute_with_fallback.call_args[1]
         assert call_kwargs["host"] == "remote.server.com"
 
+    async def test_read_log_file_remote_linux_posix_paths_are_accepted(
+        self, mcp_client, mock_execute_with_fallback, mock_allowed_log_paths
+    ):
+        """Remote Linux paths must be treated as POSIX semantics even on Windows hosts."""
+        log_path = "/var/log/messages"
+        mock_allowed_log_paths(log_path)
+        mock_execute_with_fallback.return_value = (0, "Remote log content\nLine 2", "")
+
+        result = await mcp_client.call_tool(
+            "read_log_file", {"log_path": log_path, "host": "remote.server.com", "last_lines": 20}
+        )
+
+        assert result.structured_content["path"] == log_path
+        assert "Remote log content" in result.structured_content["entries"]
+
     async def test_read_log_file_remote_skips_local_validation(
         self, mcp_client, mock_execute_with_fallback, mock_allowed_log_paths
     ):
@@ -395,3 +410,15 @@ class TestReadLogFile:
 
         with pytest.raises(ToolError, match="not allowed"):
             await mcp_client.call_tool("read_log_file", {"log_path": restricted_path, "host": "remote.server.com"})
+
+    async def test_read_log_file_remote_path_traversal_is_rejected(
+        self, mcp_client, mock_allowed_log_paths
+    ):
+        """Traversal attempts must be rejected for remote Linux paths."""
+        mock_allowed_log_paths("/var/log/messages")
+
+        with pytest.raises(ToolError, match="not allowed|invalid component"):
+            await mcp_client.call_tool(
+                "read_log_file",
+                {"log_path": "/var/log/../etc/shadow", "host": "remote.server.com", "last_lines": 20},
+            )

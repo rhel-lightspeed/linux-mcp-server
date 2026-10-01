@@ -8,6 +8,7 @@ from fastmcp.exceptions import ToolError
     [
         pytest.param("/path/with\nnewline", "invalid characters", id="newline_injection"),
         pytest.param("/path/with\x00null", "invalid characters", id="null_byte_injection"),
+        pytest.param("/etc/../shadow", "invalid component", id="path_traversal"),
     ],
 )
 async def test_path_validation_rejects_injection_characters(path, expected_error, mcp_client):

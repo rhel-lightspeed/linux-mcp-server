@@ -26,6 +26,7 @@ from linux_mcp_server.utils.types import Host
 from linux_mcp_server.utils.types import LOCALHOST
 from linux_mcp_server.utils.validation import is_successful_output
 from linux_mcp_server.utils.validation import validate_path
+from linux_mcp_server.utils.validation import validate_remote_path
 
 
 class OrderBy(StrEnum):
@@ -52,7 +53,7 @@ def attr_sorter(order_by: OrderBy):
 
 
 async def _list_resources(
-    path: Path,
+    path: str,
     command: CommandSpec,
     order_by: OrderBy,
     sort: SortBy,
@@ -60,7 +61,8 @@ async def _list_resources(
     host: Host,
     parser: t.Callable[[str, OrderBy], list[NodeEntry]],
 ):
-    returncode, stdout, stderr = await command.run(host=host, path=path)
+    command_path = validate_remote_path(path) if host != LOCALHOST else path
+    returncode, stdout, stderr = await command.run(host=host, path=command_path)
 
     # The du command will exit with code 1 even if it gets some valid results.
     # Only error in the case where we got non-zero exit code and no data in stdout.
@@ -109,7 +111,7 @@ async def list_block_devices(
 @log_tool_call
 async def list_directories(
     path: t.Annotated[
-        Path,
+        str,
         BeforeValidator(validate_path),
         Field(
             description="Absolute path to the directory to analyze",
@@ -157,7 +159,7 @@ async def list_directories(
 @log_tool_call
 async def list_files(
     path: t.Annotated[
-        Path,
+        str,
         BeforeValidator(validate_path),
         Field(
             description="Absolute path to the directory to analyze",
@@ -205,7 +207,7 @@ async def list_files(
 @log_tool_call
 async def read_file(
     path: t.Annotated[
-        Path,
+        str,
         BeforeValidator(validate_path),
         Field(
             description="Absolute path to the file to read",
@@ -223,14 +225,17 @@ async def read_file(
     limit = CONFIG.max_file_read_bytes
     limit_text = format_bytes(limit)
 
+    command_path = path
     if host == LOCALHOST:
-        if not os.path.isfile(path):
+        local_path = Path(path)
+        if not os.path.isfile(local_path):
             raise ToolError(f"Path is not a file: {path}")
-        file_size = path.stat().st_size
+        file_size = local_path.stat().st_size
         if file_size > limit:
             raise ToolError(f"File is too large ({format_bytes(file_size)} > {limit_text}): {path}")
     else:
-        rc, out, _ = await get_command("read_file_size").run(host=host, path=path)
+        command_path = validate_remote_path(path)
+        rc, out, _ = await get_command("read_file_size").run(host=host, path=command_path)
         if rc == 0:
             try:
                 remote_size = int(out.strip())
@@ -240,7 +245,7 @@ async def read_file(
                 pass
 
     cmd = get_command("read_file")
-    returncode, stdout, stderr = await cmd.run_bytes(host=host, path=path, max_bytes=limit + 1)
+    returncode, stdout, stderr = await cmd.run_bytes(host=host, path=command_path, max_bytes=limit + 1)
 
     if returncode != 0:
         raise ToolError(f"Error running command: command failed with return code {returncode}: {stderr}")

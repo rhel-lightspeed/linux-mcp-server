@@ -1,13 +1,12 @@
 """Tests for input validation utilities."""
 
-from pathlib import Path
-
 import pytest
 
 from linux_mcp_server.utils.validation import is_empty_output
 from linux_mcp_server.utils.validation import is_successful_output
 from linux_mcp_server.utils.validation import PathValidationError
 from linux_mcp_server.utils.validation import validate_path
+from linux_mcp_server.utils.validation import validate_remote_path
 
 
 class TestIsEmptyOutput:
@@ -79,16 +78,49 @@ class TestValidatePath:
     @pytest.mark.parametrize(
         "path,expected",
         [
-            ("/var/log/messages", Path("/var/log/messages")),
-            ("/home/user/file.txt", Path("/home/user/file.txt")),
-            ("/", Path("/")),
-            ("/tmp", Path("/tmp")),
-            ("/path/with spaces/file.txt", Path("/path/with spaces/file.txt")),
+            ("/var/log/messages", "/var/log/messages"),
+            ("/home/user/file.txt", "/home/user/file.txt"),
+            ("/", "/"),
+            ("/tmp", "/tmp"),
+            ("/path/with spaces/file.txt", "/path/with spaces/file.txt"),
         ],
     )
     def test_valid_absolute_paths(self, path, expected):
         """Valid absolute paths are accepted and returned in POSIX format."""
         assert validate_path(path) == expected
+
+    @pytest.mark.parametrize(
+        "path",
+        [
+            "/var/log/messages",
+            "/var/log/secure",
+            "/var/log/audit/audit.log",
+        ],
+    )
+    def test_valid_remote_linux_paths_are_posix(self, path):
+        """Remote Linux paths remain valid even when the MCP server runs on Windows."""
+        assert validate_path(path) == path
+        assert validate_remote_path(path) == path
+
+    def test_windows_absolute_path_is_preserved_for_local_use(self):
+        path = r"C:\var\log\messages"
+        assert validate_path(path) == path
+        with pytest.raises(PathValidationError, match="absolute POSIX"):
+            validate_remote_path(path)
+
+    @pytest.mark.parametrize(
+        "path",
+        [
+            "../../etc/shadow",
+            "/var/log/../etc/shadow",
+            "relative/path",
+            "",
+        ],
+    )
+    def test_rejects_invalid_remote_linux_paths(self, path):
+        """Invalid remote Linux paths are rejected before execution."""
+        with pytest.raises(PathValidationError):
+            validate_remote_path(path)
 
     @pytest.mark.parametrize(
         "path",
@@ -136,6 +168,18 @@ class TestValidatePath:
     def test_pathvalidationerror_is_valueerror(self):
         """PathValidationError is a ValueError subclass for compatibility."""
         assert issubclass(PathValidationError, ValueError)
+
+    @pytest.mark.parametrize(
+        "path",
+        [
+            "/var/log/messages",
+            "/var/log/secure",
+            "/var/log/audit/audit.log",
+        ],
+    )
+    def test_accepts_remote_linux_posix_paths(self, path):
+        """Remote POSIX paths should be accepted regardless of the host OS."""
+        assert validate_path(path) == path
 
     @pytest.mark.parametrize(
         "path",

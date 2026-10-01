@@ -3,6 +3,7 @@
 import typing as t
 
 from pathlib import Path
+from pathlib import PurePosixPath
 
 from fastmcp.exceptions import ToolError
 from mcp.types import ToolAnnotations
@@ -19,6 +20,7 @@ from linux_mcp_server.utils.types import Host
 from linux_mcp_server.utils.types import LOCALHOST
 from linux_mcp_server.utils.validation import is_empty_output
 from linux_mcp_server.utils.validation import validate_path
+from linux_mcp_server.utils.validation import validate_remote_path
 
 
 class Transport(StrEnum):
@@ -40,6 +42,24 @@ class Transport(StrEnum):
     KERNEL = "kernel"
     STDOUT = "stdout"
     SYSLOG = "syslog"
+
+
+def _get_log_path_for_host(log_path: str, allowed_paths: list[PurePosixPath], host: Host) -> str:
+    if host == LOCALHOST:
+        requested_path = Path(log_path).resolve()
+        allowed_resolved = {Path(str(path)).resolve() for path in allowed_paths}
+        if requested_path not in allowed_resolved:
+            raise ToolError(f"Access to log file '{log_path}' is not allowed.")
+        if not requested_path.exists():
+            raise ToolError(f"Log file not found: {log_path}")
+        if not requested_path.is_file():
+            raise ToolError(f"Path is not a file: {log_path}")
+        return str(requested_path)
+
+    remote_path = PurePosixPath(validate_remote_path(log_path))
+    if remote_path not in allowed_paths:
+        raise ToolError(f"Access to log file '{log_path}' is not allowed.")
+    return str(remote_path)
 
 
 async def _get_journal_logs(
@@ -185,10 +205,10 @@ async def get_journal_logs(
 @log_tool_call
 async def read_log_file(
     log_path: t.Annotated[
-        Path,
+        str,
         BeforeValidator(validate_path),
         Field(
-            description="Absolute path to the log file (must be in allowed list)",
+            description="Absolute POSIX path to the log file (must be in allowed list)",
             examples=["/var/log/messages", "/var/log/secure", "/var/log/audit/audit.log", "/var/log/dnf.log"],
         ),
     ],
@@ -219,60 +239,29 @@ async def read_log_file(
     Use first_lines to get the first N lines from the beginning of the file.
     Use last_lines to get the last N lines from the end (default behavior).
     """
-    # Validate mutually exclusive parameters
     if first_lines is not None and last_lines is not None:
         raise ToolError(
             "Parameters 'first_lines' and 'last_lines' are mutually exclusive. "
             "Use 'first_lines' to get the first N lines or 'last_lines' to get the last N lines, but not both."
         )
 
-    # Default to last_lines=100 if neither is specified
     if first_lines is None and last_lines is None:
         last_lines = 100
 
-    # Determine which tail/head command to use
     lines_value = first_lines if first_lines is not None else last_lines
     use_head = first_lines is not None
-    # Get allowed log paths from environment variable
-    allowed_paths_env = CONFIG.allowed_log_paths
 
+    allowed_paths_env = CONFIG.allowed_log_paths
     if not allowed_paths_env:
         raise ToolError(
             "No log files are allowed. Set LINUX_MCP_ALLOWED_LOG_PATHS environment variable "
             "with comma-separated list of allowed log file paths."
         )
 
-    allowed_paths = [Path(p.strip()) for p in allowed_paths_env.split(",") if p.strip()]
+    allowed_paths = [PurePosixPath(p.strip()) for p in allowed_paths_env.split(",") if p.strip()]
 
-    if host == LOCALHOST:
-        # For local execution, resolve and check against allowlist
-        requested_path = log_path.resolve()
+    log_path_str = _get_log_path_for_host(log_path, allowed_paths, host)
 
-        is_allowed = False
-        for allowed_path in allowed_paths:
-            allowed_resolved = Path(allowed_path).resolve()
-            if requested_path == allowed_resolved:
-                is_allowed = True
-                break
-
-        if not is_allowed:
-            raise ToolError(f"Access to log file '{log_path}' is not allowed.")
-
-        if not requested_path.exists():
-            raise ToolError(f"Log file not found: {log_path}")
-
-        if not requested_path.is_file():
-            raise ToolError(f"Path is not a file: {log_path}")
-
-        log_path_str = str(requested_path)
-    else:
-        # For remote execution, check against allowlist without resolving
-        if log_path not in allowed_paths:
-            raise ToolError(f"Access to log file '{log_path}' is not allowed.")
-
-        log_path_str = str(log_path)
-
-    # Use head for first_lines, tail for last_lines
     subcommand = "head" if use_head else "tail"
     cmd = get_command("read_log_file", subcommand)
     returncode, stdout, stderr = await cmd.run(host=host, lines=lines_value, log_path=log_path_str)
@@ -287,5 +276,4 @@ async def read_log_file(
         raise ToolError(f"Log file is empty: {log_path}")
 
     entries = [line for line in stdout.strip().splitlines() if line]
-
-    return LogEntries(entries=entries, path=log_path)
+    return LogEntries(entries=entries, path=log_path_str)

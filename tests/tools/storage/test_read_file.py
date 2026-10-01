@@ -41,6 +41,7 @@ async def test_read_file_remote(mock_execute_with_fallback, mcp_client):
     assert mock_execute_with_fallback.call_count == 2
     for call in mock_execute_with_fallback.call_args_list:
         assert call[1]["host"] == "remote.host"
+        assert "/remote/path/file.txt" in call[0][0]
 
 
 async def test_read_file_rejects_large_local_file(tmp_path, mcp_client, mocker):

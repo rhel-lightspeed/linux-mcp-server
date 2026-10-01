@@ -1,4 +1,5 @@
-from pathlib import Path
+from pathlib import PurePosixPath
+from pathlib import PureWindowsPath
 
 
 class PathValidationError(ValueError):
@@ -11,32 +12,15 @@ class PathValidationError(ValueError):
     pass
 
 
-def validate_path(path: str) -> Path:
-    """Validate a filesystem path for security and correctness.
+def validate_path(path: str) -> str:
+    """Validate an absolute local or remote path without coercing its syntax.
 
     Performs security checks to prevent command injection and path traversal attacks:
     - Rejects paths containing newlines, carriage returns, or null bytes
     - Rejects paths starting with '-' (prevents flag injection)
-    - Requires absolute paths
-
-    Args:
-        path: The filesystem path to validate.
-
-    Returns:
-        The validated path in POSIX format.
-
-    Raises:
-        PathValidationError: If the path fails any validation check.
-
-    Examples:
-        >>> validate_path("/var/log/messages")
-        '/var/log/messages'
-
-        >>> validate_path("relative/path")
-        PathValidationError: Path must be absolute: relative/path
-
-        >>> validate_path("/path\\nwith\\nnewlines")
-        PathValidationError: Path contains invalid characters: /path\\nwith\\nnewlines
+        - Requires an absolute POSIX or Windows path; remote paths receive stricter
+            POSIX validation once the target host is known
+        - Rejects path traversal via '..' components
     """
     if not path:
         raise PathValidationError("Path cannot be empty")
@@ -49,15 +33,23 @@ def validate_path(path: str) -> Path:
     if path.startswith("-"):
         raise PathValidationError(f"Path cannot start with '-': {path}")
 
-    # Require absolute paths
-    if not Path(path).is_absolute():
+    if not PurePosixPath(path).is_absolute() and not PureWindowsPath(path).is_absolute():
         raise PathValidationError(f"Path must be absolute: {path}")
 
-    # Prevent path traversal via '..' components
-    if ".." in path.split("/"):
+    # Check both separators so traversal is rejected before local/remote routing.
+    if ".." in path.replace("\\", "/").split("/"):
         raise PathValidationError(f"Path contains invalid component '..': {path}")
 
-    return Path(path)
+    return path
+
+
+def validate_remote_path(path: str) -> str:
+    """Validate and normalize a path that will be passed to a remote Linux host."""
+    validate_path(path)
+    remote_path = PurePosixPath(path)
+    if not remote_path.is_absolute() or "\\" in path:
+        raise PathValidationError(f"Path must be an absolute POSIX path: {path}")
+    return str(remote_path)
 
 
 def is_empty_output(stdout: str | None) -> bool:
