@@ -277,6 +277,14 @@ COMMANDS: Mapping[str, CommandGroup] = MappingProxyType(
                 "boot_time": CommandSpec(args=("uptime", "-s")),
             }
         ),
+        "host_info": CommandGroup(
+            commands={
+                "timezone": CommandSpec(
+                    args=("timedatectl", "show", "-p", "Timezone", "--value"),
+                    fallback=("cat", "/etc/timezone"),
+                ),
+            }
+        ),
         "cpu_info": CommandGroup(
             commands={
                 "model": CommandSpec(args=("grep", "-m", "1", "model name", "/proc/cpuinfo")),
@@ -297,6 +305,61 @@ COMMANDS: Mapping[str, CommandGroup] = MappingProxyType(
                 "lscpu": CommandSpec(args=("lscpu",)),
                 "lspci": CommandSpec(args=("lspci",)),
                 "lsusb": CommandSpec(args=("lsusb",)),
+            }
+        ),
+        # === PCP ===
+        "pcp_status": CommandGroup(
+            commands={
+                "installed": CommandSpec(args=("sh", "-c", 'command -v "$1"', "sh", "{command}")),
+                "pmcd_running": CommandSpec(args=("systemctl", "is-active", "pmcd")),
+                "pmlogger_running": CommandSpec(args=("systemctl", "is-active", "pmlogger")),
+                "archive_ranges": CommandSpec(args=("pmdumplog", "-l", "-x", "-x", "-x", "-z", "{archive}")),
+            }
+        ),
+        "pcp_metrics_list": CommandGroup(
+            commands={
+                "default": CommandSpec(args=("pminfo", "-t")),
+            }
+        ),
+        "pcp_primary_archive": CommandGroup(
+            commands={
+                "default": CommandSpec(args=("pminfo", "-f", "pmcd.pmlogger.archive")),
+            }
+        ),
+        "pcp_query_metrics": CommandGroup(
+            commands={
+                "default": CommandSpec(
+                    args=(
+                        "pmrep",
+                        "--archive",
+                        "{archive}",
+                        "--start",
+                        "{start_time}",
+                        "--output",
+                        "csv",
+                        "--timezone",
+                        "UTC",
+                        "--timestamp-format",
+                        "%Y-%m-%dT%H:%M:%SZ",
+                    ),
+                    optional_flags={
+                        "end_time": ("--finish", "{end_time}"),
+                        "interval": ("--interval", "{interval}"),
+                        "samples": ("--samples", "{samples}"),
+                    },
+                ),
+            }
+        ),
+        "pcp_xsos_live": CommandGroup(
+            commands={
+                "default": CommandSpec(args=("pcp", "xsos", "--all", "--nocolor")),
+            }
+        ),
+        "pcp_xsos_archive": CommandGroup(
+            commands={
+                "default": CommandSpec(
+                    args=("pcp", "xsos", "--all", "--nocolor", "--archive", "{archive}", "--origin", "{origin}"),
+                ),
             }
         ),
     }

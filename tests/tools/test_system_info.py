@@ -3,9 +3,13 @@
 import json
 import sys
 
+from collections.abc import Callable
+
 import pytest
 
 from fastmcp import exceptions
+from fastmcp.client import Client
+from pytest_mock import MockType
 
 
 @pytest.fixture
@@ -90,14 +94,8 @@ async def test_system_info_tools_unsuccessful(tool, error_message, mcp_client, m
         await mcp_client.call_tool(tool, {"host": "localhost"})
 
 
-@pytest.mark.parametrize(
-    "tool",
-    (
-        "get_system_information",
-        "get_cpu_information",
-    ),
-)
-async def test_system_info_tools_unsuccessful_empty(tool, mcp_client, mock_execute):
+@pytest.mark.parametrize("tool", ["get_system_information", "get_cpu_information"])
+async def test_system_info_tools_empty_output(tool: str, mcp_client: Client, mock_execute: MockType) -> None:
     mock_execute.return_value = (0, "", "")
 
     result = await mcp_client.call_tool(tool, {"host": "localhost"})
@@ -306,3 +304,121 @@ async def test_get_hardware_information_remote_execution(mcp_client, mock_execut
     mock_execute.assert_called()
     call_kwargs = mock_execute.call_args[1]
     assert call_kwargs["host"] == "remote.host.com"
+
+
+class TestPcpStatus:
+    """get_system_information reports PCP availability alongside the basics."""
+
+    @staticmethod
+    def responder(
+        overrides: dict[str, tuple[int, str, str] | Exception] | None = None,
+    ) -> Callable[..., tuple[int, str, str]]:
+        """Answer each command by name, so tests only state what they care about."""
+        defaults: dict[str, tuple[int, str, str] | Exception] = {
+            "hostname": (0, "example.test\n", ""),
+            "cat": (0, 'NAME="Fedora Linux"\nVERSION_ID="42"\n', ""),
+            "uname": (0, "6.14.0\n", ""),
+            "uptime": (0, "up 2 hours\n", ""),
+            # Installation checks rely on the exit code, not nonempty stdout.
+            "pmrep": (0, "", ""),
+            "pmlogger": (0, "", ""),
+            "systemctl": (0, "active\n", ""),
+            "timedatectl": (0, "America/New_York\n", ""),
+            "pminfo": (
+                0,
+                "\npmcd.pmlogger.archive\n"
+                '    inst [0 or "primary"] value "/var/log/pcp/pmlogger/example.test.localdomain/20260904.00.10"\n',
+                "",
+            ),
+            "pmdumplog": (0, "", ""),
+        }
+        defaults.update(overrides or {})
+
+        def respond(args: tuple[str, ...], **_kwargs: object) -> tuple[int, str, str]:
+            name = args[-1] if args[0] == "sh" else args[0]
+            response = defaults[name]
+            if isinstance(response, Exception):
+                raise response
+            return response
+
+        return respond
+
+    async def call(self, mcp_client, mock_execute, overrides=None):
+        mock_execute.side_effect = self.responder(overrides)
+        result = await mcp_client.call_tool("get_system_information", {"host": "localhost"})
+        return result.structured_content["pcp"]
+
+    async def test_reports_a_healthy_installation(
+        self, mcp_client: Client, mock_execute: MockType, pcp_archive_output: str
+    ) -> None:
+        pcp = await self.call(mcp_client, mock_execute, {"pmdumplog": (0, pcp_archive_output, "")})
+
+        assert pcp["installed"] is True
+        assert pcp["missing_commands"] == []
+        assert pcp["pmcd_running"] is True
+        assert pcp["pmlogger_running"] is True
+        install_checks = [call.args[0] for call in mock_execute.call_args_list if call.args[0][0] == "sh"]
+        assert install_checks == [
+            ("sh", "-c", 'command -v "$1"', "sh", "pmrep"),
+            ("sh", "-c", 'command -v "$1"', "sh", "pmlogger"),
+        ]
+
+        assert pcp["available_time_ranges"] == [
+            {"start": "2023-12-31T19:00:00-05:00", "end": "2023-12-31T21:00:00-05:00"}
+        ]
+
+    async def test_reports_pcp_absent_when_required_commands_are_missing(
+        self, mcp_client: Client, mock_execute: MockType
+    ) -> None:
+        """pmrep ships separately from pmlogger, so name what is missing rather than just saying "not installed"."""
+        pcp = await self.call(mcp_client, mock_execute, {"pmrep": (1, "", "")})
+
+        assert pcp["installed"] is False
+        assert pcp["missing_commands"] == ["pmrep"]
+        assert pcp["available_time_ranges"] is None
+        commands_run = {call.args[0][0] for call in mock_execute.call_args_list}
+        assert commands_run.isdisjoint({"systemctl", "timedatectl", "pminfo", "pmdumplog"})
+
+    async def test_check_exceptions_are_reported(self, mcp_client: Client, mock_execute: MockType) -> None:
+        with pytest.raises(exceptions.ToolError, match="ssh: connect failed"):
+            await self.call(mcp_client, mock_execute, {"systemctl": OSError("ssh: connect failed")})
+
+    async def test_inactive_services_are_not_errors(self, mcp_client: Client, mock_execute: MockType) -> None:
+        """Archives are discovered through pmcd, so a stopped pmcd reports no ranges rather than failing."""
+        pcp = await self.call(
+            mcp_client,
+            mock_execute,
+            {"systemctl": (3, "inactive\n", ""), "pminfo": (1, "", "Cannot connect to PMCD")},
+        )
+
+        assert pcp["installed"] is True
+        assert pcp["pmcd_running"] is False
+        assert pcp["pmlogger_running"] is False
+        assert pcp["available_time_ranges"] is None
+        commands_run = {call.args[0][0] for call in mock_execute.call_args_list}
+        assert commands_run.isdisjoint({"timedatectl", "pminfo", "pmdumplog"})
+
+    async def test_empty_archives_leave_the_ranges_out(self, mcp_client: Client, mock_execute: MockType) -> None:
+        """pmlogger may be running without having written an archive worth reporting yet."""
+        pcp = await self.call(mcp_client, mock_execute, {"pmdumplog": (0, "", "")})
+
+        assert pcp["installed"] is True
+        assert pcp["available_time_ranges"] is None
+
+    async def test_unknown_timezone_is_reported(self, mcp_client: Client, mock_execute: MockType) -> None:
+        with pytest.raises(exceptions.ToolError, match="command exited with status 1: not found"):
+            await self.call(mcp_client, mock_execute, {"timedatectl": (1, "", "not found")})
+        assert mock_execute.call_args.args[0][0] == "timedatectl"
+
+    async def test_archives_are_read_where_pmcd_says_they_are(self, mcp_client, mock_execute, pcp_archive_output):
+        """The ranges reported here must come from the archives the query tools read."""
+        await self.call(mcp_client, mock_execute, {"pmdumplog": (0, pcp_archive_output, "")})
+
+        dumped = next(call.args[0] for call in mock_execute.call_args_list if call.args[0][0] == "pmdumplog")
+        assert dumped[-1] == "/var/log/pcp/pmlogger/example.test.localdomain"
+
+    async def test_an_undiscoverable_archive_is_reported(self, mcp_client: Client, mock_execute: MockType) -> None:
+        """Guessing the directory from the hostname would read the wrong host's archives."""
+        with pytest.raises(exceptions.ToolError, match="Cannot connect to PMCD"):
+            await self.call(mcp_client, mock_execute, {"pminfo": (1, "", "Cannot connect to PMCD")})
+        assert not any(call.args[0][0] == "pmdumplog" for call in mock_execute.call_args_list)

@@ -79,6 +79,7 @@ class TestGetCommandGroup:
         ("name", "expected_subcommands"),
         [
             pytest.param("system_info", ["hostname", "kernel"], id="system_info"),
+            pytest.param("host_info", ["timezone"], id="host_info"),
             pytest.param("network_interfaces", ["brief", "detail"], id="network_interfaces"),
         ],
     )

@@ -4,7 +4,15 @@ This module provides functions to parse raw command output into
 structured data that can be used by formatters.
 """
 
+import csv
+import io
+import re
+import zoneinfo
+
 from datetime import datetime
+from datetime import timedelta
+from datetime import timezone
+from datetime import tzinfo
 from pathlib import Path
 
 from linux_mcp_server.models import CpuInfo
@@ -13,6 +21,8 @@ from linux_mcp_server.models import MemoryInfo
 from linux_mcp_server.models import NetworkConnection
 from linux_mcp_server.models import NetworkInterface
 from linux_mcp_server.models import NodeEntry
+from linux_mcp_server.models import PCPSample
+from linux_mcp_server.models import PCPTimeRange
 from linux_mcp_server.models import ProcessInfo
 from linux_mcp_server.models import SwapInfo
 from linux_mcp_server.models import SystemInfo
@@ -327,6 +337,105 @@ def parse_system_info(results: dict[str, str]) -> SystemInfo:
         uptime=uptime,
         boot_time=boot_time,
     )
+
+
+def _parse_pcp_archive_timestamp(line: str) -> datetime | None:
+    """Extract epoch timestamp from pmdumplog -l output"""
+    match = re.search(r"\s[0-9]{2}:[0-9]{2}:[0-9]{2}(?:\.[0-9]{1,9})?\s+[0-9]{4}\s+([0-9]+)\s*$", line)
+    if match is None:
+        return None
+
+    try:
+        return datetime.fromtimestamp(int(match[1]), tz=timezone.utc)
+    except (OverflowError, OSError, ValueError):
+        return None
+
+
+def parse_pcp_archive_ranges(stdout: str, timezone_name: str, grace_period_hours: int = 1) -> list[PCPTimeRange]:
+    """Parse pmdumplog -l -x -x -x output into time ranges.
+
+    Args:
+        stdout: Raw output from pmdumplog -l -x -x -x.
+        timezone_name: Target system's timezone.
+        grace_period_hours: Maximum gap in hours to merge adjacent ranges.
+
+    Returns:
+        List of merged PCPTimeRange objects with times in target timezone.
+    """
+    if grace_period_hours < 0:
+        raise ValueError("grace_period_hours must be nonnegative")
+
+    try:
+        tz = zoneinfo.ZoneInfo(timezone_name)
+    except KeyError as e:
+        raise ValueError(f"Invalid timezone: {timezone_name}") from e
+
+    ranges: list[tuple[datetime, datetime]] = []
+    start: datetime | None = None
+
+    for line in stdout.splitlines():
+        line = line.strip()
+        if line.startswith(("--- archive ", "Log Label")):
+            start = None
+        elif line.startswith("commencing "):
+            start = _parse_pcp_archive_timestamp(line)
+        elif line.startswith("ending "):
+            end = _parse_pcp_archive_timestamp(line)
+            if start is not None and end is not None and start <= end:
+                ranges.append((start, end))
+            start = None
+
+    if not ranges:
+        return []
+
+    ranges.sort()
+    grace_period = timedelta(hours=grace_period_hours)
+    collapsed: list[tuple[datetime, datetime]] = []
+    current_start, current_end = ranges[0]
+
+    for next_start, next_end in ranges[1:]:
+        if next_start - current_end <= grace_period:
+            current_end = max(current_end, next_end)
+        else:
+            collapsed.append((current_start, current_end))
+            current_start, current_end = next_start, next_end
+
+    collapsed.append((current_start, current_end))
+    return [PCPTimeRange(start=start.astimezone(tz), end=end.astimezone(tz)) for start, end in collapsed]
+
+
+def parse_pmrep_csv(stdout: str, tz: tzinfo | None = None) -> list[PCPSample]:
+    """Parse pmrep -o csv output into samples, with UTC timestamps rendered in ``tz``.
+
+    Raises:
+        ValueError: If ``tz`` is given and a timestamp cannot be read.
+    """
+    rows = [row for row in csv.reader(io.StringIO(stdout)) if row]
+    if len(rows) < 2:
+        return []
+
+    metric_names = rows[0][1:]
+    samples = []
+
+    for row in rows[1:]:
+        metrics = {name: value for name, value in zip(metric_names, row[1:]) if value != ""}
+        if metrics:
+            samples.append(PCPSample(time=_localize_pmrep_time(row[0], tz), metrics=metrics))
+
+    return samples
+
+
+def _localize_pmrep_time(stamp: str, tz: tzinfo | None) -> str:
+    """Convert a UTC pmrep timestamp into an RFC-3339 string in ``tz``."""
+    if tz is None:
+        return stamp
+    try:
+        parsed = datetime.fromisoformat(stamp.replace("Z", "+00:00"))
+    except ValueError as e:
+        raise ValueError(f"Unrecognised timestamp in pmrep output: {stamp!r}") from e
+    if parsed.tzinfo is None:
+        parsed = parsed.replace(tzinfo=timezone.utc)
+    return parsed.astimezone(tz).isoformat()
 
 
 def _parse_load_avg(load_avg_str: str) -> tuple[float, float, float]:

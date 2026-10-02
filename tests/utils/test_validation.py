@@ -8,6 +8,7 @@ from linux_mcp_server.utils.validation import is_empty_output
 from linux_mcp_server.utils.validation import is_successful_output
 from linux_mcp_server.utils.validation import PathValidationError
 from linux_mcp_server.utils.validation import validate_path
+from linux_mcp_server.utils.validation import validate_pcp_metrics
 
 
 class TestIsEmptyOutput:
@@ -150,3 +151,29 @@ class TestValidatePath:
         """Paths containing '..' components are rejected to prevent path traversal."""
         with pytest.raises(PathValidationError, match=r"invalid component '\.\.'"):
             validate_path(path)
+
+
+class TestValidatePcpMetrics:
+    """Test validate_pcp_metrics function for security.
+
+    Metric names are appended to the pmrep argument list, so anything that is
+    not a bare name is a way to smuggle an option through. The accepting path
+    is covered by the query tests in tests/tools/test_pcp.py.
+    """
+
+    @pytest.mark.parametrize(
+        "metrics",
+        [
+            [],
+            ["--output-file"],
+            ["kernel\n--output-file=x"],
+            # fullmatch, not match: '$' alone also matches before a trailing newline.
+            ["kernel.all.cpu.user\n"],
+            # A valid name first must not short-circuit the rest of the check.
+            ["kernel.all.cpu.user", "kernel;id"],
+        ],
+    )
+    def test_rejects_unsafe_names(self, metrics):
+        """Empty, option-like and injected names are rejected."""
+        with pytest.raises(ValueError, match="At least one PCP metric name|Invalid PCP metric name"):
+            validate_pcp_metrics(metrics)
