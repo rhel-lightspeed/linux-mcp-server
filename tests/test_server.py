@@ -40,6 +40,7 @@ FIXED_TOOLS = set(
         "list_files",
         "list_processes",
         "list_services",
+        "pcp_guide",
         "pcp_list_metrics",
         "pcp_performance_summary",
         "pcp_query_metrics",
@@ -105,8 +106,10 @@ async def test_list_tools_with_old_goose(setup_client, version: str, list_app_on
     "toolset,mcp_apps,expected",
     [
         (Toolset.FIXED, True, set()),
+        (Toolset.FIXED, False, set()),
         (Toolset.RUN_SCRIPT, False, set()),
         (Toolset.RUN_SCRIPT, True, {"ui://run_script_readonly_with_mcp_app/run-script-app.html"}),
+        (Toolset.BOTH, True, {"ui://run_script_readonly_with_mcp_app/run-script-app.html"}),
     ],
 )
 async def test_list_resources(toolset: Toolset, mcp_apps: bool, expected: set[str], setup_client):

@@ -16,6 +16,7 @@ tools_list = [
     "get_network_interfaces",
     "get_network_connections",
     "get_listening_ports",
+    "pcp_guide",
     "pcp_list_metrics",
     "pcp_query_metrics",
     "pcp_performance_summary",

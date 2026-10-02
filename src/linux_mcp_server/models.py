@@ -144,6 +144,9 @@ class PCPStatus(BaseModel):
     pmcd_running: bool = False
     pmlogger_running: bool = False
     available_time_ranges: list[PCPTimeRange] | None = None
+    #: Set only when PCP is installed, to point the caller at the metric catalog
+    #: at the moment it learns the PCP tools are usable.
+    metrics_guide: str | None = None
 
 
 class SystemInfo(BaseModel):

@@ -19,7 +19,9 @@ from linux_mcp_server.parsers import parse_pminfo_listing
 from linux_mcp_server.parsers import parse_pmrep_csv
 from linux_mcp_server.server import mcp
 from linux_mcp_server.utils.hostinfo import discover_timezone_name
+from linux_mcp_server.utils.pcp import PCP_GUIDE_TOOL
 from linux_mcp_server.utils.pcp import pmlogger_archive_dir
+from linux_mcp_server.utils.pcp import read_pcp_guide
 from linux_mcp_server.utils.pcp_namespace import collapse_metric_tree
 from linux_mcp_server.utils.pcp_timespec import parse_time_spec
 from linux_mcp_server.utils.pcp_timespec import resolve_pcp_window
@@ -36,6 +38,34 @@ async def _target_timezone(host: str) -> tzinfo:
 
 
 @mcp.tool(
+    title="Read the PCP metrics guide",
+    description=(
+        "Returns the PCP metrics guide: a catalog of the metric names recorded on a typical "
+        "Linux system, and how to read the values the other PCP tools return. Read it before "
+        "investigating performance with PCP, and take metric names from it rather than from "
+        "memory."
+    ),
+    tags={"fixed", "performance", "pcp"},
+    annotations=ToolAnnotations(readOnlyHint=True),
+)
+@log_tool_call
+# Fixed documentation with no arguments is logically a resource, and this did start
+# out as one. As of 2026-09 that is not what clients do with it: of the client and
+# model combinations we tried, several never surfaced the resource to the model at
+# all, and when both the resource and this tool were offered, every one of them
+# reached for the tool. So the resource is gone and only the tool remains.
+async def pcp_guide(
+    *,
+    # The guide is shipped with the server and says nothing about any particular
+    # system, but every tool is dispatched and authorized by target host, so it
+    # is asked for here too rather than made an exception of.
+    host: Host,
+) -> str:
+    """Return the shipped PCP metrics guide."""
+    return read_pcp_guide()
+
+
+@mcp.tool(
     title="List available PCP metrics",
     description=(
         "Browses the PCP metric namespace. Lists the metrics under 'prefix' with their "
@@ -43,6 +73,8 @@ async def _target_timezone(host: str) -> tzinfo:
         "many metrics it holds; call again with that name as the prefix to see inside it. "
         "Only metrics this system's pmlogger records are listed, so everything listed can be "
         "passed to pcp_query_metrics. "
+        f"The {PCP_GUIDE_TOOL} tool already names the commonly needed metrics, so reach for "
+        "this when you need a subsystem the guide does not cover. "
         "Use only if get_system_information() indicates PCP is available."
     ),
     tags={"fixed", "performance", "pcp"},
@@ -101,6 +133,8 @@ async def pcp_list_metrics(
         "Retrieves historical metric data from PCP archives as JSON samples. "
         "When start_time, end_time, or interval is omitted, reasonable defaults "
         "are chosen, targeting one hour or about 20 samples. "
+        f"Call {PCP_GUIDE_TOOL} first for the metric catalog and how to read the values; "
+        "do not guess metric names. "
         "Use only if get_system_information() indicates PCP is available."
     ),
     tags={"fixed", "performance", "pcp"},

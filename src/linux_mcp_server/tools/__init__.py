@@ -9,6 +9,7 @@ from linux_mcp_server.tools.network import get_network_connections
 from linux_mcp_server.tools.network import get_network_interfaces
 
 # pcp
+from linux_mcp_server.tools.pcp import pcp_guide
 from linux_mcp_server.tools.pcp import pcp_list_metrics
 from linux_mcp_server.tools.pcp import pcp_performance_summary
 from linux_mcp_server.tools.pcp import pcp_query_metrics
@@ -63,6 +64,7 @@ __all__ = [
     "list_files",
     "list_processes",
     "list_services",
+    "pcp_guide",
     "pcp_list_metrics",
     "pcp_performance_summary",
     "pcp_query_metrics",
