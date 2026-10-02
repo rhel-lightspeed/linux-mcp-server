@@ -3,6 +3,7 @@
 import typing as t
 
 from pathlib import Path
+from pathlib import PurePosixPath
 
 from fastmcp.exceptions import ToolError
 from mcp.types import ToolAnnotations
@@ -185,7 +186,7 @@ async def get_journal_logs(
 @log_tool_call
 async def read_log_file(
     log_path: t.Annotated[
-        Path,
+        PurePosixPath,
         BeforeValidator(validate_path),
         Field(
             description="Absolute path to the log file (must be in allowed list)",
@@ -242,11 +243,11 @@ async def read_log_file(
             "with comma-separated list of allowed log file paths."
         )
 
-    allowed_paths = [Path(p.strip()) for p in allowed_paths_env.split(",") if p.strip()]
+    allowed_paths = [PurePosixPath(p.strip()) for p in allowed_paths_env.split(",") if p.strip()]
 
     if host == LOCALHOST:
         # For local execution, resolve and check against allowlist
-        requested_path = log_path.resolve()
+        requested_path = Path(log_path).resolve()
 
         is_allowed = False
         for allowed_path in allowed_paths:

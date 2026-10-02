@@ -6,6 +6,7 @@ enabling consistent execution across local and remote systems.
 
 from collections.abc import Mapping
 from collections.abc import Sequence
+from pathlib import PurePosixPath
 from types import MappingProxyType
 
 from pydantic import BaseModel
@@ -32,7 +33,7 @@ class CommandSpec(BaseModel):
     fallback: tuple[str, ...] | None = None
     optional_flags: Mapping[str, tuple[str, ...]] | None = None
 
-    async def run(self, host: Host, **kwargs: object) -> tuple[int, str, str]:
+    async def run(self, host: Host, **kwargs: int | str | PurePosixPath | None) -> tuple[int, str, str]:
         """Run the command with optional fallback.
 
         Args:
