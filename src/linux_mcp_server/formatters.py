@@ -4,9 +4,12 @@ This module provides functions to format parsed data into
 human-readable strings for tool output.
 """
 
+from collections.abc import Sequence
+
 from linux_mcp_server.models import ListeningPort
 from linux_mcp_server.models import NetworkConnection
 from linux_mcp_server.models import NetworkInterface
+from linux_mcp_server.models import PCPMetricNode
 from linux_mcp_server.models import ProcessInfo
 from linux_mcp_server.utils import format_bytes
 
@@ -270,5 +273,40 @@ def format_hardware_info(results: dict[str, str]) -> str:
 
     if len(lines) == 1:  # Only header
         lines.append("No hardware information tools available.")
+
+    return "\n".join(lines)
+
+
+def format_pcp_metric_listing(nodes: Sequence[PCPMetricNode], prefix: str | None = None) -> str:
+    """Format a collapsed metric listing, with a header saying how to drill into it.
+
+    The header says "recorded" because the listing comes from the archives: the
+    live namespace holds a good deal more, none of which can be queried here.
+
+    Args:
+        nodes: Metrics and namespaces to list, in the order they should appear.
+        prefix: The namespace the listing covers, or None for the whole system.
+
+    Returns:
+        Formatted string representation.
+    """
+    total = sum(node.metric_count or 1 for node in nodes)
+    where = f"under {prefix}" if prefix else "on this system"
+    header = f"{total} PCP metric{'' if total == 1 else 's'} recorded {where} and available to query."
+
+    if any(node.metric_count for node in nodes):
+        header += (
+            " Entries marked <N metrics> are namespaces rather than metrics; call this tool"
+            " again with one of those names as the prefix to list what is inside it."
+        )
+
+    lines = [header, ""]
+    for node in nodes:
+        parts = [node.name]
+        if node.metric_count:
+            parts.append(f"<{node.metric_count} metrics>")
+        if node.description:
+            parts.append(f"[{node.description}]")
+        lines.append(" ".join(parts))
 
     return "\n".join(lines)

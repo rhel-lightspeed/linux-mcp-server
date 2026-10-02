@@ -3,6 +3,7 @@ import os
 from contextlib import AsyncExitStack
 from contextlib import contextmanager
 from datetime import datetime
+from pathlib import Path
 from unittest.mock import patch
 from zoneinfo import ZoneInfo
 
@@ -23,6 +24,9 @@ import pytest
 from fastmcp.client import Client
 from mcp.types import Implementation
 from mcp.types import InitializeRequest
+from pydantic import BaseModel
+from pydantic import ConfigDict
+from pydantic import Field
 
 from linux_mcp_server.audit import log_tool_call
 from linux_mcp_server.config import CONFIG
@@ -178,6 +182,37 @@ def mock_getuser(mocker):
 def mock_execute_with_fallback(mock_execute_with_fallback_for):
     """Shared execute_with_fallback mock for linux_mcp_server.commands."""
     return mock_execute_with_fallback_for("linux_mcp_server.commands")
+
+
+class CapturedMetric(BaseModel):
+    """One line of ``tests/data/pcp-metrics-rhel10.jsonl``, as pminfo described it.
+
+    The descriptor fields are blank for the few derived metrics pminfo lists but
+    cannot bind a definition for, which is a state the tools have to cope with.
+    """
+
+    model_config = ConfigDict(populate_by_name=True)
+
+    name: str
+    help: str = ""
+    data_type: str = Field("", alias="Data Type")
+    semantics: str = Field("", alias="Semantics")
+    units: str = Field("", alias="Units")
+    instanced: bool = False
+
+
+@pytest.fixture(scope="session")
+def rhel10_metrics() -> dict[str, CapturedMetric]:
+    """Every metric a default pmlogger records on a stock RHEL 10 install.
+
+    A real capture rather than a hand-written tree, because what is being checked
+    is claims about this exact namespace: that the guide names metrics that are
+    really there and describes them as PCP does, and that collapsing makes this
+    tree browsable. Regenerate with ``scripts/dump-pcp-metrics.py`` on such a host.
+    """
+    lines = (Path(__file__).parent / "data" / "pcp-metrics-rhel10.jsonl").read_text().splitlines()
+    captured = [CapturedMetric.model_validate_json(line) for line in lines if line.strip()]
+    return {metric.name: metric for metric in captured}
 
 
 @pytest.fixture

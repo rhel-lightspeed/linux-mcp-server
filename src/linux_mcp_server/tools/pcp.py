@@ -13,16 +13,20 @@ from pydantic.functional_validators import AfterValidator
 
 from linux_mcp_server.audit import log_tool_call
 from linux_mcp_server.commands import get_command
+from linux_mcp_server.formatters import format_pcp_metric_listing
 from linux_mcp_server.models import PCPSample
+from linux_mcp_server.parsers import parse_pminfo_listing
 from linux_mcp_server.parsers import parse_pmrep_csv
 from linux_mcp_server.server import mcp
 from linux_mcp_server.utils.hostinfo import discover_timezone_name
 from linux_mcp_server.utils.pcp import pmlogger_archive_dir
+from linux_mcp_server.utils.pcp_namespace import collapse_metric_tree
 from linux_mcp_server.utils.pcp_timespec import parse_time_spec
 from linux_mcp_server.utils.pcp_timespec import resolve_pcp_window
 from linux_mcp_server.utils.pcp_timespec import to_pcp_time
 from linux_mcp_server.utils.types import Host
 from linux_mcp_server.utils.validation import validate_pcp_metrics
+from linux_mcp_server.utils.validation import validate_pcp_prefix
 
 
 async def _target_timezone(host: str) -> tzinfo:
@@ -34,7 +38,11 @@ async def _target_timezone(host: str) -> tzinfo:
 @mcp.tool(
     title="List available PCP metrics",
     description=(
-        "Returns every PCP metric available on the system with its description. "
+        "Browses the PCP metric namespace. Lists the metrics under 'prefix' with their "
+        "descriptions, collapsing any large sub-namespace to one line giving its name and how "
+        "many metrics it holds; call again with that name as the prefix to see inside it. "
+        "Only metrics this system's pmlogger records are listed, so everything listed can be "
+        "passed to pcp_query_metrics. "
         "Use only if get_system_information() indicates PCP is available."
     ),
     tags={"fixed", "performance", "pcp"},
@@ -42,19 +50,49 @@ async def _target_timezone(host: str) -> tzinfo:
 )
 @log_tool_call
 async def pcp_list_metrics(
+    prefix: t.Annotated[
+        str | None,
+        Field(
+            description=(
+                "Namespace to list, such as 'mem' or 'disk.dev'. Omit it to see the top-level "
+                "namespaces, which is where to start when you do not know the name."
+            ),
+            examples=["mem", "disk.dev", "network.interface"],
+        ),
+    ] = None,
+    *,
     host: Host,
 ) -> str:
-    """List available PCP metrics with descriptions."""
+    """List the recorded PCP metrics under a namespace, collapsing what does not fit."""
+    if prefix is not None:
+        try:
+            prefix = validate_pcp_prefix(prefix)
+        except ValueError as e:
+            raise ToolError(str(e)) from e
+
+    # The archives rather than pmcd, so that this lists what pcp_query_metrics can
+    # actually return. A stock pmlogger records well under half the live namespace,
+    # whole subsystems of it, and nothing here can query the rest.
     cmd = get_command("pcp_metrics_list")
-    returncode, stdout, stderr = await cmd.run(host=host)
+    returncode, stdout, stderr = await cmd.run(host=host, archive=await pmlogger_archive_dir(host), prefix=prefix)
+
+    # pminfo reports an unresolvable name on stderr; checked ahead of the exit code
+    # because otherwise a bad prefix looks like a system with no metrics at all.
+    if prefix and "Unknown metric name" in stderr:
+        raise ToolError(
+            f"No recorded PCP metric or namespace is called {prefix!r}. Either it does not exist "
+            "on this system or its pmlogger is not configured to record it, and either way there "
+            "is no historical data to query. Call this tool without a prefix to see what is recorded."
+        )
 
     if returncode != 0:
         raise ToolError(f"Error listing PCP metrics: {stderr}")
 
-    if not stdout.strip():
-        raise ToolError("No PCP metrics found on this system.")
+    metrics = parse_pminfo_listing(stdout)
+    if not metrics:
+        raise ToolError("No PCP metrics found in this system's archives.")
 
-    return stdout
+    return format_pcp_metric_listing(collapse_metric_tree(metrics, prefix), prefix)
 
 
 @mcp.tool(

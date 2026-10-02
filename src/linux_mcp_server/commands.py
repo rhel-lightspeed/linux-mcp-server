@@ -318,7 +318,13 @@ COMMANDS: Mapping[str, CommandGroup] = MappingProxyType(
         ),
         "pcp_metrics_list": CommandGroup(
             commands={
-                "default": CommandSpec(args=("pminfo", "-t")),
+                # Pass the archive so that we list the metrics that were logged and
+                # can be queried. pminfo takes the namespace to walk as a positional
+                # argument, and walks the whole namespace when given none.
+                "default": CommandSpec(
+                    args=("pminfo", "-t", "--archive", "{archive}"),
+                    optional_flags={"prefix": ("{prefix}",)},
+                ),
             }
         ),
         "pcp_primary_archive": CommandGroup(

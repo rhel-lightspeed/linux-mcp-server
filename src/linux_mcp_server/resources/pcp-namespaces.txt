@@ -1,0 +1,104 @@
+# Descriptions of PCP namespace nodes.
+#
+# Only leaves of the metric namespace are metrics, and only metrics carry help
+# text, so `pminfo -t` describes nothing that pcp_list_metrics has to collapse.
+# Without these, a caller deciding where to drill in sees nothing but a name and
+# a count.
+#
+# Format is `pminfo -t`'s: one `<node name> [<description>]` per line. Lines
+# starting with # are ignored. Describe what a caller would need to know to
+# decide whether the answer is in there; two lines of prose is too much.
+#
+# INCOMPLETE. This covers the nodes a caller meets in the first level or two of
+# browsing a stock RHEL install, which is where descriptions pay off most. A
+# node with no line here just lists without one.
+
+# --- Top level, per PMDA or subsystem ---
+acct [Per-process accounting records, from the BSD process accounting file]
+cgroup [Control group resource accounting and limits, per cgroup]
+containers [Container inventory: names, engines, cgroups and root processes]
+disk [Block device I/O, per device and summed over all of them]
+event [PCP event record delivery counters, about PCP itself rather than the system]
+fchost [Fibre Channel host adapter frame and error counters]
+filesys [Mounted filesystem capacity and inode usage, per filesystem]
+hinv [Hardware and system inventory: CPU, memory, disk and interface counts and models]
+hotproc [The same metrics as proc, restricted to processes a configured predicate marks interesting]
+hyperv [Hyper-V guest integration, chiefly memory ballooning]
+ipc [System V IPC: semaphores, message queues and shared memory]
+jbd2 [ext4 journal (JBD2) transaction counts and timings, per journal]
+kernel [CPU time and utilization, load, context switches, pressure stall information and uname]
+kvm [KVM hypervisor trace point counters, on a host running virtual machines]
+mem [Physical memory: utilization, virtual memory statistics, NUMA, huge pages and slab]
+mmv [Memory-mapped value instrumentation exported by applications]
+network [Interfaces, protocol counters (IP, TCP, UDP, ICMP) and socket statistics]
+nfs [NFSv2 client and server request counters]
+nfs3 [NFSv3 client and server request counters]
+nfs4 [NFSv4 client and server request counters]
+pmcd [Health of the PCP collector daemon itself, not of the system it measures]
+pmda [Identity and version of the Linux PMDA]
+pmproxy [Health of the PCP proxy daemon itself]
+proc [Per-process state, memory, I/O and scheduling, instanced once per process]
+quota [XFS project quota limits and usage]
+rpc [Sun RPC client and server call counters, underneath NFS]
+swap [System-wide swap capacity and paging activity]
+swapdev [Per-swap-device capacity and usage]
+sysfs [Assorted values read straight out of /sys]
+tape [SCSI tape drive I/O counters, per device]
+tmpfs [Capacity and usage of mounted tmpfs filesystems]
+tty [Serial line interrupt and error counters]
+vfs [Kernel-wide file, inode and dentry structure counts against their limits]
+xfs [XFS internals: operations, log, btree, buffer cache and allocator counters]
+zram [I/O to compressed RAM block devices]
+
+# --- Memory ---
+mem.buddyinfo [Free page counts by allocation order, for judging fragmentation]
+mem.hugepages [Huge page pool sizes and usage]
+mem.ksm [Kernel samepage merging: scan state and pages shared]
+mem.numa [Per-NUMA-node memory utilization, allocation hits and misses, and huge pages]
+mem.slabinfo [Per-cache slab allocator object and page counts]
+mem.util [Memory utilization breakdown, from /proc/meminfo]
+mem.vmmemctl [VMware balloon driver memory reclaim]
+mem.vmstat [Raw kernel virtual memory counters: faults, reclaim, swapping and writeback]
+mem.zoneinfo [Per-zone, per-node watermarks and free space]
+
+# --- CPU and scheduling ---
+kernel.all [System-wide CPU time, load average, process counts, interrupts and pressure stall information]
+kernel.all.cpu [Cumulative CPU time by mode, summed over all CPUs]
+kernel.all.pressure [Pressure stall information: how long tasks were delayed on CPU, memory, I/O or IRQ]
+kernel.cpu.util [Ready-made CPU utilization percentages by mode; prefer these over kernel.all.cpu]
+kernel.percpu [The kernel.all CPU metrics, instanced per logical CPU]
+kernel.pernode [The kernel.all CPU metrics, instanced per NUMA node]
+kernel.uname [What uname reports: release, version, machine and distribution]
+
+# --- Disk ---
+disk.all [Block device I/O summed over every disk]
+disk.dev [Block device I/O per whole disk, such as sda or nvme0n1]
+disk.dm [Block device I/O per device-mapper volume; use hinv.map.dmname to name them]
+disk.md [Block device I/O per software RAID (md) device]
+disk.partitions [Block device I/O per partition]
+disk.wwid [Block device I/O per WWID, aggregating the SCSI paths to one physical device]
+
+# --- Network ---
+network.all [Interface byte, packet, error and drop counts summed over every interface]
+network.icmp [ICMPv4 message counters]
+network.icmp6 [ICMPv6 message counters]
+network.interface [Per-interface byte, packet, error and drop counters, plus link speed and state]
+network.ip [IPv4 datagram counters: delivered, forwarded, discarded and reassembled]
+network.ip6 [IPv6 datagram counters]
+network.mptcp [Multipath TCP handshake and subflow counters]
+network.softnet [Softirq packet processing: packets processed, backlog drops and budget exhaustion]
+network.sockstat [Socket counts by protocol and state, from /proc/net/sockstat]
+network.tcp [TCP protocol counters: segments, retransmits, connection opens and listen queue drops]
+network.tcpconn [Counts of TCP connections by state, such as established and time_wait]
+network.udp [UDP datagram and error counters]
+network.unix [Unix domain socket counts by type]
+
+# --- Processes ---
+proc.fd [Open file descriptor counts, per process]
+proc.id [Process identity: user, group and container, by ID and by name]
+proc.io [Bytes and system calls read and written, per process]
+proc.memory [Process memory sizes: resident, virtual, text, data and stack]
+proc.psinfo [Per-process state from /proc/<pid>/stat: CPU time, faults, priority and command line]
+proc.runq [Counts of processes by run queue state, system-wide rather than per process]
+proc.schedstat [Scheduler run and wait time, per process]
+proc.smaps [Detailed per-process mapping sizes from smaps_rollup; expensive to collect]

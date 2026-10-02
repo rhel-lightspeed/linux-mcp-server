@@ -425,6 +425,36 @@ def parse_pmrep_csv(stdout: str, tz: tzinfo | None = None) -> list[PCPSample]:
     return samples
 
 
+#: A ``pminfo -t`` line is a metric name followed by its one-line help text in
+#: brackets. Where there is no help text, plain ``pminfo -t`` prints the name alone,
+#: while ``pminfo -t --archive`` prints an inline error, since an archive carries only
+#: the text pmlogger recorded::
+#:
+#:     pmcd.pmie.eval.actual [count of actual rule evaluations]
+#:     pmcd.seqnum One-line Help: Error: One-line or help text is not available
+#:
+#: So the name is matched, and whatever follows is taken as the description only if it
+#: is bracketed. Matching the error message itself would be one more thing to keep in
+#: step with pminfo, and getting it wrong would drop a metric that is perfectly real.
+_PMINFO_ENTRY = re.compile(r"(?P<name>[a-zA-Z][a-zA-Z0-9_]*(?:\.[a-zA-Z0-9_]+)*)(?:\s+(?P<rest>.*))?")
+
+
+def parse_pminfo_listing(stdout: str) -> dict[str, str]:
+    """Parse ``pminfo -t`` output into metric names mapped to their help text.
+
+    pminfo's own ordering is kept rather than sorted, because it walks the
+    namespace depth first and so groups related metrics together.
+    """
+    metrics: dict[str, str] = {}
+
+    for line in stdout.splitlines():
+        if match := _PMINFO_ENTRY.fullmatch(line.strip()):
+            rest = match["rest"] or ""
+            metrics[match["name"]] = rest[1:-1] if rest.startswith("[") and rest.endswith("]") else ""
+
+    return metrics
+
+
 def _localize_pmrep_time(stamp: str, tz: tzinfo | None) -> str:
     """Convert a UTC pmrep timestamp into an RFC-3339 string in ``tz``."""
     if tz is None:

@@ -117,6 +117,19 @@ class PCPSample(BaseModel):
     metrics: dict[str, str]
 
 
+class PCPMetricNode(BaseModel):
+    """One line of a collapsed metric listing.
+
+    Either a metric, or a namespace standing in for the metrics below it that
+    were left unlisted.
+    """
+
+    name: str
+    description: str = ""
+    #: Metrics underneath this namespace, or None when the node is a metric itself.
+    metric_count: int | None = None
+
+
 class PCPStatus(BaseModel):
     """PCP availability and service status."""
 
