@@ -21,9 +21,9 @@ no data, so take names from the catalog below rather than recalling them from me
 
 ## Time arguments
 
-`start_time` and `end_time` accept an absolute timestamp (`2026-08-14 14:00:00`) or an
-offset (`-2hours`, `-30min`, `now`). A time given without a UTC offset is read in the
-**target system's** timezone, and results come back in that timezone.
+`start_time` and `end_time` accept an absolute timestamp (`2026-08-14 14:00:00`) or
+`now`. A time given without a UTC offset is read in the **target system's** timezone,
+and results come back in that timezone.
 
 Pass `start_time`, `end_time` and `interval` together for an exact window. If you omit
 `interval`, one is chosen to give roughly 20 samples across the range, which is usually
