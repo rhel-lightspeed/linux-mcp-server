@@ -1024,6 +1024,11 @@ wheels = [
     { url = "https://files.pythonhosted.org/packages/59/13/477d90d09591b3938b45c4e11f4d8a51291682112cb5efcac961e815d562/google_auth-2.58.0-py3-none-any.whl", hash = "sha256:8a9c4645bb4c8e91668fb1934b95ae6a8687084232753639220ba9bf04a1610d", size = 262404, upload-time = "2026-09-09T20:49:33.951Z" },
 ]
 
+[package.optional-dependencies]
+requests = [
+    { name = "requests" },
+]
+
 [[package]]
 name = "griffelib"
 version = "2.3.0"
@@ -1380,7 +1385,7 @@ dependencies = [
 
 [package.optional-dependencies]
 gcp = [
-    { name = "google-auth" },
+    { name = "google-auth", extra = ["requests"] },
 ]
 gssapi = [
     { name = "gssapi" },
@@ -1425,7 +1430,7 @@ requires-dist = [
     { name = "asyncssh", extras = ["bcrypt"], specifier = ">=2.22.0" },
     { name = "fakeredis", specifier = "<2.35" },
     { name = "fastmcp", specifier = ">=3.2.4,<4" },
-    { name = "google-auth", marker = "extra == 'gcp'", specifier = ">=2.40.0" },
+    { name = "google-auth", extras = ["requests"], marker = "extra == 'gcp'", specifier = ">=2.40.0" },
     { name = "gssapi", marker = "extra == 'gssapi'", specifier = ">=1.11.1" },
     { name = "httpx", specifier = ">=0.28.1" },
     { name = "pydantic", specifier = ">=2.12.5" },
