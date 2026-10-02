@@ -1,4 +1,4 @@
-from pathlib import Path
+from pathlib import PurePosixPath
 
 
 class PathValidationError(ValueError):
@@ -11,13 +11,18 @@ class PathValidationError(ValueError):
     pass
 
 
-def validate_path(path: str) -> Path:
+def validate_path(path: str) -> PurePosixPath:
     """Validate a filesystem path for security and correctness.
+
+    The path names a file on the target host, which is always Linux, so it is judged
+    by POSIX rules whatever the server itself runs on. Deciding with ``pathlib.Path``
+    would make the answer depend on the server's OS: a Windows-hosted server would
+    reject "/var/log/secure" as relative and accept "C:/logs/app.log" as absolute.
 
     Performs security checks to prevent command injection and path traversal attacks:
     - Rejects paths containing newlines, carriage returns, or null bytes
     - Rejects paths starting with '-' (prevents flag injection)
-    - Requires absolute paths
+    - Requires absolute POSIX paths
 
     Args:
         path: The filesystem path to validate.
@@ -30,7 +35,7 @@ def validate_path(path: str) -> Path:
 
     Examples:
         >>> validate_path("/var/log/messages")
-        '/var/log/messages'
+        PurePosixPath('/var/log/messages')
 
         >>> validate_path("relative/path")
         PathValidationError: Path must be absolute: relative/path
@@ -49,15 +54,15 @@ def validate_path(path: str) -> Path:
     if path.startswith("-"):
         raise PathValidationError(f"Path cannot start with '-': {path}")
 
-    # Require absolute paths
-    if not Path(path).is_absolute():
+    # Require absolute paths, by POSIX rules rather than the server OS's rules
+    if not path.startswith("/"):
         raise PathValidationError(f"Path must be absolute: {path}")
 
     # Prevent path traversal via '..' components
     if ".." in path.split("/"):
         raise PathValidationError(f"Path contains invalid component '..': {path}")
 
-    return Path(path)
+    return PurePosixPath(path)
 
 
 def is_empty_output(stdout: str | None) -> bool:

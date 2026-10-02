@@ -5,7 +5,7 @@ structured data that can be used by formatters.
 """
 
 from datetime import datetime
-from pathlib import Path
+from pathlib import PurePosixPath
 
 from linux_mcp_server.models import CpuInfo
 from linux_mcp_server.models import ListeningPort
@@ -490,7 +490,7 @@ def parse_directory_listing(
             # Format: SIZE\tNAME (from du -b)
             size, path = line.split("\t", 1)
             size = int(size)
-            path = Path(path)
+            path = PurePosixPath(path)
             # Omit the last line since it containers the parent directory
             if idx < last:
                 entries.append(NodeEntry(size=size, name=path.name))

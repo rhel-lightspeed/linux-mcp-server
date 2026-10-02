@@ -1,6 +1,6 @@
 """Tests for input validation utilities."""
 
-from pathlib import Path
+from pathlib import PurePosixPath
 
 import pytest
 
@@ -79,16 +79,26 @@ class TestValidatePath:
     @pytest.mark.parametrize(
         "path,expected",
         [
-            ("/var/log/messages", Path("/var/log/messages")),
-            ("/home/user/file.txt", Path("/home/user/file.txt")),
-            ("/", Path("/")),
-            ("/tmp", Path("/tmp")),
-            ("/path/with spaces/file.txt", Path("/path/with spaces/file.txt")),
+            ("/var/log/messages", PurePosixPath("/var/log/messages")),
+            ("/home/user/file.txt", PurePosixPath("/home/user/file.txt")),
+            ("/", PurePosixPath("/")),
+            ("/tmp", PurePosixPath("/tmp")),
+            ("/path/with spaces/file.txt", PurePosixPath("/path/with spaces/file.txt")),
+            # A backslash is an ordinary character in a Linux filename, not a separator
+            ("/var/log/odd\\name.log", PurePosixPath("/var/log/odd\\name.log")),
         ],
     )
     def test_valid_absolute_paths(self, path, expected):
         """Valid absolute paths are accepted and returned in POSIX format."""
-        assert validate_path(path) == expected
+        validated = validate_path(path)
+
+        assert validated == expected
+        # The target host sees exactly what the caller asked for
+        assert str(validated) == path
+
+    def test_single_component_names(self):
+        """Path components are split on '/' alone, never on the server OS's separator."""
+        assert validate_path("/var/log/odd\\name.log").name == "odd\\name.log"
 
     @pytest.mark.parametrize(
         "path",
@@ -98,6 +108,10 @@ class TestValidatePath:
             "file.txt",
             "./relative",
             "../parent",
+            # Absolute on Windows, meaningless on the Linux target
+            "C:/logs/app.log",
+            "C:\\logs\\app.log",
+            "\\\\server\\share\\app.log",
         ],
     )
     def test_rejects_non_absolute_paths(self, path):
