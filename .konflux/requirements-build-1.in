@@ -1,4 +1,4 @@
-# slushy-build-source: idna==3.19
+# slushy-build-source: idna==3.20
 # slushy-build-source: packaging==26.2
 # slushy-build-source: packaging==26.3
 # slushy-build-source: pathspec==1.1.1
