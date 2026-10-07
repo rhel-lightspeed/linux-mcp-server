@@ -121,7 +121,7 @@ async def complete_openai(
                 type="json_schema",
                 name="gatekeeper_result",
                 strict=True,
-                schema=GatekeeperResult.structured_output_schema(),
+                schema=GatekeeperResult.structured_output_schema_openai(),
             )
         )
         if CONFIG.gatekeeper.structured_output

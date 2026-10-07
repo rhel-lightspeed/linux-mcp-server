@@ -26,7 +26,7 @@ class OpenRouterMessage(BaseModel):
 
 
 class OpenRouterProvider(BaseModel):
-    require_parameters: bool = True
+    require_parameters: bool = False
     quantizations: list[str] | None = None
 
 
@@ -95,6 +95,14 @@ def _get_openrouter_api_key() -> str:
     return api_key
 
 
+def _is_openai_provider(model: str) -> bool:
+    model_provider = model.split("/", 1)[0]
+    if model_provider == "openai":
+        return True
+
+    return False
+
+
 async def complete_openrouter(
     prompt: str, *, max_tokens: int, timeout: int = DEFAULT_TIMEOUT_SECONDS
 ) -> GatekeeperCompletion:
@@ -104,6 +112,12 @@ async def complete_openrouter(
     quantization = CONFIG.gatekeeper.openrouter.quantization if CONFIG.gatekeeper.openrouter else None
     template_kwargs = CONFIG.gatekeeper.openrouter.template_kwargs if CONFIG.gatekeeper.openrouter else {}
     reasoning_effort = CONFIG.gatekeeper.reasoning_effort
+    schema = (
+        GatekeeperResult.structured_output_schema_openai()
+        if _is_openai_provider(CONFIG.gatekeeper.model)
+        else GatekeeperResult.structured_output_schema()
+    )
+
     request_body = OpenRouterRequest(
         model=CONFIG.gatekeeper.model,
         messages=[OpenRouterMessage(role="user", content=prompt)],
@@ -115,7 +129,7 @@ async def complete_openrouter(
             json_schema=OpenRouterJsonSchema(
                 name="gatekeeper_result",
                 strict=True,
-                schema=GatekeeperResult.structured_output_schema(),
+                schema=schema,
             ),
         )
         if CONFIG.gatekeeper.structured_output

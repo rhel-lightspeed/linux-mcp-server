@@ -2,11 +2,13 @@ import asyncio
 import logging
 import time
 
+from typing import Annotated
 from typing import Any
 from typing import Literal
 from typing import overload
 
 from pydantic import BaseModel
+from pydantic import BeforeValidator
 from pydantic import ValidationError
 
 from linux_mcp_server.config import CONFIG
@@ -123,9 +125,13 @@ class GatekeeperStatus(StrEnum):
     MALICIOUS = "MALICIOUS"
 
 
+def _empty_string_if_none(v: str | None) -> str:
+    return "" if v is None else v
+
+
 class GatekeeperResult(BaseModel):
     status: GatekeeperStatus
-    detail: str = ""
+    detail: Annotated[str, BeforeValidator(_empty_string_if_none)] = ""
 
     @classmethod
     def structured_output_schema(cls) -> dict[str, Any]:
@@ -140,6 +146,29 @@ class GatekeeperResult(BaseModel):
                 "detail": {"type": "string"},
             },
             "required": ["status"],
+            "additionalProperties": False,
+        }
+
+    @classmethod
+    def structured_output_schema_openai(cls) -> dict[str, Any]:
+        """OpenAI-compatible JSON Schema where all fields are required.
+
+        OpenAI structured outputs require every property to be listed in ``required``.
+        ``detail`` uses ``{"type": ["string", "null"]}`` so the model can omit a
+        reason while still satisfying the constraint.
+
+        https://platform.openai.com/docs/guides/structured-outputs#all-fields-must-be-required
+        """
+        return {
+            "type": "object",
+            "properties": {
+                "status": {
+                    "type": "string",
+                    "enum": [m.value for m in GatekeeperStatus],
+                },
+                "detail": {"type": ["string", "null"]},
+            },
+            "required": ["status", "detail"],
             "additionalProperties": False,
         }
 
