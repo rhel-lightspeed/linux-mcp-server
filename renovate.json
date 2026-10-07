@@ -24,6 +24,17 @@
       "matchBaseBranches": ["/^post-release-.*/"],
       "matchManagers": ["pep621", "pip_requirements", "pip-compile", "poetry", "pipenv"],
       "enabled": false
+    },
+    {
+      "description": [
+        "No per-dependency pep621 PRs: the manager only sees direct dependencies, so it can't react to a",
+        "vulnerability in an indirect one (renovatebot/renovate#6377). .github/workflows/security-updates.yml",
+        "audits uv.lock daily and files those instead; everything else rides the weekly lock file maintenance.",
+        "Note this disables update types rather than the manager, which would take lockFileMaintenance with it."
+      ],
+      "matchManagers": ["pep621"],
+      "matchUpdateTypes": ["major", "minor", "patch", "pin", "digest"],
+      "enabled": false
     }
   ]
 }

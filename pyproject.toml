@@ -212,6 +212,9 @@ ignore = [
 "tests/functional/*" = ["T201", "C901"]
 
 [tool.ruff.lint.isort]
+# requires-python is >=3.10, so ruff files tomllib as third-party. Nothing
+# under src/ may import it, but scripts/ runs on the CI interpreter (3.11+).
+extra-standard-library = ["tomllib"]
 case-sensitive = false
 force-single-line = true
 lines-after-imports = 2
