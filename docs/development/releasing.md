@@ -96,7 +96,8 @@ publishing. Publishing is driven by tags.
 A change to a post-release branch must always be applied to the base branch as well, because the
 release-time sync discards whatever is on the post-release branch. Renovate is configured so the
 updates it files for a base branch are a superset of those it files for the paired post-release
-branch, which guarantees the matching pull request *exists* - but it still has to be *merged* before
+branch, and the daily `uv audit` files each security update against every maintained branch,
+which guarantees the matching pull request *exists* - but it still has to be *merged* before
 the release. Merging a lockfile fix on `post-release-main` and leaving its `main` counterpart open
 past the next release will silently reinstate the older lockfile. Renovate re-files it afterwards,
 so the window is one release cycle, but it is a real window.

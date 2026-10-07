@@ -1,0 +1,384 @@
+name: Security updates
+
+# Renovate's pep621 manager only extracts direct dependencies, so a
+# vulnerability in an indirect dependency goes unfixed until the weekly lock
+# file maintenance run (renovatebot/renovate#46377). This workflow closes that
+# gap: it audits uv.lock daily and opens one PR per vulnerable package, with
+# the CVE ids in the commit message so downstream RPM rebuilds can be tracked
+# from `git log`. Remove it once the MintMaker fork of Renovate can update
+# indirect dependencies itself.
+#
+# Security updates land on every maintained branch - `main`, the stable
+# `release-*` branches, and the `post-release-*` branch paired with each (see
+# "What lands where" in docs/development/releasing.md) - so every one of them
+# is audited and gets its own pull request per vulnerable package.
+
+on:
+  schedule:
+    - cron: "0 5 * * *"
+  workflow_dispatch:
+    inputs:
+      branches:
+        description: "Space-separated branches to audit; default is every maintained branch"
+        required: false
+
+permissions:
+  contents: read
+
+concurrency:
+  group: security-updates
+  cancel-in-progress: false
+
+env:
+  PIP_DISABLE_PIP_VERSION_CHECK: 1
+  FORCE_COLOR: 1
+  # `uv audit --output-format=json` is a preview feature whose schema may
+  # change without warning, so pin uv here rather than floating to latest the
+  # way the other workflows do. (`--output-format` needs uv >= 0.12.)
+  UV_VERSION: "0.12.23"
+  # Not python-version-file: requires-python is >=3.10, and
+  # scripts/security_updates.py uses tomllib (3.11+).
+  PYTHON_VERSION: "3.13"
+  # The maintained branches. Anchored and specific so that it cannot pick up a
+  # topic branch, or an `eol-release-*` branch that is no longer maintained,
+  # and so that every name reaching the shell below is a safe file name.
+  BRANCH_PATTERN: '^(main|post-release-main|(post-)?release-[0-9]+\.[0-9]+\.x)$'
+
+jobs:
+  # One job walking the branches rather than a matrix over them: an audit is a
+  # lock file read against a shared advisory database, so it is far cheaper to
+  # check out the branches in turn than to set up a runner for each, and a
+  # single job can emit the whole fix matrix as one output.
+  audit:
+    name: Audit the maintained branches
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    outputs:
+      found: ${{ steps.select.outputs.found }}
+      updates: ${{ steps.select.outputs.updates }}
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          # Every maintained branch is audited, not just the default one.
+          fetch-depth: 0
+          persist-credentials: false
+
+      - name: Install Python
+        uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@bec219d24cd3e171d82865faccec33120bb574f4 # v10.1.0
+        with:
+          version: ${{ env.UV_VERSION }}
+          enable-cache: true
+          prune-cache: false
+
+      # Pins each branch to the commit it is at right now. Everything
+      # downstream works from that commit, so a branch that moves mid-run
+      # cannot leave the patch describing a tree the audit never saw.
+      - name: Select the branches to audit
+        env:
+          AUDITS: ${{ runner.temp }}/audits
+          REQUESTED: ${{ inputs.branches }}
+        run: |
+          set -euo pipefail
+          mkdir -p "$AUDITS"
+
+          if [ -n "$REQUESTED" ]; then
+            read -r -a candidates <<< "$REQUESTED"
+          else
+            mapfile -t candidates < <(git for-each-ref --format='%(refname:lstrip=3)' refs/remotes/origin)
+          fi
+
+          : > "$AUDITS/branches.txt"
+          for branch in "${candidates[@]}"; do
+            if ! [[ "$branch" =~ $BRANCH_PATTERN ]]; then
+              # Silently skipped when enumerating; an error when asked for by hand.
+              if [ -n "$REQUESTED" ]; then
+                echo "::error::$branch is not a branch this workflow files updates against"
+                exit 1
+              fi
+              continue
+            fi
+            if ! sha=$(git rev-parse --verify --quiet "refs/remotes/origin/$branch^{commit}"); then
+              echo "::error::$branch does not exist in this repository"
+              exit 1
+            fi
+            echo "$branch $sha" >> "$AUDITS/branches.txt"
+          done
+
+          if [ ! -s "$AUDITS/branches.txt" ]; then
+            echo "::error::No maintained branches matched $BRANCH_PATTERN"
+            exit 1
+          fi
+          cat "$AUDITS/branches.txt"
+
+      - name: Audit each branch
+        env:
+          AUDITS: ${{ runner.temp }}/audits
+        run: |
+          set -euo pipefail
+          while read -r branch sha; do
+            echo "::group::uv audit on $branch"
+            git checkout --quiet --detach "$sha"
+
+            set +e
+            uv audit --frozen --preview-features audit-command,json-output \
+              --output-format=json > "$AUDITS/$branch.json"
+            status=$?
+            set -e
+            # `uv audit` exits 1 when it finds vulnerabilities, which is the case
+            # this workflow exists to handle. Anything above that is a real
+            # failure (and a truncated audit.json fails the next step anyway).
+            if [ "$status" -gt 1 ]; then
+              echo "::error::uv audit failed on $branch (exit $status)"
+              exit "$status"
+            fi
+            echo "::endgroup::"
+          done < "$AUDITS/branches.txt"
+
+          # Back to the tree this workflow came from, so the step below runs
+          # its copy of the script rather than the last audited branch's.
+          git checkout --quiet --detach "$GITHUB_SHA"
+
+      - name: Select packages to update
+        id: select
+        env:
+          AUDITS: ${{ runner.temp }}/audits
+        run: |
+          python3 scripts/security_updates.py select \
+            --branches "$AUDITS/branches.txt" \
+            --audits "$AUDITS" \
+            --output security-updates.json
+
+      - name: Upload the pending updates
+        if: steps.select.outputs.found == 'true'
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: security-updates
+          path: security-updates.json
+
+  # Resolves and builds with no write-capable credentials in reach: `uv lock`
+  # and slushy-build both compile sdists, which is arbitrary third-party code.
+  # The privileged push happens in `pr` below, which runs first-party code
+  # only -- the same split the dependency canary uses.
+  #
+  # One job per (branch, package): the branches resolve independently, and a
+  # package that cannot be fixed on a stable branch must not hold up the fix
+  # on the others.
+  fix:
+    name: Fix ${{ matrix.update.package }} on ${{ matrix.update.branch }}
+    needs: audit
+    if: needs.audit.outputs.found == 'true'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+
+    strategy:
+      fail-fast: false
+      matrix:
+        update: ${{ fromJSON(needs.audit.outputs.updates) }}
+
+    defaults:
+      run:
+        working-directory: repo
+
+    env:
+      # Package names come from the advisory feed; keep them out of the shell
+      # command lines that interpolate ${{ }}.
+      PACKAGE: ${{ matrix.update.package }}
+      BRANCH: ${{ matrix.update.branch }}
+      # This workflow's own copy of the helper script, whichever branch is
+      # being updated. A stable branch is cut from an older `main` and only
+      # takes backports, so its copy can predate a fix to the script - or the
+      # whole workflow.
+      TOOL: ${{ github.workspace }}/tools/scripts/security_updates.py
+
+    steps:
+      - name: Checkout the branch being updated
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ matrix.update.sha }}
+          path: repo
+          persist-credentials: false
+
+      - name: Checkout this workflow's tooling
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ github.sha }}
+          path: tools
+          sparse-checkout: scripts
+          persist-credentials: false
+
+      - name: Install Python
+        uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@bec219d24cd3e171d82865faccec33120bb574f4 # v10.1.0
+        with:
+          version: ${{ env.UV_VERSION }}
+          enable-cache: true
+          prune-cache: false
+
+      - name: Download the pending updates
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
+        with:
+          name: security-updates
+          path: ${{ runner.temp }}/updates
+
+      # pyproject.toml sets a global `exclude-newer` cooldown, which would
+      # otherwise hide a fix published inside that window -- exactly the
+      # releases this workflow is chasing. A per-package waiver has to live in
+      # pyproject.toml rather than on the command line: passing
+      # --exclude-newer-package makes the result fail `uv lock --check`, and
+      # every other workflow installs with --locked.
+      - name: Waive the cooldown
+        run: python3 "$TOOL" bypass-cooldown --package "$PACKAGE"
+
+      - name: Update the lock file
+        run: uv lock --upgrade-package "$PACKAGE"
+
+      - name: Re-audit uv.lock
+        run: |
+          set +e
+          uv audit --frozen --preview-features audit-command,json-output \
+            --output-format=json > "$RUNNER_TEMP/audit-after.json"
+          status=$?
+          set -e
+          if [ "$status" -gt 1 ]; then
+            echo "::error::uv audit failed (exit $status)"
+            exit "$status"
+          fi
+
+      # Fails when the upgrade did not actually clear the advisory, which in
+      # practice means a cap in pyproject.toml is holding the package below the
+      # fixed version. Better to fail the run than to open a PR labelled
+      # `security` that fixes nothing. On a stable branch that cap may be
+      # deliberate, in which case the fix has to be backported by hand.
+      - name: Verify the advisories are resolved
+        run: python3 "$TOOL" verify --package "$PACKAGE" --audit "$RUNNER_TEMP/audit-after.json"
+
+      - name: Sync Konflux prefetch inputs
+        run: make requirements-lock
+
+      - name: Commit the update
+        env:
+          UPDATES: ${{ runner.temp }}/updates/security-updates.json
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          python3 "$TOOL" commit-message \
+            --package "$PACKAGE" --branch "$BRANCH" --updates "$UPDATES" > "$RUNNER_TEMP/message.txt"
+          # Stage only the paths this job owns, so nothing uv or slushy-build
+          # leaves behind can ride along; staging rather than plain `git diff`
+          # catches the new files slushy-build can generate under .konflux.
+          git add -A pyproject.toml uv.lock .konflux .tekton
+          git commit -F "$RUNNER_TEMP/message.txt"
+          git --no-pager show --stat
+          git format-patch -1 --stdout > "$RUNNER_TEMP/update.patch"
+
+      - name: Upload the update
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: patch-${{ matrix.update.branch }}-${{ matrix.update.slug }}
+          path: ${{ runner.temp }}/update.patch
+
+  # Holds the only write-capable credential in the workflow and runs no
+  # third-party code: a checkout, an artifact download, git, and gh. An app
+  # token rather than GITHUB_TOKEN so the PRs it opens trigger CI (and
+  # update-python-requirements.yml, which should find nothing left to do).
+  pr:
+    name: Open pull requests
+    needs: [audit, fix]
+    if: ${{ !cancelled() && needs.audit.result == 'success' && needs.audit.outputs.found == 'true' }}
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+
+    steps:
+      - name: Generate an app token
+        id: app-token
+        uses: actions/create-github-app-token@bcd2ba49218906704ab6c1aa796996da409d3eb1 # v3.2.0
+        with:
+          client-id: ${{ secrets.AUDIT_APP_CLIENT_ID }}
+          private-key: ${{ secrets.AUDIT_APP_PRIVATE_KEY }}
+
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          # Each patch is applied on the commit its branch was audited at.
+          fetch-depth: 0
+          token: ${{ steps.app-token.outputs.token }}
+
+      # `fail-fast: false` means a package that could not be fixed leaves the
+      # others' patches intact, so take whatever did get produced.
+      - name: Download the updates
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
+        with:
+          pattern: patch-*
+          path: ${{ runner.temp }}/patches
+
+      - name: Open or update a pull request per package and branch
+        env:
+          GH_TOKEN: ${{ steps.app-token.outputs.token }}
+          PATCHES: ${{ runner.temp }}/patches
+          UPDATES: ${{ needs.audit.outputs.updates }}
+        run: |
+          set -euo pipefail
+
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+
+          failed=()
+          mapfile -t updates < <(jq -c '.[]' <<< "$UPDATES")
+          for update in "${updates[@]}"; do
+            branch=$(jq -r '.branch' <<< "$update")
+            sha=$(jq -r '.sha' <<< "$update")
+            slug=$(jq -r '.slug' <<< "$update")
+
+            patch="$PATCHES/patch-$branch-$slug/update.patch"
+            if [ ! -f "$patch" ]; then
+              echo "::notice::No update was produced for $slug on $branch."
+              continue
+            fi
+
+            head="security/$branch/uv-lock-$slug"
+
+            # The patch was built on the commit the audit pinned, so branch
+            # from there rather than from wherever the branch is now, or from
+            # whatever the previous iteration left checked out.
+            git checkout --quiet -B "$head" "$sha"
+            if ! git am "$patch"; then
+              git am --abort || true
+              echo "::error::$slug: the update no longer applies to $branch at $sha"
+              failed+=("$slug on $branch")
+              continue
+            fi
+
+            # Force-push so a rerun updates the open PR in place instead of
+            # filing a duplicate every morning until the first one merges.
+            git push --force origin "HEAD:refs/heads/$head"
+
+            title=$(git log -1 --format=%s)
+            body=$(git log -1 --format=%b)
+            if [ -n "$(gh pr list --head "$head" --base "$branch" --state open --json number --jq '.[].number')" ]; then
+              gh pr edit "$head" --title "$title" --body "$body"
+              echo "Updated the open pull request for $slug on $branch."
+            else
+              gh pr create --base "$branch" --head "$head" \
+                --title "$title" --body "$body" \
+                --label security --label dependencies
+            fi
+          done
+
+          if [ ${#failed[@]} -gt 0 ]; then
+            echo "::error::Could not open pull requests for: ${failed[*]}"
+            exit 1
+          fi
