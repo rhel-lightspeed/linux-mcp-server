@@ -51,6 +51,14 @@ class TestGatekeeperResultDescription:
         assert schema["properties"]["status"]["enum"] == [m.value for m in GatekeeperStatus]
         assert schema["required"] == ["status"]
 
+    def test_structured_output_schema_openai_requires_all_fields(self):
+        schema = GatekeeperResult.structured_output_schema_openai()
+        assert schema["additionalProperties"] is False
+        assert set(schema["properties"]) == {"status", "detail"}
+        assert schema["properties"]["status"]["enum"] == [m.value for m in GatekeeperStatus]
+        assert schema["required"] == ["status", "detail"]
+        assert schema["properties"]["detail"]["type"] == ["string", "null"]
+
     @pytest.mark.parametrize("status,detail,expected_description", RESULT_CASES)
     def test_round_trip(self, status, detail, expected_description):
         """Test that we can round-trip from result -> description -> parsed result."""
