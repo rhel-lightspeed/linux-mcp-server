@@ -5,6 +5,7 @@ from linux_mcp_server.config import GatekeeperConfig
 from linux_mcp_server.config import GatekeeperProvider
 from linux_mcp_server.config import ReasoningEffort
 from linux_mcp_server.gatekeeper import gemini_client
+from linux_mcp_server.gatekeeper.check_run_script import GatekeeperResult
 
 
 class TestGeminiClient:
@@ -40,7 +41,13 @@ class TestGeminiClient:
         assert "generativelanguage.googleapis.com" in url
         assert "key=test-key" in url
         body = mock_post.call_args.kwargs["body"]
-        assert body["generationConfig"]["responseMimeType"] == "application/json"
+        assert (
+            body["generationConfig"]["responseFormat"]["text"]["mimeType"]
+            == gemini_client.GeminiTextMimeType.APPLICATION_JSON
+        )
+        expected_schema = GatekeeperResult.structured_output_schema()
+        expected_schema.pop("additionalProperties", None)
+        assert body["generationConfig"]["responseFormat"]["text"]["schema"] == expected_schema
         assert body["generationConfig"]["thinkingConfig"] == {"thinkingLevel": "LOW"}
 
     async def test_complete_gemini_none_maps_to_minimal(self, gatekeeper_config, mocker):
@@ -135,8 +142,10 @@ class TestGeminiClient:
         await gemini_client.complete_gemini("prompt", max_tokens=8000)
 
         body = mock_post.call_args.kwargs["body"]
-        assert "responseMimeType" not in body["generationConfig"]
-        assert "responseSchema" not in body["generationConfig"]
+        assert (
+            body["generationConfig"]["responseFormat"]["text"]["mimeType"]
+            == gemini_client.GeminiTextMimeType.TEXT_PLAIN
+        )
 
     async def test_complete_gemini_requires_api_key(self, gatekeeper_config, mocker):
         mocker.patch.dict("os.environ", {"GOOGLE_API_KEY": "", "GEMINI_API_KEY": ""}, clear=False)
