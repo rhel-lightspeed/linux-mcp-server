@@ -15,6 +15,7 @@ from linux_mcp_server.gatekeeper.check_run_script import GatekeeperResult
 from linux_mcp_server.gatekeeper.http_utils import DEFAULT_TIMEOUT_SECONDS
 from linux_mcp_server.gatekeeper.http_utils import post_json
 from linux_mcp_server.gatekeeper.llm import GatekeeperCompletion
+from linux_mcp_server.utils.enum import StrEnum
 
 
 GOOGLE_AI_BASE_URL = "https://generativelanguage.googleapis.com/v1beta"
@@ -27,6 +28,11 @@ _THINKING_LEVELS = {
     ReasoningEffort.HIGH: "HIGH",
     ReasoningEffort.XHIGH: "HIGH",
 }
+
+
+class GeminiTextMimeType(StrEnum):
+    APPLICATION_JSON = "APPLICATION_JSON"
+    TEXT_PLAIN = "TEXT_PLAIN"
 
 
 class GeminiPart(BaseModel):
@@ -45,8 +51,7 @@ class GeminiThinkingConfig(BaseModel):
 class GeminiGenerationConfig(BaseModel):
     temperature: float
     maxOutputTokens: int
-    responseMimeType: str | None = None
-    responseSchema: dict[str, Any] | None = None
+    responseFormat: dict[str, Any] | None = None
     thinkingConfig: GeminiThinkingConfig | None = None
 
 
@@ -94,6 +99,21 @@ def _get_google_api_key() -> str:
     return api_key
 
 
+def _create_response_format(structured_output: bool) -> dict[str, Any]:
+    if structured_output:
+        schema = GatekeeperResult.structured_output_schema()
+        # Gemini responseSchema does not use additionalProperties the same way; keep it simple.
+        schema.pop("additionalProperties", None)
+        return {
+            "text": {
+                "mimeType": GeminiTextMimeType.APPLICATION_JSON,
+                "schema": schema,
+            }
+        }
+
+    return {"text": {"mimeType": GeminiTextMimeType.TEXT_PLAIN}}
+
+
 async def complete_gemini(
     prompt: str,
     *,
@@ -106,17 +126,12 @@ async def complete_gemini(
     model = CONFIG.gatekeeper.model
     reasoning_effort = CONFIG.gatekeeper.reasoning_effort
     thinking_level = None if reasoning_effort is None else _THINKING_LEVELS.get(reasoning_effort)
-    response_schema = GatekeeperResult.structured_output_schema() if CONFIG.gatekeeper.structured_output else None
-    if response_schema is not None:
-        # Gemini responseSchema does not use additionalProperties the same way; keep it simple.
-        response_schema.pop("additionalProperties", None)
     request_body = GeminiRequest(
         contents=[GeminiContent(role="user", parts=[GeminiPart(text=prompt)])],
         generationConfig=GeminiGenerationConfig(
             temperature=CONFIG.gatekeeper.temperature,
             maxOutputTokens=max_tokens,
-            responseMimeType="application/json" if CONFIG.gatekeeper.structured_output else None,
-            responseSchema=response_schema,
+            responseFormat=_create_response_format(CONFIG.gatekeeper.structured_output),
             thinkingConfig=GeminiThinkingConfig(thinkingLevel=thinking_level) if thinking_level is not None else None,
         ),
     )
