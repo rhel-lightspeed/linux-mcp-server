@@ -53,20 +53,20 @@ arches:
     name: git-core-doc
     evr: 2.52.0-1.el10
     sourcerpm: git-2.52.0-1.el10.src.rpm
-  - url: https://cdn-ubi.redhat.com/content/public/ubi/dist/ubi10/10/aarch64/appstream/os/Packages/g/glibc-devel-2.39-128.el10_2.aarch64.rpm
+  - url: https://cdn-ubi.redhat.com/content/public/ubi/dist/ubi10/10/aarch64/appstream/os/Packages/g/glibc-devel-2.39-142.el10_2.aarch64.rpm
     repoid: ubi-10-for-aarch64-appstream-rpms
-    size: 595491
-    checksum: sha256:e40ea22b35db21c29d2226288d65a88bb4b37651faeb98f60c4baa723f76e3b9
+    size: 595560
+    checksum: sha256:b3100e49e0caee017139841f9e9b0ca4f2e77af2666517699540ba991573c820
     name: glibc-devel
-    evr: 2.39-128.el10_2
-    sourcerpm: glibc-2.39-128.el10_2.src.rpm
-  - url: https://cdn-ubi.redhat.com/content/public/ubi/dist/ubi10/10/aarch64/appstream/os/Packages/k/kernel-headers-6.12.0-211.61.1.el10_2.aarch64.rpm
+    evr: 2.39-142.el10_2
+    sourcerpm: glibc-2.39-142.el10_2.src.rpm
+  - url: https://cdn-ubi.redhat.com/content/public/ubi/dist/ubi10/10/aarch64/appstream/os/Packages/k/kernel-headers-6.12.0-211.64.1.el10_2.aarch64.rpm
     repoid: ubi-10-for-aarch64-appstream-rpms
-    size: 3712673
-    checksum: sha256:4aeae4917b99495fb5dcf685a17c1216f4d04cbd35e84c0664aec737d398ae2d
+    size: 3731213
+    checksum: sha256:0b02c47c8b021f11b3b2397b23957e7e750088a96534d45d392a202c22db868c
     name: kernel-headers
-    evr: 6.12.0-211.61.1.el10_2
-    sourcerpm: kernel-6.12.0-211.61.1.el10_2.src.rpm
+    evr: 6.12.0-211.64.1.el10_2
+    sourcerpm: kernel-6.12.0-211.64.1.el10_2.src.rpm
   - url: https://cdn-ubi.redhat.com/content/public/ubi/dist/ubi10/10/aarch64/appstream/os/Packages/k/keyutils-libs-devel-1.6.3-5.el10.aarch64.rpm
     repoid: ubi-10-for-aarch64-appstream-rpms
     size: 66529
@@ -165,13 +165,13 @@ arches:
     name: llvm-libs
     evr: 21.1.8-1.el10
     sourcerpm: llvm-21.1.8-1.el10.src.rpm
-  - url: https://cdn-ubi.redhat.com/content/public/ubi/dist/ubi10/10/aarch64/appstream/os/Packages/o/openssl-devel-3.5.8-1.el10_2.aarch64.rpm
+  - url: https://cdn-ubi.redhat.com/content/public/ubi/dist/ubi10/10/aarch64/appstream/os/Packages/o/openssl-devel-3.5.8-2.el10_2.aarch64.rpm
     repoid: ubi-10-for-aarch64-appstream-rpms
-    size: 4432152
-    checksum: sha256:293226bf943a0b08c391e59c21e72e7394320f2f83f1bd2d94cc71461b549ca2
+    size: 4443096
+    checksum: sha256:15f0ed084919bbcd35a3711ebfe14507613ca511a5838310d02e2f3f2781bdee
     name: openssl-devel
-    evr: 1:3.5.8-1.el10_2
-    sourcerpm: openssl-3.5.8-1.el10_2.src.rpm
+    evr: 1:3.5.8-2.el10_2
+    sourcerpm: openssl-3.5.8-2.el10_2.src.rpm
   - url: https://cdn-ubi.redhat.com/content/public/ubi/dist/ubi10/10/aarch64/appstream/os/Packages/p/pcre2-devel-10.44-1.el10.3.aarch64.rpm
     repoid: ubi-10-for-aarch64-appstream-rpms
     size: 548657
@@ -620,20 +620,20 @@ arches:
     name: perl-vars
     evr: 1.05-515.el10_2
     sourcerpm: perl-5.40.2-515.el10_2.src.rpm
-  - url: https://cdn-ubi.redhat.com/content/public/ubi/dist/ubi10/10/aarch64/appstream/os/Packages/p/python-unversioned-command-3.12.14-1.el10_2.noarch.rpm
+  - url: https://cdn-ubi.redhat.com/content/public/ubi/dist/ubi10/10/aarch64/appstream/os/Packages/p/python-unversioned-command-3.12.15-1.el10_2.noarch.rpm
     repoid: ubi-10-for-aarch64-appstream-rpms
-    size: 16735
-    checksum: sha256:7406223eae376d8219e52f183248e275e84eb3eb1020c40e02e89a39cdb07ef9
+    size: 16920
+    checksum: sha256:f0584629f888fd01415f0c462b66f9e6c7cc49e1addd80c196ce9407b278fef7
     name: python-unversioned-command
-    evr: 3.12.14-1.el10_2
-    sourcerpm: python3.12-3.12.14-1.el10_2.src.rpm
-  - url: https://cdn-ubi.redhat.com/content/public/ubi/dist/ubi10/10/aarch64/appstream/os/Packages/p/python3-devel-3.12.14-1.el10_2.aarch64.rpm
+    evr: 3.12.15-1.el10_2
+    sourcerpm: python3.12-3.12.15-1.el10_2.src.rpm
+  - url: https://cdn-ubi.redhat.com/content/public/ubi/dist/ubi10/10/aarch64/appstream/os/Packages/p/python3-devel-3.12.15-1.el10_2.aarch64.rpm
     repoid: ubi-10-for-aarch64-appstream-rpms
-    size: 343322
-    checksum: sha256:bfa38a3e2718837c900fc48330e5ea1bff345ff3c8a962110f859b30eaf9a3f1
+    size: 343677
+    checksum: sha256:4ae968303afc7ab0cd081de3f753dc7457f026088993994d82abc0e0fdd3eb8e
     name: python3-devel
-    evr: 3.12.14-1.el10_2
-    sourcerpm: python3.12-3.12.14-1.el10_2.src.rpm
+    evr: 3.12.15-1.el10_2
+    sourcerpm: python3.12-3.12.15-1.el10_2.src.rpm
   - url: https://cdn-ubi.redhat.com/content/public/ubi/dist/ubi10/10/aarch64/appstream/os/Packages/p/python3-pip-23.3.2-11.el10_2.noarch.rpm
     repoid: ubi-10-for-aarch64-appstream-rpms
     size: 3397397
@@ -746,6 +746,27 @@ arches:
     name: gdbm-libs
     evr: 1:1.23-12.el10_0
     sourcerpm: gdbm-1.23-12.el10_0.src.rpm
+  - url: https://cdn-ubi.redhat.com/content/public/ubi/dist/ubi10/10/aarch64/baseos/os/Packages/g/glibc-2.39-142.el10_2.aarch64.rpm
+    repoid: ubi-10-for-aarch64-baseos-rpms
+    size: 1862897
+    checksum: sha256:693942398cdc3433088d5430cc995950f3fbaa6effa167a5f943fdcf5239cd40
+    name: glibc
+    evr: 2.39-142.el10_2
+    sourcerpm: glibc-2.39-142.el10_2.src.rpm
+  - url: https://cdn-ubi.redhat.com/content/public/ubi/dist/ubi10/10/aarch64/baseos/os/Packages/g/glibc-common-2.39-142.el10_2.aarch64.rpm
+    repoid: ubi-10-for-aarch64-baseos-rpms
+    size: 320930
+    checksum: sha256:56082749290cadbbb493c55bd4aa1188e9d1edc1d530f740f6f4f975ae0e6186
+    name: glibc-common
+    evr: 2.39-142.el10_2
+    sourcerpm: glibc-2.39-142.el10_2.src.rpm
+  - url: https://cdn-ubi.redhat.com/content/public/ubi/dist/ubi10/10/aarch64/baseos/os/Packages/g/glibc-minimal-langpack-2.39-142.el10_2.aarch64.rpm
+    repoid: ubi-10-for-aarch64-baseos-rpms
+    size: 31969
+    checksum: sha256:97b6d0e3bc69f29c2b86307b61a508682a8b7d93182861ace87dd13ecd906fbb
+    name: glibc-minimal-langpack
+    evr: 2.39-142.el10_2
+    sourcerpm: glibc-2.39-142.el10_2.src.rpm
   - url: https://cdn-ubi.redhat.com/content/public/ubi/dist/ubi10/10/aarch64/baseos/os/Packages/g/groff-base-1.23.0-10.el10.aarch64.rpm
     repoid: ubi-10-for-aarch64-baseos-rpms
     size: 1148528
@@ -893,6 +914,13 @@ arches:
     name: openssh-clients
     evr: 9.9p1-28.el10_2
     sourcerpm: openssh-9.9p1-28.el10_2.src.rpm
+  - url: https://cdn-ubi.redhat.com/content/public/ubi/dist/ubi10/10/aarch64/baseos/os/Packages/o/openssl-libs-3.5.8-2.el10_2.aarch64.rpm
+    repoid: ubi-10-for-aarch64-baseos-rpms
+    size: 2237447
+    checksum: sha256:dbc69db124d7fcc86d6e83a8a7540545a90f75518d88f3cb7060d8ca5a9e3a89
+    name: openssl-libs
+    evr: 1:3.5.8-2.el10_2
+    sourcerpm: openssl-3.5.8-2.el10_2.src.rpm
   - url: https://cdn-ubi.redhat.com/content/public/ubi/dist/ubi10/10/aarch64/baseos/os/Packages/p/pam-1.6.1-9.el10_2.1.aarch64.rpm
     repoid: ubi-10-for-aarch64-baseos-rpms
     size: 611166
@@ -921,20 +949,20 @@ arches:
     name: pkgconf-pkg-config
     evr: 2.1.0-3.el10
     sourcerpm: pkgconf-2.1.0-3.el10.src.rpm
-  - url: https://cdn-ubi.redhat.com/content/public/ubi/dist/ubi10/10/aarch64/baseos/os/Packages/p/python3-3.12.14-1.el10_2.aarch64.rpm
+  - url: https://cdn-ubi.redhat.com/content/public/ubi/dist/ubi10/10/aarch64/baseos/os/Packages/p/python3-3.12.15-1.el10_2.aarch64.rpm
     repoid: ubi-10-for-aarch64-baseos-rpms
-    size: 34426
-    checksum: sha256:8b223c3bc38ce7d1791e1264c45a33cd296d9ae073f2aeca8d6473b22f47249d
+    size: 34623
+    checksum: sha256:76876d0b88d08ac7db45d5f975ce5a785aca6d172fe2ba28b90b19d1493940a0
     name: python3
-    evr: 3.12.14-1.el10_2
-    sourcerpm: python3.12-3.12.14-1.el10_2.src.rpm
-  - url: https://cdn-ubi.redhat.com/content/public/ubi/dist/ubi10/10/aarch64/baseos/os/Packages/p/python3-libs-3.12.14-1.el10_2.aarch64.rpm
+    evr: 3.12.15-1.el10_2
+    sourcerpm: python3.12-3.12.15-1.el10_2.src.rpm
+  - url: https://cdn-ubi.redhat.com/content/public/ubi/dist/ubi10/10/aarch64/baseos/os/Packages/p/python3-libs-3.12.15-1.el10_2.aarch64.rpm
     repoid: ubi-10-for-aarch64-baseos-rpms
-    size: 9737094
-    checksum: sha256:ba514c696dd944ba60155e65659d283e4925701e5c6f43439f8725bf4b9f29be
+    size: 9754485
+    checksum: sha256:05c1e3ad79310f869cfeb66139240e1f0998404f699330cb28ec22b3f1ef39ad
     name: python3-libs
-    evr: 3.12.14-1.el10_2
-    sourcerpm: python3.12-3.12.14-1.el10_2.src.rpm
+    evr: 3.12.15-1.el10_2
+    sourcerpm: python3.12-3.12.15-1.el10_2.src.rpm
   - url: https://cdn-ubi.redhat.com/content/public/ubi/dist/ubi10/10/aarch64/baseos/os/Packages/p/python3-pip-wheel-23.3.2-11.el10_2.noarch.rpm
     repoid: ubi-10-for-aarch64-baseos-rpms
     size: 1549827
@@ -949,13 +977,13 @@ arches:
     name: shadow-utils
     evr: 2:4.15.0-11.el10
     sourcerpm: shadow-utils-4.15.0-11.el10.src.rpm
-  - url: https://cdn-ubi.redhat.com/content/public/ubi/dist/ubi10/10/aarch64/baseos/os/Packages/t/tzdata-2026c-1.el10_2.noarch.rpm
+  - url: https://cdn-ubi.redhat.com/content/public/ubi/dist/ubi10/10/aarch64/baseos/os/Packages/t/tzdata-2026e-1.el10_2.noarch.rpm
     repoid: ubi-10-for-aarch64-baseos-rpms
-    size: 933332
-    checksum: sha256:9d35b124b878932bdbd612337e58d883e011632831545049a75f76a4cec56859
+    size: 936696
+    checksum: sha256:d0ce19e2ee66af9dc7b9b5c78fcbc79b0463997dcf9fbf7a63b4cd5157c41191
     name: tzdata
-    evr: 2026c-1.el10_2
-    sourcerpm: tzdata-2026c-1.el10_2.src.rpm
+    evr: 2026e-1.el10_2
+    sourcerpm: tzdata-2026e-1.el10_2.src.rpm
   - url: https://cdn-ubi.redhat.com/content/public/ubi/dist/ubi10/10/aarch64/baseos/os/Packages/u/util-linux-2.40.2-18.el10.aarch64.rpm
     repoid: ubi-10-for-aarch64-baseos-rpms
     size: 1314310
@@ -1259,12 +1287,12 @@ arches:
     checksum: sha256:fbb507a42a8edb9d0d0cbc7ec394d1fe7bb7c2f0456b98ce4fb5fa20036b3cbc
     name: gdbm
     evr: 1:1.23-12.el10_0
-  - url: https://cdn-ubi.redhat.com/content/public/ubi/dist/ubi10/10/aarch64/baseos/source/SRPMS/Packages/g/glibc-2.39-128.el10_2.src.rpm
+  - url: https://cdn-ubi.redhat.com/content/public/ubi/dist/ubi10/10/aarch64/baseos/source/SRPMS/Packages/g/glibc-2.39-142.el10_2.src.rpm
     repoid: ubi-10-for-aarch64-baseos-source-rpms
-    size: 21671874
-    checksum: sha256:701da174d1bd6613f6d24cff4b702df145d9fd056573e895e7e7582b44822d6b
+    size: 21728691
+    checksum: sha256:f622cc7edfa1eebcd0e602e7960b1fedb31b79ee8b6589eef941e0f5c99f845f
     name: glibc
-    evr: 2.39-128.el10_2
+    evr: 2.39-142.el10_2
   - url: https://cdn-ubi.redhat.com/content/public/ubi/dist/ubi10/10/aarch64/baseos/source/SRPMS/Packages/g/groff-1.23.0-10.el10.src.rpm
     repoid: ubi-10-for-aarch64-baseos-source-rpms
     size: 7488146
@@ -1391,12 +1419,12 @@ arches:
     checksum: sha256:339f80b64499014ec151dd123b82bca39c4cced6ba5f9ff0c833e5cd7b900308
     name: openssh
     evr: 9.9p1-28.el10_2
-  - url: https://cdn-ubi.redhat.com/content/public/ubi/dist/ubi10/10/aarch64/baseos/source/SRPMS/Packages/o/openssl-3.5.8-1.el10_2.src.rpm
+  - url: https://cdn-ubi.redhat.com/content/public/ubi/dist/ubi10/10/aarch64/baseos/source/SRPMS/Packages/o/openssl-3.5.8-2.el10_2.src.rpm
     repoid: ubi-10-for-aarch64-baseos-source-rpms
-    size: 53473629
-    checksum: sha256:923f7531487cc871d6da95405a9da9e783dcff2640dd8e40817ae14ef7bc722e
+    size: 53479113
+    checksum: sha256:5e45c3d946827a032ca733f792fb643ff883983e628c10e0204adfca989ec92b
     name: openssl
-    evr: 1:3.5.8-1.el10_2
+    evr: 1:3.5.8-2.el10_2
   - url: https://cdn-ubi.redhat.com/content/public/ubi/dist/ubi10/10/aarch64/baseos/source/SRPMS/Packages/p/pam-1.6.1-9.el10_2.1.src.rpm
     repoid: ubi-10-for-aarch64-baseos-source-rpms
     size: 1248005
@@ -1421,24 +1449,24 @@ arches:
     checksum: sha256:0c84b3fe9b9d3f9b51d4d6f1a0bcc8b717448620b44cbb9e1af361dda5740b86
     name: python-pip
     evr: 23.3.2-11.el10_2
-  - url: https://cdn-ubi.redhat.com/content/public/ubi/dist/ubi10/10/aarch64/baseos/source/SRPMS/Packages/p/python3.12-3.12.14-1.el10_2.src.rpm
+  - url: https://cdn-ubi.redhat.com/content/public/ubi/dist/ubi10/10/aarch64/baseos/source/SRPMS/Packages/p/python3.12-3.12.15-1.el10_2.src.rpm
     repoid: ubi-10-for-aarch64-baseos-source-rpms
-    size: 20966174
-    checksum: sha256:6eef0d4db7631742f9bb1722d09e9ad58b8788b37e88de8405f992ad5d09c6d4
+    size: 20976887
+    checksum: sha256:c6006d6b5608121d8e045d2f76e182094ec903aa81d6bc324b4d45b8eedead1f
     name: python3.12
-    evr: 3.12.14-1.el10_2
+    evr: 3.12.15-1.el10_2
   - url: https://cdn-ubi.redhat.com/content/public/ubi/dist/ubi10/10/aarch64/baseos/source/SRPMS/Packages/s/shadow-utils-4.15.0-11.el10.src.rpm
     repoid: ubi-10-for-aarch64-baseos-source-rpms
     size: 1924763
     checksum: sha256:3d54a50488a858001c1abe1df51cd16fdee2e8df2acec39f4fcd51207ad6a0b3
     name: shadow-utils
     evr: 2:4.15.0-11.el10
-  - url: https://cdn-ubi.redhat.com/content/public/ubi/dist/ubi10/10/aarch64/baseos/source/SRPMS/Packages/t/tzdata-2026c-1.el10_2.src.rpm
+  - url: https://cdn-ubi.redhat.com/content/public/ubi/dist/ubi10/10/aarch64/baseos/source/SRPMS/Packages/t/tzdata-2026e-1.el10_2.src.rpm
     repoid: ubi-10-for-aarch64-baseos-source-rpms
-    size: 931675
-    checksum: sha256:2636114017f38a2884138aa8d8df19af6ede7e98fd315b82be63c223c223b589
+    size: 941701
+    checksum: sha256:4c2e93fdd2e869d735dfdcdb4b54c28abfe76483e1d76685052598c96a57ded3
     name: tzdata
-    evr: 2026c-1.el10_2
+    evr: 2026e-1.el10_2
   - url: https://cdn-ubi.redhat.com/content/public/ubi/dist/ubi10/10/aarch64/baseos/source/SRPMS/Packages/u/util-linux-2.40.2-18.el10.src.rpm
     repoid: ubi-10-for-aarch64-baseos-source-rpms
     size: 9076390
@@ -1497,20 +1525,20 @@ arches:
     name: git-core-doc
     evr: 2.52.0-1.el10
     sourcerpm: git-2.52.0-1.el10.src.rpm
-  - url: https://cdn-ubi.redhat.com/content/public/ubi/dist/ubi10/10/x86_64/appstream/os/Packages/g/glibc-devel-2.39-128.el10_2.x86_64.rpm
+  - url: https://cdn-ubi.redhat.com/content/public/ubi/dist/ubi10/10/x86_64/appstream/os/Packages/g/glibc-devel-2.39-142.el10_2.x86_64.rpm
     repoid: ubi-10-for-x86_64-appstream-rpms
-    size: 604458
-    checksum: sha256:e5567978471d6447e41b921a8e3d95491292e4b6da1487abf3b87e80b2f9057a
+    size: 604540
+    checksum: sha256:54f67e9e87a0f54ab4942df681710ec30ea7c240f6b567192a557e0b1851427c
     name: glibc-devel
-    evr: 2.39-128.el10_2
-    sourcerpm: glibc-2.39-128.el10_2.src.rpm
-  - url: https://cdn-ubi.redhat.com/content/public/ubi/dist/ubi10/10/x86_64/appstream/os/Packages/k/kernel-headers-6.12.0-211.61.1.el10_2.x86_64.rpm
+    evr: 2.39-142.el10_2
+    sourcerpm: glibc-2.39-142.el10_2.src.rpm
+  - url: https://cdn-ubi.redhat.com/content/public/ubi/dist/ubi10/10/x86_64/appstream/os/Packages/k/kernel-headers-6.12.0-211.64.1.el10_2.x86_64.rpm
     repoid: ubi-10-for-x86_64-appstream-rpms
-    size: 3750837
-    checksum: sha256:7c4887707861c49cb6152694184f2291ce63e38d7a6b448302dbc980b9d1328b
+    size: 3769401
+    checksum: sha256:6882a1bbd480625faac766cbdb44e983802c32de21623ed46852a3e02d9c29ec
     name: kernel-headers
-    evr: 6.12.0-211.61.1.el10_2
-    sourcerpm: kernel-6.12.0-211.61.1.el10_2.src.rpm
+    evr: 6.12.0-211.64.1.el10_2
+    sourcerpm: kernel-6.12.0-211.64.1.el10_2.src.rpm
   - url: https://cdn-ubi.redhat.com/content/public/ubi/dist/ubi10/10/x86_64/appstream/os/Packages/k/keyutils-libs-devel-1.6.3-5.el10.x86_64.rpm
     repoid: ubi-10-for-x86_64-appstream-rpms
     size: 66541
@@ -1595,13 +1623,13 @@ arches:
     name: llvm-libs
     evr: 21.1.8-1.el10
     sourcerpm: llvm-21.1.8-1.el10.src.rpm
-  - url: https://cdn-ubi.redhat.com/content/public/ubi/dist/ubi10/10/x86_64/appstream/os/Packages/o/openssl-devel-3.5.8-1.el10_2.x86_64.rpm
+  - url: https://cdn-ubi.redhat.com/content/public/ubi/dist/ubi10/10/x86_64/appstream/os/Packages/o/openssl-devel-3.5.8-2.el10_2.x86_64.rpm
     repoid: ubi-10-for-x86_64-appstream-rpms
-    size: 4433101
-    checksum: sha256:b4edabb7640bdc31d4bf718070d010aeb59741beb54c16153c5d17b41e93c0df
+    size: 4443996
+    checksum: sha256:69ea66fb869105d57fe97ad2ecae2f5b6f6621bdb659fed3cf80a54ad3d55fc3
     name: openssl-devel
-    evr: 1:3.5.8-1.el10_2
-    sourcerpm: openssl-3.5.8-1.el10_2.src.rpm
+    evr: 1:3.5.8-2.el10_2
+    sourcerpm: openssl-3.5.8-2.el10_2.src.rpm
   - url: https://cdn-ubi.redhat.com/content/public/ubi/dist/ubi10/10/x86_64/appstream/os/Packages/p/pcre2-devel-10.44-1.el10.3.x86_64.rpm
     repoid: ubi-10-for-x86_64-appstream-rpms
     size: 548673
@@ -2050,20 +2078,20 @@ arches:
     name: perl-vars
     evr: 1.05-515.el10_2
     sourcerpm: perl-5.40.2-515.el10_2.src.rpm
-  - url: https://cdn-ubi.redhat.com/content/public/ubi/dist/ubi10/10/x86_64/appstream/os/Packages/p/python-unversioned-command-3.12.14-1.el10_2.noarch.rpm
+  - url: https://cdn-ubi.redhat.com/content/public/ubi/dist/ubi10/10/x86_64/appstream/os/Packages/p/python-unversioned-command-3.12.15-1.el10_2.noarch.rpm
     repoid: ubi-10-for-x86_64-appstream-rpms
-    size: 16735
-    checksum: sha256:7406223eae376d8219e52f183248e275e84eb3eb1020c40e02e89a39cdb07ef9
+    size: 16920
+    checksum: sha256:f0584629f888fd01415f0c462b66f9e6c7cc49e1addd80c196ce9407b278fef7
     name: python-unversioned-command
-    evr: 3.12.14-1.el10_2
-    sourcerpm: python3.12-3.12.14-1.el10_2.src.rpm
-  - url: https://cdn-ubi.redhat.com/content/public/ubi/dist/ubi10/10/x86_64/appstream/os/Packages/p/python3-devel-3.12.14-1.el10_2.x86_64.rpm
+    evr: 3.12.15-1.el10_2
+    sourcerpm: python3.12-3.12.15-1.el10_2.src.rpm
+  - url: https://cdn-ubi.redhat.com/content/public/ubi/dist/ubi10/10/x86_64/appstream/os/Packages/p/python3-devel-3.12.15-1.el10_2.x86_64.rpm
     repoid: ubi-10-for-x86_64-appstream-rpms
-    size: 343436
-    checksum: sha256:ced263531111fb129153c5a73d4051db1cc2cfce91b8b8959a03f5c332bee25f
+    size: 343597
+    checksum: sha256:6a03aecaaf4a89e603d755d4dd2aec1da60b21f919505db5f473142904fbcae3
     name: python3-devel
-    evr: 3.12.14-1.el10_2
-    sourcerpm: python3.12-3.12.14-1.el10_2.src.rpm
+    evr: 3.12.15-1.el10_2
+    sourcerpm: python3.12-3.12.15-1.el10_2.src.rpm
   - url: https://cdn-ubi.redhat.com/content/public/ubi/dist/ubi10/10/x86_64/appstream/os/Packages/p/python3-pip-23.3.2-11.el10_2.noarch.rpm
     repoid: ubi-10-for-x86_64-appstream-rpms
     size: 3397397
@@ -2176,6 +2204,27 @@ arches:
     name: gdbm-libs
     evr: 1:1.23-12.el10_0
     sourcerpm: gdbm-1.23-12.el10_0.src.rpm
+  - url: https://cdn-ubi.redhat.com/content/public/ubi/dist/ubi10/10/x86_64/baseos/os/Packages/g/glibc-2.39-142.el10_2.x86_64.rpm
+    repoid: ubi-10-for-x86_64-baseos-rpms
+    size: 2206058
+    checksum: sha256:4883eb444fc4bba504e31ea230a3720aa76341e580c661ef8200673adc1175e1
+    name: glibc
+    evr: 2.39-142.el10_2
+    sourcerpm: glibc-2.39-142.el10_2.src.rpm
+  - url: https://cdn-ubi.redhat.com/content/public/ubi/dist/ubi10/10/x86_64/baseos/os/Packages/g/glibc-common-2.39-142.el10_2.x86_64.rpm
+    repoid: ubi-10-for-x86_64-baseos-rpms
+    size: 333467
+    checksum: sha256:8069e55929d8e3b2e51b8393fc1d3bf016ac4043e09dcbab5012b539be7deb4a
+    name: glibc-common
+    evr: 2.39-142.el10_2
+    sourcerpm: glibc-2.39-142.el10_2.src.rpm
+  - url: https://cdn-ubi.redhat.com/content/public/ubi/dist/ubi10/10/x86_64/baseos/os/Packages/g/glibc-minimal-langpack-2.39-142.el10_2.x86_64.rpm
+    repoid: ubi-10-for-x86_64-baseos-rpms
+    size: 32001
+    checksum: sha256:43b64bab6c6e3c257c3e6a77abefdbf5f8ba908094b80a4438ca56a482feb47c
+    name: glibc-minimal-langpack
+    evr: 2.39-142.el10_2
+    sourcerpm: glibc-2.39-142.el10_2.src.rpm
   - url: https://cdn-ubi.redhat.com/content/public/ubi/dist/ubi10/10/x86_64/baseos/os/Packages/g/groff-base-1.23.0-10.el10.x86_64.rpm
     repoid: ubi-10-for-x86_64-baseos-rpms
     size: 1182753
@@ -2316,6 +2365,13 @@ arches:
     name: openssh-clients
     evr: 9.9p1-28.el10_2
     sourcerpm: openssh-9.9p1-28.el10_2.src.rpm
+  - url: https://cdn-ubi.redhat.com/content/public/ubi/dist/ubi10/10/x86_64/baseos/os/Packages/o/openssl-libs-3.5.8-2.el10_2.x86_64.rpm
+    repoid: ubi-10-for-x86_64-baseos-rpms
+    size: 2375173
+    checksum: sha256:988479c9ac55bdb48027523ffb4b3833befca3d62395bb479a10c5f00f6423a7
+    name: openssl-libs
+    evr: 1:3.5.8-2.el10_2
+    sourcerpm: openssl-3.5.8-2.el10_2.src.rpm
   - url: https://cdn-ubi.redhat.com/content/public/ubi/dist/ubi10/10/x86_64/baseos/os/Packages/p/pam-1.6.1-9.el10_2.1.x86_64.rpm
     repoid: ubi-10-for-x86_64-baseos-rpms
     size: 606013
@@ -2344,20 +2400,20 @@ arches:
     name: pkgconf-pkg-config
     evr: 2.1.0-3.el10
     sourcerpm: pkgconf-2.1.0-3.el10.src.rpm
-  - url: https://cdn-ubi.redhat.com/content/public/ubi/dist/ubi10/10/x86_64/baseos/os/Packages/p/python3-3.12.14-1.el10_2.x86_64.rpm
+  - url: https://cdn-ubi.redhat.com/content/public/ubi/dist/ubi10/10/x86_64/baseos/os/Packages/p/python3-3.12.15-1.el10_2.x86_64.rpm
     repoid: ubi-10-for-x86_64-baseos-rpms
-    size: 34316
-    checksum: sha256:e55e31c77708592bf764dedb3d2742431293dda94c4918c46f52c564489f7864
+    size: 34485
+    checksum: sha256:dabfac337dfb781348ac7c8de04e93bc96f7a1f25eef68c6845afd7624759a3b
     name: python3
-    evr: 3.12.14-1.el10_2
-    sourcerpm: python3.12-3.12.14-1.el10_2.src.rpm
-  - url: https://cdn-ubi.redhat.com/content/public/ubi/dist/ubi10/10/x86_64/baseos/os/Packages/p/python3-libs-3.12.14-1.el10_2.x86_64.rpm
+    evr: 3.12.15-1.el10_2
+    sourcerpm: python3.12-3.12.15-1.el10_2.src.rpm
+  - url: https://cdn-ubi.redhat.com/content/public/ubi/dist/ubi10/10/x86_64/baseos/os/Packages/p/python3-libs-3.12.15-1.el10_2.x86_64.rpm
     repoid: ubi-10-for-x86_64-baseos-rpms
-    size: 9918221
-    checksum: sha256:897a024b8cb94b346930ec2f134a57fdbe7f89255930d31913ca3701605b0cac
+    size: 9926854
+    checksum: sha256:5341bd91eca916cf35f4c51c9329da0ea8f3023eff542500f0ac91044da078b4
     name: python3-libs
-    evr: 3.12.14-1.el10_2
-    sourcerpm: python3.12-3.12.14-1.el10_2.src.rpm
+    evr: 3.12.15-1.el10_2
+    sourcerpm: python3.12-3.12.15-1.el10_2.src.rpm
   - url: https://cdn-ubi.redhat.com/content/public/ubi/dist/ubi10/10/x86_64/baseos/os/Packages/p/python3-pip-wheel-23.3.2-11.el10_2.noarch.rpm
     repoid: ubi-10-for-x86_64-baseos-rpms
     size: 1549827
@@ -2372,13 +2428,13 @@ arches:
     name: shadow-utils
     evr: 2:4.15.0-11.el10
     sourcerpm: shadow-utils-4.15.0-11.el10.src.rpm
-  - url: https://cdn-ubi.redhat.com/content/public/ubi/dist/ubi10/10/x86_64/baseos/os/Packages/t/tzdata-2026c-1.el10_2.noarch.rpm
+  - url: https://cdn-ubi.redhat.com/content/public/ubi/dist/ubi10/10/x86_64/baseos/os/Packages/t/tzdata-2026e-1.el10_2.noarch.rpm
     repoid: ubi-10-for-x86_64-baseos-rpms
-    size: 933332
-    checksum: sha256:9d35b124b878932bdbd612337e58d883e011632831545049a75f76a4cec56859
+    size: 936696
+    checksum: sha256:d0ce19e2ee66af9dc7b9b5c78fcbc79b0463997dcf9fbf7a63b4cd5157c41191
     name: tzdata
-    evr: 2026c-1.el10_2
-    sourcerpm: tzdata-2026c-1.el10_2.src.rpm
+    evr: 2026e-1.el10_2
+    sourcerpm: tzdata-2026e-1.el10_2.src.rpm
   - url: https://cdn-ubi.redhat.com/content/public/ubi/dist/ubi10/10/x86_64/baseos/os/Packages/u/util-linux-2.40.2-18.el10.x86_64.rpm
     repoid: ubi-10-for-x86_64-baseos-rpms
     size: 1329299
@@ -2682,12 +2738,12 @@ arches:
     checksum: sha256:fbb507a42a8edb9d0d0cbc7ec394d1fe7bb7c2f0456b98ce4fb5fa20036b3cbc
     name: gdbm
     evr: 1:1.23-12.el10_0
-  - url: https://cdn-ubi.redhat.com/content/public/ubi/dist/ubi10/10/x86_64/baseos/source/SRPMS/Packages/g/glibc-2.39-128.el10_2.src.rpm
+  - url: https://cdn-ubi.redhat.com/content/public/ubi/dist/ubi10/10/x86_64/baseos/source/SRPMS/Packages/g/glibc-2.39-142.el10_2.src.rpm
     repoid: ubi-10-for-x86_64-baseos-source-rpms
-    size: 21671874
-    checksum: sha256:701da174d1bd6613f6d24cff4b702df145d9fd056573e895e7e7582b44822d6b
+    size: 21728691
+    checksum: sha256:f622cc7edfa1eebcd0e602e7960b1fedb31b79ee8b6589eef941e0f5c99f845f
     name: glibc
-    evr: 2.39-128.el10_2
+    evr: 2.39-142.el10_2
   - url: https://cdn-ubi.redhat.com/content/public/ubi/dist/ubi10/10/x86_64/baseos/source/SRPMS/Packages/g/groff-1.23.0-10.el10.src.rpm
     repoid: ubi-10-for-x86_64-baseos-source-rpms
     size: 7488146
@@ -2814,12 +2870,12 @@ arches:
     checksum: sha256:339f80b64499014ec151dd123b82bca39c4cced6ba5f9ff0c833e5cd7b900308
     name: openssh
     evr: 9.9p1-28.el10_2
-  - url: https://cdn-ubi.redhat.com/content/public/ubi/dist/ubi10/10/x86_64/baseos/source/SRPMS/Packages/o/openssl-3.5.8-1.el10_2.src.rpm
+  - url: https://cdn-ubi.redhat.com/content/public/ubi/dist/ubi10/10/x86_64/baseos/source/SRPMS/Packages/o/openssl-3.5.8-2.el10_2.src.rpm
     repoid: ubi-10-for-x86_64-baseos-source-rpms
-    size: 53473629
-    checksum: sha256:923f7531487cc871d6da95405a9da9e783dcff2640dd8e40817ae14ef7bc722e
+    size: 53479113
+    checksum: sha256:5e45c3d946827a032ca733f792fb643ff883983e628c10e0204adfca989ec92b
     name: openssl
-    evr: 1:3.5.8-1.el10_2
+    evr: 1:3.5.8-2.el10_2
   - url: https://cdn-ubi.redhat.com/content/public/ubi/dist/ubi10/10/x86_64/baseos/source/SRPMS/Packages/p/pam-1.6.1-9.el10_2.1.src.rpm
     repoid: ubi-10-for-x86_64-baseos-source-rpms
     size: 1248005
@@ -2844,24 +2900,24 @@ arches:
     checksum: sha256:0c84b3fe9b9d3f9b51d4d6f1a0bcc8b717448620b44cbb9e1af361dda5740b86
     name: python-pip
     evr: 23.3.2-11.el10_2
-  - url: https://cdn-ubi.redhat.com/content/public/ubi/dist/ubi10/10/x86_64/baseos/source/SRPMS/Packages/p/python3.12-3.12.14-1.el10_2.src.rpm
+  - url: https://cdn-ubi.redhat.com/content/public/ubi/dist/ubi10/10/x86_64/baseos/source/SRPMS/Packages/p/python3.12-3.12.15-1.el10_2.src.rpm
     repoid: ubi-10-for-x86_64-baseos-source-rpms
-    size: 20966174
-    checksum: sha256:6eef0d4db7631742f9bb1722d09e9ad58b8788b37e88de8405f992ad5d09c6d4
+    size: 20976887
+    checksum: sha256:c6006d6b5608121d8e045d2f76e182094ec903aa81d6bc324b4d45b8eedead1f
     name: python3.12
-    evr: 3.12.14-1.el10_2
+    evr: 3.12.15-1.el10_2
   - url: https://cdn-ubi.redhat.com/content/public/ubi/dist/ubi10/10/x86_64/baseos/source/SRPMS/Packages/s/shadow-utils-4.15.0-11.el10.src.rpm
     repoid: ubi-10-for-x86_64-baseos-source-rpms
     size: 1924763
     checksum: sha256:3d54a50488a858001c1abe1df51cd16fdee2e8df2acec39f4fcd51207ad6a0b3
     name: shadow-utils
     evr: 2:4.15.0-11.el10
-  - url: https://cdn-ubi.redhat.com/content/public/ubi/dist/ubi10/10/x86_64/baseos/source/SRPMS/Packages/t/tzdata-2026c-1.el10_2.src.rpm
+  - url: https://cdn-ubi.redhat.com/content/public/ubi/dist/ubi10/10/x86_64/baseos/source/SRPMS/Packages/t/tzdata-2026e-1.el10_2.src.rpm
     repoid: ubi-10-for-x86_64-baseos-source-rpms
-    size: 931675
-    checksum: sha256:2636114017f38a2884138aa8d8df19af6ede7e98fd315b82be63c223c223b589
+    size: 941701
+    checksum: sha256:4c2e93fdd2e869d735dfdcdb4b54c28abfe76483e1d76685052598c96a57ded3
     name: tzdata
-    evr: 2026c-1.el10_2
+    evr: 2026e-1.el10_2
   - url: https://cdn-ubi.redhat.com/content/public/ubi/dist/ubi10/10/x86_64/baseos/source/SRPMS/Packages/u/util-linux-2.40.2-18.el10.src.rpm
     repoid: ubi-10-for-x86_64-baseos-source-rpms
     size: 9076390
