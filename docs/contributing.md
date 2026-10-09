@@ -242,6 +242,24 @@ Coverage reports are generated in `coverage/htmlcov/index.html`.
 
 ---
 
+## Running functional tests
+
+The functional tests in `tests/functional` use the [tmt](https://github.com/teemtee/tmt) testing framework.
+Assuming that you have `tmt` installed locally and a provisioned target machine
+(perhaps using [mcpvm](https://github.com/owtaylor/mcp-vm-scripts)),
+you can run them as:
+
+```bash
+tmt run --all \
+    plan --name=/plans/general \
+    provision --how=connect --guest=<hostname> --user=$USER --become
+```
+
+`mcpvm` sets up things as above with a user matching your local username with
+sudo access - edit as appropriate if using some other provisioning method.
+
+---
+
 ## Building Documentation
 
 The [Tools](tools/system-information.md) pages are auto-generated from the server's runtime tool
