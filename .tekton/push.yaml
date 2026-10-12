@@ -7,10 +7,13 @@ metadata:
     build.appstudio.redhat.com/target_branch: '{{ target_branch }}'
     pipelinesascode.tekton.dev/cancel-in-progress: "false"
     pipelinesascode.tekton.dev/max-keep-runs: "3"
+    # On a tag push, Pipelines-as-Code reports the tag ref as target_branch rather than the branch
+    # the tag sits on, so the refs/tags/ clause is what builds releases - including the
+    # `1.8.0.post1` tags cut from a post-release branch.
     pipelinesascode.tekton.dev/on-cel-expression: >-
       event == "push"
       && (
-        target_branch == "main"
+        target_branch.matches("^(main|release/.*|post-release/.*)$")
         || target_branch.startsWith("refs/tags/")
       )
 

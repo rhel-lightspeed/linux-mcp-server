@@ -8,7 +8,9 @@ metadata:
     build.appstudio.redhat.com/target_branch: '{{ target_branch }}'
     pipelinesascode.tekton.dev/cancel-in-progress: "true"
     pipelinesascode.tekton.dev/max-keep-runs: "3"
-    pipelinesascode.tekton.dev/on-cel-expression: event == "pull_request" && target_branch == "main"
+    pipelinesascode.tekton.dev/on-cel-expression: >-
+      event == "pull_request"
+      && target_branch.matches("^(main|release/.*|post-release/.*)$")
 
   creationTimestamp: null
 
