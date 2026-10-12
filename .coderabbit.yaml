@@ -38,70 +38,20 @@ reviews:
     - "!**/.coverage"
     - "!**/uv.lock"
 
+  # Conventions and architecture live in AGENTS.md, which CodeRabbit already
+  # ingests. Keep these rules to review-stage behavior only — what to skip, and
+  # facts a reviewer needs but an author doesn't act on.
   path_instructions:
     - path: "src/**/*.py"
-      # NOTE(major): Adjust the read-only line at the top when
-      # write operations are allowed.
       instructions: |
-        Focus on security and architecture:
-        - CRITICAL: All operations MUST be read-only. Flag any write operations.
-        - Check for TOCTOU race conditions (use try-except, not check-then-use)
-        - psutil exceptions pattern: except (psutil.NoSuchProcess, psutil.AccessDenied)
-        - Verify async/await patterns (no blocking calls in async functions)
-        - Ensure proper exception handling with graceful degradation
-        - Error messages must be clear enough for LLMs to understand and act on
-        - Check input validation before shell commands (command injection)
-        - Verify MCP decorator order: @mcp.tool, @log_tool_call, @disallow_local_execution_in_containers
-        - Host parameter pattern: host: Host | None = None (supports local and remote)
-        - Resource cleanup: Verify SSH connections use context managers
-        - Timeout handling: All network/SSH operations must have timeouts
-        - Container safety: Flag operations that won't work in containers without explicit checks
-        - Don't nitpick style (ruff handles) or types (pyright validates)
-
-    - path: "src/**/config.py"
-      instructions: |
-        Configuration validation:
-        - Centralize derived config logic (defaults, path resolution) in config class
-        - Validate environment variables at startup, not lazily
-        - Check for secure defaults
-
-    - path: "src/**/connection/*.py"
-      instructions: |
-        SSH/connection handling:
-        - All SSH operations must have timeouts
-        - Prefer library-native async features (asyncssh timeout param) over wrappers (asyncio.wait_for)
-        - Connection errors must include host information for debugging
-        - Resource cleanup: Use context managers for all connections
-        - Key handling: No plaintext passwords, only key-based auth
+        Don't nitpick style (ruff handles it) or types (pyright validates them).
 
     - path: "tests/**/*.py"
       instructions: |
-        Focus on test quality and meaningfulness:
-        - Tests should verify behavior, not just chase coverage. A test that doesn't assert meaningful outcomes is worse than no test.
-        - Prefer parameterized tests over duplicate test functions
-        - Mock specs should be provided: AsyncMock(spec=SomeClass)
-        - Use pytest.raises with nullcontext() pattern, not boolean flags
-        - Use fixtures for reusable test components, not helper functions
-        - Check for edge cases: process disappearing, permission denied, empty output
-        - Verify both local (psutil) and remote (SSH) code paths tested
-        - Don't nitpick coverage percentages (CI enforces 70%+ overall, 100% patch)
-
-    - path: "pyproject.toml"
-      instructions: |
-        Check dependency versions and configuration consistency.
-        Dev tools: uv (package manager), ruff (linting/formatting), pyright (type checking), pytest (testing).
+        Don't nitpick coverage percentages (CI enforces 70%+ overall, 100% patch).
 
     - path: ".github/workflows/**"
-      instructions: "Validate workflow syntax and security (no secrets in logs)"
-
-    - path: "Makefile"
-      instructions: |
-        Makefile validation:
-        - .PHONY declarations for all non-file targets
-        - Avoid flags that are already defaults
-
-    - path: "Containerfile"
-      instructions: "Use Podman + Containerfile conventions (not Docker + Dockerfile)"
+      instructions: "Flag any secrets exposed in logs."
 
 chat:
   auto_reply: true
