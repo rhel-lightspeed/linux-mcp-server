@@ -17,6 +17,13 @@
       "description": "Only update uv.lock for Python packages",
       "matchManagers": ["pep621", "pip_requirements", "pip-compile", "poetry", "pipenv"],
       "rangeStrategy": "in-range-only"
+    },
+    {
+      "description": "Disable lock file maintenance on uv.lock for post-release branches.",
+      "matchUpdateTypes": ["lockFileMaintenance"],
+      "matchBaseBranches": ["/^post-release\\/.*/"],
+      "matchManagers": ["pep621", "pip_requirements", "pip-compile", "poetry", "pipenv"],
+      "enabled": false
     }
   ]
 }
