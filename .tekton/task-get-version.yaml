@@ -49,6 +49,12 @@ spec:
         git status
         git tag
 
+        if ! git describe --tags > /dev/null ; then
+            echo "Can't find a tag to derive a version from. Make sure that the" >&2
+            echo "depth specified for the clone-repository task is sufficient." >&2
+            exit 1
+        fi
+
         python3 -m venv .venvs/hatch
 
         export PATH=".venvs/hatch/bin:$PATH"

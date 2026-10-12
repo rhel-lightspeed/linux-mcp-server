@@ -187,8 +187,10 @@ spec:
         - name: fetchTags
           value: "true"
 
+        # `hatch version` needs to reach the most recent release tag. Our repository
+        # is small, so just specify depth: 0 to get a full clone.
         - name: depth
-          value: 42
+          value: 0
 
       runAfter:
         - init
