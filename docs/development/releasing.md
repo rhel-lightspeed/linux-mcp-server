@@ -199,14 +199,18 @@ a post-release branch may well accumulate a week of commits that do not justify 
      in  `.repositories[].tags`.
    * removes `latest` from the previous `linux-mcp-server-1-5` ReleasePlanAdmission CR
 
- * Determine the branch point from `main`, create a new local branch based on `release-1.7.x`
- * On that branch, update `.tekton/pull-request.md` and `.tekton/push.yaml` to have:
+ * Determine the branch point on `main`, and create a local branch `release-1.7.x` from it
+ * On that branch, point `.tekton/pull_request.yaml` and `.tekton/push.yaml` at the stream's own
+   Konflux application and component:
 
-         annotations:
-            pipelinesascode.tekton.dev/on-target-branch: '[release-1.7.x, post-release-1.7.x]'
         labels:
             appstudio.openshift.io/application: linux-mcp-server-1-7
             appstudio.openshift.io/component: linux-mcp-server-1-7
+
+   That is the only `.tekton` edit needed. The `on-cel-expression` annotations already match
+   `release-*` and `post-release-*`, and Pipelines-as-Code resolves `.tekton/` from the pushed
+   ref's own tree - which is also what routes a `1.7.2` tag to `linux-mcp-server-1-7` rather than
+   to the mainline application.
  * Push the branch to the repository (must be a member of "MCP Maintainers" team).
    This creates the paired `post-release-1.7.x` branch at the tip of the new branch.
    (Only this first push does so; later pushes to `release-1.7.x` leave the post-release branch
@@ -221,8 +225,26 @@ a post-release branch may well accumulate a week of commits that do not justify 
    * removes the `ProjectDevelopmentStream` CR for `1-7`
    * Removes the `linux-mcp-server-1-7` ReleasePlanAddmission CR
      (this is also what freezes the `:1.7` tag - nothing can be released to the stream afterwards)
- * Through the GitHub web UI, rename the `release-1.7.x` branch to `eol-release-1.7.x`
- * Through the GitHub web UI, rename the `post-release-1.7.x` branch to `eol-post-release-1.7.x`
+
+Removing the CRs is what actually retires the stream: MintMaker stops scanning the branches, and
+nothing can be released to the registry any more.
+
+Renaming the branches out of the way is cosmetic on top of that - it takes them out of the CI and
+Konflux branch filters, which all match `release-*` and `post-release-*` by prefix. It is also
+**not currently possible**: renaming a branch deletes the old ref, and the *Restrict branch
+deletion (release)* ruleset has no bypass actors, deliberately - being able to delete and recreate
+a `release-*` branch would be a way to put unreviewed content into a stream that already has a
+working ReleasePlanAdmission behind it.
+
+So before the first EOL, decide one of:
+
+ * leave the branches in place, retired by the CR removal alone, and accept that they keep
+   receiving Renovate and CI activity;
+ * have a repository admin disable the deletion ruleset for the duration of the rename;
+ * add a workflow that performs the rename, with the release App allowlisted for deletion - which
+   reintroduces the delete-and-recreate path unless the workflow constrains it.
+
+There is a year before this matters.
 
 ## RPM Builds
 
