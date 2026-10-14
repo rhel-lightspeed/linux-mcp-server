@@ -4,6 +4,8 @@ on:
   push:
     branches:
       - main
+      - release-*
+      - post-release-*
     paths:
       - 'src/linux_mcp_server/**'
       - 'scripts/verify_installation.sh'
