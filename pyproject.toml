@@ -104,6 +104,9 @@ source = "vcs"
 
 [tool.hatch.version.raw-options]
 dist_name = "linux-mcp-server"
+# The setuptools-scm defaults. Pinned here for stability/clarity
+version_scheme = "guess-next-dev"
+local_scheme = "node-and-date"
 
 [tool.pytest.ini_options]
 addopts = [
