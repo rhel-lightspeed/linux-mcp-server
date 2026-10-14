@@ -264,14 +264,18 @@ since RPM does not understand the Python `.dev` release setup
 
 `release-*` branches get the same branch protections as `main`.
 
-The `post-release-*` branches are protected by a stricter ruleset of their own: **nobody can push to
-them**, not even the `MCP Maintainers` team. Maintainers have expanded powers elsewhere - creating
-release branches, pushing release tags - but not the power to put arbitrary content in front of
-users, which is what a direct push to a post-release branch would be.
+The `post-release-*` branches are protected by rulesets of their own: **nobody can push to them
+directly**, not even the `MCP Maintainers` team. Changes get there the ordinary way, as reviewed
+pull requests - that is how the Renovate updates described above land. Maintainers have expanded
+powers elsewhere - creating release branches, pushing release tags - but not the power to put
+unreviewed content in front of users.
 
-The only thing that can write to them is a custom GitHub App acting as a service account,
-allowlisted in that ruleset. It exists because the sync has to record a very specific merge commit
-without opening a pull request, which no pull-request-based flow can do.
+The one thing that can write to a post-release branch without a pull request is a custom GitHub App
+acting as a service account, allowlisted in those rulesets. It exists because the sync has to record
+a very specific merge commit, which no pull-request-based flow can produce. Its bypass is
+deliberately narrow: it can create a post-release branch and land the sync merge, but force-pushing
+and deleting these branches are separate rulesets that the App is *not* allowlisted in, so it cannot
+rewrite or remove the history it writes.
 
 That makes the App's credentials more powerful than any human, so what may use them matters:
 
