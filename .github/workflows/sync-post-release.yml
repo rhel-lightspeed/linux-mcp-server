@@ -1,0 +1,134 @@
+name: Sync post-release branch
+
+# Bring the post-release branch paired with a base branch up to that base branch: `post-release/main`
+# for `main`, `post-release/1.7.x` for `release/1.7.x`. See docs/development/releasing.md for why
+# that branch exists and why the merge is shaped like this.
+#
+# Triggered by "Sync post-release branch (trigger)", which fires on a release tag and on a push to a
+# `release/*` branch. It is a separate workflow because `workflow_run` always runs the copy of this
+# file on the default branch - so the credential below is only ever handed to reviewed code. Do not
+# "simplify" this back into an `on: push` trigger.
+#
+# Cutting a stable branch creates its post-release branch. Later pushes to a `release/*` branch do
+# nothing: once the post-release branch exists, only a release tag advances it.
+
+on:
+  workflow_run:
+    workflows: ["Sync post-release branch (trigger)"]
+    types: [completed]
+  workflow_dispatch:
+    inputs:
+      ref:
+        description: Release tag, or base branch to create a post-release branch from
+        required: true
+
+permissions:
+  contents: read
+
+jobs:
+  sync:
+    name: Sync
+    runs-on: ubuntu-latest
+
+    # The trigger does nothing, so it only fails if the runner itself did.
+    if: github.event_name == 'workflow_dispatch' || github.event.workflow_run.conclusion == 'success'
+
+    environment:
+      name: release
+
+    steps:
+      - name: Get a token for the release app
+        id: app-token
+        uses: actions/create-github-app-token@bcd2ba49218906704ab6c1aa796996da409d3eb1 # v3.2.0
+        with:
+          app-id: ${{ secrets.RELEASE_APP_ID }}
+          private-key: ${{ secrets.RELEASE_APP_PRIVATE_KEY }}
+
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
+          token: ${{ steps.app-token.outputs.token }}
+
+      - name: Sync
+        env:
+          # Both are set by GitHub from the push that ran the trigger, not by the trigger itself.
+          # They are cross-checked below, so a surprise in either one is an error rather than a
+          # sync of the wrong thing.
+          REF: ${{ inputs.ref || github.event.workflow_run.head_branch }}
+          SHA: ${{ github.event.workflow_run.head_sha }}
+        run: |
+          set -euo pipefail
+
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+
+          if git rev-parse -q --verify "refs/tags/$REF^{commit}" >/dev/null; then
+              source="refs/tags/$REF"
+
+              # The tag's base branch both validates the tag and selects the target. A tag that is
+              # on no base branch is a stray; a tag on more than one means a release is being
+              # created on the ancestor of a branch-point for an existing stable branch, which is
+              # nonsensical.
+              mapfile -t bases < <(
+                  git branch --remotes --contains "$source" --format='%(refname:lstrip=3)' |
+                      grep -E '^(main|release/.*)$' || true
+              )
+
+              if [ "${#bases[@]}" -ne 1 ]; then
+                  echo "::error::$REF is on ${#bases[@]} base branches (${bases[*]-none}); expected exactly 1"
+                  exit 1
+              fi
+
+              base="${bases[0]}"
+          elif [[ "$REF" =~ ^release/ ]] &&
+               git rev-parse -q --verify "refs/remotes/origin/$REF^{commit}" >/dev/null; then
+              base="$REF"
+              source="refs/remotes/origin/$REF"
+          else
+              echo "::error::$REF is neither a release tag nor a release/* branch in this repository"
+              exit 1
+          fi
+
+          if [ -n "$SHA" ] && [ "$(git rev-parse "$source^{commit}")" != "$SHA" ]; then
+              echo "::error::$REF resolves to $(git rev-parse "$source^{commit}"), but the trigger ran for $SHA"
+              exit 1
+          fi
+
+          # main -> post-release/main, release/1.7.x -> post-release/1.7.x
+          target="post-release/${base#release/}"
+
+          if ! git rev-parse -q --verify "refs/remotes/origin/$target" >/dev/null; then
+              echo "::notice::Creating $target from $REF"
+              git checkout -B "$target" "$source"
+          elif [ "$source" = "refs/remotes/origin/$REF" ]; then
+              # A push to a base branch that already has its post-release branch. Only a release
+              # tag advances it from here, so there is nothing to do.
+              echo "::notice::$target already exists; nothing to do"
+              exit 0
+          else
+              echo "::notice::Syncing $target to $REF (on $base)"
+              git checkout -B "$target" "refs/remotes/origin/$target"
+
+              if git merge-base --is-ancestor "$source" HEAD; then
+                  echo "::notice::$target already contains $REF; nothing to do"
+                  exit 0
+              fi
+
+              # Git has no "take their tree" merge strategy. `-X theirs` is NOT a substitute: it
+              # resolves conflicting hunks in favour of the tag but keeps post-release-only changes
+              # that do not conflict, and on uv.lock can splice two independently resolved lock
+              # files into one that matches neither. So record the merge with `-s ours` and then
+              # force the tree to be exactly the tag's.
+              git merge --no-commit --no-ff -s ours "$source"
+              git read-tree -m -u "$source"
+              git commit --no-verify -m "Sync $target to $REF"
+          fi
+
+          # The whole point of the merge is that what we ship is what is on the base branch.
+          if [ "$(git rev-parse 'HEAD^{tree}')" != "$(git rev-parse "$source^{tree}")" ]; then
+              echo "::error::$target tree does not match $REF"
+              exit 1
+          fi
+
+          git push origin "HEAD:refs/heads/$target"

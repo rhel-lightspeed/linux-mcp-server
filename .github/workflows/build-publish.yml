@@ -3,6 +3,10 @@ on:
   push:
     tags:
       - '*'
+      # A `1.8.0.post1` tag marks a container rebuilt with newer lock files from a post-release
+      # branch. The Python sources are those of the base version, which is already on PyPI, so
+      # there is nothing here to publish - Konflux builds the container and that is all.
+      - '!*.post*'
 
 permissions:
   contents: read

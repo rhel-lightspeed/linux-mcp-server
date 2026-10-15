@@ -1,0 +1,30 @@
+name: Sync post-release branch (trigger)
+
+# Does nothing except fire, so that "Sync post-release branch" can run on `workflow_run`.
+#
+# The sync holds a credential that can write to the post-release branches, which no human can push
+# to. A workflow triggered by `on: push` runs the copy of itself found in the *pushed ref's* tree,
+# so a crafted tag could carry an arbitrary workflow and be handed that credential without review.
+# `workflow_run` workflows always run the copy on the default branch, so the privileged half of
+# this pair is reviewed code by construction. Keep this half unprivileged: no secrets, no
+# permissions, no checkout.
+
+on:
+  push:
+    tags:
+      # Only tags starting with a digit; those are the ones the tag protection rulesets cover.
+      - '[0-9]*'
+      # A `.post<N>` tag is cut *from* a post-release branch; syncing would merge it into itself.
+      - '!*.post*'
+    branches:
+      - release/**
+
+permissions: {}
+
+jobs:
+  trigger:
+    name: Trigger
+    runs-on: ubuntu-latest
+    steps:
+      - name: Report what will be synced
+        run: echo "Requesting a post-release sync for ${{ github.ref }}" >> "$GITHUB_STEP_SUMMARY"

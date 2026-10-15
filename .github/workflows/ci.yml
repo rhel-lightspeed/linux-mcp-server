@@ -4,6 +4,8 @@ on:
   push:
     branches:
       - main
+      - release/**
+      - post-release/**
 
   pull_request:
 

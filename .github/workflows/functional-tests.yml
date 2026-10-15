@@ -4,6 +4,8 @@ on:
   push:
     branches:
       - main
+      - release/**
+      - post-release/**
     paths-ignore:
       - ".konflux/**"
       - ".tekton/**"
@@ -11,14 +13,21 @@ on:
       - "docs/**"
       - "eval/**"
       - "rpms.*.yaml"
+      # keep in sync with the pull request list below
   pull_request_target:
     types: [opened, synchronize, labeled]
     branches:
       - main
+      - release/**
+      - post-release/**
     paths-ignore:
+      - ".konflux/**"
       - ".tekton/**"
+      - "**/Containerfile*"
       - "docs/**"
       - "eval/**"
+      - "rpms.*.yaml"
+      # keep in sync with the push list above
   workflow_dispatch:
 
 permissions:
