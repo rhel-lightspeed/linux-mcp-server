@@ -5,7 +5,7 @@ This document outlines our repository branching strategy, continuous integration
 We have two types of releases:
 
  * mainline releases are from the `main` branch and include the latest development work.
- * stable releases come from a stable branch such as `release/1.7.x`.
+ * stable releases come from a stable branch such as `release-1.7.x`.
 
  Both types of releases are released to PyPI, but are consumed differently.
 
@@ -26,9 +26,12 @@ This is handled by the "post-release" branches detailed below.
 ## Branch Architecture
 
 *   **`main` (Active Development):** Where all feature work and bug fixes land
-*   **`post-release/main`:** A single long-lived branch that mirrors the latest release from main. It typically only receives automated lockfile updates and release-time syncs from `main`.
-*   **`release/1.7.x`:** A stable minor release. Only includes bug fixes.
-*   **`post-release/1.7.x`:** The equivalent of `post-release/main` for the releases from the stable branch.
+*   **`post-release-main`:** A single long-lived branch that mirrors the latest release from main. It typically only receives automated lockfile updates and release-time syncs from `main`.
+*   **`release-1.7.x`:** A stable minor release. Only includes bug fixes.
+*   **`post-release-1.7.x`:** The equivalent of `post-release-main` for the releases from the stable branch.
+
+The flat naming - `post-release-main` rather than the more natural `post-release/main` - is
+to work around [a bug in the MintMaker branch of Renovate](https://github.com/redhat-exd-rebuilds/renovate/pull/83).
 
 We'll promote two minor releases to stable branches a year,
 one in spring and one in fall.
@@ -39,7 +42,7 @@ A minor version bump must happen after a release branch is created to avoid vers
 ```
 1.5.0
   |  \
-1.6.0 1.5.1 (release/1.5.x)
+1.6.0 1.5.1 (release-1.5.x)
   |
 1.6.1
   |
@@ -47,7 +50,7 @@ A minor version bump must happen after a release branch is created to avoid vers
   |
 1.7.1
   |  \
-  |   1.7.2 (release/1.7.x)
+  |   1.7.2 (release-1.7.x)
 1.8.0
 ```
 
@@ -67,14 +70,14 @@ The `:latest` tag on `registry.redhat.io` is a synonym for the most recent *stab
 
 *   **Renovate/MintMaker (Dependency Management):** Files dependency updates against all of the branches above, with a scope that differs per branch - see [What lands where](#what-lands-where).
 *   **Konflux (CI/CD):** Builds containers, and publishes them to `quay.io` or `registry.redhat.io`.
-*   **GitHub Actions (Orchestration):** Runs the test suites, publishes releases to PyPI and the MCP Registry, and keeps the `post-release/*` branches in sync with their base branches.
+*   **GitHub Actions (Orchestration):** Runs the test suites, publishes releases to PyPI and the MCP Registry, and keeps the `post-release-*` branches in sync with their base branches.
 
 ## What lands where
 
 Each base branch is paired with a post-release branch that carries the released sources plus
 packaging updates only. What that means in practice:
 
-| Work | `main` | `post-release/main` | `release/1.7.x` | `post-release/1.7.x` | Notes |
+| Work | `main` | `post-release-main` | `release-1.7.x` | `post-release-1.7.x` | Notes |
 | --- | :-: | :-: | :-: | :-: | --- |
 | New features | ✓ | | | | |
 | Bug fixes | ✓ | | ✓ | | On a stable branch these are backports; nothing lands there that is not on `main` first. |
@@ -94,13 +97,13 @@ A change to a post-release branch must always be applied to the base branch as w
 release-time sync discards whatever is on the post-release branch. Renovate is configured so the
 updates it files for a base branch are a superset of those it files for the paired post-release
 branch, which guarantees the matching pull request *exists* - but it still has to be *merged* before
-the release. Merging a lockfile fix on `post-release/main` and leaving its `main` counterpart open
+the release. Merging a lockfile fix on `post-release-main` and leaving its `main` counterpart open
 past the next release will silently reinstate the older lockfile. Renovate re-files it afterwards,
 so the window is one release cycle, but it is a real window.
 
-This applies to each pair independently: `main` must be a superset of `post-release/main`, and
-`release/1.7.x` of `post-release/1.7.x`. There is no such relationship *between* pairs - `main` and
-`release/1.7.x` are free to diverge.
+This applies to each pair independently: `main` must be a superset of `post-release-main`, and
+`release-1.7.x` of `post-release-1.7.x`. There is no such relationship *between* pairs - `main` and
+`release-1.7.x` are free to diverge.
 
 ## Releases
 
@@ -140,8 +143,8 @@ matches the base branch *exactly*, discarding any drift: an ordinary merge commi
 branch first parent, the release tag second - whose tree is precisely the tree of the release tag
 rather than a content merge of the two sides.
 
-Pushing a new `release/1.7.x` branch also runs the sync, to create `post-release/1.7.x` at the tip of
-the new branch. Later pushes to `release/1.7.x` do nothing; from then on only a release tag advances
+Pushing a new `release-1.7.x` branch also runs the sync, to create `post-release-1.7.x` at the tip of
+the new branch. Later pushes to `release-1.7.x` do nothing; from then on only a release tag advances
 the post-release branch.
 
 ## Regressions
@@ -166,20 +169,20 @@ a post-release branch may well accumulate a week of commits that do not justify 
  * If there are substantive changes since the previous release:
    * Determine the next version by semver rules
    * Create a release tag and push it to the repository
-   * Close all maintenance PR's targeting `post-release/main` (the sync has discarded what they were based on; Renovate will re-file anything still needed)
+   * Close all maintenance PR's targeting `post-release-main` (the sync has discarded what they were based on; Renovate will re-file anything still needed)
  * Otherwise:
-   * Merge all outstanding maintenance PR's for `post-release/main`
-   * If any of these changed what ends up in the container, create a release tag, e.g., `1.8.1.post1`, on the `post-release/main` branch and push it
+   * Merge all outstanding maintenance PR's for `post-release-main`
+   * If any of these changed what ends up in the container, create a release tag, e.g., `1.8.1.post1`, on the `post-release-main` branch and push it
 
-### Monday, for each `release/1.7.x` branch
+### Monday, for each `release-1.7.x` branch
 
- * Merge all outstanding maintenance PR's for `release/1.7.x`
+ * Merge all outstanding maintenance PR's for `release-1.7.x`
  * If there are Python code changes since the previous release:
    * Create a release tag `1.7.2` and push it to the repository
-   * Close all maintenance PR's targeting `post-release/1.7.x`
+   * Close all maintenance PR's targeting `post-release-1.7.x`
  * Otherwise:
-   * Merge all outstanding maintenance PR's for `post-release/1.7.x`
-   * If any of these affected `uv.lock`, `rpms.lock.yaml` or `Containerfile`, create a release tag, e.g., `1.7.1.post1`, on the `post-release/1.7.x` branch and push it
+   * Merge all outstanding maintenance PR's for `post-release-1.7.x`
+   * If any of these affected `uv.lock`, `rpms.lock.yaml` or `Containerfile`, create a release tag, e.g., `1.7.1.post1`, on the `post-release-1.7.x` branch and push it
  * If a release was created because of Python changes or `uv.lock` changes, create an updated RPM package (not covered here)
 
 ### Asynchronously, when a security vulnerability is reported in a dependency
@@ -195,19 +198,19 @@ a post-release branch may well accumulate a week of commits that do not justify 
      in  `.repositories[].tags`.
    * removes `latest` from the previous `linux-mcp-server-1-5` ReleasePlanAdmission CR
 
- * Determine the branch point from `main`, create a new local branch based on `release/1.7.x`
+ * Determine the branch point from `main`, create a new local branch based on `release-1.7.x`
  * On that branch, update `.tekton/pull-request.md` and `.tekton/push.yaml` to have:
 
          annotations:
-            pipelinesascode.tekton.dev/on-target-branch: '[release/1.7.x, post-release/1.7.x]'
+            pipelinesascode.tekton.dev/on-target-branch: '[release-1.7.x, post-release-1.7.x]'
         labels:
             appstudio.openshift.io/application: linux-mcp-server-1-7
             appstudio.openshift.io/component: linux-mcp-server-1-7
  * Push the branch to the repository (must be a member of "MCP Maintainers" team).
-   This creates the paired `post-release/1.7.x` branch at the tip of the new branch.
-   (Only this first push does so; later pushes to `release/1.7.x` leave the post-release branch
+   This creates the paired `post-release-1.7.x` branch at the tip of the new branch.
+   (Only this first push does so; later pushes to `release-1.7.x` leave the post-release branch
    alone, since from then on only a release tag advances it.)
- * Once the `konflux-release-data` PR is merged, push a `.post<N>` tag on `post-release/1.7.x`
+ * Once the `konflux-release-data` PR is merged, push a `.post<N>` tag on `post-release-1.7.x`
    (e.g. `1.7.1.post1`, based on the most recent release tag reachable from the branch point)
    to trigger an initial release to `registry.redhat.io`
 
@@ -217,8 +220,8 @@ a post-release branch may well accumulate a week of commits that do not justify 
    * removes the `ProjectDevelopmentStream` CR for `1-7`
    * Removes the `linux-mcp-server-1-7` ReleasePlanAddmission CR
      (this is also what freezes the `:1.7` tag - nothing can be released to the stream afterwards)
- * Through the GitHub web UI, rename the `release/1.7.x` branch to `eol-release/1.7.x`
- * Through the GitHub web UI, rename the `post-release/1.7.x` branch to `eol-post-release/1.7.x`
+ * Through the GitHub web UI, rename the `release-1.7.x` branch to `eol-release-1.7.x`
+ * Through the GitHub web UI, rename the `post-release-1.7.x` branch to `eol-post-release-1.7.x`
 
 ## RPM Builds
 
@@ -258,9 +261,9 @@ since RPM does not understand the Python `.dev` release setup
 
 ## Security and Branch Protection
 
-`release/*` branches get the same branch protections as `main`.
+`release-*` branches get the same branch protections as `main`.
 
-The `post-release/*` branches are protected by a stricter ruleset of their own: **nobody can push to
+The `post-release-*` branches are protected by a stricter ruleset of their own: **nobody can push to
 them**, not even the `MCP Maintainers` team. Maintainers have expanded powers elsewhere - creating
 release branches, pushing release tags - but not the power to put arbitrary content in front of
 users, which is what a direct push to a post-release branch would be.
@@ -273,7 +276,7 @@ That makes the App's credentials more powerful than any human, so what may use t
 
  * The App's secrets live in a GitHub Environment restricted to the `main` branch.
  * The sync runs on `workflow_run`, which always executes the copy of a workflow on the default
-   branch. Pushing a tag or a `release/*` branch runs a separate trigger workflow that holds no
+   branch. Pushing a tag or a `release-*` branch runs a separate trigger workflow that holds no
    credentials and does nothing but fire.
 
 The indirection is the point. A workflow triggered directly by `on: push` runs the copy of itself
@@ -283,10 +286,10 @@ is always reviewed code on `main`.
 
 ## Justification for the Special `post-release` Branch Handling
 
-In what follows, the "base branch" is `main` or a `release/1.7.x` stable branch, and the post-release branch is the `post-release/*` branch paired with it.
+In what follows, the "base branch" is `main` or a `release-1.7.x` stable branch, and the post-release branch is the `post-release-*` branch paired with it.
 
 *   We need a branch whose content is the released source plus only lockfile / base image updates, for Renovate/MintMaker and Konflux to work from - hence we can't just build from the base branch.
-*   We want one post-release branch per base branch, not one per release. A `post-release/x.y.z` branch for every release would accumulate 20-30 a year, and neither Konflux nor Renovate can be configured to act on "the most recent `post-release/*` branch" without editing their configuration at every release. Since there are at most three base branches at a time, a fixed-name post-release branch for each is tractable; a branch per release is not. Hence each release has to be merged into the existing post-release branch, or overwrite it.
+*   We want one post-release branch per base branch, not one per release. A `post-release-x.y.z` branch for every release would accumulate 20-30 a year, and neither Konflux nor Renovate can be configured to act on "the most recent `post-release-*` branch" without editing their configuration at every release. Since there are at most three base branches at a time, a fixed-name post-release branch for each is tractable; a branch per release is not. Hence each release has to be merged into the existing post-release branch, or overwrite it.
 *   Every Konflux build corresponds to a specific git commit. We want these commits to be in the repository, not just dangling and potentially garbage collected. Hence we need merge commits instead of overwriting.
 *   The merge deliberately discards the post-release side: the resulting tree is exactly the base branch's tree, not a content merge of the two. This is what guarantees that what we ship is what is on the base branch, and that no change can reach users without going through the base branch first. (Since stable branches take only backports, in practice that also means nothing reaches users that was not on `main` first.)
 *   Git has no merge strategy that does this - `-X theirs` resolves *conflicting hunks* in favour of the other side but keeps post-release-only changes that do not conflict, which is not the same guarantee, and on `uv.lock` can splice two independently resolved lockfiles into one that matches neither. So the workflow forces the tree explicitly:
@@ -295,5 +298,5 @@ In what follows, the "base branch" is `main` or a `release/1.7.x` stable branch,
         git read-tree -m -u "$tag"
         git commit
 
-    Parent order is the conventional one (`post-release/main` first). Nothing depends on it any more; an earlier draft reversed it so that `git describe --first-parent` would find the release tag, which is unnecessary now that every published build is made from a tag of its own.
+    Parent order is the conventional one (`post-release-main` first). Nothing depends on it any more; an earlier draft reversed it so that `git describe --first-parent` would find the release tag, which is unnecessary now that every published build is made from a tag of its own.
 

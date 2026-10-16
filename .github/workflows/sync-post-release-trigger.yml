@@ -17,7 +17,7 @@ on:
       # A `.post<N>` tag is cut *from* a post-release branch; syncing would merge it into itself.
       - '!*.post*'
     branches:
-      - release/**
+      - release-*
 
 permissions: {}
 

@@ -21,7 +21,7 @@
     {
       "description": "Disable lock file maintenance on uv.lock for post-release branches.",
       "matchUpdateTypes": ["lockFileMaintenance"],
-      "matchBaseBranches": ["/^post-release\\/.*/"],
+      "matchBaseBranches": ["/^post-release-.*/"],
       "matchManagers": ["pep621", "pip_requirements", "pip-compile", "poetry", "pipenv"],
       "enabled": false
     }
