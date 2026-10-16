@@ -408,6 +408,34 @@ class TestGatekeeperConfig:
             Config()
 
 
+@pytest.mark.parametrize("transport", ["stdio", "http", "streamable-http"])
+@pytest.mark.parametrize("output", ["files", "stdout", "stderr"])
+@pytest.mark.parametrize("format", ["text", "json"])
+def test_logging_configuration(
+    transport: str,
+    output: str,
+    format: str,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setenv("LINUX_MCP_TRANSPORT", transport)
+    monkeypatch.setenv("LINUX_MCP_LOG_OUTPUT", output)
+    monkeypatch.setenv("LINUX_MCP_LOG_FORMAT", format)
+    if transport == "stdio" and output == "stdout":
+        with pytest.raises(ValidationError, match="stdout logging is incompatible with stdio"):
+            Config()
+    else:
+        config = Config()
+        assert config.log_output == output
+        assert config.log_format == format
+
+
+@pytest.mark.parametrize("name", ["LOG_OUTPUT", "LOG_FORMAT"])
+def test_invalid_logging_configuration(name: str, monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setenv(f"LINUX_MCP_{name}", "invalid")
+    with pytest.raises(ValidationError, match="Input should be"):
+        Config()
+
+
 @pytest.mark.parametrize("base_url", ["mcp.example.com", "ftp://mcp.example.com"])
 def test_invalid_base_url(base_url: str, monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setenv("LINUX_MCP_BASE_URL", base_url)
