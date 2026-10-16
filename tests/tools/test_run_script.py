@@ -7,6 +7,7 @@ server is built with ``LINUX_MCP_TOOLSET=both`` (see ``tests/conftest.py``).
 import shlex
 
 from importlib import import_module
+from pathlib import Path
 from types import SimpleNamespace
 from typing import Any
 
@@ -17,6 +18,8 @@ from fastmcp.exceptions import ToolError
 from linux_mcp_server.config import CONFIG
 from linux_mcp_server.config import Toolset
 from linux_mcp_server.connection.ssh import execute_command
+from linux_mcp_server.execution_context import ExecutionContext
+from linux_mcp_server.execution_context import use_execution_context
 from linux_mcp_server.gatekeeper import GatekeeperResult
 from linux_mcp_server.gatekeeper import GatekeeperStatus
 from linux_mcp_server.tools.run_script import _wrap_script
@@ -25,6 +28,7 @@ from linux_mcp_server.tools.run_script import SCRIPT_TYPE_BASH
 from linux_mcp_server.tools.run_script import SCRIPT_TYPE_PYTHON
 from linux_mcp_server.tools.run_script import ScriptDetails
 from linux_mcp_server.tools.run_script import ScriptStore
+from linux_mcp_server.utils.types import LOCALHOST
 
 
 run_script_mod = import_module("linux_mcp_server.tools.run_script")
@@ -200,6 +204,83 @@ class TestWrapScript:
         )
         inner = _wrap_script(details)[2]
         assert "--description='linux-mcp-server script'" in inner
+
+    def test_probe_runs_sandbox_binaries_non_interactively(self) -> None:
+        """The sandbox probe runs the same sudo and systemd-run as the sandbox, never ``sudo -l``."""
+        details = ScriptDetails(
+            state="waiting-approval",
+            script_type=SCRIPT_TYPE_BASH,
+            script="true",
+            description="Succeed",
+            host="machine1.test",
+            readonly=True,
+        )
+        inner = _wrap_script(details)[2]
+        assert "if /usr/bin/sudo -n /usr/bin/systemd-run --version >/dev/null 2>&1; then" in inner
+        assert "exec /usr/bin/sudo /usr/bin/systemd-run --quiet" in inner
+        assert "sudo -l" not in inner
+
+
+SUDO_STUB = """\
+#!/bin/sh
+# Stand-in for sudo: -n succeeds only when the 'allow' file exists, like a NOPASSWD rule.
+if [ "$1" = "-n" ]; then
+  shift
+  [ -e "$(dirname "$0")/allow" ] || exit 1
+fi
+exec "$@"
+"""
+
+SYSTEMD_RUN_STUB = """\
+#!/bin/sh
+# Stand-in for systemd-run: report that the sandbox ran instead of running the script.
+[ "$1" = "--version" ] && exit 0
+echo sandboxed
+"""
+
+
+class TestWrapScriptBranch:
+    """Run the generated wrapper with stand-in sudo/systemd-run to see which branch it takes."""
+
+    @pytest.fixture
+    def stub_dir(self, tmp_path: Path, mocker: Any) -> Path:
+        for name, body in (("sudo", SUDO_STUB), ("systemd-run", SYSTEMD_RUN_STUB)):
+            stub = tmp_path / name
+            stub.write_text(body)
+            stub.chmod(0o755)
+        mocker.patch.object(run_script_mod, "SUDO", str(tmp_path / "sudo"))
+        mocker.patch.object(run_script_mod, "SYSTEMD_RUN", str(tmp_path / "systemd-run"))
+        return tmp_path
+
+    @pytest.mark.parametrize(
+        ("sudo_state", "expected"),
+        [
+            pytest.param("password-required", "direct", id="password-required-runs-directly"),
+            pytest.param("passwordless", "sandboxed", id="passwordless-uses-sandbox"),
+            pytest.param("missing", "direct", id="missing-sudo-runs-directly"),
+            pytest.param("no-systemd-run", "direct", id="missing-systemd-run-runs-directly"),
+        ],
+    )
+    async def test_branch(self, stub_dir: Path, sudo_state: str, expected: str) -> None:
+        if sudo_state == "passwordless":
+            (stub_dir / "allow").touch()
+        elif sudo_state == "missing":
+            (stub_dir / "sudo").unlink()
+        elif sudo_state == "no-systemd-run":
+            (stub_dir / "allow").touch()
+            (stub_dir / "systemd-run").unlink()
+        details = ScriptDetails(
+            state="waiting-approval",
+            script_type=SCRIPT_TYPE_BASH,
+            script="echo direct",
+            description="Report which branch ran",
+            host=LOCALHOST,
+            readonly=True,
+        )
+        with use_execution_context(ExecutionContext(allow_local=True)):
+            returncode, stdout, stderr = await execute_command(_wrap_script(details), host=LOCALHOST)
+        assert returncode == 0, stderr
+        assert str(stdout).strip() == expected
 
 
 class TestValidateScriptMCP:

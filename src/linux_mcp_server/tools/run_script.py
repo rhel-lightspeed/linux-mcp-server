@@ -200,15 +200,18 @@ SYSTEMD_RUN_READONLY_ARGS = [
     "--property=ReadOnlyPaths=/",
     "--property=RestrictAddressFamilies=AF_UNIX",
 ]
-SYSTEMD_RUN_COMMAND = "/usr/bin/sudo /usr/bin/systemd-run {args}"
+SUDO = "/usr/bin/sudo"
+SYSTEMD_RUN = "/usr/bin/systemd-run"
 
-# Wrapper for run_script_readonly: use sudo+systemd-run when available, else run script
-# directly. Template uses {script_type} and {script}; script is escaped via shlex.quote().
+# Wrapper for run_script_readonly: use sudo+systemd-run when the user can run it without a
+# password, else run script directly. Use the same binaries when probing as when executing
+# in the sandbox.
+# Template uses {script_type} and {script}; script is escaped via shlex.quote().
 WRAPPER_TEMPLATE = """\
 set -euo pipefail
 SCRIPT={script}
-if command -v sudo >/dev/null 2>&1 && command -v systemd-run >/dev/null 2>&1 && sudo -l whoami >/dev/null 2>&1; then
-  exec {systemd_run_command} {script_type} -c "$SCRIPT"
+if {sudo} -n {systemd_run} --version >/dev/null 2>&1; then
+  exec {sudo} {systemd_run} {systemd_run_args} {script_type} -c "$SCRIPT"
 else
   exec {script_type} -c "$SCRIPT"
 fi
@@ -253,7 +256,9 @@ def _wrap_script(details: ScriptDetails) -> list[str]:
     else:
         args = SYSTEMD_RUN_ARGS
     wrapper_script = WRAPPER_TEMPLATE.format(
-        systemd_run_command=SYSTEMD_RUN_COMMAND.format(args=" ".join(args)),
+        sudo=shlex.quote(SUDO),
+        systemd_run=shlex.quote(SYSTEMD_RUN),
+        systemd_run_args=" ".join(args),
         script_type=details.script_type,
         script=shlex.quote(
             (BASH_STRICT_PREAMBLE + details.script) if details.script_type == SCRIPT_TYPE_BASH else details.script
