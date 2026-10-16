@@ -1,8 +1,11 @@
+import logging
+
 from pathlib import Path
 
 import asyncssh
 import pytest
 
+from linux_mcp_server.audit import Event
 from linux_mcp_server.connection.ssh import SSHConnectionManager
 from linux_mcp_server.execution_context import ExecutionContext
 from linux_mcp_server.execution_context import use_execution_context
@@ -192,3 +195,20 @@ async def test_get_connection_uses_custom_username_from_context(mocker, mock_asy
 
     call_kwargs = mock_asyncssh_connect.call_args.kwargs
     assert call_kwargs.get("username") == "customuser"
+
+
+async def test_pooled_connection_logs_success_once(mocker, mock_connection, mock_asyncssh_connect, caplog):
+    manager = SSHConnectionManager()
+    mocker.patch.object(manager, "_connections", {})
+    mocker.patch.object(manager, "_ssh_key", "/example/key")
+
+    with caplog.at_level(logging.INFO):
+        await manager.get_connection("pooled-host")
+        await manager.get_connection("pooled-host")
+
+    events = [r for r in caplog.records if getattr(r, "audit_event", None) == Event.SSH_CONNECT]
+    assert len(events) == 1
+    assert events[0].username == "testuser"
+    assert events[0].key_path == "/example/key"
+    assert events[0].reused is False
+    mock_asyncssh_connect.assert_awaited_once()

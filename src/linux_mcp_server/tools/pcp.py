@@ -11,7 +11,6 @@ from mcp.types import ToolAnnotations
 from pydantic import Field
 from pydantic.functional_validators import AfterValidator
 
-from linux_mcp_server.audit import log_tool_call
 from linux_mcp_server.commands import get_command
 from linux_mcp_server.formatters import format_pcp_metric_listing
 from linux_mcp_server.models import PCPSample
@@ -48,7 +47,6 @@ async def _target_timezone(host: str) -> tzinfo:
     tags={"fixed", "performance", "pcp"},
     annotations=ToolAnnotations(readOnlyHint=True),
 )
-@log_tool_call
 # Fixed documentation with no arguments is logically a resource, and this did start
 # out as one. As of 2026-09 that is not what clients do with it: of the client and
 # model combinations we tried, several never surfaced the resource to the model at
@@ -80,7 +78,6 @@ async def pcp_guide(
     tags={"fixed", "performance", "pcp"},
     annotations=ToolAnnotations(readOnlyHint=True),
 )
-@log_tool_call
 async def pcp_list_metrics(
     prefix: t.Annotated[
         str | None,
@@ -140,7 +137,6 @@ async def pcp_list_metrics(
     tags={"fixed", "performance", "pcp"},
     annotations=ToolAnnotations(readOnlyHint=True),
 )
-@log_tool_call
 async def pcp_query_metrics(
     metrics: t.Annotated[
         list[str],
@@ -216,7 +212,6 @@ async def pcp_query_metrics(
     tags={"fixed", "performance", "pcp"},
     annotations=ToolAnnotations(readOnlyHint=True),
 )
-@log_tool_call
 async def pcp_performance_summary(
     timestamp: t.Annotated[
         str | None,

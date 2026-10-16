@@ -5,7 +5,6 @@ import typing as t
 from mcp.types import ToolAnnotations
 from pydantic import Field
 
-from linux_mcp_server.audit import log_tool_call
 from linux_mcp_server.commands import get_command
 from linux_mcp_server.formatters import format_process_detail
 from linux_mcp_server.formatters import format_process_list
@@ -22,7 +21,6 @@ from linux_mcp_server.utils.validation import is_successful_output
     tags={"fixed", "performance", "processes"},
     annotations=ToolAnnotations(readOnlyHint=True),
 )
-@log_tool_call
 async def list_processes(
     host: Host,
 ) -> str:
@@ -46,7 +44,6 @@ async def list_processes(
     tags={"fixed", "performance", "processes"},
     annotations=ToolAnnotations(readOnlyHint=True),
 )
-@log_tool_call
 async def get_process_info(
     pid: t.Annotated[
         int,

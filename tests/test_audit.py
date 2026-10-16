@@ -1,17 +1,20 @@
-"""Tests for audit logging utilities."""
+"""Tests for structured audit records and request isolation."""
 
+import asyncio
+import json
 import logging
 
 import pytest
 
-from linux_mcp_server.audit import AuditContext
+from linux_mcp_server.audit import audit_context
+from linux_mcp_server.audit import CommandDescription
 from linux_mcp_server.audit import Event
-from linux_mcp_server.audit import ExecutionMode
-from linux_mcp_server.audit import log_ssh_command
+from linux_mcp_server.audit import log_command_execution
+from linux_mcp_server.audit import log_event
 from linux_mcp_server.audit import log_ssh_connect
 from linux_mcp_server.audit import sanitize_parameters
 from linux_mcp_server.audit import SENSITIVE_FIELDS
-from linux_mcp_server.audit import Status
+from linux_mcp_server.logging_config import JSONFormatter
 
 
 class TestSanitizeParameters:
@@ -65,207 +68,129 @@ class TestSanitizeParameters:
         assert result["username"] == "admin"
 
 
-class TestAuditContext:
-    """Test audit context manager."""
+@pytest.mark.parametrize("field", SENSITIVE_FIELDS)
+def test_nested_redaction(field):
+    value = {"items": [{field: "secret", "nested": ({field: "secret"},)}], "ctx": {"ctx": {field: "secret"}}}
 
-    def test_context_creates_logger(self):
-        """Test that context creates a logger with extra fields."""
-        with AuditContext(tool="test_tool", host="server1.com") as logger:
-            # AuditContext returns a LoggerAdapter, not a Logger
-            assert isinstance(logger, (logging.Logger, logging.LoggerAdapter))
+    safe = sanitize_parameters(value)
 
-    def test_context_fields_in_log(self):
-        """Test that context fields appear in log records."""
-        # Create a custom handler to capture records
-        test_handler = logging.Handler()
-        test_handler.setLevel(logging.INFO)
-        records = []
+    assert ': "secret"' not in json.dumps(safe)
+    assert safe["items"][0]["nested"][0][field] == "***REDACTED***"
+    assert safe["ctx"]["ctx"][field] == "***REDACTED***"
+    assert value["items"][0][field] == "secret"
 
-        class RecordCapture(logging.Handler):
-            def emit(self, record):
-                records.append(record)
 
-        capture = RecordCapture()
-        capture.setLevel(logging.INFO)
+async def test_context_isolation_and_restoration(caplog):
+    ready = {"one": asyncio.Event(), "two": asyncio.Event()}
 
-        root_logger = logging.getLogger()
-        root_logger.addHandler(capture)
-        root_logger.setLevel(logging.INFO)
+    async def emit(call_id):
+        with audit_context(call_id=call_id, claims={"token": "secret"}):
+            ready[call_id].set()
+            await ready["two" if call_id == "one" else "one"].wait()
 
+            with audit_context(host="remote"):
+                log_event(Event.TOOL_CALL, "Nested")
+
+            log_event(Event.TOOL_COMPLETE, "Restored")
+
+    with caplog.at_level(logging.INFO):
+        await asyncio.gather(emit("one"), emit("two"))
+
+        log_event(Event.TOOL_COMPLETE, "Outside")
+
+    for call_id in ("one", "two"):
+        nested, restored = [r for r in caplog.records if getattr(r, "call_id", None) == call_id]
+        assert nested.host == "remote"
+        assert not hasattr(restored, "host")
+        assert nested.claims == {"token": "***REDACTED***"}
+
+    assert not hasattr(caplog.records[-1], "call_id")
+
+
+@pytest.mark.parametrize("error", [None, ValueError("failed"), asyncio.CancelledError(), KeyboardInterrupt()])
+def test_command_completion(caplog, error):
+    with caplog.at_level(logging.INFO):
         try:
-            with AuditContext(tool="test_tool", host="server1.com") as logger:
-                logger.info("Test message")
+            with audit_context(call_id="call", command="python -c script"):
+                with log_command_execution("wrapper", "localhost") as execution:
+                    execution.set_exit_status(3)
+                    if error:
+                        raise error
+        except (ValueError, asyncio.CancelledError, KeyboardInterrupt) as exc:
+            assert exc is error
 
-            # Check that log record has the extra fields
-            assert len(records) >= 1
-            record = [r for r in records if "Test message" in r.getMessage()][0]
-            assert hasattr(record, "tool")
-            assert record.tool == "test_tool"
-            assert hasattr(record, "host")
-            assert record.host == "server1.com"
-        finally:
-            root_logger.removeHandler(capture)
+        log_event(Event.TOOL_COMPLETE, "Outside")
 
-
-class TestLogToolCall:
-    """Test tool call logging."""
-
-    @pytest.mark.parametrize(
-        ("params", "mode"),
-        (
-            # A tool with no 'host' parameter runs wherever its stored script says.
-            ({}, None),
-            ({"host": "localhost"}, ExecutionMode.LOCAL),
-            ({"host": "server1.com", "username": "admin"}, ExecutionMode.REMOTE),
-        ),
+    record = caplog.records[0]
+    assert record.audit_event == Event.COMMAND_COMPLETE
+    assert record.command == "wrapper"
+    assert record.call_id == "call"
+    assert record.host == "localhost"
+    assert record.duration_ms >= 0
+    assert record.status == (
+        "cancelled" if isinstance(error, asyncio.CancelledError) else "error" if error else "failed"
     )
-    def test_log_tool_call(self, caplog, decorated, params, mode):
-        """Test logging a sync tool call."""
-        with caplog.at_level(logging.INFO):
-            decorated(**params)
 
-        record = caplog.records[0]
+    if error:
+        assert record.error == str(error)
+        assert not hasattr(record, "exit_status")
+    else:
+        assert record.exit_status == 3
+        assert not hasattr(record, "error")
 
-        assert Event.TOOL_CALL in caplog.text
-        assert "list_services" in caplog.text
-        assert caplog.records
-        assert getattr(record, "execution_mode", None) == mode
-
-    @pytest.mark.parametrize(
-        ("params", "mode"),
-        (
-            ({}, None),
-            ({"host": "localhost"}, ExecutionMode.LOCAL),
-            ({"host": "server1.com", "username": "admin"}, ExecutionMode.REMOTE),
-        ),
-    )
-    async def test_log_tool_call_async(self, caplog, adecorated, params, mode):
-        """Test logging an async call."""
-        with caplog.at_level(logging.INFO):
-            await adecorated(**params)
-
-        record = caplog.records[0]
-
-        assert Event.TOOL_CALL in caplog.text
-        assert "list_services" in caplog.text
-        assert caplog.records
-        assert getattr(record, "execution_mode", None) == mode
-
-    @pytest.mark.parametrize("sensitive_field", SENSITIVE_FIELDS)
-    def test_log_tool_call_sanitizes_parameters(self, caplog, decorated, sensitive_field):
-        """Test that tool call logging sanitizes sensitive parameters."""
-        secret_value = "secret123"
-        params = {sensitive_field: secret_value, "username": "admin"}
-        with caplog.at_level(logging.INFO):
-            decorated(**params)
-
-        assert Event.TOOL_CALL in caplog.text
-        assert secret_value not in caplog.text
-        assert "REDACTED" in caplog.text
-
-    @pytest.mark.parametrize("sensitive_field", SENSITIVE_FIELDS)
-    async def test_log_tool_call_async_sanitizes_parameters(self, caplog, adecorated, sensitive_field):
-        """Test that tool call logging sanitizes sensitive parameters."""
-        secret_value = "secret123"
-        params = {sensitive_field: secret_value, "username": "admin"}
-        with caplog.at_level(logging.INFO):
-            await adecorated(**params)
-
-        assert Event.TOOL_CALL in caplog.text
-        assert secret_value not in caplog.text
-        assert "REDACTED" in caplog.text
-
-    def test_log_tool_call_failure(self, caplog, decorated_fail):
-        with caplog.at_level(logging.INFO), pytest.raises(ValueError, match="Raised intentionally"):
-            decorated_fail()
-
-        assert "error: Raised intentionally" in caplog.text
-
-    async def test_log_tool_call_async_failure(self, caplog, adecorated_fail):
-        with caplog.at_level(logging.INFO):
-            with pytest.raises(ValueError, match="Raised intentionally"):
-                await adecorated_fail()
-
-        assert "error: Raised intentionally" in caplog.text
+    assert not hasattr(caplog.records[-1], "call_id")
 
 
-class TestLogSSHConnect:
-    """Test SSH connection logging."""
+@pytest.mark.parametrize(
+    "status,reused,level,event",
+    [
+        ("success", False, logging.INFO, Event.SSH_CONNECT),
+        ("success", True, logging.DEBUG, Event.SSH_CONNECT),
+        ("failed", False, logging.WARNING, Event.SSH_AUTH_FAILED),
+    ],
+)
+def test_ssh_connection_levels(caplog, status, reused, level, event):
+    with caplog.at_level(logging.DEBUG):
+        log_ssh_connect("server1", status=status, reused=reused, key_path="/key", error="reason")
 
-    def test_log_ssh_connect_success_info(self, caplog):
-        """Test logging successful SSH connection at INFO level."""
-        with caplog.at_level(logging.INFO):
-            log_ssh_connect("server1.com", status=Status.success, reused=False)
-
-        assert Event.SSH_CONNECT in caplog.text
-        assert "server1.com" in caplog.text
-        # Check the log record attributes
-        assert len(caplog.records) >= 1
-        record = caplog.records[-1]
-        assert hasattr(record, "status")
-        assert record.status == "success"
-        # At INFO level, reused might not be in the record if logger is not at DEBUG
-        # (depends on implementation)
-
-    def test_log_ssh_connect_success_debug(self, caplog):
-        """Test logging successful SSH connection at DEBUG level shows more details."""
-        # Set the root logger to DEBUG level so our check in log_ssh_connect works
-        logging.getLogger().setLevel(logging.DEBUG)
-
-        with caplog.at_level(logging.DEBUG):
-            log_ssh_connect("server1.com", status=Status.success, reused=True, key_path="/home/user/.ssh/id_rsa")
-
-        assert Event.SSH_CONNECT in caplog.text
-        assert "server1.com" in caplog.text
-        # Check the log record attributes
-        assert len(caplog.records) >= 1
-        record = caplog.records[-1]
-        assert hasattr(record, "status")
-        assert record.status == "success"
-        # At DEBUG level, SHOULD show reused status and key path
-        assert hasattr(record, "reused")
-        assert record.reused
-        assert hasattr(record, "key")
-        assert ".ssh/id_rsa" in record.key
-
-    def test_log_ssh_connect_failure(self, caplog):
-        """Test logging failed SSH connection."""
-        with caplog.at_level(logging.WARNING):
-            log_ssh_connect("server1.com", status="failed", error="Permission denied")
-
-        assert Event.SSH_CONNECT in caplog.text or Event.SSH_AUTH_FAILED in caplog.text
-        assert "server1.com" in caplog.text
-        assert "Permission denied" in caplog.text
+    record = caplog.records[0]
+    assert record.audit_event == event
+    assert record.levelno == level
+    assert record.host == "server1"
+    assert record.reused is reused
+    assert record.key_path == "/key"
+    assert record.error == "reason"
 
 
-class TestLogSSHCommand:
-    """Test SSH command execution logging."""
+def test_event_envelope(caplog):
+    with caplog.at_level(logging.INFO), audit_context(tool="list_services", call_id="c42"):
+        log_event(Event.TOOL_CALL, "Tool called", parameters={"token": "secret"})
 
-    def test_log_ssh_command_info(self, caplog):
-        """Test logging SSH command at INFO level."""
-        with caplog.at_level(logging.INFO):
-            log_ssh_command("systemctl status nginx", "server1.com", exit_code=0, duration=0.15)
+    data = json.loads(JSONFormatter().format(caplog.records[0]))
+    assert data["event"] == "TOOL_CALL"
+    assert data["message"] == "Tool called"
+    assert data["attributes"] == {
+        "call_id": "c42",
+        "tool": "list_services",
+        "parameters": {"token": "***REDACTED***"},
+    }
 
-        assert Event.REMOTE_EXEC in caplog.text
-        assert "systemctl status nginx" in caplog.text
-        assert "server1.com" in caplog.text
-        assert "exit_code=0" in caplog.text
-        # At INFO level, duration may or may not be shown
-        # depending on implementation
 
-    def test_log_ssh_command_debug(self, caplog):
-        """Test logging SSH command at DEBUG level shows duration."""
-        with caplog.at_level(logging.DEBUG):
-            log_ssh_command("ls -la", "server1.com", exit_code=0, duration=0.05)
+@pytest.mark.parametrize("interpreter", [None, "bash"])
+def test_command_description_is_specific_to_execution(caplog, interpreter):
+    description = CommandDescription(command="echo intended", interpreter=interpreter)
 
-        assert Event.REMOTE_EXEC in caplog.text
-        assert "ls -la" in caplog.text
-        assert "duration" in caplog.text.lower()
+    with caplog.at_level(logging.INFO), audit_context(call_id="call"):
+        with log_command_execution("wrapper", "remote", description=description) as execution:
+            log_ssh_connect("remote", status="success")
+            with log_command_execution("unrelated", "remote") as nested:
+                nested.set_exit_status(0)
+            execution.set_exit_status(0)
 
-    def test_log_ssh_command_error(self, caplog):
-        """Test logging SSH command with non-zero exit code."""
-        with caplog.at_level(logging.INFO):
-            log_ssh_command("systemctl status missing", "server1.com", exit_code=3, duration=0.1)
-
-        assert Event.REMOTE_EXEC in caplog.text
-        assert "exit_code=3" in caplog.text
+    connection, unrelated, script = caplog.records
+    assert not hasattr(connection, "command")
+    assert not hasattr(connection, "interpreter")
+    assert unrelated.command == "unrelated"
+    assert not hasattr(unrelated, "interpreter")
+    assert script.command == "echo intended"
+    assert getattr(script, "interpreter", None) == interpreter

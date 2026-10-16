@@ -1,27 +1,27 @@
 """Audit logging utilities for Linux MCP Server.
 
 This module provides helper functions for consistent audit logging across
-the entire MCP server. All functions add structured context to log records
-that can be output in both human-readable and JSON formats.
+the server. Events include structured context that can be rendered in both
+human-readable and JSON formats.
 """
 
-import functools
-import inspect
+import asyncio
 import logging
 import time
 import typing as t
 
 from contextlib import contextmanager
-from datetime import timedelta
+from contextvars import ContextVar
+
+from pydantic import BaseModel
 
 from linux_mcp_server.utils import StrEnum
 from linux_mcp_server.utils.types import Host
-from linux_mcp_server.utils.types import LOCALHOST
 
 
-Function: t.TypeAlias = t.Callable[..., t.Any]
+logger = logging.getLogger(__name__)
+_context: ContextVar[dict[str, t.Any]] = ContextVar("audit_context", default={})
 
-# Sensitive field names that should be redacted in logs
 SENSITIVE_FIELDS = {
     "password",
     "passwd",
@@ -38,19 +38,12 @@ SENSITIVE_FIELDS = {
 
 
 class Event(StrEnum):
-    LOCAL_EXEC_ERROR = "LOCAL_EXEC_ERROR"
-    REMOTE_EXEC = "REMOTE_EXEC"
-    REMOTE_EXEC_ERROR = "REMOTE_EXEC_ERROR"
-    SSH_AUTH_FAILED = "SSH_AUTH_FAILED"
-    SSH_CONNECT = "SSH_CONNECT"
-    SSH_CONNECTING = "SSH_CONNECTING"
     TOOL_CALL = "TOOL_CALL"
     TOOL_COMPLETE = "TOOL_COMPLETE"
-
-
-class ExecutionMode(StrEnum):
-    REMOTE = "REMOTE"
-    LOCAL = "LOCAL"
+    COMMAND_COMPLETE = "COMMAND_COMPLETE"
+    GATEKEEPER_RESULT = "GATEKEEPER_RESULT"
+    SSH_CONNECT = "SSH_CONNECT"
+    SSH_AUTH_FAILED = "SSH_AUTH_FAILED"
 
 
 class Status(StrEnum):
@@ -59,179 +52,100 @@ class Status(StrEnum):
     failed = "failed"
 
 
-def sanitize_parameters(params: dict[str, t.Any]) -> dict[str, t.Any]:
-    """
-    Sanitize parameters by redacting sensitive fields.
+def sanitize_parameters(value: t.Any) -> t.Any:
+    """Redact sensitive keys recursively, including dictionaries inside sequences."""
+    if isinstance(value, dict):
+        sanitized = {}
+        for key, item in value.items():
+            normalized = str(key).lower().replace("_", "").replace("-", "")
+            sensitive = any(field.replace("_", "") in normalized for field in SENSITIVE_FIELDS)
+            sanitized[key] = "***REDACTED***" if sensitive else sanitize_parameters(item)
 
-    Args:
-        params: Dictionary of parameters to sanitize
+        return sanitized
 
-    Returns:
-        Dictionary with sensitive fields redacted
-    """
-    if not params:
-        return params
+    if isinstance(value, (list, tuple)):
+        return [sanitize_parameters(item) for item in value]
 
-    sanitized = {}
-    for key, value in params.items():
-        # Check if key is sensitive
-        key_lower = key.lower().replace("_", "").replace("-", "")
-        is_sensitive = any(sensitive in key_lower for sensitive in [s.replace("_", "") for s in SENSITIVE_FIELDS])
-
-        if is_sensitive:
-            sanitized[key] = "***REDACTED***"
-        elif isinstance(value, dict):
-            # Recursively sanitize nested dicts
-            sanitized[key] = sanitize_parameters(value)
-        else:
-            sanitized[key] = value
-
-    return sanitized
+    return value
 
 
 @contextmanager
-def AuditContext(**extra_fields: t.Any) -> t.Generator[logging.LoggerAdapter, None, None]:
+def audit_context(**fields: t.Any) -> t.Iterator[dict[str, t.Any]]:
+    """Add additional audit context fields for the duration of the body."""
+    context = {**_context.get(), **sanitize_parameters(fields)}
+    token = _context.set(context)
+
+    try:
+        yield context
+    finally:
+        _context.reset(token)
+
+
+class AuditFilter(logging.Filter):
+    """Attach request context to diagnostic and dependency records at output time."""
+
+    def filter(self, record: logging.LogRecord) -> bool:
+        for key, value in _context.get().items():
+            record.__dict__.setdefault(key, value)
+
+        return True
+
+
+def log_event(event: Event, message: str, *, level: int = logging.INFO, **fields: t.Any) -> None:
+    """Emit a primary event with a stable name and separate structured attributes."""
+    logger.log(level, message, extra={"audit_event": event, **_context.get(), **sanitize_parameters(fields)})
+
+
+class CommandDescription(BaseModel):
+    """The intended command to report when execution uses a wrapper."""
+
+    command: str
+    interpreter: str | None = None
+
+
+class CommandExecution(BaseModel):
+    """The command being logged and its exit status, once the process exits."""
+
+    command: str
+    exit_status: int | None = None
+
+    def set_exit_status(self, exit_status: int) -> None:
+        self.exit_status = exit_status
+
+
+@contextmanager
+def log_command_execution(
+    command: str, host: Host, *, description: CommandDescription | None = None
+) -> t.Iterator[CommandExecution]:
+    """Log one execution result and propagate execution errors to the caller.
+
+    The caller must call set_exit_status() on the yielded object when the process
+    exits. If execution raises instead, log the error without an exit status,
+    even if one was previously set.
+    Script callers can supply a description of the intended command. It applies
+    only to this execution record, not other records emitted during execution.
     """
-    Context manager for adding extra fields to all log records.
+    execution = CommandExecution(command=description.command if description is not None else command)
+    fields: dict[str, t.Any] = {"command": execution.command, "host": host}
+    if description is not None and description.interpreter is not None:
+        fields["interpreter"] = description.interpreter
 
-    Usage:
-        with AuditContext(tool="list_services", host="server1.com") as logger:
-            logger.info("Starting operation")
-
-    Args:
-        **extra_fields: Additional fields to add to log records.
-
-    Yields:
-        logging.LoggerAdapter: Logger adapter with extra fields attached.
-    """
-    logger = logging.getLogger(__name__)
-
-    # Create adapter with extra fields
-    class ContextAdapter(logging.LoggerAdapter):
-        def process(self, msg, kwargs):
-            # Add extra fields to the record
-            if "extra" not in kwargs:
-                kwargs["extra"] = {}
-
-            if isinstance(self.extra, t.Iterable):
-                kwargs["extra"].update(self.extra)
-
-            return msg, kwargs
-
-    adapter = ContextAdapter(logger, extra_fields)
-    yield adapter
-
-
-def _log_event_start(
-    logger: logging.Logger,
-    tool_name: str,
-    params: dict[t.Any, t.Any],
-) -> int:
-    """
-    Emit a log event and return a performance counter timestamp.
-
-    The timestamp is in nanoseconds. It is meant to be used to calculate
-    total execution time.
-    """
-    safe_params = sanitize_parameters(params)
-
-    extra = {
-        "tool": tool_name,
-    }
-    # Tools that run a previously validated script take their host from the stored
-    # script rather than a parameter, so there is nothing to report for them here.
-    if "host" in params:
-        extra["host"] = params["host"]
-        extra["execution_mode"] = ExecutionMode.LOCAL if params["host"] == LOCALHOST else ExecutionMode.REMOTE
-
-    if "username" in params:
-        extra["username"] = params["username"]
-
-    message = f"{Event.TOOL_CALL}: {tool_name}"
-
-    params_str = ", ".join(f"{k}={v}" for k, v in safe_params.items() if k not in ["host", "username"])
-    if params_str:
-        message += f" | {params_str}"
-
-    logger.info(message, extra=extra)
-
-    return time.perf_counter_ns()
-
-
-def _log_event_complete(
-    logger: logging.Logger,
-    tool_name: str,
-    start_time: int,
-    error: Exception | None = None,
-) -> None:
-    """
-    Log the completion of a tool call and calculate the total execution time.
-    """
-    stop_time = time.perf_counter_ns()
-    duration = timedelta(microseconds=(stop_time - start_time) / 1_000)
-    status = Status.error if error else Status.success
-    extra = {
-        "tool": tool_name,
-        "status": status,
-        "duration": f"{duration}s",
-    }
-
-    message = f"{Event.TOOL_COMPLETE}: {tool_name}"
-
-    if error:
-        extra["error"] = str(error)
-        message += f" | error: {error}"
-        logger.error(message, extra=extra)
+    start = time.perf_counter()
+    try:
+        yield execution
+    except BaseException as exc:
+        fields.update(status="cancelled" if isinstance(exc, asyncio.CancelledError) else "error", error=str(exc))
+        raise
     else:
-        logger.info(message, extra=extra)
-
-
-def log_tool_call(func: t.Callable) -> Function:
-    """Decorator to log tool calls
-
-    Works with sync or async functions.
-    """
-    logger = logging.getLogger(__name__)
-    tool_name = func.__name__
-
-    @functools.wraps(func)
-    def wrapper(*args, **kwargs):
-        start_time = _log_event_start(logger, tool_name, kwargs)
-        error = None
-        result = None
-
-        try:
-            result = func(*args, **kwargs)
-        except Exception as exc:
-            error = exc
-            _log_event_complete(logger, tool_name, start_time, error)
-            raise
-
-        _log_event_complete(logger, tool_name, start_time, error)
-
-        return result
-
-    @functools.wraps(func)
-    async def awrapper(*args, **kwargs):
-        start_time = _log_event_start(logger, tool_name, kwargs)
-        error = None
-        result = None
-
-        try:
-            result = await func(*args, **kwargs)
-        except Exception as exc:
-            error = exc
-            _log_event_complete(logger, tool_name, start_time, error)
-            raise
-
-        _log_event_complete(logger, tool_name, start_time, error)
-
-        return result
-
-    if inspect.iscoroutinefunction(func):
-        return awrapper
-
-    return wrapper
+        fields.update(exit_status=execution.exit_status, status="failed" if execution.exit_status else "success")
+    finally:
+        log_event(
+            Event.COMMAND_COMPLETE,
+            "Command completed",
+            level=logging.ERROR if fields["status"] == "error" else logging.INFO,
+            **fields,
+            duration_ms=(time.perf_counter() - start) * 1000,
+        )
 
 
 def log_ssh_connect(
@@ -241,93 +155,20 @@ def log_ssh_connect(
     reused: bool = False,
     key_path: str | None = None,
     error: str | None = None,
-):
-    """
-    Log SSH connection event.
+) -> None:
+    """Log new connections at INFO, reuse at DEBUG, and failures at WARNING."""
+    level = logging.INFO if status == Status.success else logging.WARNING
+    if status == Status.success and reused:
+        level = logging.DEBUG
 
-    Verbosity is tiered based on log level:
-    - INFO: Basic connection success/failure
-    - DEBUG: Detailed information including key path, reuse status
-
-    Args:
-        host: Remote host
-        username: SSH username
-        status: Connection status ("success" or "failed")
-        reused: Whether connection was reused (shown at DEBUG level)
-        key_path: Path to SSH key used (shown at DEBUG level)
-        error: Optional error message
-    """
-    logger = logging.getLogger(__name__)
-
-    if status == Status.success:
-        extra = {
-            "host": host,
-            "username": username,
-            "status": status,
-        }
-
-        # At INFO level, just log basic success
-        message = f"{Event.SSH_CONNECT}: {host}@{username}"
-
-        # At DEBUG level, add more details
-        if logger.isEnabledFor(logging.DEBUG):
-            if reused is not None:
-                extra["reused"] = str(reused)
-            if key_path:
-                extra["key"] = key_path
-
-        logger.info(message, extra=extra)
-
-    else:
-        # Connection failed
-        extra = {
-            "host": host,
-            "username": username,
-            "status": "failed",
-        }
-
-        if error:
-            extra["reason"] = error
-
-        message = f"{Event.SSH_AUTH_FAILED}: {host}@{username}"
-        if error:
-            message += f" | reason: {error}"
-
-        logger.warning(message, extra=extra)
-
-
-def log_ssh_command(
-    command: str,
-    host: Host,
-    exit_code: int,
-    duration: float | None = None,
-):
-    """
-    Log SSH command execution.
-
-    Verbosity is tiered based on log level:
-    - INFO: Command and exit code
-    - DEBUG: Also includes execution duration
-
-    Args:
-        command: Command that was executed
-        host: Remote host
-        exit_code: Command exit code
-        duration: Optional execution duration in seconds (shown at DEBUG level)
-    """
-    logger = logging.getLogger(__name__)
-
-    extra = {
-        "command": command,
-        "host": host,
-        "exit_code": exit_code,
-    }
-
-    message = f"{Event.REMOTE_EXEC}: {command} | host={host} | exit_code={exit_code}"
-
-    # At DEBUG level, include duration
-    if duration is not None and logger.isEnabledFor(logging.DEBUG):
-        extra["duration"] = f"{duration:.3f}s"
-        message += f" | duration={duration:.3f}s"
-
-    logger.info(message, extra=extra)
+    log_event(
+        Event.SSH_CONNECT if status == Status.success else Event.SSH_AUTH_FAILED,
+        "SSH connected" if status == Status.success else "SSH connection failed",
+        level=level,
+        host=host,
+        username=username,
+        status=status,
+        reused=reused,
+        key_path=key_path,
+        error=error,
+    )

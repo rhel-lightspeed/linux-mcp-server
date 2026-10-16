@@ -30,7 +30,6 @@ from pydantic import BaseModel
 from pydantic import ConfigDict
 from pydantic import Field
 
-from linux_mcp_server.audit import log_tool_call
 from linux_mcp_server.config import CONFIG
 from linux_mcp_server.config import Toolset
 from linux_mcp_server.server import mcp
@@ -136,42 +135,6 @@ async def setup_client(mocker):
 @pytest.fixture
 async def mcp_client(setup_client):
     yield await setup_client(toolset=Toolset.FIXED, mcp_apps=False)
-
-
-@pytest.fixture
-def decorated():
-    @log_tool_call
-    def list_services(*args, **kwargs):
-        return args, kwargs
-
-    return list_services
-
-
-@pytest.fixture
-def adecorated():
-    @log_tool_call
-    async def list_services(*args, **kwargs):
-        return args, kwargs
-
-    return list_services
-
-
-@pytest.fixture
-async def decorated_fail():
-    @log_tool_call
-    def list_services(*args, **kwargs):
-        raise ValueError("Raised intentionally")
-
-    return list_services
-
-
-@pytest.fixture
-async def adecorated_fail():
-    @log_tool_call
-    async def list_services(*args, **kwargs):
-        raise ValueError("Raised intentionally")
-
-    return list_services
 
 
 @pytest.fixture
