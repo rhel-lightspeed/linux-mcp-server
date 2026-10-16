@@ -24,8 +24,12 @@ metadata:
 
 spec:
   params:
+    # Deliberately the upstream repository rather than `{{ source_url }}`: for a PR from a
+    # fork, the fork has no release tags, so `git describe` in get-version finds nothing and
+    # the version comes out as 0.1.dev<n>. GitHub serves a fork's PR head from the parent
+    # repository's fork network, so the revision below still resolves.
     - name: git-url
-      value: '{{ source_url }}'
+      value: '{{ repo_url }}'
 
     - name: revision
       value: '{{ revision }}'

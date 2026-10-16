@@ -50,8 +50,9 @@ spec:
         git tag
 
         if ! git describe --tags > /dev/null ; then
-            echo "Can't find a tag to derive a version from. Make sure that the" >&2
-            echo "depth specified for the clone-repository task is sufficient." >&2
+            echo "Can't find a tag to derive a version from. Check that the depth specified" >&2
+            echo "for the clone-repository task is sufficient, and that it is cloning the" >&2
+            echo "upstream repository rather than a fork (which has no release tags)." >&2
             exit 1
         fi
 
