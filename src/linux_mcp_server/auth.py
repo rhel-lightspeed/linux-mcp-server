@@ -11,7 +11,7 @@ from linux_mcp_server.config import AuthProvider
 from linux_mcp_server.config import CONFIG
 
 
-logger = logging.getLogger("linux-mcp-server")
+logger = logging.getLogger(__name__)
 
 
 # Create authentication provider based on configuration

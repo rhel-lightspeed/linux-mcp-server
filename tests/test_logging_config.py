@@ -37,7 +37,7 @@ class TestSetupLogging:
         setup_logging()
 
         # Log something
-        logger = logging.getLogger("test")
+        logger = logging.getLogger("linux_mcp_server")
         logger.info("Test message")
 
         # Check both log files exist
@@ -52,28 +52,7 @@ class TestSetupLogging:
         assert "attributes" not in records[-1]
         captured = capsys.readouterr()
         assert captured.out == ""
-        assert " | INFO | test | Test message" in captured.err
-
-    def test_log_level_from_environment(self, tmp_path, mocker):
-        """Test that log level can be set from configuration."""
-        mocker.patch("linux_mcp_server.logging_config.CONFIG.log_dir", tmp_path)
-        mocker.patch("linux_mcp_server.logging_config.CONFIG.log_level", "DEBUG")
-
-        setup_logging()
-
-        # Root logger should be at DEBUG level
-        root_logger = logging.getLogger()
-        assert root_logger.level == logging.DEBUG
-
-    def test_default_log_level_is_info(self, mocker, tmp_path):
-        """Test that default log level is INFO."""
-        mocker.patch("linux_mcp_server.logging_config.CONFIG.log_dir", tmp_path)
-        mocker.patch("linux_mcp_server.logging_config.CONFIG.log_level", "INFO")
-
-        setup_logging()
-
-        root_logger = logging.getLogger()
-        assert root_logger.level == logging.INFO
+        assert " | INFO | linux_mcp_server | Test message" in captured.err
 
 
 class TestStructuredFormatter:
@@ -213,7 +192,7 @@ def test_stream_output(
     setup_logging()
     capsys.readouterr()
 
-    for name in ("linux-mcp-server", "linux_mcp_server.audit", "asyncssh", "fastmcp.server", "uvicorn.error"):
+    for name in ("linux_mcp_server", "linux_mcp_server.audit", "asyncssh", "fastmcp.server", "uvicorn.error"):
         logging.getLogger(name).warning("Test message", extra={"host": "server1"})
 
     captured = capsys.readouterr()
@@ -276,9 +255,11 @@ def test_json_is_independent_of_other_formatters() -> None:
     assert data["attributes"] == {"path": "/tmp/example", "timestamp": "custom"}
 
 
+@pytest.mark.parametrize("level", ["DEFAULT", "DEBUG", "INFO", "WARNING"])
 @pytest.mark.parametrize("transport", [Transport.http, Transport.streamable_http])
 async def test_http_startup_preserves_logging(
     transport: Literal[Transport.http, Transport.streamable_http],
+    level: str,
     monkeypatch: pytest.MonkeyPatch,
     capsys: pytest.CaptureFixture[str],
     mocker: MockerFixture,
@@ -287,6 +268,7 @@ async def test_http_startup_preserves_logging(
     from uvicorn import Server
 
     monkeypatch.setattr(CONFIG, "transport", transport)
+    monkeypatch.setattr(CONFIG, "log_level", level)
     monkeypatch.setattr(CONFIG, "log_output", LogOutput.stdout)
     monkeypatch.setattr(CONFIG, "log_format", LogFormat.json)
     setup_logging()
@@ -297,6 +279,7 @@ async def test_http_startup_preserves_logging(
         assert server.config.log_config is None
         logging.getLogger("uvicorn.access").info('127.0.0.1 - "GET /mcp HTTP/1.1" 200')
         logging.getLogger("fastmcp.server").warning("Framework warning")
+        logging.getLogger("linux_mcp_server").info("Application message")
 
     mocker.patch.object(Server, "serve", autospec=True, side_effect=serve)
     await FastMCP("logging-test").run_http_async(
@@ -306,11 +289,14 @@ async def test_http_startup_preserves_logging(
     assert captured.err == ""
     records = [json.loads(line) for line in captured.out.splitlines()]
     assert sum(record["message"] == "Framework warning" for record in records) == 1
-    assert any(record["logger"] == "uvicorn.access" for record in records)
-    assert any("Starting MCP server" in record["message"] for record in records)
+    assert any(record["message"] == "Application message" for record in records) == (level != "WARNING")
+    assert any(record["logger"] == "uvicorn.access" for record in records) == (level in {"DEBUG", "INFO"})
+    assert any("Starting MCP server" in record["message"] for record in records) == (level in {"DEBUG", "INFO"})
 
 
+@pytest.mark.parametrize("level", ["DEFAULT", "DEBUG", "INFO", "WARNING"])
 async def test_stdio_startup_preserves_logging(
+    level: str,
     monkeypatch: pytest.MonkeyPatch,
     capsys: pytest.CaptureFixture[str],
     mocker: MockerFixture,
@@ -320,6 +306,7 @@ async def test_stdio_startup_preserves_logging(
     from fastmcp import FastMCP
 
     monkeypatch.setattr(CONFIG, "transport", Transport.stdio)
+    monkeypatch.setattr(CONFIG, "log_level", level)
     monkeypatch.setattr(CONFIG, "log_output", LogOutput.stderr)
     monkeypatch.setattr(CONFIG, "log_format", LogFormat.json)
     setup_logging()
@@ -332,6 +319,7 @@ async def test_stdio_startup_preserves_logging(
 
     async def run(*args: Any, **kwargs: Any) -> None:
         logging.getLogger("fastmcp.server").warning("Framework warning")
+        logging.getLogger("linux_mcp_server").info("Application message")
 
     mocker.patch("fastmcp.server.mixins.transport.stdio_server", autospec=True, side_effect=streams)
     mocker.patch.object(server._mcp_server, "run", autospec=True, side_effect=run)
@@ -340,4 +328,75 @@ async def test_stdio_startup_preserves_logging(
     assert captured.out == ""
     records = [json.loads(line) for line in captured.err.splitlines()]
     assert sum(record["message"] == "Framework warning" for record in records) == 1
-    assert any("Starting MCP server" in record["message"] for record in records)
+    assert any(record["message"] == "Application message" for record in records) == (level != "WARNING")
+    assert any("Starting MCP server" in record["message"] for record in records) == (level in {"DEBUG", "INFO"})
+
+
+@pytest.mark.parametrize("output", list(LogOutput))
+def test_log_level_policy_and_reconfiguration(
+    output: LogOutput,
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    """Check emitted records across destinations and repeated configuration."""
+    from linux_mcp_server.audit import AuditContext
+
+    monkeypatch.setattr(CONFIG, "log_output", output)
+    monkeypatch.setattr(CONFIG, "log_format", LogFormat.json)
+    monkeypatch.setattr(CONFIG, "log_dir", tmp_path)
+    application_names = ("linux_mcp_server", "linux_mcp_server.connection.ssh", "linux_mcp_server.audit")
+    dependency_names = ("mcp.server.lowlevel.server", "fastmcp.server", "asyncssh", "uvicorn.error", "uvicorn.access")
+    levels = (logging.DEBUG, logging.INFO, logging.WARNING, logging.ERROR, logging.CRITICAL)
+
+    # Switching both ways also checks that previous overrides do not persist.
+    for configured in ("DEFAULT", "DEBUG", "INFO", "WARNING", "ERROR", "CRITICAL", "DEFAULT"):
+        monkeypatch.setattr(CONFIG, "log_level", configured)
+        setup_logging()
+        capsys.readouterr()
+        offset = len((tmp_path / "server.json").read_text()) if output == LogOutput.files else 0
+        for name in (*application_names, *dependency_names):
+            for level in levels:
+                logging.getLogger(name).log(level, "policy-%s", configured)
+        with AuditContext(tool="test_tool") as logger:
+            logger.info("audit-%s", configured)
+
+        captured = capsys.readouterr()
+        if output == LogOutput.files:
+            contents = (tmp_path / "server.json").read_text()[offset:]
+        else:
+            contents = captured.out if output == LogOutput.stdout else captured.err
+        records = [json.loads(line) for line in contents.splitlines()]
+        actual = [
+            (record["logger"], record["level"]) for record in records if record["message"] == f"policy-{configured}"
+        ]
+        app_level = logging.INFO if configured == "DEFAULT" else getattr(logging, configured)
+        dependency_level = logging.WARNING if configured == "DEFAULT" else app_level
+        expected = [
+            (name, logging.getLevelName(level))
+            for names, threshold in ((application_names, app_level), (dependency_names, dependency_level))
+            for name in names
+            for level in levels
+            if level >= threshold
+        ]
+        assert actual == expected
+        assert any(record["message"] == f"audit-{configured}" for record in records) == (app_level <= logging.INFO)
+
+
+@pytest.mark.parametrize("level", ["DEFAULT", "DEBUG", "INFO", "WARNING"])
+def test_dependency_suppression_is_preserved(
+    level: str, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
+) -> None:
+    """FastMCP suppresses noisy griffe warnings; logging setup must preserve that."""
+    logger = logging.getLogger("griffe")
+    monkeypatch.setattr(logger, "level", logging.ERROR)
+    monkeypatch.setattr(CONFIG, "log_level", level)
+    monkeypatch.setattr(CONFIG, "log_output", LogOutput.stderr)
+    monkeypatch.setattr(CONFIG, "log_format", LogFormat.json)
+    setup_logging()
+    capsys.readouterr()
+    logger.warning("No type or annotation for parameter 'a'")
+    logger.error("Parsing failed")
+    records = [json.loads(line) for line in capsys.readouterr().err.splitlines()]
+    assert [record["message"] for record in records] == ["Parsing failed"]
+    assert logger.level == logging.ERROR
