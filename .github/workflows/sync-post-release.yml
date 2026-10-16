@@ -1,15 +1,15 @@
 name: Sync post-release branch
 
-# Bring the post-release branch paired with a base branch up to that base branch: `post-release/main`
-# for `main`, `post-release/1.7.x` for `release/1.7.x`. See docs/development/releasing.md for why
+# Bring the post-release branch paired with a base branch up to that base branch: `post-release-main`
+# for `main`, `post-release-1.7.x` for `release-1.7.x`. See docs/development/releasing.md for why
 # that branch exists and why the merge is shaped like this.
 #
 # Triggered by "Sync post-release branch (trigger)", which fires on a release tag and on a push to a
-# `release/*` branch. It is a separate workflow because `workflow_run` always runs the copy of this
+# `release-*` branch. It is a separate workflow because `workflow_run` always runs the copy of this
 # file on the default branch - so the credential below is only ever handed to reviewed code. Do not
 # "simplify" this back into an `on: push` trigger.
 #
-# Cutting a stable branch creates its post-release branch. Later pushes to a `release/*` branch do
+# Cutting a stable branch creates its post-release branch. Later pushes to a `release-*` branch do
 # nothing: once the post-release branch exists, only a release tag advances it.
 
 on:
@@ -72,7 +72,7 @@ jobs:
               # nonsensical.
               mapfile -t bases < <(
                   git branch --remotes --contains "$source" --format='%(refname:lstrip=3)' |
-                      grep -E '^(main|release/.*)$' || true
+                      grep -E '^(main|release-.*)$' || true
               )
 
               if [ "${#bases[@]}" -ne 1 ]; then
@@ -81,12 +81,12 @@ jobs:
               fi
 
               base="${bases[0]}"
-          elif [[ "$REF" =~ ^release/ ]] &&
+          elif [[ "$REF" =~ ^release- ]] &&
                git rev-parse -q --verify "refs/remotes/origin/$REF^{commit}" >/dev/null; then
               base="$REF"
               source="refs/remotes/origin/$REF"
           else
-              echo "::error::$REF is neither a release tag nor a release/* branch in this repository"
+              echo "::error::$REF is neither a release tag nor a release-* branch in this repository"
               exit 1
           fi
 
@@ -95,8 +95,8 @@ jobs:
               exit 1
           fi
 
-          # main -> post-release/main, release/1.7.x -> post-release/1.7.x
-          target="post-release/${base#release/}"
+          # main -> post-release-main, release-1.7.x -> post-release-1.7.x
+          target="post-release-${base#release-}"
 
           if ! git rev-parse -q --verify "refs/remotes/origin/$target" >/dev/null; then
               echo "::notice::Creating $target from $REF"

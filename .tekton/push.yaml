@@ -13,7 +13,7 @@ metadata:
     pipelinesascode.tekton.dev/on-cel-expression: >-
       event == "push"
       && (
-        target_branch.matches("^(main|release/.*|post-release/.*)$")
+        target_branch.matches("^(main|release-.*|post-release-.*)$")
         || target_branch.startsWith("refs/tags/")
       )
 
