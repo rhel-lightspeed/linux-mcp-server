@@ -6,6 +6,7 @@ from linux_mcp_server.config import GatekeeperProvider
 from linux_mcp_server.config import OpenRouterGatekeeperConfig
 from linux_mcp_server.config import ReasoningEffort
 from linux_mcp_server.gatekeeper import openrouter_client
+from linux_mcp_server.gatekeeper.check_run_script import GatekeeperResult
 
 
 class TestOpenRouterClient:
@@ -44,7 +45,7 @@ class TestOpenRouterClient:
         body = mock_post.call_args.kwargs["body"]
         assert body["model"] == "openai/gpt-oss-120b"
         assert body["reasoning"] == {"enabled": True, "effort": "low"}
-        assert body["provider"] == {"require_parameters": True}
+        assert body["provider"] == {"require_parameters": False}
         assert body["response_format"]["type"] == "json_schema"
 
     async def test_complete_openrouter_quantization(self, gatekeeper_config, mocker):
@@ -58,7 +59,7 @@ class TestOpenRouterClient:
         await openrouter_client.complete_openrouter("prompt", max_tokens=8000)
 
         body = mock_post.call_args.kwargs["body"]
-        assert body["provider"] == {"require_parameters": True, "quantizations": ["fp4"]}
+        assert body["provider"] == {"require_parameters": False, "quantizations": ["fp4"]}
 
     async def test_complete_openrouter_reasoning_none(self, gatekeeper_config, mocker):
         gatekeeper_config.reasoning_effort = ReasoningEffort.NONE
@@ -124,8 +125,70 @@ class TestOpenRouterClient:
         body = mock_post.call_args.kwargs["body"]
         assert body["chat_template_kwargs"] == {"enable_thinking": False}
 
+    async def test_openai_model_uses_openai_schema(self, mocker):
+        mocker.patch.dict("os.environ", {"OPENROUTER_API_KEY": "test-key"}, clear=False)
+        config = GatekeeperConfig(
+            provider=GatekeeperProvider.OPENROUTER,
+            model="openai/gpt-5.2",
+            structured_output=True,
+            temperature=0.0,
+        )
+        mocker.patch.object(CONFIG, "gatekeeper", config)
+        mock_post = mocker.patch(
+            "linux_mcp_server.gatekeeper.openrouter_client.post_json",
+            new_callable=mocker.AsyncMock,
+            return_value={"choices": [{"message": {"content": '{"status": "OK"}'}}]},
+        )
+
+        await openrouter_client.complete_openrouter("prompt", max_tokens=8000)
+
+        body = mock_post.call_args.kwargs["body"]
+        schema = body["response_format"]["json_schema"]["schema"]
+        expected = GatekeeperResult.structured_output_schema_openai()
+        assert schema == expected
+        assert "detail" in schema["required"]
+
+    async def test_non_openai_model_uses_default_schema(self, mocker):
+        mocker.patch.dict("os.environ", {"OPENROUTER_API_KEY": "test-key"}, clear=False)
+        config = GatekeeperConfig(
+            provider=GatekeeperProvider.OPENROUTER,
+            model="anthropic/claude-sonnet-4",
+            structured_output=True,
+            temperature=0.0,
+        )
+        mocker.patch.object(CONFIG, "gatekeeper", config)
+        mock_post = mocker.patch(
+            "linux_mcp_server.gatekeeper.openrouter_client.post_json",
+            new_callable=mocker.AsyncMock,
+            return_value={"choices": [{"message": {"content": '{"status": "OK"}'}}]},
+        )
+
+        await openrouter_client.complete_openrouter("prompt", max_tokens=8000)
+
+        body = mock_post.call_args.kwargs["body"]
+        schema = body["response_format"]["json_schema"]["schema"]
+        expected = GatekeeperResult.structured_output_schema()
+        assert schema == expected
+        assert schema["required"] == ["status"]
+
     async def test_complete_openrouter_requires_api_key(self, gatekeeper_config, mocker):
         mocker.patch.dict("os.environ", {"OPENROUTER_API_KEY": ""}, clear=False)
 
         with pytest.raises(ValueError, match="OPENROUTER_API_KEY is required"):
             await openrouter_client.complete_openrouter("prompt", max_tokens=8000)
+
+
+class TestIsOpenaiProvider:
+    @pytest.mark.parametrize(
+        "model",
+        ["openai/gpt-5.2", "openai/gpt-oss-120b", "openai/o3-pro"],
+    )
+    def test_openai_models(self, model):
+        assert openrouter_client._is_openai_provider(model) is True
+
+    @pytest.mark.parametrize(
+        "model",
+        ["anthropic/claude-sonnet-4", "google/gemini-2.5-pro", "meta-llama/llama-4-scout"],
+    )
+    def test_non_openai_models(self, model):
+        assert openrouter_client._is_openai_provider(model) is False
