@@ -1,5 +1,5 @@
 version = 1
-revision = 3
+revision = 5
 requires-python = ">=3.10"
 resolution-markers = [
     "python_full_version >= '3.14'",
@@ -2920,7 +2920,7 @@ wheels = [
 [[package]]
 name = "slushy-build"
 version = "0.1.0"
-source = { git = "https://github.com/owtaylor/slushy-build#cf73c5d1c08c0772ae68aecac43a3eb0d9f40f9e" }
+source = { git = "https://github.com/owtaylor/slushy-build#134b25bbc96cadb5ce1ba06f562be92e3627e8e2" }
 dependencies = [
     { name = "networkx" },
     { name = "packaging" },

@@ -138,6 +138,8 @@ rpm-lock:
 SLUSHY_CONSTRAIN ?= uv-build<0.11.8
 SLUSHY_ARGS ?=
 requirements-lock:
+	# https://github.com/hermetoproject/pybuild-deps/pull/450
+	mkdir -p $$HOME/.cache
 	uv run --locked --only-group slushy slushy-build update \
 	  --constrain '$(SLUSHY_CONSTRAIN)' \
 	  $(if $(SLUSHY_FROM_SCRATCH),--from-scratch,) \
