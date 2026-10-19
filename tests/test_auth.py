@@ -4,6 +4,7 @@ from pydantic import SecretStr
 from pytest_mock import MockerFixture
 
 from linux_mcp_server.auth import create_auth_provider
+from linux_mcp_server.auth import normalize_claims
 from linux_mcp_server.config import AuthConfig
 from linux_mcp_server.config import AuthProvider
 from linux_mcp_server.config import Config
@@ -42,6 +43,21 @@ class TestCreateAuthProvider:
         from fastmcp.server.auth.providers.google import GoogleProvider
 
         assert isinstance(provider, GoogleProvider)
+
+    def test_google_provider_requests_email_scope(self, mocker):
+        """The email scope is what makes Google return the email and email_verified claims."""
+        google_config = GoogleAuthConfig(
+            client_id="test-client-id",
+            client_secret=SecretStr("test-secret"),
+        )
+        auth_config = AuthConfig(provider=AuthProvider.GOOGLE, google=google_config)
+        mocker.patch("linux_mcp_server.auth.CONFIG", Config(auth=auth_config, host="localhost", port=8000))
+        google_provider = mocker.patch("linux_mcp_server.auth.GoogleProvider", autospec=True)
+
+        create_auth_provider()
+
+        assert google_provider.call_args is not None
+        assert google_provider.call_args.kwargs["required_scopes"] == ["openid", "email"]
 
     def test_google_provider_missing_config_raises(self, mocker):
         auth_config = AuthConfig(
@@ -172,3 +188,24 @@ def test_auth_base_url(
     create_auth_provider()
     assert provider.call_args is not None
     assert provider.call_args.kwargs["base_url"] == expected
+
+
+@pytest.mark.parametrize(
+    ("claims", "expected"),
+    [
+        pytest.param({"email_verified": "true"}, {"email_verified": True}, id="string-true"),
+        pytest.param({"email_verified": "false"}, {"email_verified": False}, id="string-false"),
+        pytest.param({"email_verified": "True"}, {"email_verified": True}, id="string-capitalised"),
+        pytest.param({"email_verified": True}, {"email_verified": True}, id="bool-unchanged"),
+        pytest.param({"email_verified": "yes"}, {"email_verified": "yes"}, id="other-string-unchanged"),
+        pytest.param(
+            {"sub": "123", "verified": "true"}, {"sub": "123", "verified": "true"}, id="other-claims-unchanged"
+        ),
+    ],
+)
+def test_normalize_claims(claims: dict, expected: dict) -> None:
+    """String booleans in email_verified become bool; everything else is left alone."""
+    original = dict(claims)
+
+    assert normalize_claims(claims) == expected
+    assert claims == original  # the caller's claims are not modified

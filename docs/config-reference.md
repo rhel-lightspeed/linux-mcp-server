@@ -140,6 +140,9 @@ Uses Google OAuth for authentication. Suitable for testing or environments where
 | `--auth.google.client_id`<br>`LINUX_MCP_AUTH__GOOGLE__CLIENT_ID` | *(required)* | Google OAuth client ID |
 | `--auth.google.client_secret`<br>`LINUX_MCP_AUTH__GOOGLE__CLIENT_SECRET` | *(required)* | Google OAuth client secret |
 
+Sign-in requests the `openid` and `email` scopes, so tokens carry the `email` and `email_verified` claims that [authorization policy](#authorization-policy) rules can match.
+When the OAuth client's audience is set to *Internal* in Google Cloud, only accounts in your Google Workspace can sign in, so a rule on `email` alone is usually enough.
+
 ### GitHub
 
 Uses GitHub OAuth for authentication. Suitable for testing or environments where users have GitHub accounts.
@@ -188,6 +191,8 @@ Each rule has the following properties that are used for matching:
     - if `<value>` is a string, and the value from the token is a string, they must match exactly
     - if `<value>` is a string, and the value from the token is a list, `<value>` must be in the list (example: `groups: app-rhel-mcp-server-users`)
     - for all other types for `<value>` the values must match exactly (example: `email_verified: true`)
+
+    An `email_verified` claim sent as the string `"true"` or `"false"` (as Google does) is converted to a boolean before matching and logging, so `email_verified: true` works with every provider.
  - **`all_users`** (boolean) - `true` if this rule should match all users. Either `all_users: true` or a non-empty `claims` must be specified; a rule with `all_users: false` (the default) and no `claims` is invalid.
 
 The rule also specifies an action and, if the action is `ssh_key`, additional properties for that action.

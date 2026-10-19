@@ -31,6 +31,7 @@ from linux_mcp_server.audit import audit_context
 from linux_mcp_server.audit import Event
 from linux_mcp_server.audit import log_event
 from linux_mcp_server.auth import create_auth_provider
+from linux_mcp_server.auth import normalize_claims
 from linux_mcp_server.auth_policy import evaluate_policy
 from linux_mcp_server.auth_policy import PolicyAction
 from linux_mcp_server.config import CONFIG
@@ -264,7 +265,7 @@ class AuthorizationMiddleware(Middleware):
         parameters = {key: value for key, value in tool_args.items() if key != "ctx"}
 
         access_token = get_access_token()
-        claims = access_token.claims if access_token else {}
+        claims = normalize_claims(access_token.claims or {}) if access_token else {}
 
         request_fields: dict[str, Any] = {}
         if CONFIG.transport != Transport.stdio:

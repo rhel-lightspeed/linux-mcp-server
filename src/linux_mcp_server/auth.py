@@ -1,5 +1,7 @@
 import logging
 
+from typing import Any
+
 from fastmcp.server.auth.auth import RemoteAuthProvider
 from fastmcp.server.auth.providers.github import GitHubProvider
 from fastmcp.server.auth.providers.google import GoogleProvider
@@ -12,6 +14,27 @@ from linux_mcp_server.config import CONFIG
 
 
 logger = logging.getLogger(__name__)
+
+# Without "email", Google's token check returns no email claim, so authorization
+# policy rules could only match the opaque "sub" claim.
+GOOGLE_SCOPES = ["openid", "email"]
+
+# Claims some providers return as the strings "true"/"false" rather than booleans -
+# FastMCP's Google provider passes email_verified through from Google's tokeninfo endpoint.
+BOOLEAN_CLAIMS = ("email_verified",)
+
+
+def normalize_claims(claims: dict[str, Any]) -> dict[str, Any]:
+    """Return a copy of the token claims with string booleans converted to bool.
+
+    Policy rules and audit logs then see one type for these claims whatever the provider.
+    """
+    normalized = dict(claims)
+    for name in BOOLEAN_CLAIMS:
+        value = normalized.get(name)
+        if isinstance(value, str) and value.lower() in ("true", "false"):
+            normalized[name] = value.lower() == "true"
+    return normalized
 
 
 # Create authentication provider based on configuration
@@ -33,6 +56,7 @@ def create_auth_provider():
             client_id=CONFIG.auth.google.client_id,
             client_secret=CONFIG.auth.google.client_secret.get_secret_value(),
             base_url=base_url,
+            required_scopes=GOOGLE_SCOPES,
         )
 
     elif CONFIG.auth.provider == AuthProvider.GITHUB:

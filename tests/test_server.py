@@ -298,6 +298,40 @@ class TestAuthorizationMiddleware:
             with pytest.raises(ToolError, match=r"Authorization denied: tool 'get_memory_information'"):
                 await client.call_tool("get_memory_information", {"host": "localhost"})
 
+    @pytest.mark.parametrize(
+        "email_verified,allowed",
+        [
+            pytest.param("true", True, id="string-true"),
+            pytest.param(True, True, id="bool-true"),
+            pytest.param("false", False, id="string-false"),
+        ],
+    )
+    async def test_http_policy_email_verified_is_boolean(
+        self, email_verified: str | bool, allowed: bool, setup: SetupFn
+    ):
+        """A boolean email_verified rule matches whether the provider sent a string or a boolean."""
+        client = setup(
+            transport="http",
+            policy=AuthPolicy(
+                rules=[
+                    PolicyRule(
+                        host="localhost",
+                        tools=["@fixed"],
+                        claims={"email_verified": True},
+                        action=PolicyAction.LOCAL,
+                    )
+                ]
+            ),
+            claims={"email_verified": email_verified},
+        )
+
+        if allowed:
+            result = await client.call_tool("get_memory_information", {"host": "localhost"})
+            assert result.structured_content and result.structured_content["ram"]["free"] == 2497076
+        else:
+            with pytest.raises(ToolError, match=r"Authorization denied: tool 'get_memory_information'"):
+                await client.call_tool("get_memory_information", {"host": "localhost"})
+
     async def test_ssh_key_with_config_allows(self, setup: SetupFn, caplog):
         """SSH_KEY action with config, should allow and log"""
         caplog.set_level(logging.DEBUG)
