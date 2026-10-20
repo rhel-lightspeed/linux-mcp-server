@@ -10,7 +10,6 @@
 # slushy-build-source: caio==0.12.9
 # slushy-build-source: calver==2025.10.20
 # slushy-build-source: certifi==2026.7.22
-# slushy-build-source: cffi==2.0.0
 # slushy-build-source: cffi==2.1.1
 # slushy-build-source: charset-normalizer==3.5.1
 # slushy-build-source: click==8.5.0
@@ -92,7 +91,7 @@
 # slushy-build-source: websockets==17.1
 # slushy-build-source: wheel==0.47.0
 calver
-cffi>=2.0.0
+cffi>=2.1
 coherent-licensed
 cython==3.3.0
 flit-core<4,>=3.12,~=3.5
@@ -100,7 +99,7 @@ flit-scm
 hatch-fancy-pypi-readme>=23.2.0
 hatch-vcs<0.6.0,>=0.5
 hatchling<2,>=1.29
-maturin<2.0,>=1.14.1
+maturin<2,>=1.14.1
 packaging>=20
 pdm-backend
 pdm-pep517>=1.0.0
