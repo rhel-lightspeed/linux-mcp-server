@@ -1,7 +1,7 @@
 # slushy-build-source: aiofile==3.12.3
 # slushy-build-source: annotated-types==0.8.0
 # slushy-build-source: anyio==4.15.1
-# slushy-build-source: asyncssh==2.24.0
+# slushy-build-source: asyncssh==2.24.1
 # slushy-build-source: attrs==26.1.0
 # slushy-build-source: authlib==1.8.0
 # slushy-build-source: bcrypt==5.0.0
@@ -10,7 +10,6 @@
 # slushy-build-source: caio==0.12.9
 # slushy-build-source: calver==2025.10.20
 # slushy-build-source: certifi==2026.7.22
-# slushy-build-source: cffi==2.0.0
 # slushy-build-source: cffi==2.1.1
 # slushy-build-source: charset-normalizer==3.5.1
 # slushy-build-source: click==8.5.0
@@ -23,8 +22,8 @@
 # slushy-build-source: dunamai==1.26.1
 # slushy-build-source: exceptiongroup==1.3.1
 # slushy-build-source: fakeredis==2.34.1
-# slushy-build-source: fastmcp==3.4.7
-# slushy-build-source: fastmcp-slim==3.4.7
+# slushy-build-source: fastmcp==3.4.8
+# slushy-build-source: fastmcp-slim==3.4.8
 # slushy-build-source: flit-scm==1.7.0
 # slushy-build-source: griffelib==2.3.0
 # slushy-build-source: gssapi==1.12.0
@@ -47,6 +46,7 @@
 # slushy-build-source: markdown-it-py==4.2.0
 # slushy-build-source: markupsafe==3.0.3
 # slushy-build-source: maturin==1.14.1
+# slushy-build-source: maturin==1.15.0
 # slushy-build-source: mcp==1.30.0
 # slushy-build-source: mdurl==0.1.2
 # slushy-build-source: more-itertools==11.1.0
@@ -59,8 +59,7 @@
 # slushy-build-source: pyasn1==0.6.4
 # slushy-build-source: pyasn1-modules==0.4.2
 # slushy-build-source: pycparser==3.0
-# slushy-build-source: pydantic==2.13.5
-# slushy-build-source: pydantic-core==2.46.5
+# slushy-build-source: pydantic==2.14.1
 # slushy-build-source: pydantic-settings==2.15.0
 # slushy-build-source: pygments==2.21.0
 # slushy-build-source: pyjwt==2.15.0
@@ -92,7 +91,7 @@
 # slushy-build-source: websockets==17.1
 # slushy-build-source: wheel==0.47.0
 calver
-cffi>=2.0.0
+cffi>=2.1
 coherent-licensed
 cython==3.3.0
 flit-core<4,>=3.12,~=3.5
