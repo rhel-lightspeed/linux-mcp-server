@@ -138,6 +138,11 @@ rpm-lock:
 SLUSHY_CONSTRAIN ?= uv-build<0.11.8
 SLUSHY_ARGS ?=
 requirements-lock:
+	if ! uv run python -c "import sys; sys.exit(0 if sys.version_info[:2] == (3, 12) else 1)" ; then \
+	  echo "'make requirements-lock' should be run with Python3.12" 2>&1 ; \
+	  echo "Run 'uv sync --python=3.12'" 2>&1 ; \
+	  exit 1 ; \
+	fi
 	# https://github.com/hermetoproject/pybuild-deps/pull/450
 	mkdir -p $$HOME/.cache
 	uv run --locked --only-group slushy slushy-build update \
