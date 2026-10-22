@@ -1,10 +1,6 @@
 # slushy-build-source: idna==3.20
-# slushy-build-source: packaging==26.2
 # slushy-build-source: packaging==26.3
 # slushy-build-source: pathspec==1.1.1
-# slushy-build-source: pydantic-core==2.50.1
-# slushy-build-source: pyyaml==6.0.3
-cython>=3.0
+# slushy-build-source: wheel==0.48.0
 flit-core<5,>=3.12
-maturin<2,>=1.15.0
 setuptools>=40.8.0

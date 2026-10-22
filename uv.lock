@@ -2982,7 +2982,7 @@ wheels = [
 [[package]]
 name = "slushy-build"
 version = "0.1.0"
-source = { git = "https://github.com/owtaylor/slushy-build#134b25bbc96cadb5ce1ba06f562be92e3627e8e2" }
+source = { git = "https://github.com/owtaylor/slushy-build#e9cd6ad4ce6c0d5bfb4461b7324328cc3c5723a5" }
 dependencies = [
     { name = "networkx" },
     { name = "packaging" },
