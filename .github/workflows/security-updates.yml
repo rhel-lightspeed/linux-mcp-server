@@ -272,8 +272,8 @@ jobs:
         env:
           UPDATES: ${{ runner.temp }}/updates/security-updates.json
         run: |
-          git config user.name "github-actions[bot]"
-          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git config user.name "linux-mcp-server-audit-bot[bot]"
+          git config user.email "346423574+linux-mcp-server-audit-bot[bot]@users.noreply.github.com"
           python3 "$TOOL" commit-message \
             --package "$PACKAGE" --branch "$BRANCH" --updates "$UPDATES" > "$RUNNER_TEMP/message.txt"
           # Stage only the paths this job owns, so nothing uv or slushy-build
@@ -299,6 +299,8 @@ jobs:
     needs: [audit, fix]
     if: ${{ !cancelled() && needs.audit.result == 'success' && needs.audit.outputs.found == 'true' }}
     runs-on: ubuntu-latest
+    environment:
+      name: audit
     permissions:
       contents: read
 
@@ -333,8 +335,8 @@ jobs:
         run: |
           set -euo pipefail
 
-          git config user.name "github-actions[bot]"
-          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git config user.name "linux-mcp-server-audit-bot[bot]"
+          git config user.email "346423574+linux-mcp-server-audit-bot[bot]@users.noreply.github.com"
 
           failed=()
           mapfile -t updates < <(jq -c '.[]' <<< "$UPDATES")
