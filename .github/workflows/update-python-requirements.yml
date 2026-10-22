@@ -42,7 +42,7 @@ jobs:
         uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
         with:
           # Our Containerfile and RPMs use Python3.12 - as the system version for
-          # RHEL 10 and as a separate package for RHEL 10
+          # RHEL 10 and as a separate package for RHEL 9
           python-version: 3.12
 
       - name: Install uv
