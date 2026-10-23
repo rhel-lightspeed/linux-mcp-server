@@ -12,7 +12,7 @@ from pydantic.functional_validators import BeforeValidator
 from linux_mcp_server.commands import get_command
 from linux_mcp_server.config import CONFIG
 from linux_mcp_server.models import LogEntries
-from linux_mcp_server.server import tool
+from linux_mcp_server.server import mcp
 from linux_mcp_server.utils import StrEnum
 from linux_mcp_server.utils.types import Host
 from linux_mcp_server.utils.types import LOCALHOST
@@ -81,7 +81,7 @@ async def _get_journal_logs(
     )
 
 
-@tool(
+@mcp.tool(
     title="Get journal logs",
     description="Get systemd journal logs.",
     tags={"fixed", "journal", "logs", "systemd", "troubleshooting"},
@@ -174,7 +174,7 @@ async def get_journal_logs(
     )
 
 
-@tool(
+@mcp.tool(
     title="Read log file",
     description="Read a specific log file.",
     tags={"fixed", "files", "logs", "troubleshooting"},

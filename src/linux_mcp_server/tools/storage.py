@@ -18,7 +18,7 @@ from linux_mcp_server.models import NodeEntry
 from linux_mcp_server.models import StorageNodes
 from linux_mcp_server.parsers import parse_directory_listing
 from linux_mcp_server.parsers import parse_file_listing
-from linux_mcp_server.server import tool
+from linux_mcp_server.server import mcp
 from linux_mcp_server.utils import format_bytes
 from linux_mcp_server.utils import StrEnum
 from linux_mcp_server.utils.types import Host
@@ -75,7 +75,7 @@ async def _list_resources(
     return StorageNodes(nodes=entries)
 
 
-@tool(
+@mcp.tool(
     title="List block devices",
     description="List block devices on the system",
     tags={"fixed", "devices", "storage"},
@@ -98,7 +98,7 @@ async def list_block_devices(
     return BlockDevices.model_validate_json(stdout)
 
 
-@tool(
+@mcp.tool(
     title="List directories",
     description="List directories under a specified path with various sorting options.",
     tags={"fixed", "directories", "filesystem", "storage"},
@@ -145,7 +145,7 @@ async def list_directories(
     )
 
 
-@tool(
+@mcp.tool(
     title="List files",
     description="List files under a specified path with various sorting options.",
     tags={"fixed", "files", "filesystem", "storage"},
@@ -192,7 +192,7 @@ async def list_files(
     )
 
 
-@tool(
+@mcp.tool(
     title="Read file",
     description="Read the contents of a text file up to a safe size limit.",
     tags={"fixed", "files", "filesystem", "storage"},

@@ -17,7 +17,7 @@ from linux_mcp_server.parsers import parse_cpu_info
 from linux_mcp_server.parsers import parse_free_output
 from linux_mcp_server.parsers import parse_pcp_archive_ranges
 from linux_mcp_server.parsers import parse_system_info
-from linux_mcp_server.server import tool
+from linux_mcp_server.server import mcp
 from linux_mcp_server.utils.hostinfo import discover_timezone_name
 from linux_mcp_server.utils.pcp import PCP_GUIDE_TOOL
 from linux_mcp_server.utils.pcp import pmlogger_archive_dir
@@ -64,7 +64,7 @@ async def _get_pcp_status(host: Host) -> PCPStatus:
     )
 
 
-@tool(
+@mcp.tool(
     title="Get system information",
     description=(
         "Get basic system information, including operating system, distribution, kernel version, uptime, "
@@ -95,7 +95,7 @@ async def get_system_information(
     return info
 
 
-@tool(
+@mcp.tool(
     title="Get CPU information",
     description="Get CPU information.",
     tags={"fixed", "cpu", "hardware", "performance", "system"},
@@ -121,7 +121,7 @@ async def get_cpu_information(
     return parse_cpu_info(results)
 
 
-@tool(
+@mcp.tool(
     title="Get memory information",
     description="Get detailed memory including physical and swap.",
     tags={"fixed", "hardware", "memory", "performance", "system"},
@@ -148,7 +148,7 @@ async def get_memory_information(
     return parse_free_output(stdout)
 
 
-@tool(
+@mcp.tool(
     title="Get disk usage",
     description="Get detailed disk space information including size, mount points, and utilization.",
     tags={"fixed", "disk", "filesystem", "storage", "system"},
@@ -179,7 +179,7 @@ async def get_disk_usage(
         raise ToolError(f"Error parsing disk usage information: {str(e)}") from e
 
 
-@tool(
+@mcp.tool(
     title="Get hardware information",
     description="Get hardware information such as CPU details, PCI devices, USB devices, and hardware information from DMI.",
     tags={"fixed", "hardware", "system"},

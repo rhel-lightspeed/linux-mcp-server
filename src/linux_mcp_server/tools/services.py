@@ -10,12 +10,12 @@ from linux_mcp_server.formatters import format_service_logs
 from linux_mcp_server.formatters import format_service_status
 from linux_mcp_server.formatters import format_services_list
 from linux_mcp_server.parsers import parse_service_count
-from linux_mcp_server.server import tool
+from linux_mcp_server.server import mcp
 from linux_mcp_server.utils.types import Host
 from linux_mcp_server.utils.validation import is_empty_output
 
 
-@tool(
+@mcp.tool(
     title="List services",
     description="List all systemd services.",
     tags={"fixed", "services", "systemd"},
@@ -46,7 +46,7 @@ async def list_services(
     return format_services_list(stdout, running_count)
 
 
-@tool(
+@mcp.tool(
     title="Get service status",
     description="Get detailed status of a specific systemd service.",
     tags={"fixed", "services", "systemd"},
@@ -84,7 +84,7 @@ async def get_service_status(
     return format_service_status(stdout, service_name)
 
 
-@tool(
+@mcp.tool(
     title="Get service logs",
     description="Get recent logs for a specific systemd service.",
     tags={"fixed", "logs", "services", "systemd", "troubleshooting"},

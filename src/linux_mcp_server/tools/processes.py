@@ -10,12 +10,12 @@ from linux_mcp_server.formatters import format_process_detail
 from linux_mcp_server.formatters import format_process_list
 from linux_mcp_server.parsers import parse_proc_status
 from linux_mcp_server.parsers import parse_ps_output
-from linux_mcp_server.server import tool
+from linux_mcp_server.server import mcp
 from linux_mcp_server.utils.types import Host
 from linux_mcp_server.utils.validation import is_successful_output
 
 
-@tool(
+@mcp.tool(
     title="List processes",
     description="List running processes",
     tags={"fixed", "performance", "processes"},
@@ -38,7 +38,7 @@ async def list_processes(
     return "Error executing ps command"
 
 
-@tool(
+@mcp.tool(
     title="Process details",
     description="Get information about a specific process.",
     tags={"fixed", "performance", "processes"},

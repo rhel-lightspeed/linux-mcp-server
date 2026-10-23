@@ -1,84 +1,66 @@
 """Redact sensitive data in tool return values before FastMCP renders them."""
 
-from pathlib import Path
 from typing import Any
 
-from fastmcp.tools import ToolResult
-from mcp.types import TextContent
-from pydantic import BaseModel
+import pydantic_core
+
+from fastmcp.tools import ToolResult as RenderedToolResult
 
 from linux_mcp_server.redaction.engine import RedactionEngine
+from linux_mcp_server.tool_result import ToolResult
 
 
-def redact_tool_output(value: Any, engine: RedactionEngine) -> Any:
-    """Redact strings in a tool's return value, preserving type and structure.
+def redact_tool_output(value: Any, engine: RedactionEngine | None) -> Any:
+    """Scan everything a tool returned, and hand back a value FastMCP can render.
 
-    Args:
-        value: Tool return value (string, model, dict, list, or ToolResult)
-        engine: Redaction engine with active rules
+    Whatever the tool produced is reduced to JSON before it is scanned, so that there
+    is a single document to look at rather than a tree of models, paths and containers
+    whose types would have to be put back together afterwards. It is also the shape a
+    future hook script would be handed.
 
-    Returns:
-        Value with strings redacted. Models/ToolResults edited in place, containers rebuilt.
+    A tool that returned a ``ToolResult`` wrote its own text, so both halves are
+    scanned and the pair is rendered here, once clean. Anything else is handed back as
+    JSON data for FastMCP to render as it normally would - text and structured content
+    then both come from the scanned document.
+
+    With no engine there is nothing to scan, and a value FastMCP would have rendered
+    itself is handed straight back. A ``ToolResult`` is still rendered here: it is a
+    pair of halves to hand FastMCP separately, not data describing itself, so passing
+    one along as it stands would render the container instead of what is in it.
     """
     if isinstance(value, ToolResult):
-        return _redact_tool_result(value, engine)
-    return _redact(value, engine)
+        return RenderedToolResult(
+            content=value.content if engine is None else engine.redact(value.content),
+            structured_content=_as_json(value.structured_content, engine),
+        )
+
+    if engine is None:
+        return value
+
+    return _as_json(value, engine)
 
 
-def _redact_tool_result(result: ToolResult, engine: RedactionEngine) -> ToolResult:
-    """Redact a ToolResult, rebuilding derived text from redacted structure.
+def _as_json(value: Any, engine: RedactionEngine | None) -> Any:
+    """Reduce a value to JSON, scanning the strings in it if there is an engine."""
+    jsonable = pydantic_core.to_jsonable_python(value)
 
-    Auto-generated JSON text is discarded and re-rendered from the redacted structure
-    to avoid JSON escaping hiding secrets. Explicit text is scanned as-is.
-    """
-    if result.structured_content is None:
-        _redact_text_blocks(result, engine)
-        return result
-
-    # Ask FastMCP what it would render from this structure. Matching content came from
-    # that rendering, so it can be produced again once the structure is clean.
-    derived = ToolResult(structured_content=result.structured_content).content == result.content
-
-    result.structured_content = _redact(result.structured_content, engine)
-
-    if derived:
-        result.content = ToolResult(structured_content=result.structured_content).content
-    else:
-        _redact_text_blocks(result, engine)
-
-    return result
-
-
-def _redact_text_blocks(result: ToolResult, engine: RedactionEngine) -> None:
-    """Scan each text block the tool supplied, leaving other block types alone."""
-    for block in result.content:
-        if isinstance(block, TextContent):
-            block.text = engine.redact(block.text)
+    return jsonable if engine is None else _redact(jsonable, engine)
 
 
 def _redact(value: Any, engine: RedactionEngine) -> Any:
-    """Replace the string leaves of a value, descending into models and containers."""
+    """Replace the string leaves of a JSON document, keeping its shape.
+
+    Keys are left alone: they are field names the tools chose, and rewriting one would
+    rename a property the output schema requires.
+    """
     if isinstance(value, str):
         return engine.redact(value)
-
-    # A path is free-form text that reaches the model as a string, so it is scanned as
-    # one and handed back as a path: the field keeps the type it declared.
-    if isinstance(value, Path):
-        return type(value)(engine.redact(str(value)))
-
-    if isinstance(value, BaseModel):
-        for name in type(value).model_fields:
-            setattr(value, name, _redact(getattr(value, name), engine))
-        return value
 
     if isinstance(value, dict):
         return {key: _redact(item, engine) for key, item in value.items()}
 
-    if isinstance(value, tuple):
-        return tuple(_redact(item, engine) for item in value)
-
     if isinstance(value, list):
         return [_redact(item, engine) for item in value]
 
-    # Numbers, booleans, None and datetimes carry no text to scan.
+    # Numbers, booleans and None carry no text to scan.
     return value
