@@ -77,7 +77,7 @@
 # slushy-build-source: setuptools-scm==10.3.4
 # slushy-build-source: sse-starlette==3.5.0
 # slushy-build-source: starlette==1.8.0
-# slushy-build-source: tomlkit==0.15.1
+# slushy-build-source: tomlkit==0.15.2
 # slushy-build-source: trove-classifiers==2026.9.21.13
 # slushy-build-source: typing-extensions==4.16.0
 # slushy-build-source: typing-inspection==0.4.4
@@ -102,7 +102,7 @@ maturin<2,>=1.15.0
 packaging>=26.2
 pdm-backend
 pdm-pep517>=1.0.0
-poetry-core>=1.0.0
+poetry-core>=2.2.0
 setuptools<84.1,>=80
 setuptools-rust>=1.11.0
 setuptools-scm[toml]<11,>=8.2
