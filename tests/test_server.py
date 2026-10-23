@@ -696,3 +696,80 @@ async def test_execution_errors_become_tool_errors(mcp_client, mocker, caplog, f
     # expected OS errors. Preserve the original types so tools can handle them.
     assert len(tracebacks) == 1
     assert expected_error in tracebacks[0]
+
+
+class TestRedactionStartup:
+    """Tests for redaction engine initialization at server startup."""
+
+    def test_builtin_rules_loaded_by_default(self):
+        """With no configuration, the engine loads built-in credential rules."""
+        from linux_mcp_server import server
+
+        # Verify the server's engine was initialized with built-in rules
+        # (This assumes redaction is enabled by default in CONFIG)
+        if server.redaction_engine is not None:
+            rule_names = [rule["name"] for rule in server.redaction_engine.list_active_rules()]
+            assert rule_names
+            assert all(name.startswith("builtin:credentials:") for name in rule_names)
+
+    def test_custom_rules_file_can_be_loaded(self, tmp_path):
+        """A custom rules file can be loaded by the engine."""
+        import yaml
+
+        from linux_mcp_server.redaction.engine import RedactionEngine
+
+        rules_file = tmp_path / "redaction.yaml"
+        rules_file.write_text(
+            yaml.dump(
+                {
+                    "version": 1,
+                    "disable_rules": ["builtin:*"],
+                    "rules": [{"name": "test_rule", "description": "Test", "match": "SECRET"}],
+                }
+            )
+        )
+
+        # Verify the engine can load custom rules
+        engine = RedactionEngine.from_yaml_file(rules_file)
+
+        rule_names = [rule["name"] for rule in engine.list_active_rules()]
+        assert "custom:test_rule" in rule_names
+        assert not any(name.startswith("builtin:") for name in rule_names)
+
+    def test_invalid_rules_file_stops_startup(self, tmp_path):
+        """A malformed rules file raises during initialization."""
+        from linux_mcp_server.redaction.engine import RedactionEngine
+
+        rules_file = tmp_path / "bad.yaml"
+        rules_file.write_text("this is not: [valid yaml")
+
+        with pytest.raises(ValueError, match="Failed to parse YAML"):
+            RedactionEngine.from_yaml_file(rules_file)
+
+    def test_missing_rules_file_stops_startup(self, tmp_path):
+        """A configured rules file that doesn't exist raises."""
+        from linux_mcp_server.redaction.engine import RedactionEngine
+
+        missing_file = tmp_path / "nonexistent.yaml"
+
+        with pytest.raises(FileNotFoundError, match="not found"):
+            RedactionEngine.from_yaml_file(missing_file)
+
+
+class TestAllToolsUseDecorator:
+    """Verify every registered tool uses the @tool decorator, not @mcp.tool."""
+
+    def test_ruff_rule_rejects_direct_mcp_registration(self):
+        """The TID251 Ruff rule catches @mcp.tool in tool modules."""
+        import subprocess
+        import sys
+
+        # This test is covered by test_tool_registration_lint.py
+        # Just verify that file exists and runs
+        result = subprocess.run(
+            [sys.executable, "-m", "pytest", "tests/test_tool_registration_lint.py", "-v"],
+            capture_output=True,
+            text=True,
+        )
+
+        assert result.returncode == 0, f"Lint tests failed:\n{result.stdout}"

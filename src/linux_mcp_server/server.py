@@ -1,10 +1,12 @@
 """Core MCP server for Linux diagnostics using FastMCP."""
 
 import asyncio
+import functools
 import logging
 import time
 import uuid
 
+from collections.abc import Callable
 from dataclasses import dataclass
 from importlib import resources
 from pathlib import Path
@@ -13,6 +15,7 @@ from typing import Any
 from fastmcp import Context
 from fastmcp import FastMCP
 from fastmcp.exceptions import NotFoundError
+from fastmcp.exceptions import ToolError
 from fastmcp.resources import ResourceContent
 from fastmcp.resources import ResourceResult
 from fastmcp.server.dependencies import get_access_token
@@ -43,6 +46,8 @@ from linux_mcp_server.mcp_app import hide_app_tools_for_client
 from linux_mcp_server.mcp_app import MCP_APP_MIME_TYPE
 from linux_mcp_server.mcp_app import RUN_SCRIPT_APP_URI
 from linux_mcp_server.mcp_app import use_mcp_app_for_client
+from linux_mcp_server.redaction.apply import redact_tool_output
+from linux_mcp_server.redaction.engine import RedactionEngine
 from linux_mcp_server.target_host import adjust_tool
 from linux_mcp_server.target_host import resolve_target_host
 from linux_mcp_server.target_host import restrict
@@ -214,6 +219,69 @@ def run_script_app_html() -> ResourceResult:
     js = ui_dir.joinpath("run-script-app.js").read_text()
     html = html.replace("/* __CSS__ */", css).replace("/* __JS__ */", js)
     return ResourceResult(contents=[ResourceContent(html, mime_type=MCP_APP_MIME_TYPE)])
+
+
+# Sent when redaction fails. Doesn't include the value or error since either could leak secrets.
+REDACTION_FAILURE_MESSAGE = "Tool output could not be safely returned."
+
+
+def tool(*args: Any, **kwargs: Any) -> Callable[[Callable[..., Any]], Any]:
+    """Register an MCP tool with redaction applied to return values and exceptions.
+
+    Takes the same arguments as ``mcp.tool`` and forwards them (title, description,
+    tags, annotations, app settings).
+
+    Redacts the return value before FastMCP formats it, ensuring both text and
+    structured content are derived from clean data. Also redacts exception messages
+    since tools often quote output in errors. See ``redaction.apply`` for details.
+
+    Defined above tool imports because those modules use it at import time. The engine
+    is read when a tool runs, reflecting the configured engine.
+    """
+
+    def decorator(fn: Callable[..., Any]) -> Any:
+        @functools.wraps(fn)
+        async def redacting(*fn_args: Any, **fn_kwargs: Any) -> Any:
+            engine = redaction_engine
+            if engine is None:
+                # Redaction off: the tool's result and its exceptions pass through as-is.
+                return await fn(*fn_args, **fn_kwargs)
+
+            try:
+                result = await fn(*fn_args, **fn_kwargs)
+            except Exception as error:
+                failure = _redacted_error(error, engine)
+            else:
+                try:
+                    return redact_tool_output(result, engine)
+                except Exception:
+                    logger.exception("Redaction failed; withholding tool output")
+                    failure = ToolError(REDACTION_FAILURE_MESSAGE)
+
+            # Raised once both except blocks have exited, leaving no exception being
+            # handled for Python to attach as this one's context. That matters because
+            # the original error, and whatever it was raised from, still hold the text
+            # just redacted; raising inside the except block would carry them along,
+            # and 'raise ... from None' would only hide them from tracebacks.
+            raise failure
+
+        return mcp.tool(*args, **kwargs)(redacting)
+
+    return decorator
+
+
+def _redacted_error(error: Exception, engine: RedactionEngine) -> Exception:
+    """Rebuild an exception a tool raised, with its message redacted.
+
+    The type is kept so FastMCP still tells a deliberate ToolError apart from an
+    unexpected failure, which decides whether it masks the detail. Anything that
+    cannot be rebuilt that way, including a failed scan, becomes the fixed message.
+    """
+    try:
+        return type(error)(engine.redact(str(error)))
+    except Exception:
+        logger.exception("Redaction failed; withholding tool error")
+        return ToolError(REDACTION_FAILURE_MESSAGE)
 
 
 from linux_mcp_server.tools import *  # noqa: E402, F403
@@ -438,6 +506,22 @@ class DynamicDiscoveryMiddleware(Middleware):
     #
     # on_read_resource: we consider it harmless if any app reads the static and
     #    public mcp-app HTML, so we don't provide a on_read_resource() handler.
+
+
+# Initialize redaction engine at startup
+redaction_engine: RedactionEngine | None = None
+
+if CONFIG.redaction.enabled:
+    if CONFIG.redaction.rules_path is None:
+        # Use built-in credential rules only
+        redaction_engine = RedactionEngine()
+        logger.info("Redaction enabled with built-in credential rules")
+    else:
+        # Load custom rules from configured path
+        redaction_engine = RedactionEngine.from_yaml_file(CONFIG.redaction.rules_path)
+        logger.info(f"Redaction enabled with rules from {CONFIG.redaction.rules_path}")
+else:
+    logger.info("Redaction disabled")
 
 
 mcp.add_middleware(AuthorizationMiddleware())

@@ -199,6 +199,7 @@ select = [
     "C90",  # flake8-comprehensions
     "RUF100",  # unused-noqa
     "T20",  # flake8-print
+    "TID251",  # banned-api, configured below
 ]
 mccabe.max-complexity = 12
 
@@ -207,9 +208,21 @@ ignore = [
     "E501",  # Ignore line length (similar to flake8's max-line-length)
 ]
 
+[tool.ruff.lint.flake8-tidy-imports.banned-api]
+# A tool registered straight onto the FastMCP instance returns whatever it produced,
+# unscanned, because redaction lives in the @tool decorator that wraps the function.
+# The whole 'mcp' object is banned rather than just '.tool', so that neither an alias
+# nor a local reference to the method can reach a registration unnoticed.
+"linux_mcp_server.server.mcp".msg = "Register tools with @tool from linux_mcp_server.server, so their output is redacted."
+
 [tool.ruff.lint.per-file-ignores]
-"scripts/*" = ["T201"]
+# The module that owns the FastMCP instance, plus the places that drive an
+# already-built server rather than adding tools to it: the test suite and the
+# tool-doc generator.
+"scripts/*" = ["T201", "TID251"]
 "tests/functional/*" = ["T201", "C901"]
+"src/linux_mcp_server/server.py" = ["TID251"]
+"tests/*" = ["TID251"]
 
 [tool.ruff.lint.isort]
 # requires-python is >=3.10, so ruff files tomllib as third-party. Nothing

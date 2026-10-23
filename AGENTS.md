@@ -37,11 +37,25 @@ make verify                  # All checks (required before commit)
 
 ## Adding Tools
 
-1. Create tool in `src/linux_mcp_server/tools/` using the `@mcp.tool()` decorator, with a required `host: Host` parameter
+1. Create tool in `src/linux_mcp_server/tools/` using the `@tool()` decorator, with a required `host: Host` parameter
 2. Register command in `commands.py`
 3. Write tests in `tests/tools/`
 
 See `src/linux_mcp_server/tools/processes.py` for reference.
+
+```python
+from linux_mcp_server.server import tool  # never `mcp`
+
+
+@tool(title="...", description="...", annotations=ToolAnnotations(readOnlyHint=True))
+async def my_tool(host: Host) -> str: ...
+```
+
+`@tool` takes the same arguments as `mcp.tool` and forwards them, but also redacts the
+tool's return value and any exception it raises. Registering with `@mcp.tool` would
+return unscanned output; a Ruff rule (`TID251`) rejects importing `mcp` into a tool
+module. Return ordinary Python data and let FastMCP render the text from it — build a
+`ToolResult` only when the text must differ from the structured content.
 
 ## Commits & PRs
 

@@ -217,6 +217,13 @@ class GatekeeperConfig(BaseSettings):
     vertex_ai: VertexAIGatekeeperConfig | None = None
 
 
+class RedactionConfig(BaseSettings):
+    """Redaction configuration."""
+
+    enabled: bool = True
+    rules_path: Path | None = None
+
+
 class Config(BaseSettings):
     # The '_' is required in the env_prefix, otherwise, pydantic would
     # interpret the prefix as LINUX_MCPLOG_DIR, instead of LINUX_MCP_LOG_DIR
@@ -293,6 +300,9 @@ class Config(BaseSettings):
 
     # Authorization policy path
     policy_path: Path | None = None
+
+    # Redaction of sensitive values in tool output
+    redaction: RedactionConfig = Field(default_factory=RedactionConfig)
 
     @property
     def effective_known_hosts_path(self) -> Path:
