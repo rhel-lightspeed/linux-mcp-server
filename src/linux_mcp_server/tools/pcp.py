@@ -16,7 +16,7 @@ from linux_mcp_server.formatters import format_pcp_metric_listing
 from linux_mcp_server.models import PCPSample
 from linux_mcp_server.parsers import parse_pminfo_listing
 from linux_mcp_server.parsers import parse_pmrep_csv
-from linux_mcp_server.server import tool
+from linux_mcp_server.server import mcp
 from linux_mcp_server.utils.hostinfo import discover_timezone_name
 from linux_mcp_server.utils.pcp import PCP_GUIDE_TOOL
 from linux_mcp_server.utils.pcp import pmlogger_archive_dir
@@ -36,7 +36,7 @@ async def _target_timezone(host: str) -> tzinfo:
     return zoneinfo.ZoneInfo(name)
 
 
-@tool(
+@mcp.tool(
     title="Read the PCP metrics guide",
     description=(
         "Returns the PCP metrics guide: a catalog of the metric names recorded on a typical "
@@ -63,7 +63,7 @@ async def pcp_guide(
     return read_pcp_guide()
 
 
-@tool(
+@mcp.tool(
     title="List available PCP metrics",
     description=(
         "Browses the PCP metric namespace. Lists the metrics under 'prefix' with their "
@@ -124,7 +124,7 @@ async def pcp_list_metrics(
     return format_pcp_metric_listing(collapse_metric_tree(metrics, prefix), prefix)
 
 
-@tool(
+@mcp.tool(
     title="Query PCP historical metrics",
     description=(
         "Retrieves historical metric data from PCP archives as JSON samples. "
@@ -202,7 +202,7 @@ async def pcp_query_metrics(
     return samples
 
 
-@tool(
+@mcp.tool(
     title="Get PCP performance summary",
     description=(
         "Produces a condensed snapshot of CPU, memory, disk, network, and process information "

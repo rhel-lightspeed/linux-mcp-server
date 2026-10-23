@@ -126,11 +126,11 @@ from mcp.types import ToolAnnotations
 from pydantic import Field
 
 from linux_mcp_server.commands import get_command
-from linux_mcp_server.server import tool
+from linux_mcp_server.server import mcp
 from linux_mcp_server.utils.types import Host
 
 
-@tool(
+@mcp.tool(
     title="My Tool Title",
     description="Brief description for LLM to understand when to use this tool.",
     annotations=ToolAnnotations(readOnlyHint=True),

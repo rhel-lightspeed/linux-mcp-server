@@ -209,19 +209,17 @@ ignore = [
 ]
 
 [tool.ruff.lint.flake8-tidy-imports.banned-api]
-# A tool registered straight onto the FastMCP instance returns whatever it produced,
-# unscanned, because redaction lives in the @tool decorator that wraps the function.
-# The whole 'mcp' object is banned rather than just '.tool', so that neither an alias
-# nor a local reference to the method can reach a registration unnoticed.
-"linux_mcp_server.server.mcp".msg = "Register tools with @tool from linux_mcp_server.server, so their output is redacted."
+# FastMCP's ToolResult converts both of its halves as it is constructed, so a tool
+# building one hands redaction rendered output rather than what the tool wrote.
+"fastmcp.tools.ToolResult".msg = "Return linux_mcp_server.tool_result.ToolResult, so the tool's own text is redacted."
+"fastmcp.tools.base.ToolResult".msg = "Return linux_mcp_server.tool_result.ToolResult, so the tool's own text is redacted."
 
 [tool.ruff.lint.per-file-ignores]
-# The module that owns the FastMCP instance, plus the places that drive an
-# already-built server rather than adding tools to it: the test suite and the
-# tool-doc generator.
-"scripts/*" = ["T201", "TID251"]
+# The module that renders a scanned result is the one place that builds FastMCP's
+# ToolResult; the test suite inspects what comes back out of it.
+"scripts/*" = ["T201"]
 "tests/functional/*" = ["T201", "C901"]
-"src/linux_mcp_server/server.py" = ["TID251"]
+"src/linux_mcp_server/redaction/apply.py" = ["TID251"]
 "tests/*" = ["TID251"]
 
 [tool.ruff.lint.isort]

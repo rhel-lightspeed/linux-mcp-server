@@ -13,10 +13,12 @@ from typing import Protocol
 from uuid import UUID
 
 import pytest
+import yaml
 
 from fastmcp import Client
 from fastmcp import Context
 from fastmcp.client import FastMCPTransport
+from fastmcp.client.client import CallToolResult
 from fastmcp.exceptions import ToolError
 from fastmcp.server.auth import AccessToken
 from fastmcp.server.middleware import MiddlewareContext
@@ -37,9 +39,18 @@ from linux_mcp_server.config import Transport
 from linux_mcp_server.connection.ssh import SSHConnectionManager
 from linux_mcp_server.execution_context import get_execution_context
 from linux_mcp_server.logging_config import JSONFormatter
+from linux_mcp_server.models import LogEntries
+from linux_mcp_server.redaction.engine import RedactionEngine
+from linux_mcp_server.redaction.models import RedactionRule
+from linux_mcp_server.redaction.models import RedactionRulesConfig
+from linux_mcp_server.server import _create_redaction_engine
 from linux_mcp_server.server import AuthorizationMiddleware
 from linux_mcp_server.server import mcp
+from linux_mcp_server.server import RedactingFastMCP
+from linux_mcp_server.server import REDACTION_FAILURE_MESSAGE
+from linux_mcp_server.tool_result import ToolResult
 from linux_mcp_server.tools.run_script import script_store
+from linux_mcp_server.utils.types import Host
 
 
 run_script_mod = import_module("linux_mcp_server.tools.run_script")
@@ -698,28 +709,38 @@ async def test_execution_errors_become_tool_errors(mcp_client, mocker, caplog, f
     assert expected_error in tracebacks[0]
 
 
-class TestRedactionStartup:
-    """Tests for redaction engine initialization at server startup."""
+SECRET = "SECRET_ABC123"
+PLACEHOLDER = "[REDACTED:custom:secret]"
 
-    def test_builtin_rules_loaded_by_default(self):
-        """With no configuration, the engine loads built-in credential rules."""
-        from linux_mcp_server import server
 
-        # Verify the server's engine was initialized with built-in rules
-        # (This assumes redaction is enabled by default in CONFIG)
-        if server.redaction_engine is not None:
-            rule_names = [rule["name"] for rule in server.redaction_engine.list_active_rules()]
-            assert rule_names
-            assert all(name.startswith("builtin:credentials:") for name in rule_names)
+@pytest.fixture
+def redaction_engine(mocker) -> RedactionEngine:
+    """Install an engine holding one predictable rule, so built-ins cannot interfere."""
+    engine = RedactionEngine(
+        RedactionRulesConfig(
+            version=1,
+            disable_rules=["builtin:*"],
+            rules=[RedactionRule(name="secret", description="Test secret", match="SECRET_[A-Z0-9]+")],
+        )
+    )
+    mocker.patch("linux_mcp_server.server.redaction_engine", engine)
+    return engine
 
-    def test_custom_rules_file_can_be_loaded(self, tmp_path):
-        """A custom rules file can be loaded by the engine."""
-        import yaml
 
-        from linux_mcp_server.redaction.engine import RedactionEngine
+class TestRedactionEngineSetup:
+    """What the configuration asks for is what the server starts up with."""
 
-        rules_file = tmp_path / "redaction.yaml"
-        rules_file.write_text(
+    def test_built_in_rules_are_used_by_default(self, mocker):
+        mocker.patch.object(CONFIG.redaction, "rules_path", None)
+        engine = _create_redaction_engine()
+
+        assert engine is not None
+        names = [rule["name"] for rule in engine.list_active_rules()]
+        assert names and all(name.startswith("builtin:credentials:") for name in names)
+
+    def test_a_rules_file_replaces_them(self, mocker, tmp_path):
+        rules_path = tmp_path / "redaction.yaml"
+        rules_path.write_text(
             yaml.dump(
                 {
                     "version": 1,
@@ -728,48 +749,180 @@ class TestRedactionStartup:
                 }
             )
         )
+        mocker.patch.object(CONFIG.redaction, "rules_path", rules_path)
+        engine = _create_redaction_engine()
 
-        # Verify the engine can load custom rules
-        engine = RedactionEngine.from_yaml_file(rules_file)
+        assert engine is not None
+        assert [rule["name"] for rule in engine.list_active_rules()] == ["custom:test_rule"]
 
-        rule_names = [rule["name"] for rule in engine.list_active_rules()]
-        assert "custom:test_rule" in rule_names
-        assert not any(name.startswith("builtin:") for name in rule_names)
-
-    def test_invalid_rules_file_stops_startup(self, tmp_path):
-        """A malformed rules file raises during initialization."""
-        from linux_mcp_server.redaction.engine import RedactionEngine
-
-        rules_file = tmp_path / "bad.yaml"
-        rules_file.write_text("this is not: [valid yaml")
-
-        with pytest.raises(ValueError, match="Failed to parse YAML"):
-            RedactionEngine.from_yaml_file(rules_file)
-
-    def test_missing_rules_file_stops_startup(self, tmp_path):
-        """A configured rules file that doesn't exist raises."""
-        from linux_mcp_server.redaction.engine import RedactionEngine
-
-        missing_file = tmp_path / "nonexistent.yaml"
+    def test_an_unreadable_rules_file_stops_startup(self, mocker, tmp_path):
+        mocker.patch.object(CONFIG.redaction, "rules_path", tmp_path / "nonexistent.yaml")
 
         with pytest.raises(FileNotFoundError, match="not found"):
-            RedactionEngine.from_yaml_file(missing_file)
+            _create_redaction_engine()
+
+    def test_redaction_can_be_turned_off(self, mocker):
+        mocker.patch.object(CONFIG.redaction, "enabled", False)
+
+        assert _create_redaction_engine() is None
 
 
-class TestAllToolsUseDecorator:
-    """Verify every registered tool uses the @tool decorator, not @mcp.tool."""
+class TestToolOutputRedaction:
+    """Registering a tool is what puts redaction in front of it, so nothing opts out."""
 
-    def test_ruff_rule_rejects_direct_mcp_registration(self):
-        """The TID251 Ruff rule catches @mcp.tool in tool modules."""
-        import subprocess
-        import sys
+    @pytest.fixture
+    def server(self) -> RedactingFastMCP:
+        return RedactingFastMCP("redaction-test")
 
-        # This test is covered by test_tool_registration_lint.py
-        # Just verify that file exists and runs
-        result = subprocess.run(
-            [sys.executable, "-m", "pytest", "tests/test_tool_registration_lint.py", "-v"],
-            capture_output=True,
-            text=True,
+    async def call(self, server: RedactingFastMCP, name: str) -> CallToolResult:
+        async with Client(transport=server) as client:
+            return await client.call_tool(name)
+
+    async def test_the_text_and_the_structured_content_are_both_clean(self, server, redaction_engine):
+        @server.tool
+        async def leaky() -> str:
+            return f"password: {SECRET}"
+
+        result = await self.call(server, "leaky")
+
+        assert result.content[0].text == f"password: {PLACEHOLDER}"  # type: ignore[union-attr]
+        assert result.structured_content == {"result": f"password: {PLACEHOLDER}"}
+
+    async def test_a_model_is_scanned_and_still_matches_its_schema(self, server, redaction_engine):
+        @server.tool(tags={"fixed"})
+        async def leaky_model() -> LogEntries:
+            return LogEntries(entries=[f"login {SECRET}"])
+
+        result = await self.call(server, "leaky_model")
+
+        assert result.data.entries == [f"login {PLACEHOLDER}"]
+
+    async def test_a_tools_own_text_is_scanned_without_being_replaced(self, server, redaction_engine):
+        @server.tool
+        async def two_halves() -> ToolResult:
+            return ToolResult(content=f"ran it: {SECRET}", structured_content={"output": SECRET})
+
+        async with Client(transport=server) as client:
+            # Neither half describes the other, so there is no schema to advertise.
+            assert (await client.list_tools())[0].outputSchema is None
+            result = await client.call_tool("two_halves")
+
+        assert result.content[0].text == f"ran it: {PLACEHOLDER}"  # type: ignore[union-attr]
+        assert result.structured_content == {"output": PLACEHOLDER}
+
+    async def test_output_passes_through_when_redaction_is_off(self, server, mocker):
+        mocker.patch("linux_mcp_server.server.redaction_engine", None)
+
+        @server.tool
+        async def leaky() -> str:
+            return f"password: {SECRET}"
+
+        result = await self.call(server, "leaky")
+
+        assert result.content[0].text == f"password: {SECRET}"  # type: ignore[union-attr]
+
+    async def test_a_failed_scan_withholds_the_output(self, server, mocker, caplog):
+        engine = mocker.Mock(spec=RedactionEngine)
+        engine.redact.side_effect = RuntimeError(f"regex blew up on {SECRET}")
+        mocker.patch("linux_mcp_server.server.redaction_engine", engine)
+
+        @server.tool
+        async def leaky() -> str:
+            return f"password: {SECRET}"
+
+        with pytest.raises(ToolError, match=REDACTION_FAILURE_MESSAGE):
+            await self.call(server, "leaky")
+
+
+class TestToolErrorRedaction:
+    """A tool quoting what it read into an error message is a way out for a secret."""
+
+    async def call_tool(self, raises: BaseException, mocker):
+        mocker.patch("linux_mcp_server.server.use_mcp_app_for_client", autospec=True, return_value=False)
+        context = MiddlewareContext(
+            message=CallToolRequestParams(name="get_memory_information", arguments={"host": "localhost"}),
+            fastmcp_context=Context(mcp),
         )
 
-        assert result.returncode == 0, f"Lint tests failed:\n{result.stdout}"
+        async def fail(context):
+            raise raises
+
+        return await AuthorizationMiddleware().on_call_tool(context, fail)
+
+    async def test_the_client_and_the_audit_log_see_the_same_scanned_message(self, mocker, caplog, redaction_engine):
+        with caplog.at_level(logging.INFO):
+            with pytest.raises(ToolError) as raised:
+                await self.call_tool(ToolError(f"could not read config: {SECRET}"), mocker)
+
+        assert str(raised.value) == f"could not read config: {PLACEHOLDER}"
+
+        completed = [r for r in caplog.records if getattr(r, "audit_event", None) == Event.TOOL_COMPLETE]
+        assert completed[0].error == f"could not read config: {PLACEHOLDER}"
+        assert SECRET not in caplog.text
+
+    async def call_through_client(self, raises: BaseException) -> str:
+        """Call a failing tool the way a client does, through the whole server stack."""
+        server = RedactingFastMCP("error-redaction-test")
+        server.add_middleware(AuthorizationMiddleware())
+
+        @server.tool(tags={"fixed"})
+        async def failing(host: Host) -> str:
+            raise raises
+
+        async with Client(transport=server) as client:
+            with pytest.raises(ToolError) as raised:
+                await client.call_tool("failing", {"host": "localhost"})
+
+        return str(raised.value)
+
+    @pytest.mark.xfail(strict=True, reason="FastMCP logs the chain before the middleware sees it")
+    async def test_a_secret_in_the_cause_is_not_reported(self, mocker, caplog, redaction_engine):
+        """Only the proximate message is scanned, so a secret only a cause holds survives.
+
+        The client is still safe - it is shown that message and nothing else. The log
+        is not: FastMCP writes an unexpected exception out with ``logger.exception``,
+        chain and all, from inside the call that the middleware is wrapping, and
+        ``setup_logging`` routes that through our handlers. Scanning it would mean
+        catching the error in the tool wrapper, which runs inside the ``try`` that
+        logs, and redacting a chain in place. Until then, the log assertion fails.
+        """
+        # setup_logging() does this to collect FastMCP's output; reproduce it here.
+        mocker.patch.object(logging.getLogger("fastmcp"), "propagate", True)
+
+        try:
+            raise OSError(f"open failed: {SECRET}")
+        except OSError as cause:
+            error = RuntimeError("could not read config")
+            error.__cause__ = cause
+
+        with caplog.at_level(logging.INFO):
+            message = await self.call_through_client(error)
+
+        assert SECRET not in message
+        assert SECRET not in caplog.text
+
+    async def test_an_error_with_nothing_to_redact_is_passed_along_as_it_is(self, mocker, redaction_engine):
+        """Rebuilding an error loses its traceback, so only do it when needed."""
+        error = ValueError("nothing secret here")
+
+        with pytest.raises(ValueError) as raised:
+            await self.call_tool(error, mocker)
+
+        assert raised.value is error
+
+    async def test_errors_pass_through_when_redaction_is_off(self, mocker):
+        mocker.patch("linux_mcp_server.server.redaction_engine", None)
+        error = ToolError(SECRET)
+
+        with pytest.raises(ToolError) as raised:
+            await self.call_tool(error, mocker)
+
+        assert raised.value is error
+
+    async def test_an_error_that_cannot_be_rebuilt_is_withheld(self, mocker, redaction_engine):
+        class Awkward(ToolError):
+            def __init__(self, detail: str, code: int):
+                super().__init__(f"{detail} ({code})")
+
+        with pytest.raises(ToolError, match=REDACTION_FAILURE_MESSAGE):
+            await self.call_tool(Awkward(SECRET, 7), mocker)

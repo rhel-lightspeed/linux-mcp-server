@@ -9,9 +9,6 @@ from dataclasses import dataclass
 from fastmcp import Context
 from fastmcp.apps import AppConfig
 from fastmcp.exceptions import ToolError
-from fastmcp.tools import ToolResult
-from mcp.types import ContentBlock
-from mcp.types import TextContent
 from mcp.types import ToolAnnotations
 
 # from pydantic import BaseModel
@@ -25,8 +22,9 @@ from linux_mcp_server.gatekeeper import check_run_script
 from linux_mcp_server.gatekeeper import GatekeeperStatus
 from linux_mcp_server.mcp_app import RUN_SCRIPT_APP_URI
 from linux_mcp_server.mcp_app import use_mcp_app_for_client
-from linux_mcp_server.server import tool
+from linux_mcp_server.server import mcp
 from linux_mcp_server.target_host import target_host_from
+from linux_mcp_server.tool_result import ToolResult
 from linux_mcp_server.utils.types import Host
 
 
@@ -280,7 +278,7 @@ class ExecuteScriptResult:
     output: str
 
 
-@tool(
+@mcp.tool(
     tags={"run_script", "mcp_apps_only", "hidden_from_model"},
     description="Execute a script; this is only available to the our mcp-app",
     app=AppConfig(visibility=["app"]),
@@ -291,7 +289,6 @@ async def execute_script(
 ) -> ToolResult:
     script_details = script_store.get_script_details(id)
     script_store.set_script_state(id, "executing")
-    content: list[ContentBlock] = []
 
     try:
         returncode, stdout, stderr = await _execute_script(script_details)
@@ -303,19 +300,17 @@ async def execute_script(
         script_store.set_script_state(id, "success")
 
         output = stdout if isinstance(stdout, str) else stdout.decode("utf-8", errors="replace")
-        content.append(TextContent(type="text", text=output))
         result = ExecuteScriptResult("success", output)
     else:
         script_store.set_script_state(id, "failure")
 
         output = f"Error executing script: return code {returncode}, stderr: {stderr}"
-        content.append(TextContent(type="text", text=output))
         result = ExecuteScriptResult("failure", output)
 
-    return ToolResult(content=content, structured_content=asdict(result))
+    return ToolResult(content=output, structured_content=asdict(result))
 
 
-@tool(
+@mcp.tool(
     tags={"run_script", "mcp_apps_only", "hidden_from_model"},
     description="Reject a script; this is only available to the our mcp-app",
     app=AppConfig(visibility=["app"]),
@@ -327,7 +322,7 @@ async def reject_script(
     script_store.set_script_state(id, "rejected-user")
 
 
-@tool(
+@mcp.tool(
     tags={"run_script", "mcp_apps_only"},
     title="Run a script with interactive user confirmation",
     description=RUN_SCRIPT_INTERACTIVE_DESCRIPTION,
@@ -387,19 +382,14 @@ async def run_script_interactive(
         # Create new script store entry with the updated parameters
         result_id = script_store.add_script(description, script, script_type, host, readonly)
 
-    content: list[ContentBlock] = [
-        TextContent(
-            type="text",
-            text="The user has been asked for approval; please respond nothing to the user yet; the final result will be provided as a separate message later.",
-        )
-    ]
+    content = "The user has been asked for approval; please respond nothing to the user yet; the final result will be provided as a separate message later."
 
     structured_content_obj = RunScriptInteractiveResult(id=result_id, status=GatekeeperStatus.OK, detail="")
 
     return ToolResult(content=content, structured_content=structured_content_obj.model_dump())
 
 
-@tool(
+@mcp.tool(
     tags={"run_script", "mcp_apps_only", "hidden_from_model"},
     title="Get the execution details with request ID",
     description="Get the execution details with request ID",
@@ -420,7 +410,7 @@ def _pick_execution_tool(needs_confirmation: bool):
         return "run_script_with_confirmation"
 
 
-@tool(
+@mcp.tool(
     tags={"run_script"},
     title="Validate a script",
     description="Request validation of a script from the gatekeeper. The tool will return a unique token that must be included in the run_script tool call.",
@@ -461,12 +451,7 @@ async def validate_script(
         raise ToolError(gatekeeper_result.description)
 
     result = ToolResult(
-        content=[
-            TextContent(
-                type="text",
-                text=f"Script passed gatekeeper validation and is stored with ID {id}. Please use {_pick_execution_tool(script_details.needs_confirmation)} to execute the validated script.",
-            )
-        ],
+        content=f"Script passed gatekeeper validation and is stored with ID {id}. Please use {_pick_execution_tool(script_details.needs_confirmation)} to execute the validated script.",
         structured_content={
             "token": id,
             "needs_confirmation": script_details.needs_confirmation,
@@ -475,7 +460,7 @@ async def validate_script(
     return result
 
 
-@tool(
+@mcp.tool(
     tags={"run_script"},
     title="Run a script",
     description="Call this tool to run a previously validated script. Use this when validate_script returned needs_confirmation: false.",
@@ -507,7 +492,7 @@ async def run_script(
         return f"Error executing script: return code {returncode}, stderr: {stderr}"
 
 
-@tool(
+@mcp.tool(
     tags={"run_script", "mcp_apps_exclude"},
     title="Run a script with confirmation",
     description="Call this tool to run a previously validated script that modifies the system. Use this when validate_script returned needs_confirmation: true. The parameters must match those passed to validate_script.",

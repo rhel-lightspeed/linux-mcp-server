@@ -10,12 +10,12 @@ from linux_mcp_server.parsers import parse_ip_brief
 from linux_mcp_server.parsers import parse_proc_net_dev
 from linux_mcp_server.parsers import parse_ss_connections
 from linux_mcp_server.parsers import parse_ss_listening
-from linux_mcp_server.server import tool
+from linux_mcp_server.server import mcp
 from linux_mcp_server.utils.types import Host
 from linux_mcp_server.utils.validation import is_successful_output
 
 
-@tool(
+@mcp.tool(
     title="Get network interfaces",
     description="Get detailed information about network interfaces including address and traffic statistics.",
     tags={"fixed", "connectivity", "interfaces", "network"},
@@ -49,7 +49,7 @@ async def get_network_interfaces(
     return format_network_interfaces(interfaces, stats)
 
 
-@tool(
+@mcp.tool(
     title="Get network connections",
     description="Get detailed information about active network connections.",
     tags={"fixed", "connections", "connectivity", "network"},
@@ -73,7 +73,7 @@ async def get_network_connections(
     return f"Error getting network connections: return code {returncode}, stderr: {stderr}"
 
 
-@tool(
+@mcp.tool(
     title="Get listening ports",
     description="Get details on listening port, protocols, and services.",
     tags={"fixed", "connectivity", "network", "ports"},
