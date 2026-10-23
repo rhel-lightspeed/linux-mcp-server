@@ -9,9 +9,6 @@ from dataclasses import dataclass
 from fastmcp import Context
 from fastmcp.apps import AppConfig
 from fastmcp.exceptions import ToolError
-from fastmcp.tools import ToolResult
-from mcp.types import ContentBlock
-from mcp.types import TextContent
 from mcp.types import ToolAnnotations
 
 # from pydantic import BaseModel
@@ -27,6 +24,7 @@ from linux_mcp_server.mcp_app import RUN_SCRIPT_APP_URI
 from linux_mcp_server.mcp_app import use_mcp_app_for_client
 from linux_mcp_server.server import mcp
 from linux_mcp_server.target_host import target_host_from
+from linux_mcp_server.tool_result import ToolResult
 from linux_mcp_server.utils.types import Host
 
 
@@ -291,7 +289,6 @@ async def execute_script(
 ) -> ToolResult:
     script_details = script_store.get_script_details(id)
     script_store.set_script_state(id, "executing")
-    content: list[ContentBlock] = []
 
     try:
         returncode, stdout, stderr = await _execute_script(script_details)
@@ -303,16 +300,14 @@ async def execute_script(
         script_store.set_script_state(id, "success")
 
         output = stdout if isinstance(stdout, str) else stdout.decode("utf-8", errors="replace")
-        content.append(TextContent(type="text", text=output))
         result = ExecuteScriptResult("success", output)
     else:
         script_store.set_script_state(id, "failure")
 
         output = f"Error executing script: return code {returncode}, stderr: {stderr}"
-        content.append(TextContent(type="text", text=output))
         result = ExecuteScriptResult("failure", output)
 
-    return ToolResult(content=content, structured_content=asdict(result))
+    return ToolResult(content=output, structured_content=asdict(result))
 
 
 @mcp.tool(
@@ -387,12 +382,7 @@ async def run_script_interactive(
         # Create new script store entry with the updated parameters
         result_id = script_store.add_script(description, script, script_type, host, readonly)
 
-    content: list[ContentBlock] = [
-        TextContent(
-            type="text",
-            text="The user has been asked for approval; please respond nothing to the user yet; the final result will be provided as a separate message later.",
-        )
-    ]
+    content = "The user has been asked for approval; please respond nothing to the user yet; the final result will be provided as a separate message later."
 
     structured_content_obj = RunScriptInteractiveResult(id=result_id, status=GatekeeperStatus.OK, detail="")
 
@@ -461,12 +451,7 @@ async def validate_script(
         raise ToolError(gatekeeper_result.description)
 
     result = ToolResult(
-        content=[
-            TextContent(
-                type="text",
-                text=f"Script passed gatekeeper validation and is stored with ID {id}. Please use {_pick_execution_tool(script_details.needs_confirmation)} to execute the validated script.",
-            )
-        ],
+        content=f"Script passed gatekeeper validation and is stored with ID {id}. Please use {_pick_execution_tool(script_details.needs_confirmation)} to execute the validated script.",
         structured_content={
             "token": id,
             "needs_confirmation": script_details.needs_confirmation,

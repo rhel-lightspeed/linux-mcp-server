@@ -435,6 +435,32 @@ def test_invalid_logging_configuration(name: str, monkeypatch: pytest.MonkeyPatc
         Config()
 
 
+class TestRedactionConfig:
+    def test_defaults(self, mock_getuser):
+        config = Config()
+
+        assert config.redaction.enabled is True
+        assert config.redaction.rules_path is None
+
+    @pytest.mark.parametrize(
+        ("value", "expected"),
+        [("false", False), ("true", True), ("0", False), ("1", True)],
+    )
+    def test_enabled_from_env(self, mock_getuser, monkeypatch, value: str, expected: bool):
+        monkeypatch.setenv("LINUX_MCP_REDACTION__ENABLED", value)
+
+        config = Config()
+
+        assert config.redaction.enabled is expected
+
+    def test_rules_path_from_env(self, mock_getuser, monkeypatch):
+        monkeypatch.setenv("LINUX_MCP_REDACTION__RULES_PATH", "/etc/linux-mcp/redaction.yaml")
+
+        config = Config()
+
+        assert config.redaction.rules_path == Path("/etc/linux-mcp/redaction.yaml")
+
+
 @pytest.mark.parametrize("base_url", ["mcp.example.com", "ftp://mcp.example.com"])
 def test_invalid_base_url(base_url: str, monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setenv("LINUX_MCP_BASE_URL", base_url)

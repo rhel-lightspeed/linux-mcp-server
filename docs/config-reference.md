@@ -99,6 +99,15 @@ These are used when `LINUX_MCP_TOOLSET` is set to `run_script` or `both`.
 | `--gatekeeper.vertex_ai.base_url`<br>`LINUX_MCP_GATEKEEPER__VERTEX_AI__BASE_URL` | _(computed)_ | Vertex AI provider: override OpenAI-compatible MaaS endpoint URL (default derived from project/location) |
 | Provider credentials | _(none)_ | `OPENAI_API_KEY`, `ANTHROPIC_API_KEY`, `GOOGLE_API_KEY` / `GEMINI_API_KEY`, or `OPENROUTER_API_KEY` for direct providers; `GOOGLE_APPLICATION_CREDENTIALS` for `vertex_ai` |
 
+## Redaction Settings
+
+| Option / Env Var | Default | Description |
+|------------------|---------|-------------|
+| `--redaction.enabled`<br>`LINUX_MCP_REDACTION__ENABLED` | `true` | Redact credentials from tool output |
+| `--redaction.rules-path`<br>`LINUX_MCP_REDACTION__RULES_PATH` | _(none)_ | Path to a YAML file of custom redaction rules |
+
+Built-in rules cover credentials such as passwords, API keys, tokens, PEM private keys and cloud provider keys. A rules file can add patterns of its own and enable or disable existing ones by name.
+
 ## Logging Configuration
 
 | Option / Env Var | Default | Description |

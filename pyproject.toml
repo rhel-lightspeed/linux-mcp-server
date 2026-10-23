@@ -199,6 +199,7 @@ select = [
     "C90",  # flake8-comprehensions
     "RUF100",  # unused-noqa
     "T20",  # flake8-print
+    "TID251",  # banned-api, configured below
 ]
 mccabe.max-complexity = 12
 
@@ -207,9 +208,19 @@ ignore = [
     "E501",  # Ignore line length (similar to flake8's max-line-length)
 ]
 
+[tool.ruff.lint.flake8-tidy-imports.banned-api]
+# FastMCP's ToolResult converts both of its halves as it is constructed, so a tool
+# building one hands redaction rendered output rather than what the tool wrote.
+"fastmcp.tools.ToolResult".msg = "Return linux_mcp_server.tool_result.ToolResult, so the tool's own text is redacted."
+"fastmcp.tools.base.ToolResult".msg = "Return linux_mcp_server.tool_result.ToolResult, so the tool's own text is redacted."
+
 [tool.ruff.lint.per-file-ignores]
+# The module that renders a scanned result is the one place that builds FastMCP's
+# ToolResult; the test suite inspects what comes back out of it.
 "scripts/*" = ["T201"]
 "tests/functional/*" = ["T201", "C901"]
+"src/linux_mcp_server/redaction/apply.py" = ["TID251"]
+"tests/*" = ["TID251"]
 
 [tool.ruff.lint.isort]
 # requires-python is >=3.10, so ruff files tomllib as third-party. Nothing
