@@ -39,6 +39,10 @@ Use an account on the target machine with the minimum required privileges. See [
 2. Log out and log back in for group changes to take effect
 3. Carefully curate the `LINUX_MCP_ALLOWED_LOG_PATHS` list to include only necessary files
 
+## Redaction
+
+Credentials such as passwords, API keys and private keys are redacted from tool output before it reaches the model. The built-in rules are far from complete, so review them and add rules of your own for the data your systems hold. See [Redaction](redaction.md).
+
 ## SSH Security
 
 - **Use key-based authentication**: The MCP server requires passwordless SSH (key-based, not password). See [SSH Configuration](ssh.md) for setup.
