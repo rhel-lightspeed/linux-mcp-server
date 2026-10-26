@@ -244,6 +244,12 @@ class Config(BaseSettings):
     # https://github.com/pydantic/pydantic-settings/pull/717/changes
     version: bool = False
 
+    # Commands for checking redaction rules, run by linux_mcp_server.redaction.cli
+    redact_list: bool = Field(default=False, description="List the active redaction rules and exit")
+    redact_test: bool = Field(
+        default=False, description="Redact standard input, showing the rules that matched, and exit"
+    )
+
     user: str = ""
     transport: Transport = Transport.stdio
     host: str = "127.0.0.1"

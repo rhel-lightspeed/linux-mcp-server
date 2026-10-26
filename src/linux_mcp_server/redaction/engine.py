@@ -1,6 +1,7 @@
 """Core redaction engine for pattern matching and replacement."""
 
 import fnmatch
+import logging
 import re
 
 from pathlib import Path
@@ -11,8 +12,12 @@ import yaml
 from pydantic import BaseModel
 from pydantic import ValidationError
 
+from linux_mcp_server.config import RedactionConfig
 from linux_mcp_server.redaction.models import RedactionRule
 from linux_mcp_server.redaction.models import RedactionRulesConfig
+
+
+logger = logging.getLogger(__name__)
 
 
 # Convert leading inline flags like (?i) to scoped form (?i:...) so patterns can be combined.
@@ -86,9 +91,19 @@ class _ActiveRule(BaseModel):
     """A rule's placement within the combined pattern."""
 
     name: str
+    description: str
     pattern: str
     group: int
     value_groups: list[int]
+
+
+class RedactionMatch(BaseModel):
+    """A piece of text that a rule matched."""
+
+    rule: str
+    start: int
+    end: int
+    text: str
 
 
 class RedactionEngine:
@@ -147,6 +162,7 @@ class RedactionEngine:
             self._rules.append(
                 _ActiveRule(
                     name=name,
+                    description=rule.description,
                     pattern=rule.match,
                     group=next_group,
                     value_groups=list(range(next_group + 1, next_group + 1 + group_count)),
@@ -273,9 +289,24 @@ class RedactionEngine:
 
         return self._pattern.sub(self._replacement, text)
 
+    def find_matches(self, text: str) -> list[RedactionMatch]:
+        """Find what redact() would replace in the given text, and which rule replaces it."""
+        if not text or self._pattern is None:
+            return []
+
+        # finditer() makes the same scan as the sub() in redact(), so it finds the same matches.
+        return [
+            RedactionMatch(rule=self._rule_for(match).name, start=match.start(), end=match.end(), text=match.group())
+            for match in self._pattern.finditer(text)
+        ]
+
+    def _rule_for(self, match: re.Match[str]) -> _ActiveRule:
+        """Find the rule whose alternative of the combined pattern produced a match."""
+        return next(candidate for candidate in self._rules if match.group(candidate.group) is not None)
+
     def _replacement(self, match: re.Match[str]) -> str:
         """Build the replacement text for one match of the combined pattern."""
-        rule = next(candidate for candidate in self._rules if match.group(candidate.group) is not None)
+        rule = self._rule_for(match)
         placeholder = f"[REDACTED:{rule.name}]"
 
         pieces: list[str] = []
@@ -338,8 +369,28 @@ class RedactionEngine:
         return [
             {
                 "name": rule.name,
+                "description": rule.description,
                 "pattern": rule.pattern,
                 "has_capture_group": bool(rule.value_groups),
             }
             for rule in self._rules
         ]
+
+
+def create_redaction_engine(config: RedactionConfig) -> RedactionEngine | None:
+    """Build the engine that the configuration asks for, or None if redaction is turned off.
+
+    Raises:
+        FileNotFoundError: If the configured rules file doesn't exist
+        ValueError: If the rules file is malformed or its rules are invalid
+    """
+    if not config.enabled:
+        logger.info("Redaction disabled")
+        return None
+
+    if config.rules_path is None:
+        logger.info("Redaction enabled with built-in credential rules")
+        return RedactionEngine()
+
+    logger.info(f"Redaction enabled with rules from {config.rules_path}")
+    return RedactionEngine.from_yaml_file(config.rules_path)

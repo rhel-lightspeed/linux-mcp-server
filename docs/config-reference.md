@@ -108,6 +108,25 @@ These are used when `LINUX_MCP_TOOLSET` is set to `run_script` or `both`.
 
 Built-in rules cover credentials such as passwords, API keys, tokens, PEM private keys and cloud provider keys. A rules file can add patterns of its own and enable or disable existing ones by name.
 
+### Checking redaction rules
+
+Two options check the rules without starting the server. They use the same redaction settings as the server, so give them the same `--redaction.*` options or `LINUX_MCP_REDACTION__*` variables.
+
+- `--redact-list` lists the active rules, with each rule's description and pattern.
+- `--redact-test` redacts standard input. The redacted text is printed to standard output, and the rules that matched, with what they matched, to standard error.
+
+```bash
+linux-mcp-server --redact-list
+linux-mcp-server --redaction.rules-path ./redaction.yaml --redact-test < /etc/myapp.conf
+echo 'password=hunter2' | linux-mcp-server --redact-test
+```
+
+The container image runs `linux-mcp-server` as its entrypoint, so the same options work there:
+
+```bash
+echo 'password=hunter2' | podman run --rm -i quay.io/redhat-services-prod/rhel-lightspeed-tenant/linux-mcp-server:latest --redact-test
+```
+
 ## Logging Configuration
 
 | Option / Env Var | Default | Description |

@@ -6,7 +6,7 @@ import sys
 from linux_mcp_server import __version__
 from linux_mcp_server.config import CONFIG
 from linux_mcp_server.logging_config import setup_logging
-from linux_mcp_server.server import main
+from linux_mcp_server.redaction import cli as redaction_cli
 
 
 def cli():
@@ -16,6 +16,13 @@ def cli():
         print(__version__)  # noqa: T201
         sys.exit(0)
 
+    if CONFIG.redact_list or CONFIG.redact_test:
+        sys.exit(redaction_cli.run(CONFIG))
+
+    # Imported only now, because importing the server sets it up, and the commands above
+    # should be able to report a bad redaction rules file rather than fail on it.
+    from linux_mcp_server import server
+
     setup_logging()
 
     # Keep the package logger name when invoked with python -m (__name__ is __main__).
@@ -24,7 +31,7 @@ def cli():
 
     try:
         # FastMCP.run() creates its own event loop, don't use asyncio.run()
-        main()
+        server.main()
     except KeyboardInterrupt:
         logger.debug("Linux MCP Server stopped by user")
         sys.exit(0)

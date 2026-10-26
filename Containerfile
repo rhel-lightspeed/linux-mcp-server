@@ -76,4 +76,7 @@ RUN useradd --key HOME_MODE=0775 --uid "$UID" --gid 0 --create-home --home-dir "
 USER mcp
 WORKDIR $HOME
 
-CMD ["linux-mcp-server"]
+# With the server as the entrypoint, arguments given to "podman run" go to it, as in
+# "podman run --rm linux-mcp-server --redact-list".
+ENTRYPOINT ["linux-mcp-server"]
+CMD []

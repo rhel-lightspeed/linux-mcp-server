@@ -466,3 +466,13 @@ def test_invalid_base_url(base_url: str, monkeypatch: pytest.MonkeyPatch) -> Non
     monkeypatch.setenv("LINUX_MCP_BASE_URL", base_url)
     with pytest.raises(ValidationError):
         Config()
+
+
+@pytest.mark.parametrize(("args", "field"), [(["--redact-list"], "redact_list"), (["--redact-test"], "redact_test")])
+def test_redaction_commands_from_cli(mock_getuser, monkeypatch, args, field):
+    monkeypatch.setattr("sys.argv", ["linux-mcp-server", *args])
+    monkeypatch.setitem(Config.model_config, "cli_parse_args", True)
+
+    config = Config()
+
+    assert getattr(config, field) is True
