@@ -78,6 +78,7 @@ proxies are allowed; the default is loopback addresses.
 | `SSH_CONNECT` | Successful new SSH connection, with `host`, `username`, and `key_path`. |
 | `SSH_AUTH_FAILED` | Failed SSH connection, with `host` and `error`. |
 | `COMMAND_COMPLETE` | `command`, `host`, `status`, `duration_ms`, and either `exit_status` or `error` on execution failure. Same fields for local and SSH commands. |
+| `REDACTION_APPLIED` | `rules`, one `{name, matches}` object per rule that matched the tool's response. Logged only when something was redacted. Rule names are values rather than keys, so a rule named after a sensitive key is still reported. |
 
 A command's nonzero exit status or error does not necessarily cause the tool to
 fail. A tool may try a fallback command, skip a missing optional command, or

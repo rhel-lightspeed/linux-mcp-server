@@ -24,6 +24,7 @@ from fastmcp.server.auth import AccessToken
 from fastmcp.server.middleware import MiddlewareContext
 from mcp.types import CallToolRequestParams
 from mcp.types import Implementation
+from mcp.types import ToolAnnotations
 from starlette.requests import Request
 
 from linux_mcp_server.audit import Event
@@ -710,6 +711,7 @@ async def test_execution_errors_become_tool_errors(mcp_client, mocker, caplog, f
 
 
 SECRET = "SECRET_ABC123"
+OTHER_SECRET = "OTHER_XYZ789"
 PLACEHOLDER = "[REDACTED:custom:secret]"
 
 
@@ -765,6 +767,18 @@ class TestRedactionEngineSetup:
         mocker.patch.object(CONFIG.redaction, "enabled", False)
 
         assert _create_redaction_engine() is None
+
+    @pytest.mark.parametrize("enabled,expected_warnings", [(True, 0), (False, 1)])
+    def test_disabling_redaction_emits_a_startup_warning(self, mocker, caplog, enabled, expected_warnings):
+        mocker.patch.object(CONFIG.redaction, "enabled", enabled)
+        mocker.patch.object(CONFIG.redaction, "rules_path", None)
+
+        with caplog.at_level(logging.WARNING, logger="linux_mcp_server"):
+            _create_redaction_engine()
+
+        warnings = [r for r in caplog.records if r.name.startswith("linux_mcp_server") and r.levelno == logging.WARNING]
+        assert len(warnings) == expected_warnings
+        assert all("redaction" in r.getMessage().lower() and "disabled" in r.getMessage().lower() for r in warnings)
 
 
 class TestToolOutputRedaction:
@@ -832,6 +846,88 @@ class TestToolOutputRedaction:
 
         with pytest.raises(ToolError, match=REDACTION_FAILURE_MESSAGE):
             await self.call(server, "leaky")
+
+
+class TestRedactionAudit:
+    """One REDACTION_APPLIED event lists rules and counts for the whole tool response.
+
+    The event's ``rules`` field is a list of ``{"name": rule_name, "matches": count}``
+    entries. Keeping rule names in values avoids audit parameter sanitization hiding
+    counts for names containing words such as "secret" or "password".
+    """
+
+    @pytest.fixture
+    def server(self, mocker) -> RedactingFastMCP:
+        mocker.patch.object(CONFIG, "transport", Transport.stdio)
+        mocker.patch.object(CONFIG, "policy_path", None)
+        server = RedactingFastMCP("redaction-audit-test")
+        server.add_middleware(AuthorizationMiddleware())
+        return server
+
+    @pytest.fixture
+    def redaction_engine(self, mocker) -> RedactionEngine:
+        engine = RedactionEngine(
+            RedactionRulesConfig(
+                version=1,
+                disable_rules=["builtin:*"],
+                rules=[
+                    RedactionRule(name="secret", description="Test secret", match="SECRET_[A-Z0-9]+"),
+                    RedactionRule(name="other", description="Another test secret", match="OTHER_[A-Z0-9]+"),
+                ],
+            )
+        )
+        mocker.patch("linux_mcp_server.server.redaction_engine", engine)
+        return engine
+
+    async def call(self, server, caplog, output: Any) -> list[logging.LogRecord]:
+        """Call a tool returning `output`, and hand back the redaction events it logged."""
+
+        @server.tool(tags={"fixed"}, annotations=ToolAnnotations(readOnlyHint=True))
+        async def diagnostic(host: Host) -> Any:
+            return output
+
+        with caplog.at_level(logging.INFO):
+            async with Client(transport=server) as client:
+                await client.call_tool("diagnostic", {"host": "localhost"})
+
+        return [r for r in caplog.records if getattr(r, "audit_event", None) == Event.REDACTION_APPLIED]
+
+    @pytest.mark.parametrize(
+        ("output", "expected"),
+        [
+            pytest.param({"out": f"{SECRET} {SECRET}", "err": SECRET}, {"custom:secret": 3}, id="one-rule"),
+            pytest.param(
+                {"out": f"{SECRET} {OTHER_SECRET}", "err": f"{SECRET} {OTHER_SECRET}"},
+                {"custom:secret": 2, "custom:other": 2},
+                id="two-rules",
+            ),
+        ],
+    )
+    async def test_one_event_counts_every_match_in_the_response(
+        self, server, redaction_engine, caplog, output, expected
+    ):
+        events = await self.call(server, caplog, output)
+
+        assert len(events) == 1
+        rules = events[0].__dict__["rules"]
+        assert {rule["name"]: rule["matches"] for rule in rules} == expected
+
+        # The rules that fired are named, but nothing they matched is written down.
+        rendered = JSONFormatter().format(events[0])
+        assert SECRET not in rendered and OTHER_SECRET not in rendered
+
+        completed = [r for r in caplog.records if getattr(r, "audit_event", None) == Event.TOOL_COMPLETE]
+        assert len(completed) == 1
+        assert events[0].__dict__["call_id"] == completed[0].call_id
+        assert events[0].__dict__["tool"] == "diagnostic"
+        assert events[0].__dict__["host"] == "localhost"
+
+    @pytest.mark.parametrize("enabled", [True, False], ids=["nothing-matched", "redaction-off"])
+    async def test_no_event_when_nothing_is_redacted(self, server, redaction_engine, mocker, caplog, enabled):
+        if not enabled:
+            mocker.patch("linux_mcp_server.server.redaction_engine", None)
+
+        assert await self.call(server, caplog, {"out": "clean output" if enabled else SECRET}) == []
 
 
 class TestToolErrorRedaction:

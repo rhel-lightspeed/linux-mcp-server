@@ -72,6 +72,26 @@ class RedactionRule(BaseModel):
         return v
 
 
+class RedactionStats(BaseModel):
+    """What redaction matched, accumulated over however many strings share these stats.
+
+    Passed to ``RedactionEngine.redact`` by a caller that wants to know what was caught;
+    the engine holds none of its own, being shared between calls.
+    """
+
+    match_counts: dict[str, int] = Field(
+        default_factory=dict,
+        description=(
+            "How many times each rule was applied, by rule name. A rule that matched nothing is "
+            "absent rather than zero, and a match replacing several capture groups counts once."
+        ),
+    )
+
+    def record(self, rule_name: str) -> None:
+        """Count one match of the named rule."""
+        self.match_counts[rule_name] = self.match_counts.get(rule_name, 0) + 1
+
+
 class RedactionRulesConfig(BaseModel):
     """Configuration for redaction rules."""
 
