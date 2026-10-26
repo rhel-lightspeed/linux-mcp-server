@@ -43,6 +43,12 @@ make verify                  # All checks (required before commit)
 
 See `src/linux_mcp_server/tools/processes.py` for reference.
 
+Everything a tool returns is scanned for credentials as it is rendered, so return
+ordinary Python data and let FastMCP build the text from it. A tool whose text has to
+say something other than its structured content returns
+`linux_mcp_server.tool_result.ToolResult` - not FastMCP's, which converts both halves
+before they can be scanned.
+
 ## Commits & PRs
 
 Use [Conventional Commits](https://www.conventionalcommits.org/): `<type>(<scope>): <subject>`

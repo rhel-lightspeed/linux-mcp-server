@@ -1,18 +1,22 @@
 """Core MCP server for Linux diagnostics using FastMCP."""
 
 import asyncio
+import functools
 import logging
 import time
 import uuid
 
+from collections.abc import Callable
 from dataclasses import dataclass
 from importlib import resources
 from pathlib import Path
 from typing import Any
+from typing import get_type_hints
 
 from fastmcp import Context
 from fastmcp import FastMCP
 from fastmcp.exceptions import NotFoundError
+from fastmcp.exceptions import ToolError
 from fastmcp.resources import ResourceContent
 from fastmcp.resources import ResourceResult
 from fastmcp.server.dependencies import get_access_token
@@ -43,10 +47,13 @@ from linux_mcp_server.mcp_app import hide_app_tools_for_client
 from linux_mcp_server.mcp_app import MCP_APP_MIME_TYPE
 from linux_mcp_server.mcp_app import RUN_SCRIPT_APP_URI
 from linux_mcp_server.mcp_app import use_mcp_app_for_client
+from linux_mcp_server.redaction.apply import redact_tool_output
+from linux_mcp_server.redaction.engine import RedactionEngine
 from linux_mcp_server.target_host import adjust_tool
 from linux_mcp_server.target_host import resolve_target_host
 from linux_mcp_server.target_host import restrict
 from linux_mcp_server.target_host import target_host_instructions
+from linux_mcp_server.tool_result import ToolResult
 from linux_mcp_server.toolset import get_toolset
 from linux_mcp_server.toolset import Toolset as ToolsetInfo
 from linux_mcp_server.utils.types import Host
@@ -197,10 +204,94 @@ def _current_toolset():
     return toolset
 
 
+# Sent when redaction fails. Doesn't include the value or the error, since whichever
+# one could not be scanned is the one that might be carrying a secret.
+REDACTION_FAILURE_MESSAGE = "Tool output could not be safely returned."
+
+
+def _create_redaction_engine() -> RedactionEngine | None:
+    if not CONFIG.redaction.enabled:
+        logger.info("Redaction disabled")
+        return None
+
+    if CONFIG.redaction.rules_path is None:
+        logger.info("Redaction enabled with built-in credential rules")
+        return RedactionEngine()
+
+    logger.info(f"Redaction enabled with rules from {CONFIG.redaction.rules_path}")
+    return RedactionEngine.from_yaml_file(CONFIG.redaction.rules_path)
+
+
+redaction_engine = _create_redaction_engine()
+
+
+def _redacting(fn: Callable[..., Any]) -> Callable[..., Any]:
+    """Wrap a tool function so that what it returns is scanned before it is rendered.
+
+    Scanning here rather than after FastMCP has built text content out of structured
+    content means that the text and the structured content get consistent scanning.
+    Our scanning also works better when we can scan the strings without JSON
+    encoding - for example, a rule meant to match password="quoted string" might
+    not work right for password=\"quoted string\".
+
+    Errors are left alone: they are redacted in AuthorizationMiddleware, which is also
+    where they are logged.
+    """
+
+    @functools.wraps(fn)
+    async def redacting(*args: Any, **kwargs: Any) -> Any:
+        result = await fn(*args, **kwargs)
+
+        try:
+            return redact_tool_output(result, redaction_engine)
+        except Exception:
+            # The one place we write unscanned text to the log: scanning is what just
+            # failed, so the traceback - and the message of anything in its chain -
+            # goes out as it is. Accepted to make a rule that blows up diagnosable at
+            # all; the client is told nothing but the fixed message.
+            logger.exception("Redaction failed; withholding tool output")
+            raise ToolError(REDACTION_FAILURE_MESSAGE)
+
+    return redacting
+
+
+class RedactingFastMCP(FastMCP):
+    """A FastMCP server that scans everything its tools return.
+
+    Registering is the hook, rather than a decorator each tool module has to remember
+    to use: ``@mcp.tool`` is the only way a tool reaches the server, so there is no
+    second path by which unscanned output could reach a client.
+    """
+
+    def tool(self, name_or_fn: str | Callable[..., Any] | None = None, **kwargs: Any) -> Any:
+        register = super().tool
+
+        if callable(name_or_fn):
+            return register(_redacting(name_or_fn), **_tool_kwargs(name_or_fn, kwargs))
+
+        def decorator(fn: Callable[..., Any]) -> Any:
+            return register(name_or_fn, **_tool_kwargs(fn, kwargs))(_redacting(fn))
+
+        return decorator
+
+
+def _tool_kwargs(fn: Callable[..., Any], kwargs: dict[str, Any]) -> dict[str, Any]:
+    """Suppress the output schema FastMCP would derive from our own ToolResult.
+
+    A tool returning one says what its two halves are rather than describing the data
+    in them, so there is nothing for FastMCP to generate a schema from. (It does this
+    for its own ToolResult, but only knows to for that one type.)
+    """
+    if get_type_hints(fn).get("return") is ToolResult:
+        kwargs.setdefault("output_schema", None)
+
+    return kwargs
+
+
 # Create auth provider if configured
 auth_provider = create_auth_provider()
 
-mcp = FastMCP("linux-mcp-server", version=linux_mcp_server.__version__, auth=auth_provider)
+mcp = RedactingFastMCP("linux-mcp-server", version=linux_mcp_server.__version__, auth=auth_provider)
 
 
 @mcp.resource(
@@ -258,6 +349,50 @@ class ComponentFilter:
         )
 
 
+def _redacted_error(error: BaseException) -> BaseException:
+    """Return the exception to report for a failed tool call, with its message scanned.
+
+    A tool quoting the output it was reading into an error message is an ordinary way
+    for a secret to get out, so this sits next to the logging of that message: both
+    the audit log and the client see the same, scanned, text.
+
+    The message is all that is scanned, because the message is all that is reported:
+    neither the client nor the audit log is shown a traceback or an exception chain.
+    Were that to change - `logger.exception`, `exc_info=`, anything that formats a
+    chain - the scanning would have to grow to match, because a cause can hold text
+    the proximate message does not: `raise ToolError("could not read config") from
+    OSError(secret)` comes through here looking clean.
+
+    An error with nothing to redact is handed back untouched; there is nothing to be
+    gained by rebuilding it. One that had something redacted is rebuilt with its own
+    type, since that is what decides whether FastMCP reports the message or replaces
+    it. An error that cannot be rebuilt, or scanned, becomes the fixed message.
+
+    One chain is already logged, and not by us: for anything that isn't a FastMCPError
+    - a plain OSError out of a tool, say - FastMCP logs the exception with its
+    traceback before the middleware ever sees it. (A ToolError it logs without one.)
+    Closing that means catching the error back in the tool wrapper, which runs inside
+    the try that logs it, and redacting a chain in place rather than rebuilding a
+    single exception.
+    """
+    engine = redaction_engine
+    if engine is None:
+        return error
+
+    try:
+        message = str(error)
+        redacted = engine.redact(message)
+        if redacted == message:
+            return error
+
+        return type(error)(redacted)
+    except Exception:
+        # Logged with its traceback, unscanned, for the reason given where the scan of
+        # a tool's output fails.
+        logger.exception("Redaction failed; withholding tool error")
+        return ToolError(REDACTION_FAILURE_MESSAGE)
+
+
 # Middleware to enforce authorization policy
 class AuthorizationMiddleware(Middleware):
     async def on_call_tool(self, context: MiddlewareContext, call_next: CallNext) -> Any:
@@ -301,11 +436,12 @@ class AuthorizationMiddleware(Middleware):
 
                 return await self._authorize_and_call_tool(context, call_next, tool, target_host, claims)
             except BaseException as exc:
+                failure = _redacted_error(exc)
                 outcome = {
                     "status": "cancelled" if isinstance(exc, asyncio.CancelledError) else "error",
-                    "error": str(exc),
+                    "error": str(failure),
                 }
-                raise
+                raise failure
             finally:
                 if not started:
                     log_event(Event.TOOL_CALL, "Tool called", parameters=parameters)
