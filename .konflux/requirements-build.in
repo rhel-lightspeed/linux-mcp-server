@@ -6,10 +6,10 @@
 # slushy-build-source: authlib==1.9.1
 # slushy-build-source: bcrypt==5.0.0
 # slushy-build-source: beartype==0.23.1
-# slushy-build-source: cachetools==7.2.1
+# slushy-build-source: cachetools==7.2.3
 # slushy-build-source: caio==0.12.9
 # slushy-build-source: calver==2025.10.20
-# slushy-build-source: certifi==2026.7.22
+# slushy-build-source: certifi==2026.10.18
 # slushy-build-source: cffi==2.1.1
 # slushy-build-source: charset-normalizer==3.5.2
 # slushy-build-source: click==8.5.0
@@ -22,8 +22,8 @@
 # slushy-build-source: dunamai==1.26.3
 # slushy-build-source: exceptiongroup==1.3.1
 # slushy-build-source: fakeredis==2.34.1
-# slushy-build-source: fastmcp==3.4.8
-# slushy-build-source: fastmcp-slim==3.4.8
+# slushy-build-source: fastmcp==3.4.9
+# slushy-build-source: fastmcp-slim==3.4.9
 # slushy-build-source: flit-scm==1.7.0
 # slushy-build-source: griffelib==2.3.2
 # slushy-build-source: gssapi==1.12.0
@@ -37,7 +37,7 @@
 # slushy-build-source: jaraco-functools==4.6.0
 # slushy-build-source: jeepney==0.9.0
 # slushy-build-source: jinja2==3.1.6
-# slushy-build-source: joserfc==1.7.5
+# slushy-build-source: joserfc==1.7.7
 # slushy-build-source: jsonref==1.1.0
 # slushy-build-source: jsonschema==4.26.0
 # slushy-build-source: jsonschema-path==0.5.0
@@ -51,7 +51,7 @@
 # slushy-build-source: openapi-pydantic==0.6.0
 # slushy-build-source: opentelemetry-api==1.45.1
 # slushy-build-source: pathable==0.6.0
-# slushy-build-source: platformdirs==4.13.0
+# slushy-build-source: platformdirs==4.13.5
 # slushy-build-source: pluggy==1.7.0
 # slushy-build-source: py-key-value-aio==0.4.6
 # slushy-build-source: pyasn1==0.6.4
@@ -76,7 +76,7 @@
 # slushy-build-source: setuptools-rust==1.13.0
 # slushy-build-source: setuptools-scm==10.3.4
 # slushy-build-source: sse-starlette==3.5.0
-# slushy-build-source: starlette==1.8.0
+# slushy-build-source: starlette==1.9.0
 # slushy-build-source: tomlkit==0.15.2
 # slushy-build-source: trove-classifiers==2026.9.21.13
 # slushy-build-source: typing-extensions==4.16.0
