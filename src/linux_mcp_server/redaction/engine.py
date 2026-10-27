@@ -15,6 +15,7 @@ from pydantic import ValidationError
 from linux_mcp_server.config import RedactionConfig
 from linux_mcp_server.redaction.models import RedactionRule
 from linux_mcp_server.redaction.models import RedactionRulesConfig
+from linux_mcp_server.redaction.models import RedactionStats
 
 
 logger = logging.getLogger(__name__)
@@ -272,7 +273,7 @@ class RedactionEngine:
         segment_count = pattern.count(":") + 1
         return (segment_count * 1000) + len(pattern)
 
-    def redact(self, text: str) -> str:
+    def redact(self, text: str, stats: RedactionStats | None = None) -> str:
         """Apply all active redaction rules to the given text.
 
         Matches are found in a single left-to-right scan and never overlap. When more than one
@@ -280,6 +281,8 @@ class RedactionEngine:
 
         Args:
             text: Text to redact
+            stats: Counts each rule applied here, adding to whatever the caller has
+                already collected in them, or None not to count
 
         Returns:
             Redacted text with sensitive data replaced by bracketed placeholders
@@ -287,7 +290,7 @@ class RedactionEngine:
         if not text or self._pattern is None:
             return text
 
-        return self._pattern.sub(self._replacement, text)
+        return self._pattern.sub(lambda match: self._replacement(match, stats), text)
 
     def find_matches(self, text: str) -> list[RedactionMatch]:
         """Find what redact() would replace in the given text, and which rule replaces it."""
@@ -304,10 +307,14 @@ class RedactionEngine:
         """Find the rule whose alternative of the combined pattern produced a match."""
         return next(candidate for candidate in self._rules if match.group(candidate.group) is not None)
 
-    def _replacement(self, match: re.Match[str]) -> str:
+    def _replacement(self, match: re.Match[str], stats: RedactionStats | None) -> str:
         """Build the replacement text for one match of the combined pattern."""
         rule = self._rule_for(match)
         placeholder = f"[REDACTED:{rule.name}]"
+
+        if stats is not None:
+            # Once per match, however many groups the replacement below goes on to redact.
+            stats.record(rule.name)
 
         pieces: list[str] = []
         cursor = match.start()
@@ -385,7 +392,7 @@ def create_redaction_engine(config: RedactionConfig) -> RedactionEngine | None:
         ValueError: If the rules file is malformed or its rules are invalid
     """
     if not config.enabled:
-        logger.info("Redaction disabled")
+        logger.warning("Redaction disabled: tool responses may contain sensitive data such as credentials")
         return None
 
     if config.rules_path is None:

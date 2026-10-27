@@ -1,11 +1,15 @@
 """Tests for redacting the value a tool returns."""
 
 import json
+import logging
 
 from pathlib import Path
 
 import pytest
 
+from pydantic_core import PydanticSerializationError
+
+from linux_mcp_server.audit import Event
 from linux_mcp_server.models import LogEntries
 from linux_mcp_server.models import NodeEntry
 from linux_mcp_server.models import StorageNodes
@@ -126,6 +130,39 @@ class TestToolResult:
 
         assert result.content[0].text == "awaiting approval"  # type: ignore[union-attr]
         assert result.structured_content == {"id": "token123"}
+
+
+class TestMatchCounts:
+    """One audit event collects what matched across the whole response."""
+
+    def test_every_string_in_the_response_adds_to_the_totals(self, engine: RedactionEngine, caplog) -> None:
+        value = {"stdout": f"{SECRET} {SECRET}", "lines": [SECRET, "clean"], "code": 0}
+
+        with caplog.at_level(logging.INFO):
+            redacted = redact_tool_output(value, engine)
+
+        assert redacted == {"stdout": f"{PLACEHOLDER} {PLACEHOLDER}", "lines": [PLACEHOLDER, "clean"], "code": 0}
+        events = [r for r in caplog.records if getattr(r, "audit_event", None) == Event.REDACTION_APPLIED]
+        assert len(events) == 1
+        assert events[0].__dict__["rules"] == [{"name": "custom:secret", "matches": 3}]
+
+    def test_both_halves_of_a_tool_result_count_together(self, engine: RedactionEngine, caplog) -> None:
+        with caplog.at_level(logging.INFO):
+            result = redact_tool_output(ToolResult(content=SECRET, structured_content={"output": SECRET}), engine)
+
+        assert result.content[0].text == PLACEHOLDER  # type: ignore[union-attr]
+        assert result.structured_content == {"output": PLACEHOLDER}
+        events = [r for r in caplog.records if getattr(r, "audit_event", None) == Event.REDACTION_APPLIED]
+        assert len(events) == 1
+        assert events[0].__dict__["rules"] == [{"name": "custom:secret", "matches": 2}]
+
+    def test_a_later_failure_does_not_log_partial_counts(self, engine: RedactionEngine, caplog) -> None:
+        value = ToolResult(content=SECRET, structured_content={"unserializable": object()})
+
+        with caplog.at_level(logging.INFO), pytest.raises(PydanticSerializationError):
+            redact_tool_output(value, engine)
+
+        assert not any(getattr(r, "audit_event", None) == Event.REDACTION_APPLIED for r in caplog.records)
 
 
 class TestEscapedSecrets:

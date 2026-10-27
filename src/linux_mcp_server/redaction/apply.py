@@ -6,7 +6,10 @@ import pydantic_core
 
 from fastmcp.tools import ToolResult as RenderedToolResult
 
+from linux_mcp_server.audit import Event
+from linux_mcp_server.audit import log_event
 from linux_mcp_server.redaction.engine import RedactionEngine
+from linux_mcp_server.redaction.models import RedactionStats
 from linux_mcp_server.tool_result import ToolResult
 
 
@@ -24,37 +27,57 @@ def redact_tool_output(value: Any, engine: RedactionEngine | None) -> Any:
 
     With no engine there is nothing to scan, but a value takes the same route anyway,
     so that turning redaction off cannot change what a tool returns.
+
+    Matches across the response are logged in one audit event after processing succeeds.
+
+    Args:
+        value: What the tool returned
+        engine: Redaction engine with active rules, or None to render without scanning
+
+    Returns:
+        The value for FastMCP to render, scanned.
     """
+    stats = RedactionStats()
     if isinstance(value, ToolResult):
-        return RenderedToolResult(
-            content=value.content if engine is None else engine.redact(value.content),
-            structured_content=_as_json(value.structured_content, engine),
+        result = RenderedToolResult(
+            content=value.content if engine is None else engine.redact(value.content, stats),
+            structured_content=_as_json(value.structured_content, engine, stats),
         )
 
-    return _as_json(value, engine)
+    else:
+        result = _as_json(value, engine, stats)
+
+    if stats.match_counts:
+        log_event(
+            Event.REDACTION_APPLIED,
+            "Redaction applied",
+            rules=[{"name": name, "matches": matches} for name, matches in stats.match_counts.items()],
+        )
+
+    return result
 
 
-def _as_json(value: Any, engine: RedactionEngine | None) -> Any:
+def _as_json(value: Any, engine: RedactionEngine | None, stats: RedactionStats) -> Any:
     """Reduce a value to JSON, scanning the strings in it if there is an engine."""
     jsonable = pydantic_core.to_jsonable_python(value)
 
-    return jsonable if engine is None else _redact(jsonable, engine)
+    return jsonable if engine is None else _redact(jsonable, engine, stats)
 
 
-def _redact(value: Any, engine: RedactionEngine) -> Any:
+def _redact(value: Any, engine: RedactionEngine, stats: RedactionStats) -> Any:
     """Replace the string leaves of a JSON document, keeping its shape.
 
     Keys are left alone: they are field names the tools chose, and rewriting one would
     rename a property the output schema requires.
     """
     if isinstance(value, str):
-        return engine.redact(value)
+        return engine.redact(value, stats)
 
     if isinstance(value, dict):
-        return {key: _redact(item, engine) for key, item in value.items()}
+        return {key: _redact(item, engine, stats) for key, item in value.items()}
 
     if isinstance(value, list):
-        return [_redact(item, engine) for item in value]
+        return [_redact(item, engine, stats) for item in value]
 
     # Numbers, booleans and None carry no text to scan.
     return value

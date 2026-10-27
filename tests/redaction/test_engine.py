@@ -9,6 +9,7 @@ from linux_mcp_server.redaction.engine import RedactionEngine
 from linux_mcp_server.redaction.engine import RedactionMatch
 from linux_mcp_server.redaction.models import RedactionRule
 from linux_mcp_server.redaction.models import RedactionRulesConfig
+from linux_mcp_server.redaction.models import RedactionStats
 
 
 JWT_RULE = "builtin:credentials:jwt"
@@ -199,6 +200,32 @@ class TestCombinedPatternEdgeCases:
                 RedactionRule(name="first", description="Test", match=r"a=(?P<v>\w+)"),
                 RedactionRule(name="second", description="Test", match=r"b=(?P<v>\w+)"),
             )
+
+
+class TestMatchCounts:
+    """What the caller's stats collect from a scan, when they pass any."""
+
+    def test_each_rule_is_counted_as_it_fires(self) -> None:
+        """Stats accumulate over the strings the caller scans with them, and no others."""
+        engine = custom_engine(
+            RedactionRule(name="first", description="Test", match=r"A=(\w+)"),
+            RedactionRule(name="second", description="Test", match=r"B=(\w+)"),
+        )
+        stats = RedactionStats()
+
+        redacted = engine.redact("A=one B=two A=three", stats)
+        engine.redact("A=four")
+
+        assert redacted == "A=[REDACTED:custom:first] B=[REDACTED:custom:second] A=[REDACTED:custom:first]"
+        assert stats.match_counts == {"custom:first": 2, "custom:second": 1}
+
+    def test_a_match_replacing_two_groups_counts_once(self) -> None:
+        """The count says how often a rule fired, not how many placeholders it left."""
+        engine = custom_engine(RedactionRule(name="pair", description="Test", match=r"user=(\S+) pass=(\S+)"))
+        stats = RedactionStats()
+
+        assert engine.redact("user=bob pass=TOPSECRET", stats).count("[REDACTED:") == 2
+        assert stats.match_counts == {"custom:pair": 1}
 
 
 class TestYAMLLoading:
