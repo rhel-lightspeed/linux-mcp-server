@@ -6,6 +6,7 @@ import pytest
 import yaml
 
 from linux_mcp_server.redaction.engine import RedactionEngine
+from linux_mcp_server.redaction.engine import RedactionMatch
 from linux_mcp_server.redaction.models import RedactionRule
 from linux_mcp_server.redaction.models import RedactionRulesConfig
 
@@ -235,3 +236,33 @@ class TestYAMLLoading:
 
         with pytest.raises(ValueError, match=expected):
             RedactionEngine.from_yaml_file(yaml_file)
+
+
+class TestFindMatches:
+    """Tests for reporting what redaction replaces."""
+
+    def test_each_match_names_its_rule(self) -> None:
+        engine = custom_engine(
+            RedactionRule(name="alpha", description="Alpha", match=r"alpha=(\w+)"),
+            RedactionRule(name="beta", description="Beta", match=r"beta"),
+        )
+
+        assert engine.find_matches("alpha=1 beta\nalpha=2") == [
+            RedactionMatch(rule="custom:alpha", start=0, end=7, text="alpha=1"),
+            RedactionMatch(rule="custom:beta", start=8, end=12, text="beta"),
+            RedactionMatch(rule="custom:alpha", start=13, end=20, text="alpha=2"),
+        ]
+
+    @pytest.mark.parametrize("text", ["", "nothing to see here"])
+    def test_no_matches(self, text: str) -> None:
+        assert RedactionEngine().find_matches(text) == []
+
+    def test_no_active_rules(self) -> None:
+        assert custom_engine().find_matches("password=hunter2") == []
+
+    def test_rules_are_listed_with_their_description(self) -> None:
+        engine = custom_engine(RedactionRule(name="alpha", description="Alpha", match="alpha"))
+
+        assert engine.list_active_rules() == [
+            {"name": "custom:alpha", "description": "Alpha", "pattern": "alpha", "has_capture_group": False}
+        ]

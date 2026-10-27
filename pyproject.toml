@@ -218,6 +218,8 @@ ignore = [
 # The module that renders a scanned result is the one place that builds FastMCP's
 # ToolResult; the test suite inspects what comes back out of it.
 "scripts/*" = ["T201"]
+# The redaction rule commands print what they find for the user to read.
+"src/linux_mcp_server/redaction/cli.py" = ["T201"]
 "tests/functional/*" = ["T201", "C901"]
 "src/linux_mcp_server/redaction/apply.py" = ["TID251"]
 "tests/*" = ["TID251"]

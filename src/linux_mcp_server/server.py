@@ -48,6 +48,7 @@ from linux_mcp_server.mcp_app import MCP_APP_MIME_TYPE
 from linux_mcp_server.mcp_app import RUN_SCRIPT_APP_URI
 from linux_mcp_server.mcp_app import use_mcp_app_for_client
 from linux_mcp_server.redaction.apply import redact_tool_output
+from linux_mcp_server.redaction.engine import create_redaction_engine
 from linux_mcp_server.redaction.engine import RedactionEngine
 from linux_mcp_server.target_host import adjust_tool
 from linux_mcp_server.target_host import resolve_target_host
@@ -210,16 +211,7 @@ REDACTION_FAILURE_MESSAGE = "Tool output could not be safely returned."
 
 
 def _create_redaction_engine() -> RedactionEngine | None:
-    if not CONFIG.redaction.enabled:
-        logger.info("Redaction disabled")
-        return None
-
-    if CONFIG.redaction.rules_path is None:
-        logger.info("Redaction enabled with built-in credential rules")
-        return RedactionEngine()
-
-    logger.info(f"Redaction enabled with rules from {CONFIG.redaction.rules_path}")
-    return RedactionEngine.from_yaml_file(CONFIG.redaction.rules_path)
+    return create_redaction_engine(CONFIG.redaction)
 
 
 redaction_engine = _create_redaction_engine()
