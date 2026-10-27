@@ -64,6 +64,7 @@ nav:
   - Usage:
       - Configuration Reference: config-reference.md
       - Guarded Command Execution: guarded-command-execution.md
+      - Redaction: redaction.md
       - Security Best Practices: security.md
       - Architecture: architecture.md
       - Debug Logging: debugging.md
