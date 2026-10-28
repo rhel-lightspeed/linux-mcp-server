@@ -36,9 +36,10 @@ env:
   # change without warning, so pin uv here rather than floating to latest the
   # way the other workflows do. (`--output-format` needs uv >= 0.12.)
   UV_VERSION: "0.12.23"
-  # Not python-version-file: requires-python is >=3.10, and
-  # scripts/security_updates.py uses tomllib (3.11+).
-  PYTHON_VERSION: "3.13"
+  # Our Containerfile and RPMs use Python3.12 - as the system version for
+  # RHEL 10 and as a separate package for RHEL 9.
+  # Using 3.12 is mandatory for 'make requirements-lock'
+  PYTHON_VERSION: "3.12"
   # The maintained branches. Anchored and specific so that it cannot pick up a
   # topic branch, or an `eol-release-*` branch that is no longer maintained,
   # and so that every name reaching the shell below is a safe file name.
