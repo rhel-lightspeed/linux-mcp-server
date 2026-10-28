@@ -9,7 +9,7 @@ authors = [
     { name = "RHEL Lightspeed" }
 ]
 readme = "README.md"
-requires-python = ">=3.10"
+requires-python = ">=3.11"
 # Be careful about specifying an upper bound (with < or =~) because
 # with our renovate strategy of in-range-only, we won't be notified
 # about updates to incompatible versions, even if the old version is
