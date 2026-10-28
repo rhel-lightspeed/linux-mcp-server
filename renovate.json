@@ -21,9 +21,9 @@
       "rangeStrategy": "in-range-only"
     },
     {
-      "description": "Disable lock file maintenance on uv.lock for post-release branches.",
+      "description": "Disable lock file maintenance on uv.lock for stable and post-release branches.",
       "matchUpdateTypes": ["lockFileMaintenance"],
-      "matchBaseBranches": ["/^post-release-.*/"],
+      "matchBaseBranches": ["/^release-.*/", "/^post-release-.*/"],
       "matchManagers": ["pep621", "pip_requirements", "pip-compile", "poetry", "pipenv"],
       "enabled": false
     },
