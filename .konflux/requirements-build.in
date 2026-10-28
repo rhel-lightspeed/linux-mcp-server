@@ -9,7 +9,7 @@
 # slushy-build-source: cachetools==7.2.3
 # slushy-build-source: caio==0.12.9
 # slushy-build-source: calver==2025.10.20
-# slushy-build-source: certifi==2026.10.18
+# slushy-build-source: certifi==2026.10.19
 # slushy-build-source: cffi==2.1.1
 # slushy-build-source: charset-normalizer==3.5.2
 # slushy-build-source: click==8.5.0
@@ -22,8 +22,8 @@
 # slushy-build-source: dunamai==1.26.3
 # slushy-build-source: exceptiongroup==1.3.1
 # slushy-build-source: fakeredis==2.34.1
-# slushy-build-source: fastmcp==3.4.9
-# slushy-build-source: fastmcp-slim==3.4.9
+# slushy-build-source: fastmcp==3.4.11
+# slushy-build-source: fastmcp-slim==3.4.11
 # slushy-build-source: flit-scm==1.7.0
 # slushy-build-source: griffelib==2.3.2
 # slushy-build-source: gssapi==1.12.0
