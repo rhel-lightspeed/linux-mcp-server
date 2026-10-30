@@ -71,8 +71,22 @@ class TestOpenAIClient:
         assert mock_post.call_args.kwargs["url"] == "https://api.openai.com/v1/responses"
         body = mock_post.call_args.kwargs["body"]
         assert body["model"] == "gpt-5.4"
+        assert body["temperature"] == 0.0
         assert body["reasoning"] == {"effort": "low"}
         assert body["text"]["format"]["type"] == "json_schema"
+
+    async def test_complete_openai_omits_temperature_when_none(self, gatekeeper_config, mocker):
+        gatekeeper_config.temperature = None
+        mock_post = mocker.patch(
+            "linux_mcp_server.gatekeeper.openai_client.post_json",
+            new_callable=mocker.AsyncMock,
+            return_value=_responses_output('{"status": "OK"}'),
+        )
+
+        await openai_client.complete_openai("prompt", max_tokens=8000)
+
+        body = mock_post.call_args.kwargs["body"]
+        assert "temperature" not in body
 
     async def test_complete_openai_uses_responses_api_for_custom_base_url(self, gatekeeper_config, mocker):
         gatekeeper_config.openai = OpenAIGatekeeperConfig(base_url="http://localhost:11434/v1")

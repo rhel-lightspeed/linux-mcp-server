@@ -179,6 +179,12 @@ def parse_cost(v: Any) -> Any:
     return v
 
 
+def parse_temperature(v: Any) -> Any:
+    if isinstance(v, str) and v.strip().lower() in {"none", "null"}:
+        return None
+    return v
+
+
 class OpenAIGatekeeperConfig(BaseSettings):
     """OpenAI gatekeeper provider configuration."""
 
@@ -209,7 +215,7 @@ class GatekeeperConfig(BaseSettings):
     model: str
     reasoning_effort: ReasoningEffort | None = None
     structured_output: bool = True
-    temperature: float = 0.0
+    temperature: Annotated[float | None, BeforeValidator(parse_temperature)] = 0.0
     cost: Annotated[tuple[float, float] | None, BeforeValidator(parse_cost)] = None
 
     openai: OpenAIGatekeeperConfig | None = None
