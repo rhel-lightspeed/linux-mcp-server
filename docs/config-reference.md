@@ -88,7 +88,7 @@ These are used when `LINUX_MCP_TOOLSET` is set to `run_script` or `both`.
 | `--gatekeeper.model`<br>`LINUX_MCP_GATEKEEPER__MODEL` | _(none)_ | Required: provider-native model ID (e.g. `gpt-5.4`, `claude-sonnet-4-6`, `gemini-2.0-flash`, `openai/gpt-oss-120b` for OpenRouter) |
 | `--gatekeeper.reasoning_effort`<br>`LINUX_MCP_GATEKEEPER__REASONING_EFFORT` | _(unset)_ | Reasoning effort. Unset = provider default; `none` = least/no thinking; `minimal`/`low`/`medium`/`high`/`xhigh` = that level. Not all values are supported for all models. |
 | `--gatekeeper.structured_output`<br>`LINUX_MCP_GATEKEEPER__STRUCTURED_OUTPUT` | `True` | Whether to use structured JSON output from the model |
-| `--gatekeeper.temperature`<br>`LINUX_MCP_GATEKEEPER__TEMPERATURE` | 0.0 | Temperature to use for the model |
+| `--gatekeeper.temperature`<br>`LINUX_MCP_GATEKEEPER__TEMPERATURE` | 0.0 | Temperature to use for the model. Set to `none` to omit the parameter, required for models that reject it (e.g. OpenAI reasoning models such as `gpt-5` and `gpt-6`) |
 | `--gatekeeper.openai.base_url`<br>`LINUX_MCP_GATEKEEPER__OPENAI__BASE_URL` / `OPENAI_API_BASE` | `https://api.openai.com/v1` | OpenAI provider: API base URL |
 | `--gatekeeper.openai.template_kwargs`<br>`LINUX_MCP_GATEKEEPER__OPENAI__TEMPLATE_KWARGS` | _(none)_ | OpenAI provider: extra chat-template arguments (e.g. `{ "enable_thinking": false }`), sent as `chat_template_kwargs` |
 | `--gatekeeper.openrouter.base_url`<br>`LINUX_MCP_GATEKEEPER__OPENROUTER__BASE_URL` | `https://openrouter.ai/api/v1` | OpenRouter provider: API base URL |

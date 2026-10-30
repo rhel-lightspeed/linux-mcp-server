@@ -54,7 +54,7 @@ class OpenRouterRequest(BaseModel):
     model: str
     messages: list[OpenRouterMessage]
     max_tokens: int
-    temperature: float
+    temperature: float | None
     provider: OpenRouterProvider
     response_format: OpenRouterResponseFormat | None = None
     reasoning: OpenRouterReasoning | None = None

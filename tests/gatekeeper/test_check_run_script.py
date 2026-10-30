@@ -264,6 +264,22 @@ class TestGatekeeperConfigIntegration:
         assert body["temperature"] == 0.0
         assert "text" in body
 
+    async def test_openai_provider_omits_temperature(self, mocker, mock_openai_post):
+        mocker.patch.object(
+            CONFIG,
+            "gatekeeper",
+            GatekeeperConfig(
+                provider=GatekeeperProvider.OPENAI,
+                model="gpt-6-luna",
+                temperature=None,
+            ),
+        )
+
+        await check_run_script(description="test", script_type="bash", script="echo hi", readonly=True)
+
+        body = mock_openai_post.call_args.kwargs["body"]
+        assert "temperature" not in body
+
     async def test_vertex_ai_provider_uses_openapi_base_url(self, mocker):
         mocker.patch.dict("os.environ", {}, clear=False)
         mocker.patch(

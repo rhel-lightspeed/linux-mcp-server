@@ -383,6 +383,31 @@ class TestGatekeeperConfig:
         assert config.gatekeeper is not None
         assert config.gatekeeper.cost == (1e-6, 4e-6)
 
+    @pytest.mark.parametrize("value", ["none", "null", "None", "NULL"])
+    def test_temperature_none(self, mock_getuser, monkeypatch, value):
+        monkeypatch.setenv("LINUX_MCP_GATEKEEPER__TEMPERATURE", value)
+
+        config = Config()
+
+        assert config.gatekeeper is not None
+        assert config.gatekeeper.temperature is None
+
+    def test_temperature_float(self, mock_getuser, monkeypatch):
+        monkeypatch.setenv("LINUX_MCP_GATEKEEPER__TEMPERATURE", "0.5")
+
+        config = Config()
+
+        assert config.gatekeeper is not None
+        assert config.gatekeeper.temperature == 0.5
+
+    def test_temperature_defaults_to_zero(self, mock_getuser, monkeypatch):
+        monkeypatch.delenv("LINUX_MCP_GATEKEEPER__TEMPERATURE", raising=False)
+
+        config = Config()
+
+        assert config.gatekeeper is not None
+        assert config.gatekeeper.temperature == 0.0
+
     def test_openrouter_provider_and_quantization(self, mock_getuser, monkeypatch):
         monkeypatch.setenv("LINUX_MCP_GATEKEEPER__PROVIDER", "openrouter")
         monkeypatch.setenv("LINUX_MCP_GATEKEEPER__MODEL", "openai/gpt-oss-120b")

@@ -77,7 +77,7 @@ class OpenAIRequest(BaseModel):
     model: str
     input: str
     max_output_tokens: int
-    temperature: float
+    temperature: float | None
     store: bool
     reasoning: OpenAIReasoningConfig | None
     text: OpenAIResponseTextConfig | None

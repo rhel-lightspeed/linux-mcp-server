@@ -44,9 +44,23 @@ class TestOpenRouterClient:
         assert headers["Authorization"] == "Bearer test-key"
         body = mock_post.call_args.kwargs["body"]
         assert body["model"] == "openai/gpt-oss-120b"
+        assert body["temperature"] == 0.0
         assert body["reasoning"] == {"enabled": True, "effort": "low"}
         assert body["provider"] == {"require_parameters": False}
         assert body["response_format"]["type"] == "json_schema"
+
+    async def test_complete_openrouter_omits_temperature_when_none(self, gatekeeper_config, mocker):
+        gatekeeper_config.temperature = None
+        mock_post = mocker.patch(
+            "linux_mcp_server.gatekeeper.openrouter_client.post_json",
+            new_callable=mocker.AsyncMock,
+            return_value={"choices": [{"message": {"content": '{"status": "OK"}'}}]},
+        )
+
+        await openrouter_client.complete_openrouter("prompt", max_tokens=8000)
+
+        body = mock_post.call_args.kwargs["body"]
+        assert "temperature" not in body
 
     async def test_complete_openrouter_quantization(self, gatekeeper_config, mocker):
         gatekeeper_config.openrouter = OpenRouterGatekeeperConfig(quantization="fp4")
