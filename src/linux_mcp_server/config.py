@@ -192,6 +192,12 @@ class OpenAIGatekeeperConfig(BaseSettings):
     template_kwargs: dict[str, Any] = Field(default_factory=dict)
 
 
+class AnthropicGatekeeperConfig(BaseSettings):
+    """Anthropic gatekeeper provider configuration."""
+
+    base_url: str | None = None
+
+
 class OpenRouterGatekeeperConfig(BaseSettings):
     """OpenRouter gatekeeper provider configuration."""
 
@@ -218,6 +224,7 @@ class GatekeeperConfig(BaseSettings):
     temperature: Annotated[float | None, BeforeValidator(parse_unset)] = None
     cost: Annotated[tuple[float, float] | None, BeforeValidator(parse_cost)] = None
 
+    anthropic: AnthropicGatekeeperConfig | None = None
     openai: OpenAIGatekeeperConfig | None = None
     openrouter: OpenRouterGatekeeperConfig | None = None
     vertex_ai: VertexAIGatekeeperConfig | None = None
