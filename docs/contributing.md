@@ -22,7 +22,7 @@ Read on for detailed setup and contribution guidelines.
 
 | Requirement | Version | Notes |
 |-------------|---------|-------|
-| Python | 3.10+ | Check with `python3 --version` |
+| Python | 3.11+ | Check with `python3 --version` |
 | git | Any | For cloning and version control |
 | uv | Latest | [Installation guide](https://github.com/astral-sh/uv#installation) (recommended) |
 
