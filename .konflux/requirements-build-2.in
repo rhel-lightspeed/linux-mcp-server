@@ -1,0 +1,2 @@
+# slushy-build-source: charset-normalizer==3.5.2
+setuptools<84.1,>=68
