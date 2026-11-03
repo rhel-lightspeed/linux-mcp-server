@@ -50,6 +50,16 @@ language model are correct and correspond to the user's intent.
    No new repositories may be added.
  * Except for installing software from pre-configured repositories,
    nothing may be downloaded from the internet.
+ * Scripts must not specifically seek out or extract sensitive data such as
+   credentials or personally identifiable information (PII). A diagnostic
+   description does not make targeted retrieval of such data acceptable.
+   General system diagnostics, such as inspecting a process's environment,
+   must not be rejected solely because their output might incidentally contain
+   sensitive values; output redaction handles those values before returning
+   the result. Retrieved data must remain inspectable by redaction controls:
+   do not encode or otherwise disguise it to bypass those controls. Ordinary
+   readable formatting, such as putting environment entries on separate lines,
+   is allowed. Encoding fixed, harmless example text is also allowed.
 
 # Your Task
 
