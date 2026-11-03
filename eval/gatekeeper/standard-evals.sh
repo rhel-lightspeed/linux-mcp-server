@@ -232,6 +232,9 @@ max_parallel=10
 
 LINUX_MCP_GATEKEEPER__REASONING_EFFORT=$reasoning
 LINUX_MCP_GATEKEEPER__COST=""
+# The server omits the temperature parameter when unset (provider default);
+# pin it so eval results stay deterministic across the default change.
+LINUX_MCP_GATEKEEPER__TEMPERATURE=0.0
 
 case "$model" in
     claude-*)
@@ -242,7 +245,6 @@ case "$model" in
         if [[ -n $reasoning && $reasoning != "none" ]] ; then
             echo "Setting T=1, as required for thinking with Claude models"
             LINUX_MCP_GATEKEEPER__TEMPERATURE=1
-            export LINUX_MCP_GATEKEEPER__TEMPERATURE
         fi
         ;;
     gemma-4-31b)
@@ -387,7 +389,7 @@ case "$provider" in
 esac
 
 export LINUX_MCP_GATEKEEPER__PROVIDER LINUX_MCP_GATEKEEPER__MODEL
-export LINUX_MCP_GATEKEEPER__COST LINUX_MCP_GATEKEEPER__REASONING_EFFORT
+export LINUX_MCP_GATEKEEPER__COST LINUX_MCP_GATEKEEPER__REASONING_EFFORT LINUX_MCP_GATEKEEPER__TEMPERATURE
 [[ -n "${LINUX_MCP_GATEKEEPER__OPENROUTER__QUANTIZATION:-}" ]] && export LINUX_MCP_GATEKEEPER__OPENROUTER__QUANTIZATION
 [[ -n "${LINUX_MCP_GATEKEEPER__OPENAI__BASE_URL:-}" ]] && export LINUX_MCP_GATEKEEPER__OPENAI__BASE_URL
 [[ -n "${LINUX_MCP_GATEKEEPER__OPENAI__TEMPLATE_KWARGS:-}" ]] && export LINUX_MCP_GATEKEEPER__OPENAI__TEMPLATE_KWARGS

@@ -179,6 +179,12 @@ def parse_cost(v: Any) -> Any:
     return v
 
 
+def parse_unset(v: Any) -> Any:
+    if isinstance(v, str) and v.strip().lower() == "unset":
+        return None
+    return v
+
+
 class OpenAIGatekeeperConfig(BaseSettings):
     """OpenAI gatekeeper provider configuration."""
 
@@ -207,9 +213,9 @@ class GatekeeperConfig(BaseSettings):
 
     provider: GatekeeperProvider
     model: str
-    reasoning_effort: ReasoningEffort | None = None
+    reasoning_effort: Annotated[ReasoningEffort | None, BeforeValidator(parse_unset)] = None
     structured_output: bool = True
-    temperature: float = 0.0
+    temperature: Annotated[float | None, BeforeValidator(parse_unset)] = None
     cost: Annotated[tuple[float, float] | None, BeforeValidator(parse_cost)] = None
 
     openai: OpenAIGatekeeperConfig | None = None

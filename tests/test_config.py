@@ -15,6 +15,7 @@ from pydantic import ValidationError
 from linux_mcp_server.config import Config
 from linux_mcp_server.config import GatekeeperProvider
 from linux_mcp_server.config import LogLevel
+from linux_mcp_server.config import ReasoningEffort
 from linux_mcp_server.config import Toolset
 
 
@@ -382,6 +383,47 @@ class TestGatekeeperConfig:
         config = Config()
         assert config.gatekeeper is not None
         assert config.gatekeeper.cost == (1e-6, 4e-6)
+
+    @pytest.mark.parametrize("value", ["unset", "UNSET"])
+    @pytest.mark.parametrize("field", ["reasoning_effort", "temperature"])
+    def test_unset_markers(self, mock_getuser, monkeypatch, field, value):
+        monkeypatch.setenv(f"LINUX_MCP_GATEKEEPER__{field.upper()}", value)
+
+        config = Config()
+
+        assert config.gatekeeper is not None
+        assert getattr(config.gatekeeper, field) is None
+
+    def test_reasoning_effort_none_is_not_unset(self, mock_getuser, monkeypatch):
+        monkeypatch.setenv("LINUX_MCP_GATEKEEPER__REASONING_EFFORT", "none")
+
+        config = Config()
+
+        assert config.gatekeeper is not None
+        assert config.gatekeeper.reasoning_effort == ReasoningEffort.NONE
+
+    def test_temperature_none_is_invalid(self, mock_getuser, monkeypatch):
+        """'none' is reserved for reasoning_effort, so it is not a valid temperature."""
+        monkeypatch.setenv("LINUX_MCP_GATEKEEPER__TEMPERATURE", "none")
+
+        with pytest.raises(ValidationError, match="Input should be"):
+            Config()
+
+    def test_temperature_float(self, mock_getuser, monkeypatch):
+        monkeypatch.setenv("LINUX_MCP_GATEKEEPER__TEMPERATURE", "0.5")
+
+        config = Config()
+
+        assert config.gatekeeper is not None
+        assert config.gatekeeper.temperature == 0.5
+
+    def test_temperature_defaults_to_unset(self, mock_getuser, monkeypatch):
+        monkeypatch.delenv("LINUX_MCP_GATEKEEPER__TEMPERATURE", raising=False)
+
+        config = Config()
+
+        assert config.gatekeeper is not None
+        assert config.gatekeeper.temperature is None
 
     def test_openrouter_provider_and_quantization(self, mock_getuser, monkeypatch):
         monkeypatch.setenv("LINUX_MCP_GATEKEEPER__PROVIDER", "openrouter")

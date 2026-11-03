@@ -62,9 +62,23 @@ class TestAnthropicClient:
         assert mock_post.call_args.kwargs["url"] == "https://api.anthropic.com/v1/messages"
         body = mock_post.call_args.kwargs["body"]
         assert body["model"] == "claude-sonnet-4-6"
+        assert body["temperature"] == 0.0
         assert body["thinking"] == {"type": "adaptive"}
         assert body["output_config"]["effort"] == "low"
         assert body["output_config"]["format"]["type"] == "json_schema"
+
+    async def test_complete_anthropic_omits_temperature_when_none(self, gatekeeper_config, mocker):
+        gatekeeper_config.temperature = None
+        mock_post = mocker.patch(
+            "linux_mcp_server.gatekeeper.anthropic_client.post_json",
+            new_callable=mocker.AsyncMock,
+            return_value={"content": [{"type": "text", "text": '{"status": "OK"}'}]},
+        )
+
+        await anthropic_client.complete_anthropic("prompt", max_tokens=8000)
+
+        body = mock_post.call_args.kwargs["body"]
+        assert "temperature" not in body
 
     async def test_complete_anthropic_none_disables_thinking(self, gatekeeper_config, mocker):
         gatekeeper_config.reasoning_effort = ReasoningEffort.NONE
