@@ -54,7 +54,7 @@
 # slushy-build-source: platformdirs==4.13.5
 # slushy-build-source: pluggy==1.7.0
 # slushy-build-source: py-key-value-aio==0.4.6
-# slushy-build-source: pyasn1==0.6.4
+# slushy-build-source: pyasn1==0.6.5
 # slushy-build-source: pyasn1-modules==0.4.2
 # slushy-build-source: pycparser==3.11
 # slushy-build-source: pydantic==2.14.1
