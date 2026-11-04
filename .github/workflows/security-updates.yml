@@ -267,6 +267,9 @@ jobs:
         run: python3 "$TOOL" verify --package "$PACKAGE" --audit "$RUNNER_TEMP/audit-after.json"
 
       - name: Sync Konflux prefetch inputs
+        env:
+          # To avoid ANSI markers being included in the output requirements.txt
+          FORCE_COLOR: 0
         run: make requirements-lock
 
       - name: Commit the update
