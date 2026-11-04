@@ -17,6 +17,9 @@ permissions:
   pages: write
   id-token: write
 
+# Builds what is deployed to GitHub Pages. See docs/development/ci-hardening.md.
+cache-mode: none
+
 concurrency:
   group: pages
   cancel-in-progress: false
@@ -36,8 +39,7 @@ jobs:
       - name: Install uv
         uses: astral-sh/setup-uv@07a047e608db84b3d8c06cd9a7c7dcc9c355c18e # v10.3.2
         with:
-          enable-cache: true
-          prune-cache: false
+          enable-cache: false
 
       - name: Install dependencies
         run: uv sync --locked --group docs

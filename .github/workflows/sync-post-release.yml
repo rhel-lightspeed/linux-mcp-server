@@ -25,6 +25,9 @@ on:
 permissions:
   contents: read
 
+# Holds the release app credential. See docs/development/ci-hardening.md.
+cache-mode: none
+
 jobs:
   sync:
     name: Sync

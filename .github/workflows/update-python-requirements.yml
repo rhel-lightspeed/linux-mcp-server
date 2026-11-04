@@ -22,6 +22,10 @@ on:
 permissions:
   contents: write
 
+# slushy-build compiles sdists. A pull_request run's cache scope is the PR's
+# own ref, but keep it read-only anyway: see docs/development/ci-hardening.md.
+cache-mode: read
+
 concurrency:
   group: update-python-requirements-${{ github.event.pull_request.number }}
   cancel-in-progress: true
@@ -49,7 +53,7 @@ jobs:
         uses: astral-sh/setup-uv@07a047e608db84b3d8c06cd9a7c7dcc9c355c18e # v10.3.2
         with:
           enable-cache: true
-          prune-cache: false
+          save-cache: false
 
       - name: Run slushy-build
         run: |

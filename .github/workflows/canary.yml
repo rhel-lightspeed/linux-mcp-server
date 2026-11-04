@@ -5,8 +5,12 @@ on:
     - cron: '0 6 * * *'
   workflow_dispatch:
 
+# `test` runs the latest, unvetted dependency releases in the default branch's
+# cache scope, so by default nothing in this workflow gets a write-capable
+# token or may save to the cache. See docs/development/ci-hardening.md.
 permissions:
   contents: read
+cache-mode: read
 
 env:
   PIP_DISABLE_PIP_VERSION_CHECK: 1
@@ -51,7 +55,7 @@ jobs:
         uses: astral-sh/setup-uv@07a047e608db84b3d8c06cd9a7c7dcc9c355c18e # v10.3.2
         with:
           enable-cache: true
-          prune-cache: false
+          save-cache: false
 
       # Each stage can break with the latest dependencies: resolution
       # (uv lock), installation/build (uv sync), or the tests themselves. Let
