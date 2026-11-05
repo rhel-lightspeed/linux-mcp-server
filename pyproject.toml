@@ -59,11 +59,14 @@ linux-mcp-server = "linux_mcp_server.__main__:cli"
 
 [dependency-groups]
 dev = [
-    "ipdb",
-    "ipython",
     "shiv",
+    {include-group = "eval"},
     {include-group = "lint"},
     {include-group = "test"},
+]
+
+eval = [
+    "typer"
 ]
 
 lint = [
