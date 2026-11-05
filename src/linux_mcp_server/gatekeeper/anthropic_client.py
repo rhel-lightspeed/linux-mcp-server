@@ -50,7 +50,7 @@ class AnthropicRequest(BaseModel):
 
     max_tokens: int
     messages: list[AnthropicMessage]
-    temperature: float
+    temperature: float | None
     model: str | None = None
     thinking: AnthropicThinking | None = None
     output_config: AnthropicOutputConfig | None = None

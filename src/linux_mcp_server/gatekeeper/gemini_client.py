@@ -61,7 +61,7 @@ class GeminiResponseFormat(BaseModel):
 
 
 class GeminiGenerationConfig(BaseModel):
-    temperature: float
+    temperature: float | None
     maxOutputTokens: int
     responseFormat: GeminiResponseFormat | None = None
     thinkingConfig: GeminiThinkingConfig | None = None

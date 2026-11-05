@@ -146,6 +146,11 @@ VERTEXAI_LOCATION=global
 GOOGLE_APPLICATION_CREDENTIALS=<path-to-service-account.json>
 ```
 
+**Note**: Some providers reject the `temperature` parameter when using reasoning
+models (for example, OpenAI's `gpt-5` and `gpt-6`), so it is omitted from
+gatekeeper requests by default. Set `LINUX_MCP_GATEKEEPER__TEMPERATURE` (e.g.
+`0.0`) to send one.
+
 **Configure your client's tool policy**
 
 The following three tools should be configured to be allowed without user confirmation:

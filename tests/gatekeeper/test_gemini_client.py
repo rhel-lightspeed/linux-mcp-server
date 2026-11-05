@@ -47,7 +47,24 @@ class TestGeminiClient:
         )
         expected_schema = GatekeeperResult.structured_output_schema()
         assert body["generationConfig"]["responseFormat"]["text"]["schema"] == expected_schema
+        assert body["generationConfig"]["temperature"] == 0.0
         assert body["generationConfig"]["thinkingConfig"] == {"thinkingLevel": "LOW"}
+
+    async def test_complete_gemini_omits_temperature_when_none(self, gatekeeper_config, mocker):
+        gatekeeper_config.temperature = None
+        mock_post = mocker.patch(
+            "linux_mcp_server.gatekeeper.gemini_client.post_json",
+            new_callable=mocker.AsyncMock,
+            return_value={
+                "candidates": [{"content": {"parts": [{"text": '{"status": "OK"}'}]}}],
+                "usageMetadata": {"promptTokenCount": 1, "candidatesTokenCount": 1},
+            },
+        )
+
+        await gemini_client.complete_gemini("prompt", max_tokens=8000)
+
+        body = mock_post.call_args.kwargs["body"]
+        assert "temperature" not in body["generationConfig"]
 
     async def test_complete_gemini_none_maps_to_minimal(self, gatekeeper_config, mocker):
         gatekeeper_config.reasoning_effort = ReasoningEffort.NONE
