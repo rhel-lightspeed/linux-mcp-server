@@ -1,5 +1,6 @@
 import pytest
 
+from linux_mcp_server.config import AnthropicGatekeeperConfig
 from linux_mcp_server.config import CONFIG
 from linux_mcp_server.config import GatekeeperConfig
 from linux_mcp_server.config import GatekeeperProvider
@@ -146,6 +147,48 @@ class TestAnthropicClient:
         assert body["anthropic_version"] == "vertex-2023-10-16"
         assert mock_post.call_args.kwargs["headers"]["Authorization"] == "Bearer gcp-token"
         assert "x-api-key" not in mock_post.call_args.kwargs["headers"]
+
+    @pytest.mark.parametrize(
+        "base_url, expected_url",
+        [
+            ("https://proxy.example.com/v1", "https://proxy.example.com/v1/messages"),
+            ("https://proxy.example.com/v1/", "https://proxy.example.com/v1/messages"),
+        ],
+    )
+    async def test_complete_anthropic_configured_base_url(self, gatekeeper_config, mocker, base_url, expected_url):
+        gatekeeper_config.anthropic = AnthropicGatekeeperConfig(base_url=base_url)
+        mock_post = mocker.patch(
+            "linux_mcp_server.gatekeeper.anthropic_client.post_json",
+            new_callable=mocker.AsyncMock,
+            return_value={"content": [{"type": "text", "text": '{"status": "OK"}'}]},
+        )
+
+        await anthropic_client.complete_anthropic("prompt", max_tokens=8000)
+
+        assert mock_post.call_args.kwargs["url"] == expected_url
+
+    async def test_complete_anthropic_default_base_url(self, gatekeeper_config, mocker):
+        mock_post = mocker.patch(
+            "linux_mcp_server.gatekeeper.anthropic_client.post_json",
+            new_callable=mocker.AsyncMock,
+            return_value={"content": [{"type": "text", "text": '{"status": "OK"}'}]},
+        )
+
+        await anthropic_client.complete_anthropic("prompt", max_tokens=8000)
+
+        assert mock_post.call_args.kwargs["url"] == "https://api.anthropic.com/v1/messages"
+
+    async def test_complete_anthropic_explicit_url_wins_over_config(self, gatekeeper_config, mocker):
+        gatekeeper_config.anthropic = AnthropicGatekeeperConfig(base_url="https://proxy.example.com/v1")
+        mock_post = mocker.patch(
+            "linux_mcp_server.gatekeeper.anthropic_client.post_json",
+            new_callable=mocker.AsyncMock,
+            return_value={"content": [{"type": "text", "text": '{"status": "OK"}'}]},
+        )
+
+        await anthropic_client.complete_anthropic("prompt", max_tokens=8000, url="https://custom.example.com/messages")
+
+        assert mock_post.call_args.kwargs["url"] == "https://custom.example.com/messages"
 
     async def test_complete_anthropic_requires_api_key(self, gatekeeper_config, mocker):
         mocker.patch.dict("os.environ", {"ANTHROPIC_API_KEY": ""}, clear=False)

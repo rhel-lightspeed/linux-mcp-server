@@ -18,7 +18,7 @@ from linux_mcp_server.gatekeeper.http_utils import post_json
 from linux_mcp_server.gatekeeper.llm import GatekeeperCompletion
 
 
-ANTHROPIC_API_URL = "https://api.anthropic.com/v1/messages"
+ANTHROPIC_DEFAULT_BASE_URL = "https://api.anthropic.com/v1"
 ANTHROPIC_API_VERSION = "2023-06-01"
 
 
@@ -128,6 +128,10 @@ async def complete_anthropic(
     body = request_body.model_dump(exclude_none=True, by_alias=True)
     if anthropic_version is not None:
         body["anthropic_version"] = anthropic_version
+    if url is None:
+        configured = CONFIG.gatekeeper.anthropic.base_url if CONFIG.gatekeeper.anthropic else None
+        base_url = (configured or ANTHROPIC_DEFAULT_BASE_URL).rstrip("/")
+        url = f"{base_url}/messages"
     if headers is None:
         headers = {
             "x-api-key": _get_anthropic_api_key(),
@@ -136,7 +140,7 @@ async def complete_anthropic(
         }
     response = await post_json(
         provider="anthropic",
-        url=url or ANTHROPIC_API_URL,
+        url=url,
         headers=headers,
         body=body,
         timeout=timeout,

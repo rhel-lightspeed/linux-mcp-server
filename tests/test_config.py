@@ -356,6 +356,28 @@ class TestGatekeeperConfig:
         assert config.gatekeeper.vertex_ai.project == "my-project"
         assert config.gatekeeper.vertex_ai.location == "global"
 
+    def test_anthropic_provider_base_url(self, mock_getuser, monkeypatch):
+        monkeypatch.setenv("LINUX_MCP_GATEKEEPER__PROVIDER", "anthropic")
+        monkeypatch.setenv("LINUX_MCP_GATEKEEPER__MODEL", "claude-sonnet-4-6")
+        monkeypatch.setenv("LINUX_MCP_GATEKEEPER__ANTHROPIC__BASE_URL", "https://proxy.example.com/v1")
+
+        config = Config()
+
+        assert config.gatekeeper is not None
+        assert config.gatekeeper.provider == GatekeeperProvider.ANTHROPIC
+        assert config.gatekeeper.model == "claude-sonnet-4-6"
+        assert config.gatekeeper.anthropic is not None
+        assert config.gatekeeper.anthropic.base_url == "https://proxy.example.com/v1"
+
+    def test_anthropic_config_unset(self, mock_getuser, monkeypatch):
+        monkeypatch.setenv("LINUX_MCP_GATEKEEPER__PROVIDER", "anthropic")
+        monkeypatch.setenv("LINUX_MCP_GATEKEEPER__MODEL", "claude-sonnet-4-6")
+
+        config = Config()
+
+        assert config.gatekeeper is not None
+        assert config.gatekeeper.anthropic is None
+
     def test_structured_output_defaults_true(self, mock_getuser, monkeypatch):
         config = Config()
         assert config.gatekeeper is not None
