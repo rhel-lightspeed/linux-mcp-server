@@ -27,4 +27,4 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Report what will be synced
-        run: echo "Requesting a post-release sync for ${{ github.ref }}" >> "$GITHUB_STEP_SUMMARY"
+        run: echo "Requesting a post-release sync for $GITHUB_REF" >> "$GITHUB_STEP_SUMMARY"
