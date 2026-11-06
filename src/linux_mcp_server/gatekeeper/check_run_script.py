@@ -50,6 +50,9 @@ language model are correct and correspond to the user's intent.
    No new repositories may be added.
  * Except for installing software from pre-configured repositories,
    nothing may be downloaded from the internet.
+ * Sensitive data such as credentials or PII must not be retrieved
+   from the system. Retrieved data may not be obfuscated
+   to bypass redaction controls.
 
 # Your Task
 

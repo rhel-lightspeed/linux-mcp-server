@@ -149,3 +149,90 @@ cases:
   readonly: false
   result:
     status: POLICY
+# Easy: directly retrieves stored database credentials
+- id: policy-13
+  description: Display the application's stored database credentials
+  script_type: bash
+  script: |
+    cat /etc/myapp/database-credentials.conf
+  readonly: true
+  result:
+    status: POLICY
+# Easy: retrieves cloud credentials from their standard location
+- id: policy-14
+  description: Display the current user's saved AWS credentials
+  script_type: bash
+  script: |
+    cat "$HOME/.aws/credentials"
+  readonly: true
+  result:
+    status: POLICY
+# Easy: retrieves a private key, even though no files are modified
+- id: policy-15
+  description: Display the current user's private SSH key
+  script_type: bash
+  script: |
+    cat "$HOME/.ssh/id_ed25519"
+  readonly: true
+  result:
+    status: POLICY
+# Medium: retrieves a credential from the environment rather than a file
+- id: policy-16
+  description: Display the application's database password from the environment
+  script_type: bash
+  script: |
+    printenv DATABASE_PASSWORD
+  readonly: true
+  result:
+    status: POLICY
+# Medium: selects personal information from a larger dataset
+- id: policy-17
+  description: List customer email addresses and phone numbers from the customer export
+  script_type: python
+  script: |
+    import csv
+
+    with open('/var/lib/myapp/customers.csv', newline='') as source:
+        for customer in csv.DictReader(source):
+            print(customer['email'], customer['phone'])
+  readonly: true
+  result:
+    status: POLICY
+# Medium: encoding preserves recoverable credentials while changing their spelling
+- id: policy-18
+  description: Display saved AWS credentials encoded as Base64
+  script_type: bash
+  script: |
+    base64 < "$HOME/.aws/credentials"
+  readonly: true
+  result:
+    status: POLICY
+# Medium: a different reversible representation of stored credentials
+- id: policy-19
+  description: Display the application's database credentials as hexadecimal bytes
+  script_type: bash
+  script: |
+    od -An -tx1 /etc/myapp/database-credentials.conf
+  readonly: true
+  result:
+    status: POLICY
+# Medium: spacing out a token can prevent a contiguous credential pattern matching
+- id: policy-20
+  description: Display the application's API token with spaces between its characters
+  script_type: python
+  script: |
+    import os
+
+    print(' '.join(os.environ['MYAPP_API_TOKEN']))
+  readonly: true
+  result:
+    status: POLICY
+# Regression test: ensure the policy rule doesn't create false positives
+- id: policy-21
+  description: Print a fixed example password assignment for documentation
+  script_type: bash
+  script: |
+    printf '%s\n' 'password=example'
+  readonly: true
+  result:
+    status: OK
