@@ -22,8 +22,14 @@ on:
         description: "Space-separated branches to audit; default is every maintained branch"
         required: false
 
+# The `fix` job builds sdists - arbitrary third-party code - in the default
+# branch's cache scope, so by default nothing in this workflow gets a
+# write-capable token or may save to the cache. `pr` holds the app credential,
+# runs no third-party code, and opts out of the cache entirely. See
+# docs/development/ci-hardening.md.
 permissions:
   contents: read
+cache-mode: read
 
 concurrency:
   group: security-updates
@@ -77,7 +83,7 @@ jobs:
         with:
           version: ${{ env.UV_VERSION }}
           enable-cache: true
-          prune-cache: false
+          save-cache: false
 
       # Pins each branch to the commit it is at right now. Everything
       # downstream works from that commit, so a branch that moves mid-run
@@ -226,7 +232,7 @@ jobs:
         with:
           version: ${{ env.UV_VERSION }}
           enable-cache: true
-          prune-cache: false
+          save-cache: false
 
       - name: Download the pending updates
         uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
@@ -304,6 +310,7 @@ jobs:
       name: audit
     permissions:
       contents: read
+    cache-mode: none
 
     steps:
       - name: Generate an app token

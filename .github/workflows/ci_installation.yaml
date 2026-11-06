@@ -15,8 +15,13 @@ on:
       - 'src/linux_mcp_server/**'
       - 'scripts/verify_installation.sh'
 
+# The install methods resolve dependencies fresh rather than from uv.lock, so
+# this runs unreviewed third-party code - in the default branch's cache scope
+# on a push to main. It must not get a write-capable token or save to the
+# cache. See docs/development/ci-hardening.md.
 permissions:
   contents: read
+cache-mode: read
 
 env:
   PIP_DISABLE_PIP_VERSION_CHECK: 1
@@ -54,7 +59,7 @@ jobs:
         uses: astral-sh/setup-uv@07a047e608db84b3d8c06cd9a7c7dcc9c355c18e # v10.3.2
         with:
           enable-cache: true
-          prune-cache: false
+          save-cache: false
           
       - name: Run Installation and Verification
         shell: bash

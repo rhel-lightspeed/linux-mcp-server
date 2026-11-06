@@ -11,6 +11,11 @@ on:
 permissions:
   contents: read
 
+# Builds what is published to PyPI and attached to the release, so never
+# restore anything another workflow may have written. See
+# docs/development/ci-hardening.md.
+cache-mode: none
+
 jobs:
   build-package:
     name: Build sdist and wheel
@@ -25,8 +30,7 @@ jobs:
       - name: Setup uv
         uses: astral-sh/setup-uv@07a047e608db84b3d8c06cd9a7c7dcc9c355c18e # v10.3.2
         with:
-          enable-cache: true
-          prune-cache: false
+          enable-cache: false
 
       - name: Run uv sync
         run: uv sync --locked
@@ -180,6 +184,8 @@ jobs:
 
       - name: Install uv
         uses: astral-sh/setup-uv@07a047e608db84b3d8c06cd9a7c7dcc9c355c18e # v10.3.2
+        with:
+          enable-cache: false
 
       - name: Pin Python version
         run: uv python pin ${{ matrix.python-version }}

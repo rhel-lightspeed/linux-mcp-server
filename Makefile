@@ -138,6 +138,16 @@ rpm-lock:
 SLUSHY_CONSTRAIN ?= uv-build<0.11.8
 SLUSHY_ARGS ?=
 requirements-lock:
+	# slushy-build compiles sdists; in CI that must not happen in a job that can
+	# save to the cache. See docs/development/ci-hardening.md.
+	@if [ "$${GITHUB_ACTIONS-}" = true ] ; then \
+	  case "$${ACTIONS_CACHE_MODE-}" in \
+	    read | none) ;; \
+	    *) echo "'make requirements-lock' needs cache-mode read or none in CI, not '$${ACTIONS_CACHE_MODE-unset}'." >&2 ; \
+	       echo "See docs/development/ci-hardening.md." >&2 ; \
+	       exit 1 ;; \
+	  esac ; \
+	fi
 	if ! uv run python -c "import sys; sys.exit(0 if sys.version_info[:2] == (3, 12) else 1)" ; then \
 	  echo "'make requirements-lock' should be run with Python3.12" 2>&1 ; \
 	  echo "Run 'uv sync --python=3.12'" 2>&1 ; \

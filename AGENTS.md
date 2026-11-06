@@ -91,4 +91,6 @@ Types: `feat`, `fix`, `docs`, `test`, `refactor`, `perf`, `chore`
 
 Full details: `docs/contributing.md` | Architecture: `docs/architecture.md`
 
+Read `docs/development/ci-hardening.md` before adding or changing anything under `.github/workflows/`.
+
 Tool docs under `docs/tools/` are auto-generated — run `uv run python scripts/generate_tool_docs.py` after adding or modifying tools.
