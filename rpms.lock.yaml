@@ -60,13 +60,13 @@ arches:
     name: glibc-devel
     evr: 2.39-145.el10_2
     sourcerpm: glibc-2.39-145.el10_2.src.rpm
-  - url: https://cdn-ubi.redhat.com/content/public/ubi/dist/ubi10/10/aarch64/appstream/os/Packages/k/kernel-headers-6.12.0-211.73.1.el10_2.aarch64.rpm
+  - url: https://cdn-ubi.redhat.com/content/public/ubi/dist/ubi10/10/aarch64/appstream/os/Packages/k/kernel-headers-6.12.0-211.74.1.el10_2.aarch64.rpm
     repoid: ubi-10-for-aarch64-appstream-rpms
-    size: 3749793
-    checksum: sha256:1c2410c5fc558e82f1067be519dc5d376645066f4f108132bf561cb65b3272c2
+    size: 3750873
+    checksum: sha256:0188c5c2daa4feb1dfa96c147748f2dfdb928cf94e9e889d7fc1794475f56d0a
     name: kernel-headers
-    evr: 6.12.0-211.73.1.el10_2
-    sourcerpm: kernel-6.12.0-211.73.1.el10_2.src.rpm
+    evr: 6.12.0-211.74.1.el10_2
+    sourcerpm: kernel-6.12.0-211.74.1.el10_2.src.rpm
   - url: https://cdn-ubi.redhat.com/content/public/ubi/dist/ubi10/10/aarch64/appstream/os/Packages/k/keyutils-libs-devel-1.6.3-5.el10.aarch64.rpm
     repoid: ubi-10-for-aarch64-appstream-rpms
     size: 66529
@@ -984,13 +984,13 @@ arches:
     name: shadow-utils
     evr: 2:4.15.0-11.el10
     sourcerpm: shadow-utils-4.15.0-11.el10.src.rpm
-  - url: https://cdn-ubi.redhat.com/content/public/ubi/dist/ubi10/10/aarch64/baseos/os/Packages/t/tzdata-2026e-1.el10_2.noarch.rpm
+  - url: https://cdn-ubi.redhat.com/content/public/ubi/dist/ubi10/10/aarch64/baseos/os/Packages/t/tzdata-2026f-1.el10_2.noarch.rpm
     repoid: ubi-10-for-aarch64-baseos-rpms
-    size: 936696
-    checksum: sha256:d0ce19e2ee66af9dc7b9b5c78fcbc79b0463997dcf9fbf7a63b4cd5157c41191
+    size: 937604
+    checksum: sha256:3f7e1eb06e0fdccdc43224b352853a59c7f26b9fd15e4ac21007f1003d914ee1
     name: tzdata
-    evr: 2026e-1.el10_2
-    sourcerpm: tzdata-2026e-1.el10_2.src.rpm
+    evr: 2026f-1.el10_2
+    sourcerpm: tzdata-2026f-1.el10_2.src.rpm
   - url: https://cdn-ubi.redhat.com/content/public/ubi/dist/ubi10/10/aarch64/baseos/os/Packages/u/util-linux-2.40.2-18.el10_2.20.aarch64.rpm
     repoid: ubi-10-for-aarch64-baseos-rpms
     size: 1314449
@@ -1474,12 +1474,12 @@ arches:
     checksum: sha256:3d54a50488a858001c1abe1df51cd16fdee2e8df2acec39f4fcd51207ad6a0b3
     name: shadow-utils
     evr: 2:4.15.0-11.el10
-  - url: https://cdn-ubi.redhat.com/content/public/ubi/dist/ubi10/10/aarch64/baseos/source/SRPMS/Packages/t/tzdata-2026e-1.el10_2.src.rpm
+  - url: https://cdn-ubi.redhat.com/content/public/ubi/dist/ubi10/10/aarch64/baseos/source/SRPMS/Packages/t/tzdata-2026f-1.el10_2.src.rpm
     repoid: ubi-10-for-aarch64-baseos-source-rpms
-    size: 941701
-    checksum: sha256:4c2e93fdd2e869d735dfdcdb4b54c28abfe76483e1d76685052598c96a57ded3
+    size: 944379
+    checksum: sha256:94923e270f98951f006b0c104c5bf56af6425a2865147dce84b1fab127f08ae7
     name: tzdata
-    evr: 2026e-1.el10_2
+    evr: 2026f-1.el10_2
   - url: https://cdn-ubi.redhat.com/content/public/ubi/dist/ubi10/10/aarch64/baseos/source/SRPMS/Packages/u/util-linux-2.40.2-18.el10_2.20.src.rpm
     repoid: ubi-10-for-aarch64-baseos-source-rpms
     size: 9111194
@@ -1545,13 +1545,13 @@ arches:
     name: glibc-devel
     evr: 2.39-145.el10_2
     sourcerpm: glibc-2.39-145.el10_2.src.rpm
-  - url: https://cdn-ubi.redhat.com/content/public/ubi/dist/ubi10/10/x86_64/appstream/os/Packages/k/kernel-headers-6.12.0-211.73.1.el10_2.x86_64.rpm
+  - url: https://cdn-ubi.redhat.com/content/public/ubi/dist/ubi10/10/x86_64/appstream/os/Packages/k/kernel-headers-6.12.0-211.74.1.el10_2.x86_64.rpm
     repoid: ubi-10-for-x86_64-appstream-rpms
-    size: 3787953
-    checksum: sha256:152317192cffe55bac71d2512e63b86dc0e40e5090a42376803b9ac8ea33f257
+    size: 3789065
+    checksum: sha256:74eb045ad0eda5d8c2aec91eca86a813494480e2c29ef5b9e5b1e5e5a026f79d
     name: kernel-headers
-    evr: 6.12.0-211.73.1.el10_2
-    sourcerpm: kernel-6.12.0-211.73.1.el10_2.src.rpm
+    evr: 6.12.0-211.74.1.el10_2
+    sourcerpm: kernel-6.12.0-211.74.1.el10_2.src.rpm
   - url: https://cdn-ubi.redhat.com/content/public/ubi/dist/ubi10/10/x86_64/appstream/os/Packages/k/keyutils-libs-devel-1.6.3-5.el10.x86_64.rpm
     repoid: ubi-10-for-x86_64-appstream-rpms
     size: 66541
@@ -2448,13 +2448,13 @@ arches:
     name: shadow-utils
     evr: 2:4.15.0-11.el10
     sourcerpm: shadow-utils-4.15.0-11.el10.src.rpm
-  - url: https://cdn-ubi.redhat.com/content/public/ubi/dist/ubi10/10/x86_64/baseos/os/Packages/t/tzdata-2026e-1.el10_2.noarch.rpm
+  - url: https://cdn-ubi.redhat.com/content/public/ubi/dist/ubi10/10/x86_64/baseos/os/Packages/t/tzdata-2026f-1.el10_2.noarch.rpm
     repoid: ubi-10-for-x86_64-baseos-rpms
-    size: 936696
-    checksum: sha256:d0ce19e2ee66af9dc7b9b5c78fcbc79b0463997dcf9fbf7a63b4cd5157c41191
+    size: 937604
+    checksum: sha256:3f7e1eb06e0fdccdc43224b352853a59c7f26b9fd15e4ac21007f1003d914ee1
     name: tzdata
-    evr: 2026e-1.el10_2
-    sourcerpm: tzdata-2026e-1.el10_2.src.rpm
+    evr: 2026f-1.el10_2
+    sourcerpm: tzdata-2026f-1.el10_2.src.rpm
   - url: https://cdn-ubi.redhat.com/content/public/ubi/dist/ubi10/10/x86_64/baseos/os/Packages/u/util-linux-2.40.2-18.el10_2.20.x86_64.rpm
     repoid: ubi-10-for-x86_64-baseos-rpms
     size: 1328304
@@ -2938,12 +2938,12 @@ arches:
     checksum: sha256:3d54a50488a858001c1abe1df51cd16fdee2e8df2acec39f4fcd51207ad6a0b3
     name: shadow-utils
     evr: 2:4.15.0-11.el10
-  - url: https://cdn-ubi.redhat.com/content/public/ubi/dist/ubi10/10/x86_64/baseos/source/SRPMS/Packages/t/tzdata-2026e-1.el10_2.src.rpm
+  - url: https://cdn-ubi.redhat.com/content/public/ubi/dist/ubi10/10/x86_64/baseos/source/SRPMS/Packages/t/tzdata-2026f-1.el10_2.src.rpm
     repoid: ubi-10-for-x86_64-baseos-source-rpms
-    size: 941701
-    checksum: sha256:4c2e93fdd2e869d735dfdcdb4b54c28abfe76483e1d76685052598c96a57ded3
+    size: 944379
+    checksum: sha256:94923e270f98951f006b0c104c5bf56af6425a2865147dce84b1fab127f08ae7
     name: tzdata
-    evr: 2026e-1.el10_2
+    evr: 2026f-1.el10_2
   - url: https://cdn-ubi.redhat.com/content/public/ubi/dist/ubi10/10/x86_64/baseos/source/SRPMS/Packages/u/util-linux-2.40.2-18.el10_2.20.src.rpm
     repoid: ubi-10-for-x86_64-baseos-source-rpms
     size: 9111194
