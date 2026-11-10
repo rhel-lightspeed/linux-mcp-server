@@ -1,12 +1,12 @@
 # slushy-build-source: aiofile==3.12.3
 # slushy-build-source: annotated-types==0.8.0
-# slushy-build-source: anyio==4.15.1
+# slushy-build-source: anyio==4.16.0
 # slushy-build-source: asyncssh==2.24.1
 # slushy-build-source: attrs==26.1.0
-# slushy-build-source: authlib==1.9.1
+# slushy-build-source: authlib==1.9.3
 # slushy-build-source: bcrypt==5.0.0
 # slushy-build-source: beartype==0.23.1
-# slushy-build-source: cachetools==7.2.5
+# slushy-build-source: cachetools==7.2.8
 # slushy-build-source: caio==0.12.10
 # slushy-build-source: calver==2025.10.20
 # slushy-build-source: certifi==2026.10.23
@@ -14,9 +14,9 @@
 # slushy-build-source: click==8.5.0
 # slushy-build-source: coherent-licensed==0.5.2
 # slushy-build-source: cryptography==50.0.2
-# slushy-build-source: cyclopts==5.3.0
+# slushy-build-source: cyclopts==5.3.3
 # slushy-build-source: decorator==5.3.1
-# slushy-build-source: dnspython==2.9.0
+# slushy-build-source: dnspython==2.9.1
 # slushy-build-source: docstring-parser==0.18.0
 # slushy-build-source: dunamai==1.26.3
 # slushy-build-source: exceptiongroup==1.3.1
@@ -25,7 +25,6 @@
 # slushy-build-source: fastmcp-slim==3.4.11
 # slushy-build-source: flit-scm==1.7.0
 # slushy-build-source: griffelib==2.4.1
-# slushy-build-source: gssapi==1.12.0
 # slushy-build-source: hatch-fancy-pypi-readme==25.1.0
 # slushy-build-source: hatch-vcs==0.5.0
 # slushy-build-source: httpcore==1.0.9
@@ -36,7 +35,7 @@
 # slushy-build-source: jaraco-functools==4.6.0
 # slushy-build-source: jeepney==0.9.0
 # slushy-build-source: jinja2==3.1.6
-# slushy-build-source: joserfc==1.7.7
+# slushy-build-source: joserfc==1.8.0
 # slushy-build-source: jsonref==1.1.0
 # slushy-build-source: jsonschema==4.26.0
 # slushy-build-source: jsonschema-path==0.5.0
@@ -44,26 +43,26 @@
 # slushy-build-source: keyring==25.7.0
 # slushy-build-source: markdown-it-py==4.2.0
 # slushy-build-source: markupsafe==3.0.4
-# slushy-build-source: maturin==1.15.0
+# slushy-build-source: maturin==1.16.0
 # slushy-build-source: mcp==1.30.0
 # slushy-build-source: mdurl==0.1.2
 # slushy-build-source: openapi-pydantic==0.6.0
-# slushy-build-source: opentelemetry-api==1.45.1
+# slushy-build-source: opentelemetry-api==1.45.2
 # slushy-build-source: pathable==0.6.0
-# slushy-build-source: platformdirs==4.13.5
+# slushy-build-source: platformdirs==4.14.3
 # slushy-build-source: pluggy==1.7.0
 # slushy-build-source: py-key-value-aio==0.4.6
 # slushy-build-source: pyasn1==0.6.5
 # slushy-build-source: pyasn1-modules==0.4.2
 # slushy-build-source: pycparser==3.12
-# slushy-build-source: pydantic==2.14.1
-# slushy-build-source: pydantic-core==2.50.1
-# slushy-build-source: pydantic-settings==2.16.1
+# slushy-build-source: pydantic==2.14.2
+# slushy-build-source: pydantic-core==2.50.2
+# slushy-build-source: pydantic-settings==2.16.2
 # slushy-build-source: pygments==2.21.0
 # slushy-build-source: pyjwt==2.15.1
 # slushy-build-source: pyperclip==1.11.0
 # slushy-build-source: python-dotenv==1.2.4
-# slushy-build-source: python-multipart==0.0.32
+# slushy-build-source: python-multipart==0.0.33
 # slushy-build-source: pyyaml==6.0.3
 # slushy-build-source: redis==8.1.0
 # slushy-build-source: referencing==0.37.0
@@ -80,21 +79,21 @@
 # slushy-build-source: trove-classifiers==2026.9.21.13
 # slushy-build-source: typing-extensions==4.16.0
 # slushy-build-source: typing-inspection==0.4.4
-# slushy-build-source: uncalled-for==0.4.1
+# slushy-build-source: uncalled-for==0.4.2
 # slushy-build-source: urllib3==2.8.0
 # slushy-build-source: uv-build==0.11.7
 # slushy-build-source: uv-dynamic-versioning==0.14.1
 # slushy-build-source: uvicorn==0.54.0
 # slushy-build-source: vcs-versioning==2.6.0
 # slushy-build-source: watchfiles==1.3.0
-# slushy-build-source: websockets==17.3
+# slushy-build-source: websockets==17.4
 calver
 cffi>=2.0.0
 coherent-licensed
-cython==3.3.0
+cython
 flit-core<4,>=3.11,~=3.5
 flit-scm
-hatch-fancy-pypi-readme>=23.2.0
+hatch-fancy-pypi-readme>=25.1
 hatch-vcs<0.6.0,>=0.5
 hatchling<2,>=1.29
 maturin<2,>=1.15.0
