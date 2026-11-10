@@ -30,8 +30,7 @@ the token itself:
 
 `cache-mode` can be set for the whole workflow or for a single job, and a job-level value wins. If
 it's left out, trusted triggers get `write` and low-trust triggers (`pull_request_target`,
-`workflow_run`, `issue_comment`, ...) get `read`. The runner exposes the effective mode as
-`ACTIONS_CACHE_MODE`.
+`workflow_run`, `issue_comment`, ...) get `read`.
 
 ### Rule 1: unreviewed code gets a read-only token and a read-only cache
 
@@ -57,10 +56,6 @@ A workflow running such a job:
    third-party code (see [Other rules](#other-rules)).
 2. Passes `save-cache: false` to setup-uv. This isn't a security control, but it stops setup-uv
    from trying a save the token won't allow.
-
-Note: `make requirements-lock` will fail in GitHub Actions unless `ACTIONS_CACHE_MODE` is `read`
-or `none`. This is because the sdist-building is hidden, and a new workflow that calls the target
-could accidentally open a hole.
 
 ### Rule 2: anything that publishes, deploys or holds credentials gets `cache-mode: none`
 
