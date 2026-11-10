@@ -272,6 +272,11 @@ async def _execute_script(details: ScriptDetails) -> tuple[int, str | bytes, str
     return await execute_command(command, host=details.host, description=description)
 
 
+def _format_script_failure(returncode: int, stdout: str | bytes, stderr: str | bytes) -> str:
+    output = stdout if isinstance(stdout, str) else stdout.decode("utf-8", errors="replace")
+    return f"Error executing script: return code {returncode}, stderr: {stderr}\nstdout:\n{output}"
+
+
 @dataclass
 class ExecuteScriptResult:
     state: t.Literal["success", "failure"]
@@ -304,7 +309,7 @@ async def execute_script(
     else:
         script_store.set_script_state(id, "failure")
 
-        output = f"Error executing script: return code {returncode}, stderr: {stderr}"
+        output = _format_script_failure(returncode, stdout, stderr)
         result = ExecuteScriptResult("failure", output)
 
     return ToolResult(content=output, structured_content=asdict(result))
@@ -489,7 +494,7 @@ async def run_script(
         return stdout if isinstance(stdout, str) else stdout.decode("utf-8", errors="replace")
     else:
         script_store.set_script_state(token, "failure")
-        return f"Error executing script: return code {returncode}, stderr: {stderr}"
+        return _format_script_failure(returncode, stdout, stderr)
 
 
 @mcp.tool(
@@ -569,4 +574,4 @@ async def run_script_with_confirmation(
     else:
         if not details_changed:
             script_store.set_script_state(token, "failure")
-        return f"Error executing script: return code {returncode}, stderr: {stderr}"
+        return _format_script_failure(returncode, stdout, stderr)
