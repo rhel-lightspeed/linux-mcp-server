@@ -46,21 +46,25 @@ ENV HOME=/var/lib/mcp
 # Application configuration
 ENV LINUX_MCP_SEARCH_FOR_SSH_KEY=True
 
-LABEL com.redhat.component=linux-mcp-server
-LABEL cpe="cpe:2.3:a:redhat:linux_mcp_server:-:*:*:*:*:*:*:*"
-LABEL description="MCP Server for inspecting Linux"
-LABEL distribution-scope=private
-LABEL io.k8s.description="MCP Server for inspecting Linux"
-LABEL io.k8s.display-name="Linux MCP Server"
+ARG DESCRIPTION="By using the Model Context Protocol (MCP) server for RHEL, \
+you can enable LLMs to act as system administrators, capable of discovering and \
+troubleshooting complex issues across your infrastructure"
+
+LABEL com.redhat.component=rhel10/mcp-server-for-rhel
+LABEL com.redhat.license_terms="https://www.redhat.com/en/about/red-hat-end-user-license-agreements#rhel"
+LABEL cpe="cpe:/o:redhat:enterprise_linux:10.3"
+LABEL description="${DESCRIPTION}"
+LABEL distribution-scope=restricted
+LABEL io.k8s.description="${DESCRIPTION}"
+LABEL io.k8s.display-name="MCP Server for RHEL"
 LABEL io.openshift.tags="rhel,mcp,linux"
-LABEL konflux.additional-tags=${VERSION}
-LABEL name=linux-mcp-server
-LABEL org.opencontainers.image.created=${SOURCE_DATE_EPOCH}
-LABEL release=${PSEUDO_VERSION}
-LABEL summary="Linux MCP Server"
+LABEL konflux.additional-tags="${VERSION}"
+LABEL name=rhel10/mcp-server-for-rhel
+LABEL release=1
+LABEL summary="MCP Server for RHEL"
 LABEL url="https://github.com/rhel-lightspeed/linux-mcp-server"
 LABEL vendor="Red Hat, Inc."
-LABEL version=${VERSION}
+LABEL version="${VERSION}"
 
 ADD licenses/ /licenses/
 ADD LICENSE /licenses/Apache-2.0.txt
