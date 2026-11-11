@@ -20,7 +20,7 @@ metadata:
     pipelines.appstudio.openshift.io/type: build
 
   namespace: rhel-lightspeed-tenant
-  name: linux-mcp-server-pr
+  name: linux-mcp-server-1-8-pr
 
 spec:
   params:
