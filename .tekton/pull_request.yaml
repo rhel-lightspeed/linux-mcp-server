@@ -49,6 +49,11 @@ spec:
     - name: prefetch-input
       value: '[{"type": "pip", "path": ".", "requirements_files": [".konflux/requirements.txt"], "requirements_build_files": [".konflux/requirements-build.txt", ".konflux/requirements-build-1.txt"]}, {"type": "rpm", "path": "."}]'
 
+    # This has no real value, but allows us to test our pull request builds against
+    # the same Conforma policy that applies to releases.
+    - name: build-source-image
+      value: "true"
+
     - name: image-expires-after
       value: 5d
 
