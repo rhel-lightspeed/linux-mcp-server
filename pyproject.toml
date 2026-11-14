@@ -245,4 +245,5 @@ slushy-build = { git = "https://github.com/owtaylor/slushy-build" }
 # entry stops mattering once the fixed release is older than the global
 # cooldown above, so stale entries are harmless.
 [tool.uv.exclude-newer-package]
+dnspython = "0 days"
 pyasn1 = "0 days"
