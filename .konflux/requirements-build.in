@@ -17,7 +17,7 @@
 # slushy-build-source: cryptography==50.0.2
 # slushy-build-source: cyclopts==5.2.0
 # slushy-build-source: decorator==5.3.1
-# slushy-build-source: dnspython==2.9.0
+# slushy-build-source: dnspython==2.9.2
 # slushy-build-source: docstring-parser==0.18.0
 # slushy-build-source: dunamai==1.26.3
 # slushy-build-source: exceptiongroup==1.3.1
