@@ -333,10 +333,7 @@ further effect once the fixed release is older than that window."""
 
 {advisory_list}
 
-{package} {old_version} -> {new_version}
-
-Renovate's pep621 manager only tracks direct dependencies, so these updates are
-filed by the daily security-updates workflow rather than by Renovate.{waiver}
+{package} {old_version} -> {new_version}{waiver}
 """
     print(f"{subject}\n\n{body}", end="")
     return 0
