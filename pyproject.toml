@@ -241,8 +241,9 @@ exclude-newer = "7 days"
 slushy-build = { git = "https://github.com/owtaylor/slushy-build" }
 
 # Packages whose `exclude-newer` cooldown has been waived to land a security
-# fix immediately. Maintained by .github/workflows/security-updates.yml; an
-# entry stops mattering once the fixed release is older than the global
-# cooldown above, so stale entries are harmless.
+# fix immediately. Maintained by .github/workflows/security-updates.yml, which
+# adds an entry when the fixed release is too new to be locked without one; an
+# entry stops mattering once that release is older than the global cooldown
+# above, so stale entries are harmless.
 [tool.uv.exclude-newer-package]
 pyasn1 = "0 days"

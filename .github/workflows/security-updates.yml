@@ -240,33 +240,48 @@ jobs:
           name: security-updates
           path: ${{ runner.temp }}/updates
 
-      # pyproject.toml sets a global `exclude-newer` cooldown, which would
-      # otherwise hide a fix published inside that window -- exactly the
-      # releases this workflow is chasing. A per-package waiver has to live in
-      # pyproject.toml rather than on the command line: passing
-      # --exclude-newer-package makes the result fail `uv lock --check`, and
-      # every other workflow installs with --locked.
-      - name: Waive the cooldown
-        run: python3 "$TOOL" bypass-cooldown --package "$PACKAGE"
-
+      # pyproject.toml sets a global `exclude-newer` cooldown, which hides a
+      # fix published inside that window -- often exactly the release this
+      # workflow is chasing. To minimize conflicts and avoid waivers that must
+      # be manually removed, upgrade within the cooldown first, and waive it
+      # for the package only if that leaves the advisories unresolved.
+      #
+      # A per-package waiver has to live in pyproject.toml rather than on the
+      # command line: passing --exclude-newer-package makes the result fail
+      # `uv lock --check`, and every other workflow installs with --locked.
       - name: Update the lock file
-        run: uv lock --upgrade-package "$PACKAGE"
-
-      - name: Re-audit uv.lock
+        id: update
+        env:
+          AUDIT: ${{ runner.temp }}/audit-after.json
         run: |
-          set +e
-          uv audit --frozen --preview-features audit-command,json-output \
-            --output-format=json > "$RUNNER_TEMP/audit-after.json"
-          status=$?
-          set -e
-          if [ "$status" -gt 1 ]; then
-            echo "::error::uv audit failed (exit $status)"
-            exit "$status"
+          set -euo pipefail
+
+          upgrade_and_audit() {
+            uv lock --upgrade-package "$PACKAGE"
+            status=0
+            uv audit --frozen --preview-features audit-command,json-output \
+              --output-format=json > "$AUDIT" || status=$?
+            # Exit 1 means vulnerabilities remain, which the checks below
+            # handle; anything above that is a real failure.
+            if [ "$status" -gt 1 ]; then
+              echo "::error::uv audit failed (exit $status)"
+              exit "$status"
+            fi
+          }
+
+          upgrade_and_audit
+          if python3 "$TOOL" verify --quiet --package "$PACKAGE" --audit "$AUDIT"; then
+            echo "The fix for $PACKAGE is outside the exclude-newer cooldown; no waiver needed."
+            echo "cooldown-waived=false" >> "$GITHUB_OUTPUT"
+          else
+            python3 "$TOOL" bypass-cooldown --package "$PACKAGE"
+            upgrade_and_audit
+            echo "cooldown-waived=true" >> "$GITHUB_OUTPUT"
           fi
 
-      # Fails when the upgrade did not actually clear the advisory, which in
-      # practice means a cap in pyproject.toml is holding the package below the
-      # fixed version. Better to fail the run than to open a PR labelled
+      # Fails when the upgrade did not actually clear the advisory even with
+      # the cooldown waived, which in practice means a cap in pyproject.toml is
+      # holding the package below the fixed version. Better to fail the run than to open a PR labelled
       # `security` that fixes nothing. On a stable branch that cap may be
       # deliberate, in which case the fix has to be backported by hand.
       - name: Verify the advisories are resolved
@@ -278,10 +293,16 @@ jobs:
       - name: Commit the update
         env:
           UPDATES: ${{ runner.temp }}/updates/security-updates.json
+          COOLDOWN_WAIVED: ${{ steps.update.outputs.cooldown-waived }}
         run: |
+          set -euo pipefail
           git config user.name "linux-mcp-server-audit-bot[bot]"
           git config user.email "346423574+linux-mcp-server-audit-bot[bot]@users.noreply.github.com"
-          python3 "$TOOL" commit-message \
+          waiver=()
+          if [ "$COOLDOWN_WAIVED" = true ]; then
+            waiver=(--cooldown-waived)
+          fi
+          python3 "$TOOL" commit-message "${waiver[@]}" \
             --package "$PACKAGE" --branch "$BRANCH" --updates "$UPDATES" > "$RUNNER_TEMP/message.txt"
           # Stage only the paths this job owns, so nothing uv or slushy-build
           # leaves behind can ride along; staging rather than plain `git diff`
