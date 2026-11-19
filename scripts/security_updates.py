@@ -13,8 +13,9 @@ audit is per branch, and so is everything downstream of it.
 Subcommands, in the order the workflow calls them:
 
     select           group each branch's `uv audit` JSON into one update per vulnerable package
-    bypass-cooldown  waive the `exclude-newer` cooldown for one package
     verify           assert a package is no longer reported as vulnerable
+    bypass-cooldown  waive the `exclude-newer` cooldown for one package, when
+                     `verify --quiet` shows the upgrade could not reach the fix without it
     commit-message   render the Conventional Commit for one package's update
 """
 
@@ -33,9 +34,10 @@ ZERO_COOLDOWN = "0 days"
 COOLDOWN_SECTION = "[tool.uv.exclude-newer-package]"
 COOLDOWN_SECTION_HEADER = f"""
 # Packages whose `exclude-newer` cooldown has been waived to land a security
-# fix immediately. Maintained by .github/workflows/security-updates.yml; an
-# entry stops mattering once the fixed release is older than the global
-# cooldown above, so stale entries are harmless.
+# fix immediately. Maintained by .github/workflows/security-updates.yml, which
+# adds an entry when the fixed release is too new to be locked without one; an
+# entry stops mattering once that release is older than the global cooldown
+# above, so stale entries are harmless.
 {COOLDOWN_SECTION}
 """
 BARE_KEY = re.compile(r"^[A-Za-z0-9_-]+$")
@@ -257,6 +259,12 @@ def cmd_verify(args: argparse.Namespace) -> int:
         return 0
 
     ids = ", ".join(sorted({v["id"] for v in remaining}))
+    if args.quiet:
+        # The workflow's first, cooldown-respecting attempt: failing here just
+        # means it goes on to waive the cooldown and try again.
+        print(f"{args.package} is still vulnerable ({ids}).")
+        return 1
+
     fixes = sorted({f for v in remaining for f in v.get("fix_versions", [])})
     print(
         f"::error::{args.package} is still vulnerable ({ids}) after upgrading it. "
@@ -311,6 +319,15 @@ def cmd_commit_message(args: argparse.Namespace) -> int:
             details.append(f"  {advisory['link']}")
 
     advisory_list = "\n".join(details)
+    waiver = (
+        f"""
+
+The `{COOLDOWN_SECTION}` entry waives the {global_cooldown(args.pyproject)}
+cooldown for {package}: the fix is too new to be locked without it. It has no
+further effect once the fixed release is older than that window."""
+        if args.cooldown_waived
+        else ""
+    )
     body = f"""\
 `uv audit` reports the following against {package} {old_version} in uv.lock:
 
@@ -319,11 +336,7 @@ def cmd_commit_message(args: argparse.Namespace) -> int:
 {package} {old_version} -> {new_version}
 
 Renovate's pep621 manager only tracks direct dependencies, so these updates are
-filed by the daily security-updates workflow rather than by Renovate.
-
-The `{COOLDOWN_SECTION}` entry waives the {global_cooldown(args.pyproject)}
-cooldown for {package} so the fix can be locked without waiting it out. It has
-no further effect once the fixed release is older than that window.
+filed by the daily security-updates workflow rather than by Renovate.{waiver}
 """
     print(f"{subject}\n\n{body}", end="")
     return 0
@@ -352,6 +365,11 @@ def main() -> int:
     verify = subparsers.add_parser("verify", help="assert a package is no longer reported as vulnerable")
     verify.add_argument("--package", required=True)
     verify.add_argument("--audit", type=Path, required=True, help="a fresh audit, taken after the lock file update")
+    verify.add_argument(
+        "--quiet",
+        action="store_true",
+        help="report a remaining vulnerability by exit status alone, without a GitHub error annotation",
+    )
     verify.set_defaults(func=cmd_verify)
 
     message = subparsers.add_parser("commit-message", help="render the commit message for one package's update")
@@ -360,6 +378,11 @@ def main() -> int:
     message.add_argument("--updates", type=Path, required=True, help="the JSON written by `select`")
     message.add_argument("--lock", type=Path, default=Path("uv.lock"))
     message.add_argument("--pyproject", type=Path, default=Path("pyproject.toml"))
+    message.add_argument(
+        "--cooldown-waived",
+        action="store_true",
+        help="the update needed a new cooldown waiver in pyproject.toml; explain it",
+    )
     message.set_defaults(func=cmd_commit_message)
 
     args = parser.parse_args()
