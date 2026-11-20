@@ -35,7 +35,7 @@ spec:
       value: '{{ revision }}'
 
     - name: output-image
-      value: quay.io/redhat-user-workloads/rhel-lightspeed-tenant/linux-mcp-server:pr-{{ pull_request_number }}-latest
+      value: quay.io/redhat-user-workloads/rhel-lightspeed-tenant/linux-mcp-server:on-pr-{{ revision }}
 
     - name: dockerfile
       value: /Containerfile
@@ -56,9 +56,6 @@ spec:
 
     - name: image-expires-after
       value: 5d
-
-    - name: tag-prefix
-      value: pr-{{ pull_request_number }}-
 
   pipelineRef:
     name: pipeline-build-multiarch

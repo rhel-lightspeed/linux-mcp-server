@@ -58,7 +58,6 @@ LABEL distribution-scope=restricted
 LABEL io.k8s.description="${DESCRIPTION}"
 LABEL io.k8s.display-name="MCP Server for RHEL"
 LABEL io.openshift.tags="rhel,mcp,linux"
-LABEL konflux.additional-tags="${VERSION}"
 LABEL name=rhel10/mcp-server-for-rhel
 LABEL release=1
 LABEL summary="MCP Server for RHEL"
