@@ -53,10 +53,6 @@ spec:
     - name: build-source-image
       value: "true"
 
-    - name: additional-tags
-      value:
-        - latest
-
   pipelineRef:
     name: pipeline-build-multiarch
 

@@ -53,7 +53,6 @@ LABEL distribution-scope=private
 LABEL io.k8s.description="MCP Server for inspecting Linux"
 LABEL io.k8s.display-name="Linux MCP Server"
 LABEL io.openshift.tags="rhel,mcp,linux"
-LABEL konflux.additional-tags=${VERSION}
 LABEL name=linux-mcp-server
 LABEL org.opencontainers.image.created=${SOURCE_DATE_EPOCH}
 LABEL release=${PSEUDO_VERSION}
