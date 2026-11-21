@@ -27,6 +27,9 @@ from linux_mcp_server.execution_context import use_execution_context
 from linux_mcp_server.gatekeeper import GatekeeperResult
 from linux_mcp_server.gatekeeper import GatekeeperStatus
 from linux_mcp_server.gatekeeper.llm import GatekeeperCompletion
+from linux_mcp_server.redaction.engine import RedactionEngine
+from linux_mcp_server.redaction.models import RedactionRule
+from linux_mcp_server.redaction.models import RedactionRulesConfig
 from linux_mcp_server.tools.run_script import _wrap_script
 from linux_mcp_server.tools.run_script import BASH_STRICT_PREAMBLE
 from linux_mcp_server.tools.run_script import SCRIPT_TYPE_BASH
@@ -1024,3 +1027,87 @@ async def test_initial_and_repeat_validation_audit(client, script_store_fresh, m
     assert records[1].call_id != records[4].call_id
     assert all(r.status == "OK" and r.explanation == "Allowed" for r in (records[1], records[4]))
     assert all(r.host == "localhost" for r in records)
+
+
+@pytest.mark.parametrize("tool_name", ["run_script", "run_script_with_confirmation", "execute_script"])
+@pytest.mark.parametrize("returncode", [0, 1], ids=["success", "failure"])
+@pytest.mark.parametrize(
+    "stdout,stderr,expected_stdout,expected_stderr",
+    [
+        pytest.param(
+            "step 1 SECRET_STDOUT123\nstep 2\n",
+            "diagnostic SECRET_STDERR123\n",
+            "step 1 [REDACTED:custom:fixture]\nstep 2\n",
+            "diagnostic [REDACTED:custom:fixture]\n",
+            id="text",
+        ),
+        pytest.param(
+            b"step 1 SECRET_STDOUT123\nstep 2\n",
+            b"diagnostic SECRET_STDERR123\n",
+            "step 1 [REDACTED:custom:fixture]\nstep 2\n",
+            "b'diagnostic [REDACTED:custom:fixture]\\n'",
+            id="bytes",
+        ),
+        pytest.param(b"progress \xff\n", b"error", "progress \ufffd\n", "b'error'", id="invalid-utf8"),
+        pytest.param("", "error", "", "error", id="empty-stdout"),
+        pytest.param("progress", "", "progress", "", id="empty-stderr"),
+        pytest.param("", "", "", "", id="empty-text-streams"),
+        pytest.param(b"", b"", "", "b''", id="empty-byte-streams"),
+    ],
+)
+async def test_execution_output_preserves_streams_through_mcp(
+    setup_client,
+    script_store_fresh,
+    patch_execute_command,
+    patch_check_run_script,
+    mocker,
+    tool_name,
+    returncode,
+    stdout,
+    stderr,
+    expected_stdout,
+    expected_stderr,
+):
+    """Failures retain both redacted streams; success retains only stdout."""
+    engine = RedactionEngine(
+        RedactionRulesConfig(
+            version=1,
+            disable_rules=["builtin:*"],
+            rules=[RedactionRule(name="fixture", description="Synthetic fixture secret", match="SECRET_[A-Z0-9]+")],
+        )
+    )
+    mocker.patch("linux_mcp_server.server.redaction_engine", engine)
+    patch_check_run_script.return_value = _ok()
+    patch_execute_command.return_value = (returncode, stdout, stderr)
+    client = await setup_client(toolset=Toolset.RUN_SCRIPT, mcp_apps=tool_name == "execute_script")
+    arguments = {
+        "description": "Report progress",
+        "script_type": "bash",
+        "script": "echo progress",
+        "readonly": tool_name == "run_script",
+        "host": "localhost",
+    }
+    validation = await client.call_tool("validate_script", arguments)
+    token = validation.structured_content["token"]
+    assert validation.structured_content["needs_confirmation"] == (tool_name != "run_script")
+    if tool_name == "execute_script":
+        approval = await client.call_tool("run_script_interactive", {**arguments, "token": token})
+        result = await client.call_tool("execute_script", {"id": approval.structured_content["id"]})
+    elif tool_name == "run_script":
+        result = await client.call_tool(tool_name, {"token": token})
+    else:
+        result = await client.call_tool(tool_name, {**arguments, "token": token})
+
+    state = "failure" if returncode else "success"
+    assert script_store_fresh.get_script_details(token).state == state
+    assert not result.is_error
+    expected_output = expected_stdout
+    if returncode:
+        expected_output = (
+            f"Error executing script: return code 1, stderr: {expected_stderr}\nstdout:\n{expected_stdout}"
+        )
+    assert result.content[0].text == expected_output
+    if tool_name == "execute_script":
+        assert result.structured_content == {"state": state, "output": expected_output}
+    else:
+        assert result.structured_content == {"result": expected_output}
