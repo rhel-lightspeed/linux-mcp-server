@@ -151,9 +151,9 @@ cython==3.3.1 \
     --hash=sha256:fcb6c86dddaedd1da5d77ba2469c1a4bea52442e02d8f0653ff78667fbaaa8d9 \
     --hash=sha256:fd81cfc6e94c43c5c0fe50439c11b90dc89cc6b323f92b37edc6a951d0a619d7
     # via -r .konflux/requirements-build.in
-dunamai==1.26.3 \
-    --hash=sha256:cc486963f21ad5b5b20d95424909ff5029990241eea3e2272865e1542c5fd19f \
-    --hash=sha256:fe2f732186710ee5048044fdbef6c76c6afbb9ee7de4f6d00cf34256e9ec2e7f
+dunamai==1.26.5 \
+    --hash=sha256:91099127a6a16dbcb08c941d5a07879d8b24eb2096368dc37750e681573eedc4 \
+    --hash=sha256:b1435d8d2b0aceef240cde8e8f6ba910e85b1aa0e22fa9e21454d2d22fb0a89c
     # via uv-dynamic-versioning
 flit-core==3.12.0 \
     --hash=sha256:18f63100d6f94385c6ed57a72073443e1a71a4acb4339491615d0f16d6ff01b2 \
