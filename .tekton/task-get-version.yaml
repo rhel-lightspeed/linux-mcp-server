@@ -35,7 +35,7 @@ spec:
         - $(params.source_artifact)=/var/workdir/source
 
     - name: determine-image-tag
-      image: registry.redhat.io/ubi10/s2i-base:latest@sha256:9a7e25a30ee7d6fb4902ca2ae5784492d464e5a27183ecbf9fa421011d897cc9
+      image: registry.redhat.io/ubi10/s2i-base:latest@sha256:82bd789e8113b730df13cdcd43332bb497eee865dc7f95227a20353f30b9f5fd
       workingDir: /var/workdir/source
       script: |
         #!/usr/bin/env bash
