@@ -12,8 +12,7 @@ spec:
 
     LOCAL MODIFICATIONS FOR LINUX-MCP-SERVER:
 
-      - Add additional-tags and tag-prefix parameters
-      - Add fetchTags and depth paremeters to clone-repository
+      - Add fetchTags and depth parameters to clone-repository
       - Add get-version task
       - Add ARGS parameters to sast-snyk-check
 
@@ -118,16 +117,6 @@ spec:
     default: "false"
     description: When "true", omit the build history (history timestamps, layer metadata, etc.) from the resulting image.
     type: string
-
-  - name: tag-prefix
-    description: Prefix added to additional tags
-    type: string
-    default: ""
-
-  - name: additional-tags
-    description: Additional tags to apply to the image
-    type: array
-    default: []
 
   - name: build-platforms
     description: List of platforms to build the container images on. The available set of values is determined by the configuration of the multi-platform-controller.
@@ -653,11 +642,6 @@ spec:
 
     - name: IMAGE_DIGEST
       value: $(tasks.build-image-index.results.IMAGE_DIGEST)
-
-    - name: ADDITIONAL_TAGS
-      value:
-      - $(params.additional-tags[*])
-      - $(params.tag-prefix)$(tasks.clone-repository.results.short-commit)
 
     runAfter:
     - build-image-index
