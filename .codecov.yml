@@ -1,10 +1,10 @@
 codecov:
   notify:
-    after_n_builds: 6
+    # ci.yml's `coverage` job sends every Python version's report in a single upload.
+    after_n_builds: 1
     wait_for_ci: false
 
   require_ci_to_pass: false
-  token: 74bc381b-9c5f-44c1-9efa-af57d5f3fe50 # notsecret  # repo-scoped, upload-only, stability in fork PRs
 
 coverage:
   range: 40..100
