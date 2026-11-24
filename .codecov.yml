@@ -4,7 +4,7 @@ codecov:
     wait_for_ci: false
 
   require_ci_to_pass: false
-  token: 74bc381b-9c5f-44c1-9efa-af57d5f3fe50 # notsecret  # repo-scoped, upload-only, stability in fork PRs
+  token: 684c0bbe-e2c9-442e-9035-03d578ce4ea3 # notsecret  # repo-scoped, upload-only, stability in fork PRs
 
 coverage:
   range: 40..100
