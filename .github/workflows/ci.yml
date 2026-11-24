@@ -113,11 +113,69 @@ jobs:
       - name: Run tests
         run: uv run --locked pytest --cov-report=xml
 
-      - name: Upload coverage report
+      - name: Save coverage report
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: coverage-${{ matrix.python-version }}
+          path: coverage/coverage.xml
+          if-no-files-found: error
+          retention-days: 7
+
+  # Uploads the reports saved by `tests` in one upload. Kept out of `tests` so the jobs that run
+  # third-party code never hold `id-token: write`, and so they keep the cache.
+  #
+  # - Pushes (protected branches) authenticate with OIDC. There is no Codecov token anywhere.
+  # - Pull requests, including ones from this repository, upload tokenless to an "unprotected"
+  #   branch named `owner:branch`, which Codecov accepts from anyone for public repositories.
+  #
+  # Codecov checks no claim beyond `repository`, so OIDC here only keeps out fork PRs, which never
+  # get `id-token: write`. Anyone with write access can upload as any branch, whatever this job
+  # does. See "OIDC" in docs/development/ci-hardening.md.
+  coverage:
+    name: Upload coverage
+    runs-on: ubuntu-latest
+    needs: tests
+
+    # Mints an OIDC token on pushes. See docs/development/ci-hardening.md.
+    cache-mode: none
+
+    permissions:
+      contents: read
+      id-token: write
+
+    steps:
+      # Codecov uses the file list (`git ls-files`) to map report paths. Nothing here runs code from
+      # the checkout, and a pull request run holds no credential.
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Download coverage reports
+        uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          pattern: coverage-*
+          path: ${{ runner.temp }}/coverage
+
+      - name: List coverage reports
+        id: reports
+        run: |
+          files="$(find "$RUNNER_TEMP/coverage" -name coverage.xml | sort | paste -sd, -)"
+          if [ -z "$files" ]; then
+            echo "::error::No coverage reports were downloaded"
+            exit 1
+          fi
+          echo "files=$files" >> "$GITHUB_OUTPUT"
+
+      - name: Upload coverage reports
         uses: codecov/codecov-action@303a32d7a59b442fa8d48b6a1cc6825c09c847a5 # v7.1.1
         with:
-          env_vars: OS,PYTHON
+          use_oidc: ${{ github.event_name == 'push' }}
+          # `owner:branch` on pull requests, empty (detected from the push) otherwise. The action
+          # only does this by itself for fork PRs, and only fills in the PR number for them too.
+          override_branch: ${{ github.event.pull_request.head.label }}
+          override_pr: ${{ github.event.pull_request.number }}
           disable_search: true
-          files: coverage/coverage.xml
+          files: ${{ steps.reports.outputs.files }}
           fail_ci_if_error: true
           flags: unittests
